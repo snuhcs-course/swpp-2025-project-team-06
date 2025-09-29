@@ -30,11 +30,5 @@ fun Tag(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = text, fontSize = 14.sp)
-        Spacer(modifier = Modifier.width(4.dp))
-        Icon(
-            imageVector = Icons.Default.Close,
-            contentDescription = "Dismiss Tag",
-            modifier = Modifier.size(16.dp)
-        )
     }
 }

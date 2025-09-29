@@ -171,7 +171,7 @@ fun HomeScreen(navController: NavController) {
                         .padding(4.dp)
                 ) {
                     Row {
-                        Icon(Icons.Default.GridView, contentDescription = "Grid View", modifier = Modifier.clickable { only_tag = false })
+                        Icon(Icons.Default.GridView, contentDescription = "Grid View", tint = Color.Gray, modifier = Modifier.clickable { only_tag = false })
                         Icon(Icons.AutoMirrored.Filled.ViewList, contentDescription = "List View", tint = Color.Gray, modifier = Modifier.clickable { only_tag = true })
                     }
                 }
