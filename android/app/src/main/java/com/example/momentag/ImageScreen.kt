@@ -1,6 +1,13 @@
 package com.example.momentag
 
+import android.Manifest
+import androidx.exifinterface.media.ExifInterface
+import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -28,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.MomenTagTheme
+import java.io.IOException
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -36,7 +44,7 @@ fun ImageScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val imageUri = getUriFromPath(context, imagePath)
+    val imageUri: Uri? = getUriFromPath(context, imagePath)
     var tags by remember {
         mutableStateOf(
             listOf("#home", "#cozy", "#hobby", "#study", "#tool")
@@ -52,11 +60,42 @@ fun ImageScreen(
 
     val isSheetExpanded = sheetState.targetValue == SheetValue.Expanded
 
-    val imagePaddingTop by animateDpAsState(targetValue = if (isSheetExpanded) 32.dp else 50.dp, label = "paddingTop")
-    val imagePaddingHorizontal by animateDpAsState(targetValue = if (isSheetExpanded) 16.dp else 0.dp, label = "paddingHorizontal")
-    val cornerRadius by animateDpAsState(targetValue = if (isSheetExpanded) 16.dp else 0.dp, label = "cornerRadius")
     val overlappingTagsAlpha by animateFloatAsState(targetValue = if (isSheetExpanded) 0f else 1f, label = "tagsAlpha")
     val metadataAlpha by animateFloatAsState(targetValue = if (isSheetExpanded) 1f else 0f, label = "metadataAlpha")
+
+    var hasPermission by remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                hasPermission = true
+            }
+        }
+    )
+
+    LaunchedEffect(key1 = true) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val permission: String = Manifest.permission.ACCESS_MEDIA_LOCATION
+            permissionLauncher.launch(permission)
+        }
+    }
+
+    var dateTime: String? = null
+    var latLong: DoubleArray? = null
+    if(hasPermission) {
+        try {
+            if (imageUri != null) {
+                context.contentResolver.openInputStream(imageUri)?.use { inputStream ->
+                    val exifInterface = ExifInterface(inputStream)
+                    dateTime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
+                    latLong = exifInterface.latLong
+
+                }
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+    }
 
     BackHandler(enabled = isDeleteMode) {
         isDeleteMode = false
@@ -83,14 +122,14 @@ fun ImageScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
+                    containerColor = Background
                 )
             )
         },
         sheetContent = {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Text(
-                    text = "2025/09/29 Wed\nsogong-ro 25, Jung-gu, Seoul",
+                    text = "$dateTime\n(${latLong?.get(0)}, ${latLong?.get(1)})",
                     modifier = Modifier.alpha(metadataAlpha).padding(vertical = 16.dp),
                     lineHeight = 22.sp
                 )

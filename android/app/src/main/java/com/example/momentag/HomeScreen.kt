@@ -94,6 +94,7 @@ fun HomeScreen(navController: NavController) {
                 hasPermission = true
             }
         }
+
     )
 
     LaunchedEffect(key1 = true) {
