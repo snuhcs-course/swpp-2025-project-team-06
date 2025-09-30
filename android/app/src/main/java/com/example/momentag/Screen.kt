@@ -18,5 +18,12 @@ sealed class Screen(val route: String) {
             return "image_screen/$encodedUri"
         }
     }
-    object LocalAlbum : Screen("local_album_screen")
+    object LocalGallery : Screen("local_gallery_screen")
+    object LocalAlbum : Screen("local_album_screen/{id}/{name}") {
+        fun createRoute(id: Long, name: String): String {
+            val encodedId = URLEncoder.encode(id.toString(), StandardCharsets.UTF_8.toString())
+            val encodedName = URLEncoder.encode(name, StandardCharsets.UTF_8.toString())
+            return "local_album_screen/$encodedId/$encodedName"
+        }
+    }
 }

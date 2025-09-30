@@ -1,16 +1,36 @@
 package com.example.momentag
 
 import android.Manifest
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -18,8 +38,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -27,18 +50,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.momentag.ui.theme.Background
+import com.example.momentag.ui.theme.Picture
+import com.example.momentag.ui.theme.Tag
+import com.example.momentag.ui.theme.Word
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LocalAlbumScreen(
-    navController: NavController,
-    id: Long,
-    name: String,
+fun LocalGalleryScreen(
     viewModel: ViewModel = viewModel(),
+    navController: NavController,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+
     var hasPermission by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -49,11 +75,13 @@ fun LocalAlbumScreen(
             }
         }
     )
+
     if (hasPermission) {
         LaunchedEffect(Unit) {
-            viewModel.loadImagesForAlbum(context, id)
+            viewModel.loadAlbums(context)
         }
     }
+
     LaunchedEffect(key1 = true) {
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
@@ -63,7 +91,7 @@ fun LocalAlbumScreen(
         permissionLauncher.launch(permission)
     }
 
-    val imageUris by viewModel.imageUris.collectAsState()
+    val albums by viewModel.albums.collectAsState()
 
     Scaffold(
         containerColor = Background,
@@ -98,7 +126,7 @@ fun LocalAlbumScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = name,
+                text = "Albums",
                 fontSize = 28.sp,
                 fontFamily = FontFamily.Serif
             )
@@ -111,10 +139,59 @@ fun LocalAlbumScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(imageUris) { uri ->
-                    ImageGridUriItem(uri, navController)
+                items(albums) { album ->
+                    AlbumGridItem(
+                        name = album.name, id = album.id,  imageUri  = album.thumbnailUri, navController
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun AlbumGridItem(name: String, id : Long, imageUri: Uri?, navController: NavController) {
+    Box(modifier = Modifier) {
+        if(imageUri != null){
+            AsyncImage(
+                model = imageUri,
+                contentDescription = name,
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .align(Alignment.BottomCenter)
+                    .clickable {
+                        navController.navigate(Screen.LocalAlbum.createRoute(id, name))
+                    },
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Spacer(
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .aspectRatio(1f)
+                    .background(
+                        color = Picture,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .align(Alignment.BottomCenter)
+                    .clickable { /* TODO */ }
+            )
+        }
+
+        Text(
+            text = name,
+            color = Word,
+            fontSize = 12.sp,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 8.dp)
+                .background(
+                    color = Tag,
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }

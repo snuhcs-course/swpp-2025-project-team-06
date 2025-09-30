@@ -58,10 +58,30 @@ fun AppNavigation() {
         }
 
         composable(
-            route = Screen.LocalAlbum.route
+            route = Screen.LocalGallery.route
         ) {
+            LocalGalleryScreen(
+                navController = navController,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Screen.LocalAlbum.route,
+            arguments = listOf(
+                navArgument("id") { type = NavType.LongType },
+                navArgument("name") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getLong("id") ?: 0L
+            val name = backStackEntry.arguments?.getString("name") ?: ""
+
             LocalAlbumScreen(
                 navController = navController,
+                id = id,
+                name = name,
                 onNavigateBack = {
                     navController.popBackStack()
                 }

@@ -1,6 +1,7 @@
 package com.example.momentag
 
 import android.Manifest
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -128,7 +129,7 @@ fun HomeScreen(navController: NavController) {
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Serif,
                 modifier = Modifier
-                    .clickable { navController.navigate(Screen.LocalAlbum.route) }
+                    .clickable { navController.navigate(Screen.LocalGallery.route) }
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -192,7 +193,8 @@ fun HomeScreen(navController: NavController) {
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(albums) { (tag, path) ->
-                            TagGridItem(tag, path, navController)
+                            val imageUri = getUriFromPath(LocalContext.current, path)
+                            TagGridItem(tag, imageUri, navController)
                         }
                     }
                 } else {
@@ -247,10 +249,7 @@ fun HomeScreen(navController: NavController) {
 }
 
 @Composable
-fun TagGridItem(tag: String, imagePath: String, navController: NavController) {
-    val context = LocalContext.current
-
-    val imageUri = getUriFromPath(context, imagePath)
+fun TagGridItem(tag: String, imageUri: Uri?, navController: NavController) {
     Box(modifier = Modifier) {
         if(imageUri != null){
             AsyncImage(

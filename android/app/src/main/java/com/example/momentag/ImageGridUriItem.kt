@@ -17,10 +17,9 @@ import coil.compose.AsyncImage
 
 @Composable
 fun ImageGridUriItem(uri: Uri, navController: NavController) {
-    val imageUri = uri
     Box(modifier = Modifier) {
         AsyncImage(
-            model = imageUri,
+            model = uri,
             contentDescription = null,
             modifier = Modifier
                 .padding(top = 12.dp)
