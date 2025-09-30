@@ -126,7 +126,9 @@ fun HomeScreen(navController: NavController) {
                 text = "MomenTag",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif
+                fontFamily = FontFamily.Serif,
+                modifier = Modifier
+                    .clickable { navController.navigate(Screen.LocalAlbum.route) }
             )
             Spacer(modifier = Modifier.height(24.dp))
 

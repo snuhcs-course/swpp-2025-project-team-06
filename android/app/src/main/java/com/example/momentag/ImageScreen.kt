@@ -7,8 +7,6 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -29,22 +27,20 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.MomenTagTheme
 import java.io.IOException
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ImageScreen(
-    imagePath: String,
+    uri: Uri?,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val imageUri: Uri? = getUriFromPath(context, imagePath)
+    val imageUri: Uri? = uri
     var tags by remember {
         mutableStateOf(
             listOf("#home", "#cozy", "#hobby", "#study", "#tool")
@@ -225,13 +221,5 @@ fun TagsSection(
         IconButton(onClick = { /* TODO */ }, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Default.Add, "Add Tag", tint = Color.Gray)
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PicClickedScreenPreview() {
-    MomenTagTheme {
-        ImageScreen("hello", onNavigateBack = {})
     }
 }
