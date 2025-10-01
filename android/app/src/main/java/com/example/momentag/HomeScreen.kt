@@ -218,7 +218,7 @@ fun HomeScreen(navController: NavController) {
                 ) {
                     albums.forEach { pair ->
                         val (tag, path) = pair
-                        TagChip(
+                        TagX(
                             text = tag,
                             onDismiss = {
                                 albums = albums - pair
@@ -249,19 +249,19 @@ fun HomeScreen(navController: NavController) {
 }
 
 @Composable
-fun TagGridItem(tag: String, imageUri: Uri?, navController: NavController) {
+fun TagGridItem(tagName: String, imageUri: Uri?, navController: NavController) {
     Box(modifier = Modifier) {
         if(imageUri != null){
             AsyncImage(
                 model = imageUri,
-                contentDescription = tag,
+                contentDescription = tagName,
                 modifier = Modifier
                     .padding(top = 12.dp)
                     .aspectRatio(1f)
                     .clip(RoundedCornerShape(16.dp))
                     .align(Alignment.BottomCenter)
                     .clickable {
-                        navController.navigate(Screen.Album.createRoute(tag))
+                        navController.navigate(Screen.Album.createRoute(tagName))
                                },
                 contentScale = ContentScale.Crop
             )
@@ -280,7 +280,7 @@ fun TagGridItem(tag: String, imageUri: Uri?, navController: NavController) {
         }
 
         Text(
-            text = tag,
+            text = tagName,
             color = Word,
             fontSize = 12.sp,
             modifier = Modifier
@@ -296,7 +296,7 @@ fun TagGridItem(tag: String, imageUri: Uri?, navController: NavController) {
 }
 
 @Composable
-fun TagGridItem(tag: String) {
+fun TagGridItem(tagName: String) {
     Box(modifier = Modifier) {
 
         Spacer(
@@ -312,7 +312,7 @@ fun TagGridItem(tag: String) {
         )
 
         Text(
-            text = tag,
+            text = tagName,
             color = Word,
             fontSize = 12.sp,
             modifier = Modifier

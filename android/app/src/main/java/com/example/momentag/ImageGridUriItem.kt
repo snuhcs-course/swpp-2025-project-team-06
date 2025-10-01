@@ -16,10 +16,10 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 
 @Composable
-fun ImageGridUriItem(uri: Uri, navController: NavController) {
+fun ImageGridUriItem(imageUri: Uri, navController: NavController) {
     Box(modifier = Modifier) {
         AsyncImage(
-            model = uri,
+            model = imageUri,
             contentDescription = null,
             modifier = Modifier
                 .padding(top = 12.dp)
@@ -27,7 +27,7 @@ fun ImageGridUriItem(uri: Uri, navController: NavController) {
                 .clip(RoundedCornerShape(16.dp))
                 .align(Alignment.BottomCenter)
                 .clickable {
-                    navController.navigate(Screen.Image.createRoute(uri))
+                    navController.navigate(Screen.Image.createRoute(imageUri))
                 },
             contentScale = ContentScale.Crop,
         )

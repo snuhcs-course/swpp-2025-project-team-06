@@ -81,7 +81,7 @@ class ViewModel : ViewModel() {
                                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                                 imageId
                             )
-                            albums[bucketId] = Album(id = bucketId, name = bucketName, thumbnailUri = thumbnailUri)
+                            albums[bucketId] = Album(albumId = bucketId, albumName = bucketName, thumbnailUri = thumbnailUri)
                         }
                     }
                 }
@@ -91,7 +91,7 @@ class ViewModel : ViewModel() {
         }
     }
 
-    fun loadImagesForAlbum(context: Context, bucketId: Long) {
+    fun loadImagesForAlbum(context: Context, albumId: Long) {
         viewModelScope.launch {
             val imageList = withContext(Dispatchers.IO) {
                 val images = mutableListOf<Uri>()
@@ -99,7 +99,7 @@ class ViewModel : ViewModel() {
 
                 val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
 
-                val selectionArgs = arrayOf(bucketId.toString())
+                val selectionArgs = arrayOf(albumId.toString())
 
                 val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 

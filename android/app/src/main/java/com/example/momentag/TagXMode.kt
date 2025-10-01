@@ -22,7 +22,7 @@ import com.example.momentag.ui.theme.Tag
 import com.example.momentag.ui.theme.Word
 
 @Composable
-fun TagChipImage(
+fun TagXMode(
     text: String,
     isDeleteMode: Boolean,
     onDismiss: () -> Unit

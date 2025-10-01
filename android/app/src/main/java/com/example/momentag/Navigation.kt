@@ -50,7 +50,7 @@ fun AppNavigation() {
             }
 
             ImageScreen(
-                uri = decodedUri,
+                imageUri = decodedUri,
                 onNavigateBack = {
                     navController.popBackStack()
                 }
@@ -75,13 +75,13 @@ fun AppNavigation() {
                 navArgument("name") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val id = backStackEntry.arguments?.getLong("id") ?: 0L
-            val name = backStackEntry.arguments?.getString("name") ?: ""
+            val albumId = backStackEntry.arguments?.getLong("id") ?: 0L
+            val albumName = backStackEntry.arguments?.getString("name") ?: ""
 
             LocalAlbumScreen(
                 navController = navController,
-                id = id,
-                name = name,
+                albumId = albumId,
+                albumName = albumName,
                 onNavigateBack = {
                     navController.popBackStack()
                 }

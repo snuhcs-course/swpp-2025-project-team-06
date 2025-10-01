@@ -36,12 +36,11 @@ import java.io.IOException
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ImageScreen(
-    uri: Uri?,
+    imageUri: Uri?,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val imageUri: Uri? = uri
-    var tags by remember {
+    var tagSet by remember {
         mutableStateOf(
             listOf("#home", "#cozy", "#hobby", "#study", "#tool")
         )
@@ -130,7 +129,7 @@ fun ImageScreen(
                     lineHeight = 22.sp
                 )
                 TagsSection(
-                    tags = tags
+                    tagSet = tagSet
                 )
                 Spacer(modifier = Modifier.height(200.dp))
             }
@@ -168,18 +167,18 @@ fun ImageScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    tags.forEach { tag ->
+                    tagSet.forEach { tagName ->
                         Box(
                             modifier = Modifier.combinedClickable(
                                 onLongClick = { isDeleteMode = true },
                                 onClick = { /* TODO */ }
                             )
                         ){
-                            TagChipImage(
-                                text = tag,
+                            TagXMode(
+                                text = tagName,
                                 isDeleteMode = isDeleteMode,
                                 onDismiss = {
-                                    tags = tags - tag
+                                    tagSet = tagSet - tagName
                                 }
                             )
 
@@ -202,7 +201,7 @@ fun ImageScreen(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagsSection(
-    tags: List<String>,
+    tagSet: List<String>,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -211,10 +210,10 @@ fun TagsSection(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        tags.forEach { tag ->
+        tagSet.forEach { tagName ->
             Box {
                 Tag(
-                    text = tag,
+                    text = tagName,
                 )
             }
         }

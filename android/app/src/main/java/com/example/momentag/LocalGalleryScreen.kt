@@ -91,7 +91,7 @@ fun LocalGalleryScreen(
         permissionLauncher.launch(permission)
     }
 
-    val albums by viewModel.albums.collectAsState()
+    val albumSet by viewModel.albums.collectAsState()
 
     Scaffold(
         containerColor = Background,
@@ -139,9 +139,9 @@ fun LocalGalleryScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(albums) { album ->
+                items(albumSet) { album ->
                     AlbumGridItem(
-                        name = album.name, id = album.id,  imageUri  = album.thumbnailUri, navController
+                        albumName = album.albumName, albumId = album.albumId,  imageUri  = album.thumbnailUri, navController
                     )
                 }
             }
@@ -150,19 +150,19 @@ fun LocalGalleryScreen(
 }
 
 @Composable
-fun AlbumGridItem(name: String, id : Long, imageUri: Uri?, navController: NavController) {
+fun AlbumGridItem(albumName: String, albumId : Long, imageUri: Uri?, navController: NavController) {
     Box(modifier = Modifier) {
         if(imageUri != null){
             AsyncImage(
                 model = imageUri,
-                contentDescription = name,
+                contentDescription = albumName,
                 modifier = Modifier
                     .padding(top = 12.dp)
                     .aspectRatio(1f)
                     .clip(RoundedCornerShape(16.dp))
                     .align(Alignment.BottomCenter)
                     .clickable {
-                        navController.navigate(Screen.LocalAlbum.createRoute(id, name))
+                        navController.navigate(Screen.LocalAlbum.createRoute(albumId, albumName))
                     },
                 contentScale = ContentScale.Crop
             )
@@ -181,7 +181,7 @@ fun AlbumGridItem(name: String, id : Long, imageUri: Uri?, navController: NavCon
         }
 
         Text(
-            text = name,
+            text = albumName,
             color = Word,
             fontSize = 12.sp,
             modifier = Modifier

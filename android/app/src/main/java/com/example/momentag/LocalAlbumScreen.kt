@@ -33,8 +33,8 @@ import com.example.momentag.ui.theme.Background
 @Composable
 fun LocalAlbumScreen(
     navController: NavController,
-    id: Long,
-    name: String,
+    albumId: Long,
+    albumName: String,
     viewModel: ViewModel = viewModel(),
     onNavigateBack: () -> Unit
 ) {
@@ -51,7 +51,7 @@ fun LocalAlbumScreen(
     )
     if (hasPermission) {
         LaunchedEffect(Unit) {
-            viewModel.loadImagesForAlbum(context, id)
+            viewModel.loadImagesForAlbum(context, albumId)
         }
     }
     LaunchedEffect(key1 = true) {
@@ -98,7 +98,7 @@ fun LocalAlbumScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = name,
+                text = albumName,
                 fontSize = 28.sp,
                 fontFamily = FontFamily.Serif
             )
@@ -111,8 +111,8 @@ fun LocalAlbumScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(imageUris) { uri ->
-                    ImageGridUriItem(uri, navController)
+                items(imageUris) { imageUri ->
+                    ImageGridUriItem(imageUri, navController)
                 }
             }
         }

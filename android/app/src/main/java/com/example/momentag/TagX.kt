@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.example.momentag.ui.theme.Tag
 
 @Composable
-fun TagChip(
+fun TagX(
     text: String,
     onDismiss: () -> Unit
 ) {
