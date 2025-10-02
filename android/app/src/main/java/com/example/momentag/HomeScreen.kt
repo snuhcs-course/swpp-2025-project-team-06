@@ -37,6 +37,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +52,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.ui.theme.Background
@@ -64,26 +66,32 @@ import com.example.momentag.ui.theme.Word
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(navController: NavController) {
+    val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
-    var albums by remember {
+    val viewModel: ViewModel = viewModel()
+    val imageUris by viewModel.imageUris.collectAsState()
+
+    var tags by remember {
         mutableStateOf(
             listOf(
-                "#home" to "/storage/emulated/0/Download/Quick Share/20250920_173818.jpg",
-                "#cozy" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (4).png",
-                "#hobby" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (21).png",
-                "#study" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (6).png",
-                "#tool" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (22).png",
-                "#food" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (8).png",
-                "#dream" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (23).png",
-                "#travel" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker.png",
-                "#nature" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (13).png",
-                "#animal" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (11).png",
-                "#fashion" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (16).png",
-                "#sport" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (5).png",
-                "#work" to "/storage/emulated/0/Download/KakaoTalk/fox_all/fox1/sticker (17).png"
+                "#home",
+                "#cozy",
+                "#hobby",
+                "#study",
+                "#tool",
+                "#food",
+                "#dream",
+                "#travel",
+                "#nature",
+                "#animal",
+                "#fashion",
+                "#sport",
+                "#work"
             )
         )
     }
+
+    var imageTagPairs = imageUris.take(13).zip(tags)
 
 
     var only_tag by remember { mutableStateOf(false) }
@@ -97,6 +105,12 @@ fun HomeScreen(navController: NavController) {
         }
 
     )
+
+    if (hasPermission) {
+        LaunchedEffect(Unit) {
+            viewModel.loadImages(context)
+        }
+    }
 
     LaunchedEffect(key1 = true) {
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -192,9 +206,8 @@ fun HomeScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(albums) { (tag, path) ->
-                            val imageUri = getUriFromPath(LocalContext.current, path)
-                            TagGridItem(tag, imageUri, navController)
+                        items(imageTagPairs) { (uris, tag) ->
+                            TagGridItem(tag, uris, navController)
                         }
                     }
                 } else {
@@ -204,7 +217,7 @@ fun HomeScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(albums) { (tag, path) ->
+                        items(imageTagPairs) { (uris, tag) ->
                             TagGridItem(tag)
                         }
                     }
@@ -216,12 +229,12 @@ fun HomeScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    albums.forEach { pair ->
-                        val (tag, path) = pair
+                    imageTagPairs.forEach { pair ->
+                        val (uris, tag) = pair
                         TagX(
                             text = tag,
                             onDismiss = {
-                                albums = albums - pair
+                                imageTagPairs = imageTagPairs - pair
                             }
                         )
                     }
