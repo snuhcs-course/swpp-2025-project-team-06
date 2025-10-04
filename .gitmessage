@@ -1,0 +1,23 @@
+# Subject line (keep under 50 characters)
+<type>(<scope>): <subject>
+
+# Optional body (wrap at 72 characters)
+# <body>
+
+# Optional footer (for breaking changes or issue references)
+# <footer>
+
+# Conventional Commit Types:
+#
+# Choose a type from the list below.
+#
+# feat:     A new feature for the user.
+# fix:      A bug fix for the user.
+# docs:     Changes to documentation only.
+# style:    Formatting changes, missing semi-colons, etc. (no production code change).
+# refactor: Refactoring production code, e.g., renaming a variable.
+# test:     Adding missing tests, refactoring tests (no production code change).
+# build:    Changes that affect the build system or external dependencies (e.g., gulp, npm).
+# ci:       Changes to our CI configuration files and scripts (e.g., Travis, Circle).
+# chore:    Other changes that don't modify src or test files (e.g., updating .gitignore).
+# perf:     A code change that improves performance.
