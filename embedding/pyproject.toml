@@ -7,5 +7,7 @@ requires-python = ">=3.9"
 dependencies = [
     "fastapi>=0.118.0",
     "pillow>=11.3.0",
+    "qdrant-client>=1.15.1",
+    "requests>=2.32.5",
     "sentence-transformers>=5.1.1",
 ]
