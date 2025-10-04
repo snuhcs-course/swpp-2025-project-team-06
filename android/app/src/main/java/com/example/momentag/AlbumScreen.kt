@@ -33,6 +33,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Picture
+import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,8 +46,8 @@ fun AlbumScreen(
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
-    val viewModel: ViewModel = viewModel()
-    val imageUris by viewModel.imageUris.collectAsState()
+    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
+    val imageUris by localViewModel.image.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -58,7 +61,7 @@ fun AlbumScreen(
 
     if (hasPermission) {
         LaunchedEffect(Unit) {
-            viewModel.loadImages(context)
+            localViewModel.getImages()
         }
     }
 

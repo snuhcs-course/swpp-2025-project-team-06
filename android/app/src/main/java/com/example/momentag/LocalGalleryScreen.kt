@@ -10,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +21,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -55,16 +53,18 @@ import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Tag
 import com.example.momentag.ui.theme.Word
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocalGalleryScreen(
-    viewModel: ViewModel = viewModel(),
     navController: NavController,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-
+    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
     var hasPermission by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -78,7 +78,7 @@ fun LocalGalleryScreen(
 
     if (hasPermission) {
         LaunchedEffect(Unit) {
-            viewModel.loadAlbums(context)
+            localViewModel.getAlbums()
         }
     }
 
@@ -91,7 +91,7 @@ fun LocalGalleryScreen(
         permissionLauncher.launch(permission)
     }
 
-    val albumSet by viewModel.albums.collectAsState()
+    val albumSet by localViewModel.albums.collectAsState()
 
     Scaffold(
         containerColor = Background,

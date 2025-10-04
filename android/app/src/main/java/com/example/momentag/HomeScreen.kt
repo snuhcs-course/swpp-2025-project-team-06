@@ -62,15 +62,23 @@ import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Tag
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.momentag.viewmodel.ServerViewModel
+import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
+import com.example.momentag.model.Tag
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
-    val viewModel: ViewModel = viewModel()
-    val imageUris by viewModel.imageUris.collectAsState()
 
+    /*
+    * TODO: USE ServerViewModel
+     */
+    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
+    val imageUris by localViewModel.image.collectAsState()
     var tags by remember {
         mutableStateOf(
             listOf(
@@ -90,10 +98,8 @@ fun HomeScreen(navController: NavController) {
             )
         )
     }
-
     var imageTagPairs = imageUris.take(13).zip(tags)
-
-
+    
     var only_tag by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -108,7 +114,7 @@ fun HomeScreen(navController: NavController) {
 
     if (hasPermission) {
         LaunchedEffect(Unit) {
-            viewModel.loadImages(context)
+            localViewModel.getImages()
         }
     }
 
@@ -261,6 +267,10 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
+
+/*
+* TODO : change code with imageUrl
+ */
 @Composable
 fun TagGridItem(tagName: String, imageUri: Uri?, navController: NavController) {
     Box(modifier = Modifier) {

@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.ui.theme.Background
+import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,11 +37,12 @@ fun LocalAlbumScreen(
     navController: NavController,
     albumId: Long,
     albumName: String,
-    viewModel: ViewModel = viewModel(),
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
     var hasPermission by remember { mutableStateOf(false) }
+    val imageUris by localViewModel.imagesInAlbum.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -50,8 +53,8 @@ fun LocalAlbumScreen(
         }
     )
     if (hasPermission) {
-        LaunchedEffect(Unit) {
-            viewModel.loadImagesForAlbum(context, albumId)
+        LaunchedEffect(albumId) {
+            localViewModel.getImagesForAlbum(albumId)
         }
     }
     LaunchedEffect(key1 = true) {
@@ -62,8 +65,6 @@ fun LocalAlbumScreen(
         }
         permissionLauncher.launch(permission)
     }
-
-    val imageUris by viewModel.imageUris.collectAsState()
 
     Scaffold(
         containerColor = Background,
