@@ -1,0 +1,15 @@
+[project]
+name = "embedding"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.118.0",
+    "pillow>=11.3.0",
+    "python-multipart>=0.0.20",
+    "qdrant-client>=1.15.1",
+    "requests>=2.32.5",
+    "sentence-transformers>=5.1.1",
+    "uvicorn[standard]>=0.37.0",
+]
