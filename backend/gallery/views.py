@@ -7,14 +7,15 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from qdrant_client import models
 
-from .serializers import PhotoDetailSerializer, PhotoIdPathSerializer, TagSerializer, PhotoDetailSerializer, PhotoIdSerializer
-from .models import Photo_Tag, Tag
+from .serializers import PhotoDetailSerializer, PhotoIdPathSerializer, PhotoTagSerializer, PhotoDetailSerializer, PhotoIdSerializer, PhotoTagListSerializer
+from common.serializers import TagIdSerializer
+from common.models import Photo_Tag, Tag
 from .vision_service import get_image_embedding
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-class PhotosView(APIView):
+class PostPhotoView(APIView):
     parser_classes = [MultiPartParser]
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -63,7 +64,7 @@ class PhotosView(APIView):
         response_serializer = PhotoIdSerializer({"photo_id": photo_id})
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
            
-class PhotoBatchView(APIView):
+class PostDeletePhotoBatchView(APIView):
     parser_classes = [MultiPartParser]
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -163,7 +164,7 @@ class PhotoBatchView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class PhotoDetailView(APIView):
+class DeletePhotoDetailView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
@@ -201,7 +202,12 @@ class PhotoDetailView(APIView):
             return Response({"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
     
+class PostPhotoDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
         operation_summary="Retrieve a photo with photo_id of the authenticated user",
@@ -210,7 +216,7 @@ class PhotoDetailView(APIView):
         responses={
             200: openapi.Response(
                 description="Success",
-                schema=PhotoDetailSerializer()
+                schema=PhotoTagListSerializer()
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -232,10 +238,11 @@ class PhotoDetailView(APIView):
                 with_payload=True
             )
             
-            
             photo_path_id = retrieved_points[0].payload.get("photo_path_id")
-            tags_qs = Photo_Tag.objects.filter(photo_id=photo_id)
-            tags = [str(tag.tag_id) for tag in tags_qs]
+            tag_ids_list = Photo_Tag.objects.filter(photo_id=photo_id)
+            tag_details = Tag.objects.filter(id__in=tag_ids_list.values_list('tag_id', flat=True))
+            tags = [{"tag_id": str(tag.id), "tag": tag.tag} for tag in tag_details]
+            
             photo_detail = {
                 "photo_path_id": photo_path_id,
                 "tags": tags
@@ -243,8 +250,8 @@ class PhotoDetailView(APIView):
             
             if not retrieved_points:
                 return Response({"error": "Photo not found in vector database."}, status=status.HTTP_404_NOT_FOUND)
-            
-            serializer = PhotoDetailSerializer(photo_detail)
+
+            serializer = PhotoTagListSerializer(photo_detail)
             return Response(serializer.data, status=status.HTTP_200_OK)
         
         except Photo_Tag.DoesNotExist:
@@ -252,7 +259,7 @@ class PhotoDetailView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class TaggedPhotoListView(APIView):
+class GetTaggedPhotoListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
@@ -276,36 +283,129 @@ class TaggedPhotoListView(APIView):
             ),
         },
     )
-    def get(self, request, *args, **kwargs):
-        tag_id = request.query_params.get('tag_id')
+    def get(self, request, tag_id, *args, **kwargs):
         try:
             photo_tags = Photo_Tag.objects.filter(tag_id=tag_id)
-
-            serializer = TagSerializer(photo_tags, many=True)
-        
-            data = serializer.validated_data
-            photo_details = []
-            for item in data:
-                photo_id = item['photo_id']
-                retrieved_points = client.retrieve(
-                    collection_name=IMAGE_COLLECTION_NAME,
-                    ids=[str(photo_id)],
-                    with_payload=True
-                )
-                
-                if not retrieved_points:
-                    continue
-                
-                photo_path_id = retrieved_points[0].payload.get("photo_path_id")
-                
-                photo_details.append({
-                    "photo_id": photo_id,
-                    "photo_path": photo_path_id
+            
+            photo_ids = [str(pt.photo_id) for pt in photo_tags]
+            retrieved_points = client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME,
+                ids=photo_ids,
+                with_payload=True
+            )
+            photos = []
+            for point in retrieved_points:
+                photos.append({
+                    "photo_id": point.id,
+                    "photo_path_id": point.payload.get("photo_path_id")
                 })
+            return Response(photos, status=status.HTTP_200_OK)
+        except Photo_Tag.DoesNotExist:
+            return Response({"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            return Response(photo_details, status=status.HTTP_200_OK)
+      
+class PostPhotoTagsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_summary="Add tag to a specific photo with photo_id of the authenticated user",
+        operation_description="Add a tag to a specific photo using photo_id of the authenticated user",
+        request_body=TagIdSerializer,
+        responses={
+            201: openapi.Response(
+                description="Success",
+                schema=PhotoTagSerializer()
+            ),
+            400: openapi.Response(
+                description="Bad Request - Request form mismatch"
+            ),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+            404: openapi.Response(
+                description="Not Found - Tag or Photo not found"
+            ),
+            500: openapi.Response(
+                description="Internal Server Error"
+            ),
+        },
+    )
+    def post(self, request, photo_id, *args, **kwargs):
+        try:
+            serializer = TagIdSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            tag_id = serializer.validated_data['tag_id']
+            pt_id = uuid.uuid4()
+            tag = Tag.objects.get(id=tag_id, user=request.user)
+            retrieved_points = client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME,
+                ids=[str(photo_id)],
+                with_payload=True
+            )
+
+            if not tag.exists():
+                return Response({"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND)
+            
+            if not retrieved_points:
+                return Response({"error": "Photo not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+            photo_tag = Photo_Tag(id=pt_id, photo_id=photo_id, tag_id=tag_id, user=request.user)
+            photo_tag.save()
+
+            serializer = PhotoTagSerializer(photo_tag)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+        
+class DeletePhotoTagsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_summary="Delete a Tag from a Photo",
+        operation_description="Delete a tag from a specific photo using photo_id of the authenticated user",
+        request_body=None,
+        responses={
+            204: openapi.Response(
+                description="No Content",
+            ),
+            400: openapi.Response(
+                description="Bad Request - Request form mismatch"
+            ),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+            404: openapi.Response(
+                description="Not Found - Tag or Photo not found"
+            ),
+            500: openapi.Response(
+                description="Internal Server Error"
+            ),
+        },
+    )
+    def delete(self, request, photo_id, tag_id, *args, **kwargs):
+        try:
+            tag = Tag.objects.get(id=tag_id, user=request.user)
+            if not tag.exists():
+                return Response({"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND)
+            
+            photo_tag = Photo_Tag.objects.get(photo_id=photo_id, tag_id=tag_id, user=request.user)
+            if not photo_tag.exists():
+                return Response({"error": "Photo tag not found."}, status=status.HTTP_404_NOT_FOUND)
+            
+            photo_tag.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
         except Tag.DoesNotExist:
             return Response({"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Photo_Tag.DoesNotExist:
+            return Response({"error": "Photo tag not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
