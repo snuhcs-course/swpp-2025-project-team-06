@@ -1,0 +1,36 @@
+name: Python CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    branches:
+      - "dev"
+    paths:
+      - "backend/**"
+
+jobs:
+  ruff:
+    name: Run ruff on changed python files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Get changed python files
+        id: changed-python-files
+        run: |
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep -E "\.(py|pyi)$" | xargs)
+          echo "files=${CHANGED_FILES}" >> $GITHUB_OUTPUT
+
+      - name: Run ruff
+        if: steps.changed-python-files.outputs.files != ''
+        run: |
+          uvx ruff check --no-fix ${{ steps.changed-python-files.outputs.files }}
