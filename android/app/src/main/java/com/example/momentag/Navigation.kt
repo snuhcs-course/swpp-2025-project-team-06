@@ -17,7 +17,7 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = Screen.Login.route
     ) {
         composable(route = Screen.Home.route) {
             HomeScreen(navController = navController)
@@ -85,6 +85,22 @@ fun AppNavigation() {
                 onNavigateBack = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable(
+            route = Screen.Login.route
+        ) {
+            LoginScreen(
+                navController = navController
+            )
+        }
+
+        composable(
+            route = Screen.Register.route,
+        ) {
+            RegisterScreen(
+                navController = navController,
             )
         }
     }
