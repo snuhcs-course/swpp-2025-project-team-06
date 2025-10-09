@@ -2,7 +2,7 @@ import uuid
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.parsers import MultiPartParser
+from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from qdrant_client import models
@@ -11,18 +11,22 @@ from .reponse_seiralizers import PhotoSerializer, PhotoTagListSerializer, PhotoI
 from .request_serializers import PhotoDetailSerializer, PhotoIdSerializer, TagNameSerializer, TagIdSerializer
 from .serializers import TagSerializer
 from .models import Photo_Tag, Tag
-from .vision_service import get_image_embedding
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
 from sentence_transformers import SentenceTransformer
 
+from django.core.files.storage import FileSystemStorage
+from django.conf import settings
+import os
+from .tasks import process_and_embed_photo, create_or_update_tag_embedding
+
 TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 text_model = SentenceTransformer(TEXT_MODEL_NAME)
 
 class PhotoView(APIView):
-    parser_classes = [MultiPartParser]
+    parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
@@ -55,32 +59,25 @@ class PhotoView(APIView):
             
             photos_data = serializer.validated_data
             
-            points_to_upsert = []
-            created_photos = []
+            fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'temp_images'))
 
             for data in photos_data:
-                photo_id = uuid.uuid4()
-                user_id = request.user.id
-                filename = data['filename']
-                photo_path_id = data['photo_path_id']
                 image_file = data['photo']
-                embedding = get_image_embedding(image_file)
-                created_at = data['created_at']
-                location = {'lat': data['lat'], 'lng': data['lng']}
                 
-                if embedding is None:
-                    return Response({"error": f"Failed to process image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
-                points_to_upsert.append(
-                    models.PointStruct(id=str(photo_id), vector=embedding, payload={"user_id": user_id, "filename": filename, "photo_path_id": photo_path_id, "created_at": created_at.isoformat(), "lat": location['lat'], "lng": location['lng']})
+                temp_filename = f"{uuid.uuid4()}_{image_file.name}"
+                saved_path = fs.save(temp_filename, image_file)
+                full_path = fs.path(saved_path)
+
+                process_and_embed_photo.delay(
+                    image_path=full_path,
+                    user_id=request.user.id,
+                    filename=data['filename'],
+                    photo_path_id=data['photo_path_id'],
+                    created_at_iso=data['created_at'].isoformat(),
+                    lat=data['lat'],
+                    lng=data['lng']
                 )
-                created_photos.append({"photo_id": photo_id})
-
-            if points_to_upsert:
-                client.upsert(collection_name=IMAGE_COLLECTION_NAME, points=points_to_upsert, wait=True)
-
-            response_serializer = PhotoIdSerializer(created_photos, many=True)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            return Response({"message": "Photos are being processed."}, status=status.HTTP_202_ACCEPTED)
         except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -516,18 +513,14 @@ class TagView(APIView):
         
             tag_id = uuid.uuid4()
             tag_name = data['tag']
-            embedding = text_model.encode(tag_name)
-
-            if embedding.size == 0:
-                return Response({"error": f"Failed to process tag"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
-            embedding = embedding.tolist()
+            create_or_update_tag_embedding.delay(
+                user_id=request.user.id,
+                tag_name=tag_name,
+                tag_id=tag_id
+            )
 
-            tag, created = Tag.objects.get_or_create(tag_id=tag_id, user=request.user, tag=tag_name, embedding=embedding)
-            if created:
-                tag.save()
-
-            response_serializer = TagIdSerializer({"tag_id": tag.id})
+            response_serializer = TagIdSerializer({"tag_id": tag_id})
             
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
@@ -599,19 +592,13 @@ class TagDetailView(APIView):
 
             data = serializer.validated_data
             tag_name = data['tag']
-            embedding = text_model.encode(tag_name)
-            
-            if embedding.size == 0:
-                return Response({"error": "Failed to process tag"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-            embedding = embedding.tolist()
+            create_or_update_tag_embedding.delay(
+                user_id=request.user.id,
+                tag_name=tag_name,
+                tag_id=tag_id
+            )
 
-            tag = Tag.objects.get(id=tag_id, user=request.user)
-            tag.tag = tag_name
-            tag.embedding = embedding
-            tag.save()
-
-            response_serializer = TagIdSerializer({"tag_id": tag.id})
+            response_serializer = TagIdSerializer({"tag_id": tag_id})
             
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:

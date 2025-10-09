@@ -7,9 +7,9 @@ MODEL_ID = "openai/clip-vit-base-patch32"
 processor = CLIPProcessor.from_pretrained(MODEL_ID)
 model = CLIPModel.from_pretrained(MODEL_ID)
 
-def get_image_embedding(image_file):
+def get_image_embedding(image_path):
     try:
-        image = Image.open(image_file).convert("RGB")
+        image = Image.open(image_path).convert("RGB")
         inputs = processor(images=image, return_tensors="pt")
 
         with torch.no_grad():
