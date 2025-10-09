@@ -14,7 +14,7 @@ text_model = SentenceTransformer(TEXT_MODEL_NAME)
 
 
 @shared_task
-def process_and_embed_photo(image_path, user_id, filename, photo_path_id, created_at_iso, lat, lng):
+def process_and_embed_photo(image_path, user_id, filename, photo_path_id, created_at, lat, lng):
     try:
         embedding = get_image_embedding(image_path)
         
@@ -32,7 +32,7 @@ def process_and_embed_photo(image_path, user_id, filename, photo_path_id, create
                 "user_id": user_id, 
                 "filename": filename, 
                 "photo_path_id": photo_path_id, 
-                "created_at": created_at_iso, 
+                "created_at": created_at, 
                 "lat": lat, 
                 "lng": lng
             }

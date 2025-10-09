@@ -73,7 +73,7 @@ class PhotoView(APIView):
                     user_id=request.user.id,
                     filename=data['filename'],
                     photo_path_id=data['photo_path_id'],
-                    created_at_iso=data['created_at'].isoformat(),
+                    created_at=data['created_at'].isoformat(),
                     lat=data['lat'],
                     lng=data['lng']
                 )
