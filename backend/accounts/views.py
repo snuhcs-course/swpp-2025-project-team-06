@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from .serializers import UserSerializer
 from .request_serializers import SignUpRequest,SignInRequest, SignOutRequest
 from .response_serializers import SignUpResponse, SignInResponse, RefreshResponse, RefreshErrorResponse
@@ -108,9 +107,6 @@ class SignOutView(APIView):
             401: openapi.Response(
                 description="Unauthorized - Authentication credentials were not provided or are invalid."
             ),
-            403: openapi.Response(
-                description="Forbidden - Refresh token does not belong to the authenticated user."
-            )
         },
         manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
@@ -122,10 +118,10 @@ class SignOutView(APIView):
             refresh_token = request.data['refresh_token']
             token = RefreshToken(refresh_token)
             if int(token['user_id']) != request.user.id:
-                return Response(status=status.HTTP_403_FORBIDDEN)
+                return Response(status=status.HTTP_400_BAD_REQUEST)
             token.blacklist()
             return Response(status=status.HTTP_200_OK)
-        except:
+        except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
             
 
@@ -164,7 +160,7 @@ class TokenRefreshView(APIView):
 
         try:
             token = RefreshToken(refresh_token)
-        except:
+        except Exception:
             return Response({"detail": "please sign in again"}, status=status.HTTP_401_UNAUTHORIZED)
         
         # Generate new access token
