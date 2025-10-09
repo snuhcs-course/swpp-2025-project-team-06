@@ -4,13 +4,16 @@ from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from sentence_transformers import SentenceTransformer
 
 from .serializers import TagNameSerializer, TagVectorSerializer
 from common.serializers import TagIdSerializer
 from common.models import Photo_Tag, Tag
-from .vision_service import get_image_embedding
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
+
+TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
+text_model = SentenceTransformer(TEXT_MODEL_NAME)
 
 class TagNameView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -46,11 +49,13 @@ class TagNameView(APIView):
     
         tag_id = uuid.uuid4()
         tag_name = data['tag']
-        embedding = get_image_embedding(tag_name)
+        embedding = text_model.encode(tag_name)
         tag_id = uuid.uuid4()
 
-        if embedding is None:
-            return Response({"error": f"Failed to process image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if embedding.size == 0:
+            return Response({"error": f"Failed to process tag"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        embedding = embedding.tolist()
 
         tag, created = Tag.objects.get_or_create(id=tag_id, user=request.user, tag=tag_name, embedding=embedding)
         if created:
@@ -124,9 +129,11 @@ class TagDetailView(APIView):
 
             data = serializer.validated_data
             tag_name = data['tag']
-            embedding = get_image_embedding(tag_name)
-            if not embedding:
-                return Response({"error": "Failed to process image"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            embedding = text_model.encode(tag_name)
+            if embedding.size == 0:
+                return Response({"error": "Failed to process tag"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            embedding = embedding.tolist()
 
             tag = Tag.objects.get(id=tag_id, user=request.user)
             tag.tag = tag_name
