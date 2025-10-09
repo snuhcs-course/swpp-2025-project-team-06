@@ -21,3 +21,16 @@ sealed class RegisterState {
     data class NetworkError(val message: String) : RegisterState()
     data class Error(val message: String) : RegisterState()
 }
+
+sealed interface RefreshState {
+    object Idle : RefreshState
+    object Success : RefreshState
+    object Unauthorized : RefreshState
+    data class Error(val message: String) : RefreshState
+    data class NetworkError(val message: String) : RefreshState
+}
+
+sealed interface LogoutState {
+    object Idle : LogoutState
+    object Success : LogoutState
+}

@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRegisterRequest
 import com.example.momentag.model.LoginState
+import com.example.momentag.model.LogoutState
 import com.example.momentag.model.RefreshRequest
+import com.example.momentag.model.RefreshState
 import com.example.momentag.model.RegisterState
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -103,11 +105,14 @@ class AuthViewModel(
 
 
     // refresh tokens
+    private val _refreshState = MutableStateFlow<RefreshState>(RefreshState.Idle)
+    val refreshState = _refreshState.asStateFlow()
+
     fun refreshTokens() {
         viewModelScope.launch {
             val refreshToken = sessionManager.getRefreshToken()
             if (refreshToken == null) {
-                // already logout
+                _refreshState.value = RefreshState.Unauthorized
                 return@launch
             }
 
@@ -120,26 +125,45 @@ class AuthViewModel(
                         // 200 OK: restore new access token
                         val newAccessToken = response.body()!!.access_token
                         sessionManager.saveTokens(newAccessToken, refreshToken)
+                        _refreshState.value = RefreshState.Success
                     }
+
                     response.code() == 400 -> {
                         // Bad Request
                         sessionManager.clearTokens()
+                        _refreshState.value = RefreshState.Success
                     }
+
                     response.code() == 401 -> {
                         // Unauthorized: expired refresh token
                         sessionManager.clearTokens()
+                        _refreshState.value = RefreshState.Unauthorized
                     }
+
                     else -> {
                         // else
+                        _refreshState.value =
+                            RefreshState.Error("Unexpected error: ${response.code()}")
                     }
                 }
+            } catch (e: IOException) {
+                _refreshState.value =
+                    RefreshState.NetworkError("Network error while refreshing tokens")
             } catch (e: Exception) {
-                // Network or else error
+                _refreshState.value = RefreshState.Error("Unknown error while refreshing tokens")
             }
         }
     }
 
+    fun resetRefreshState() {
+        _refreshState.value = RefreshState.Idle
+    }
+
+
     // logout
+    private val _logoutState = MutableStateFlow<LogoutState>(LogoutState.Idle)
+    val logoutState = _logoutState.asStateFlow()
+
     fun logout() {
         viewModelScope.launch {
             val refreshToken = sessionManager.getRefreshToken()
@@ -153,20 +177,24 @@ class AuthViewModel(
 
                 when (response.code()) {
                     204 -> {
-                        sessionManager.clearTokens()
+                        // 204 No Content
                     }
                     400, 401, 403 -> {
                         // BadRequest / Unauthorized / Forbidden
-                        sessionManager.clearTokens()
                     }
                     else -> {
                         // else
                     }
                 }
             } catch (e: Exception) {
-                sessionManager.clearTokens()
+                // else
             }
+            sessionManager.clearTokens()
+            _logoutState.value = LogoutState.Success
         }
     }
 
+    fun resetLogoutState() {
+        _logoutState.value = LogoutState.Idle
+    }
 }
