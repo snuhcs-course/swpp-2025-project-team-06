@@ -54,8 +54,6 @@ INSTALLED_APPS = [
     'gallery',
     'learning',
     'search',
-    'tag',
-    'common',
     'drf_yasg',
 ]
 
