@@ -28,13 +28,17 @@ class SessionManager(context: Context) {
     private val _refreshToken = MutableStateFlow<String?>(null)
     val refreshTokenFlow: StateFlow<String?> = _refreshToken.asStateFlow()
 
+    private val _isLoaded = MutableStateFlow(false)
+    val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+
     init {
         // store token from DataStore to StateFlow
         CoroutineScope(Dispatchers.IO).launch {
-            dataStore.data.collect { prefs ->
+            dataStore.data.first().let { prefs ->
                 _accessToken.value = prefs[ACCESS_TOKEN_KEY]
                 _refreshToken.value = prefs[REFRESH_TOKEN_KEY]
             }
+            _isLoaded.value = true
         }
     }
 
