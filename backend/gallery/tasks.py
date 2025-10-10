@@ -1,7 +1,6 @@
 import os
 import uuid
 from celery import shared_task
-from django.conf import settings
 from qdrant_client import models
 
 from .vision_service import get_image_embedding

@@ -7,8 +7,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from qdrant_client import models
 
-from .reponse_seiralizers import PhotoSerializer, PhotoTagListSerializer, PhotoIdSerializer, TagSerializer, TagIdSerializer, TagVectorSerializer
-from .request_serializers import PhotoDetailSerializer, PhotoIdSerializer, TagNameSerializer, TagIdSerializer
+from .reponse_serializers import ResPhotoSerializer, ResPhotoTagListSerializer, ResPhotoIdSerializer, ResTagIdSerializer, ResTagVectorSerializer
+from .request_serializers import ReqPhotoDetailSerializer, ReqPhotoIdSerializer, ReqTagNameSerializer, ReqTagIdSerializer
 from .serializers import TagSerializer
 from .models import Photo_Tag, Tag
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME
@@ -33,11 +33,11 @@ class PhotoView(APIView):
     @swagger_auto_schema(
         operation_summary="Upload Photos",
         operation_description="Upload photos to the backend",
-        request_body=PhotoDetailSerializer(many=True),
+        request_body=ReqPhotoDetailSerializer(many=True),
         responses={
             201: openapi.Response(
                 description="Created",
-                schema=PhotoIdSerializer(many=True)
+                schema=ResPhotoIdSerializer(many=True)
             ),
             400: openapi.Response(
                 description="Bad Request - Request form mismatch"
@@ -52,7 +52,7 @@ class PhotoView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            serializer = PhotoDetailSerializer(data=request.data, many=True)
+            serializer = ReqPhotoDetailSerializer(data=request.data, many=True)
             
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -88,7 +88,7 @@ class PhotoView(APIView):
         responses={
             200: openapi.Response(
                 description="Success",
-                schema=PhotoSerializer(many=True)
+                schema=ResPhotoSerializer(many=True)
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -151,7 +151,7 @@ class PhotoDetailView(APIView):
         responses={
             200: openapi.Response(
                 description="Success",
-                schema=PhotoTagListSerializer()
+                schema=ResPhotoTagListSerializer()
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -253,7 +253,7 @@ class BulkDeletePhotoView(APIView):
     @swagger_auto_schema(
         operation_summary="Delete Photos",
         operation_description="Delete photos from the app",
-        request_body=PhotoIdSerializer(many=True),
+        request_body=ReqPhotoIdSerializer(many=True),
         responses={
             204: openapi.Response(
                 description="No Content"
@@ -271,7 +271,7 @@ class BulkDeletePhotoView(APIView):
     )
     def delete(self, request, *args, **kwargs):
         try:
-            serializer = PhotoDetailSerializer(data=request.data, many=True)
+            serializer = ReqPhotoDetailSerializer(data=request.data, many=True)
             
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -305,7 +305,7 @@ class GetPhotosByTagView(APIView):
         responses={
             200: openapi.Response(
                 description="Success",
-                schema=PhotoSerializer(many=True)
+                schema=ResPhotoSerializer(many=True)
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -352,7 +352,7 @@ class PostPhotoTagsView(APIView):
     @swagger_auto_schema(
         operation_summary="Add Tags to a Photo",
         operation_description="Create new Tag-Photo relationships",
-        request_body=TagIdSerializer(many=True),
+        request_body=ReqTagIdSerializer(many=True),
         responses={
             201: openapi.Response(
                 description="Success"
@@ -373,7 +373,7 @@ class PostPhotoTagsView(APIView):
     )
     def post(self, request, photo_id, *args, **kwargs):
         try:
-            serializer = TagIdSerializer(data=request.data, many=True)
+            serializer = ReqTagIdSerializer(data=request.data, many=True)
             
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -422,7 +422,7 @@ class DeletePhotoTagsView(APIView):
     )
     def delete(self, request, photo_id, tag_id, *args, **kwargs):
         try:
-            tag = Tag.objects.get(id=tag_id, user=request.user)
+            Tag.objects.get(id=tag_id, user=request.user)
             
             if not client.exists(collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)):
                 return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
@@ -485,11 +485,11 @@ class TagView(APIView):
     @swagger_auto_schema(
         operation_summary="Create a Tag",
         operation_description="Createa new tag",
-        request_body=TagNameSerializer(),
+        request_body=ReqTagNameSerializer(),
         responses={
             201: openapi.Response(
                 description="Created",
-                schema=TagIdSerializer()
+                schema=ResTagIdSerializer()
             ),
             400: openapi.Response(
                 description="Bad Request - Request form mismatch"
@@ -504,7 +504,7 @@ class TagView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            serializer = TagNameSerializer(data=request.data)
+            serializer = ReqTagNameSerializer(data=request.data)
             
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -520,7 +520,7 @@ class TagView(APIView):
                 tag_id=tag_id
             )
 
-            response_serializer = TagIdSerializer({"tag_id": tag_id})
+            response_serializer = ResTagIdSerializer({"tag_id": tag_id})
             
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
@@ -565,11 +565,11 @@ class TagDetailView(APIView):
     @swagger_auto_schema(
         operation_summary="Rename a Tag",
         operation_description="Change the name of a tag",
-        request_body=TagNameSerializer(),
+        request_body=ReqTagNameSerializer(),
         responses={
             200: openapi.Response(
                 description="Success",
-                schema=TagIdSerializer()
+                schema=ResTagIdSerializer()
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -585,7 +585,7 @@ class TagDetailView(APIView):
     )
     def put(self, request, tag_id, *args, **kwargs):
         try:
-            serializer = TagNameSerializer(data=request.data)
+            serializer = ReqTagNameSerializer(data=request.data)
 
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -598,7 +598,7 @@ class TagDetailView(APIView):
                 tag_id=tag_id
             )
 
-            response_serializer = TagIdSerializer({"tag_id": tag_id})
+            response_serializer = ResTagIdSerializer({"tag_id": tag_id})
             
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
@@ -614,7 +614,7 @@ class TagDetailView(APIView):
         responses={
             200: openapi.Response(
                 description="Success",
-                schema=TagVectorSerializer()
+                schema=ResTagVectorSerializer()
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -631,7 +631,7 @@ class TagDetailView(APIView):
     def get(self, request, tag_id, *args, **kwargs):
         try:
             tag = Tag.objects.get(id=tag_id, user=request.user)
-            response_serializer = TagVectorSerializer({"tag": tag.tag, "embedding": tag.embedding})
+            response_serializer = ResTagVectorSerializer({"tag": tag.tag, "embedding": tag.embedding})
             
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
