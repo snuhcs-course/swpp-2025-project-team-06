@@ -1,5 +1,4 @@
 from sentence_transformers import SentenceTransformer
-from transformers import CLIPProcessor, CLIPModel
 from PIL import Image
 import torch
 
