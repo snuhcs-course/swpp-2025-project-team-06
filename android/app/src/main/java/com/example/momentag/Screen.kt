@@ -26,4 +26,10 @@ sealed class Screen(val route: String) {
             return "local_album_screen/$encodedId/$encodedName"
         }
     }
+    object SearchResult : Screen("search_result_screen/{query}") {
+        fun createRoute(query: String): String {
+            val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
+            return "search_result_screen/$encodedQuery"
+        }
+    }
 }

@@ -29,8 +29,10 @@ import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -180,7 +182,31 @@ fun HomeScreen(navController: NavController) {
                     unfocusedTextColor = Word,
                     disabledTextColor = Word,
                 ),
-                singleLine = true
+                singleLine = true,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                    onSearch = {
+                        if (searchText.isNotEmpty()) {
+                            navController.navigate(Screen.SearchResult.createRoute(searchText))
+                        }
+                    }
+                ),
+                trailingIcon = {
+                    androidx.compose.material3.IconButton(
+                        onClick = {
+                            if (searchText.isNotEmpty()) {
+                                navController.navigate(Screen.SearchResult.createRoute(searchText))
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "검색 실행"
+                        )
+                    }
+                }
             )
             Spacer(modifier = Modifier.height(16.dp))
 

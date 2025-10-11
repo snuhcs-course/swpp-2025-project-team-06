@@ -87,5 +87,21 @@ fun AppNavigation() {
                 }
             )
         }
+
+        composable(
+            route = Screen.SearchResult.route,
+            arguments = listOf(navArgument("query") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val encodedQuery = backStackEntry.arguments?.getString("query") ?: ""
+            val query = URLDecoder.decode(encodedQuery, StandardCharsets.UTF_8.toString())
+
+            SearchResultScreen(
+                initialQuery = query,
+                navController = navController,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
