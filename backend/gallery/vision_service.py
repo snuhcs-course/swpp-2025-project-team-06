@@ -1,21 +1,18 @@
+from sentence_transformers import SentenceTransformer
 from transformers import CLIPProcessor, CLIPModel
 from PIL import Image
 import torch
 
-MODEL_ID = "openai/clip-vit-base-patch32"
-
-processor = CLIPProcessor.from_pretrained(MODEL_ID)
-model = CLIPModel.from_pretrained(MODEL_ID)
 
 def get_image_embedding(image_path):
     try:
         image = Image.open(image_path).convert("RGB")
-        inputs = processor(images=image, return_tensors="pt")
+        model = SentenceTransformer('clip-ViT-B-32')
+        
 
         with torch.no_grad():
-            image_features = model.get_image_features(**inputs)
+            embedding = model.encode(image)
 
-        embedding = image_features[0].tolist()
         return embedding
 
     except Exception as e:

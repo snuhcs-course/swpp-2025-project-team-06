@@ -54,7 +54,7 @@ def process_and_embed_photo(image_path, user_id, filename, photo_path_id, create
 @shared_task
 def create_or_update_tag_embedding(user_id, tag_name, tag_id):
     try:
-        embedding = text_model.encode(tag_name).tolist()
+        embedding = text_model.encode([tag_name])
         
         user_instance = User.objects.get(id=user_id)
 
