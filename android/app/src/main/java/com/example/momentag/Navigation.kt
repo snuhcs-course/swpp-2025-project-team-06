@@ -94,14 +94,20 @@ fun AppNavigation() {
         ) { backStackEntry ->
             val encodedQuery = backStackEntry.arguments?.getString("query") ?: ""
             val query = URLDecoder.decode(encodedQuery, StandardCharsets.UTF_8.toString())
-
             SearchResultScreen(
                 initialQuery = query,
                 navController = navController,
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        composable(route = Screen.Login.route) {
+            LoginScreen(navController = navController)
+        }
+
+        composable(route = Screen.Register.route) {
+            RegisterScreen(navController = navController)
+        }
+
     }
 }

@@ -32,4 +32,6 @@ sealed class Screen(val route: String) {
             return "search_result_screen/$encodedQuery"
         }
     }
+    object Login : Screen("login_screen")
+    object Register : Screen("register_screen")
 }
