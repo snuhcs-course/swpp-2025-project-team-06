@@ -26,4 +26,6 @@ sealed class Screen(val route: String) {
             return "local_album_screen/$encodedId/$encodedName"
         }
     }
+    object Login : Screen("login_screen")
+    object Register : Screen("register_screen")
 }
