@@ -52,7 +52,26 @@ class PhotoView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            serializer = ReqPhotoDetailSerializer(data=request.data, many=True)
+            
+            photos = request.FILES.getlist('photo')
+            filenames = request.POST.getlist('filename')
+            photo_path_ids = request.POST.getlist('photo_path_id')
+            created_ats = request.POST.getlist('created_at')
+            lats = request.POST.getlist('lat')
+            lngs = request.POST.getlist('lng')
+            
+            photos_data = []
+            for i in range(len(photos)):
+                photos_data.append({
+                    'photo': photos[i],
+                    'filename': filenames[i],
+                    'photo_path_id': photo_path_ids[i],
+                    'created_at': created_ats[i],
+                    'lat': lats[i],
+                    'lng': lngs[i]
+                })
+
+            serializer = ReqPhotoDetailSerializer(data=photos_data, many=True)
             
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
