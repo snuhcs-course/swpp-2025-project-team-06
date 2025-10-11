@@ -10,7 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import os, environ
+import os
+import environ
 from pathlib import Path
 from datetime import timedelta
 
@@ -34,26 +35,29 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+QDRANT_CLUSTER_URL = env('QDRANT_CLUSTER_URL')
+QDRANT_API_KEY = env('QDRANT_API_KEY')
+
 ALLOWED_HOSTS = []
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'accounts',
+    'drf_yasg',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.sessions',
     'django.contrib.staticfiles',
-    'rest_framework',
-    'accounts',
     'gallery',
     'learning',
-    'search',
-    'drf_yasg',
+    'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+    'search',
 ]
 
 MIDDLEWARE = [
@@ -139,13 +143,33 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': (
+        'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+    'USE_SESSION_AUTH': False,
+}
+
+# Celery Settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0' # Redis server address
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' # Redis server address
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 REST_USE_JWT = True
 
