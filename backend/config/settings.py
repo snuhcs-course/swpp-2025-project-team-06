@@ -10,8 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import os, environ
+import os
+import environ
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -33,24 +35,29 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+QDRANT_CLUSTER_URL = env('QDRANT_CLUSTER_URL')
+QDRANT_API_KEY = env('QDRANT_API_KEY')
+
 ALLOWED_HOSTS = []
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'accounts',
+    'drf_yasg',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.sessions',
     'django.contrib.staticfiles',
-    'rest_framework',
-    'accounts',
     'gallery',
     'learning',
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'search',
-    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -136,7 +143,43 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES' : (
-        'rest_framework.permissions.IsAuthenticated',
+        'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
+}
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+    'USE_SESSION_AUTH': False,
+}
+
+# Celery Settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0' # Redis server address
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' # Redis server address
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+REST_USE_JWT = True
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Access Token의 유효 기간: 60분
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Refresh Token의 유효 기간: 1일
+    'ROTATE_REFRESH_TOKENS': True,  # Refresh Token을 사용할 때마다 새 토큰 발급
+    'BLACKLIST_AFTER_ROTATION': True,  # 이전 Refresh Token을 블랙리스트에 추가하여 재사용 방지
+    'AUTH_HEADER_TYPES': ('Bearer',),  # 인증 헤더 타입을 "Bearer"로 설정
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),  # Access Token 클래스를 지정
+    'ACCESS_TOKEN': 'access_token',  # Access Token의 이름 지정
+    'REFRESH_TOKEN': 'refresh_token',  # Refresh Token의 이름 지정
 }

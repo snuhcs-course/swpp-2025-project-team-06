@@ -2,6 +2,10 @@ package com.example.momentag
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -9,16 +13,27 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.momentag.data.SessionManager
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 @Composable
 fun appNavigation() {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+
+    val isLoaded by sessionManager.isLoaded.collectAsState()
+    val accessToken by sessionManager.accessTokenFlow.collectAsState()
+
+    if (!isLoaded) {
+        // show loading screen or wait for data to load
+        return
+    }
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route,
+        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route
     ) {
         composable(route = Screen.Home.route) {
             homeScreen(navController = navController)
@@ -92,6 +107,22 @@ fun appNavigation() {
         }
 
         composable(
+            route = Screen.Login.route
+        ) {
+            LoginScreen(
+                navController = navController
+            )
+        }
+
+        composable(
+            route = Screen.Register.route,
+        ) {
+            RegisterScreen(
+                navController = navController,
+            )
+        }
+
+        composable(
             route = Screen.SearchResult.route,
             arguments = listOf(navArgument("query") { type = NavType.StringType }),
         ) { backStackEntry ->
@@ -103,23 +134,6 @@ fun appNavigation() {
                 onNavigateBack = { navController.popBackStack() },
             )
         }
-
-        composable(route = Screen.Login.route) {
-            loginScreen(navController = navController)
-        }
-
-        composable(route = Screen.Register.route) {
-            registerScreen(navController = navController)
-        }
     }
 }
-
-@Composable
-fun registerScreen(navController: NavHostController) {
-    TODO("Not yet implemented")
-}
-
-@Composable
-fun loginScreen(navController: NavHostController) {
-    TODO("Not yet implemented")
-}
+=
