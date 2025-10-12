@@ -71,3 +71,7 @@ def create_or_update_tag_embedding(user_id, tag_name, tag_id):
 
     except Exception as e:
         print(f"[Celery Task Exception] Error creating/updating tag '{tag_name}': {str(e)}")
+
+
+def create_query_embedding(query):
+    return text_model.encode(query)

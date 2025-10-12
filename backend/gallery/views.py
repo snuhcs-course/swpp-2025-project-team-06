@@ -10,7 +10,7 @@ from qdrant_client import models
 from .reponse_serializers import ResPhotoSerializer, ResPhotoTagListSerializer, ResPhotoIdSerializer, ResTagIdSerializer, ResTagVectorSerializer
 from .request_serializers import ReqPhotoDetailSerializer, ReqPhotoIdSerializer, ReqTagNameSerializer, ReqTagIdSerializer
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag
+from .models import Photo_Tag, Tag, Photo
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -45,10 +45,57 @@ class PhotoView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ), 
-            500: openapi.Response(
-                description="Internal Server Error - Failed to process image"
-            ),
         },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization", 
+                openapi.IN_HEADER, 
+                description="access token", 
+                type=openapi.TYPE_STRING),
+            openapi.Parameter(
+                name="photo",
+                in_=openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                description="Photo file(s) to upload",
+                required=True,
+            ),
+            openapi.Parameter(
+                name="filename",
+                in_=openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description="Filename of each photo",
+                required=True,
+            ),
+            openapi.Parameter(
+                name="photo_path_id",
+                in_=openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description="MediaStore url ID",
+                required=True,
+            ),
+            openapi.Parameter(
+                name="created_at",
+                in_=openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                format=openapi.FORMAT_DATETIME,
+                description="Creation timestamp of each photo",
+            ),
+            openapi.Parameter(
+                name="lat",
+                in_=openapi.IN_FORM,
+                type=openapi.TYPE_NUMBER,
+                format=openapi.FORMAT_FLOAT,
+                description="Latitude of the photo",
+            ),
+            openapi.Parameter(
+                name="lng",
+                in_=openapi.IN_FORM,
+                type=openapi.TYPE_NUMBER,
+                format=openapi.FORMAT_FLOAT,
+                description="Longitude of the photo",
+            ),
+        ],
+        consumes=["multipart/form-data"],
     )
     def post(self, request, *args, **kwargs):
         try:
@@ -96,6 +143,17 @@ class PhotoView(APIView):
                     lat=data['lat'],
                     lng=data['lng']
                 )
+
+                Photo.objects.create(
+                    photo_id=uuid.uuid4(),
+                    user=request.user,
+                    filename=data['filename'],
+                    photo_path_id=data['photo_path_id'],
+                    created_at=data['created_at'],
+                    location_lat=data['lat'],
+                    location_lng=data['lng']
+                )
+
             return Response({"message": "Photos are being processed."}, status=status.HTTP_202_ACCEPTED)
         except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -111,12 +169,9 @@ class PhotoView(APIView):
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
-            ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
-        
+            ),     
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def get(self, request, *args, **kwargs):
         try:
@@ -178,10 +233,8 @@ class PhotoDetailView(APIView):
             404: openapi.Response(
                 description="Not Found - No photo with photo_id as its id"
             ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def get(self, request, photo_id, *args, **kwargs):
         try:
@@ -244,10 +297,8 @@ class PhotoDetailView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def delete(self, request, photo_id, *args, **kwargs):
         try:
@@ -283,10 +334,8 @@ class BulkDeletePhotoView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def delete(self, request, *args, **kwargs):
         try:
@@ -332,10 +381,8 @@ class GetPhotosByTagView(APIView):
             404: openapi.Response(
                 description="Not Found - Photo not found"
             ),
-            500: openapi.Response(
-                description="Internal Server Error - Failed to process image"
-            ),
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def get(self, request, tag_id, *args, **kwargs):
         try:
@@ -385,10 +432,8 @@ class PostPhotoTagsView(APIView):
             404: openapi.Response(
                 description="Not Found - No such tag or photo"
             ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def post(self, request, photo_id, *args, **kwargs):
         try:
@@ -434,10 +479,8 @@ class DeletePhotoTagsView(APIView):
             404: openapi.Response(
                 description="Not Found - No such tag or photo"
             ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def delete(self, request, photo_id, tag_id, *args, **kwargs):
         try:
@@ -479,11 +522,8 @@ class TagView(APIView):
             404: openapi.Response(
                 description="Not Found - No tag with tag_id as its id"
             ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
-        
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def get(self, request, *args, **kwargs):
         try:
@@ -516,10 +556,8 @@ class TagView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ), 
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def post(self, request, *args, **kwargs):
         try:
@@ -564,10 +602,8 @@ class TagDetailView(APIView):
             404: openapi.Response(
                 description="Not Found - No tag such that tag's id is tag_id"
             ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def delete(self, request, tag_id, *args, **kwargs):
         try:
@@ -596,11 +632,8 @@ class TagDetailView(APIView):
             404: openapi.Response(
                 description="Not Found - Tag not found"
             ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
-        
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def put(self, request, tag_id, *args, **kwargs):
         try:
@@ -641,11 +674,8 @@ class TagDetailView(APIView):
             404: openapi.Response(
                 description="Not Found - No tag with tag_id as its id"
             ),
-            500: openapi.Response(
-                description="Internal Server Error"
-            ),
-        
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def get(self, request, tag_id, *args, **kwargs):
         try:
