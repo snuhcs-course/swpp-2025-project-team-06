@@ -2,11 +2,12 @@ package com.example.momentag.network
 
 import android.content.Context
 import com.example.momentag.data.SessionManager
-import com.example.momentag.model.LoginRegisterRequest
+import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
+import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.Tag
 import okhttp3.MultipartBody
@@ -33,22 +34,22 @@ interface ApiService {
         @Path("tagName") tagName: String,
     ): List<Photo>
 
-    @POST("api/auth/signin")
+    @POST("api/auth/signin/")
     suspend fun login(
-        @Body loginRequest: LoginRegisterRequest,
+        @Body loginRequest: LoginRequest,
     ): Response<LoginResponse>
 
-    @POST("api/auth/signup")
+    @POST("api/auth/signup/")
     suspend fun register(
-        @Body registerRequest: LoginRegisterRequest,
+        @Body registerRequest: RegisterRequest,
     ): Response<RegisterResponse>
 
-    @POST("api/auth/refresh")
+    @POST("api/auth/refresh/")
     suspend fun refreshToken(
         @Body refreshRequest: RefreshRequest,
     ): Response<RefreshResponse>
 
-    @POST("api/auth/signout")
+    @POST("api/auth/signout/")
     suspend fun logout(
         @Body logoutRequest: RefreshRequest,
     ): Response<Unit>
@@ -62,7 +63,7 @@ interface ApiService {
 }
 
 object RetrofitInstance {
-    private const val BASE_URL = "http://127.0.0.1:8000/"
+    private const val BASE_URL = "http://10.0.2.2:8000/"
 
     private var apiService: ApiService? = null
 

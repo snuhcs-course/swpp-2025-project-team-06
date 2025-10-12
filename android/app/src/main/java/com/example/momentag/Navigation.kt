@@ -35,7 +35,7 @@ fun appNavigation() {
         startDestination = if (accessToken != null) Screen.Home.route else Screen.Home.route, // Login
     ) {
         composable(route = Screen.Home.route) {
-            homeScreen(navController = navController)
+            HomeScreen(navController = navController)
         }
 
         composable(
@@ -45,7 +45,7 @@ fun appNavigation() {
             val encodedTag = backStackEntry.arguments?.getString("tagName") ?: ""
             val tagName = URLDecoder.decode(encodedTag, StandardCharsets.UTF_8.toString())
 
-            albumScreen(
+            AlbumScreen(
                 tagName = tagName,
                 navController = navController,
                 onNavigateBack = {
@@ -65,7 +65,7 @@ fun appNavigation() {
                     Uri.decode(it).toUri()
                 }
 
-            imageScreen(
+            ImageScreen(
                 imageUri = decodedUri,
                 onNavigateBack = {
                     navController.popBackStack()
@@ -76,7 +76,7 @@ fun appNavigation() {
         composable(
             route = Screen.LocalGallery.route,
         ) {
-            localGalleryScreen(
+            LocalGalleryScreen(
                 navController = navController,
                 onNavigateBack = {
                     navController.popBackStack()
@@ -95,7 +95,7 @@ fun appNavigation() {
             val albumId = backStackEntry.arguments?.getLong("id") ?: 0L
             val albumName = backStackEntry.arguments?.getString("name") ?: ""
 
-            localAlbumScreen(
+            LocalAlbumScreen(
                 navController = navController,
                 albumId = albumId,
                 albumName = albumName,
@@ -108,7 +108,7 @@ fun appNavigation() {
         composable(
             route = Screen.Login.route,
         ) {
-            loginScreen(
+            LoginScreen(
                 navController = navController,
             )
         }
@@ -116,7 +116,7 @@ fun appNavigation() {
         composable(
             route = Screen.Register.route,
         ) {
-            registerScreen(
+            RegisterScreen(
                 navController = navController,
             )
         }
@@ -127,7 +127,7 @@ fun appNavigation() {
         ) { backStackEntry ->
             val encodedQuery = backStackEntry.arguments?.getString("query") ?: ""
             val query = URLDecoder.decode(encodedQuery, StandardCharsets.UTF_8.toString())
-            searchResultScreen(
+            SearchResultScreen(
                 initialQuery = query,
                 navController = navController,
                 onNavigateBack = { navController.popBackStack() },

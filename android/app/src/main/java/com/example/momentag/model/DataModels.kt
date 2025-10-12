@@ -22,7 +22,12 @@ data class Album(
     val thumbnailUri: Uri,
 )
 
-data class LoginRegisterRequest(
+data class LoginRequest(
+    val email: String,
+    val password: String,
+)
+
+data class RegisterRequest(
     val username: String,
     val password: String,
 )

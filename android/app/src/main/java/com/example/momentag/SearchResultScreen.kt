@@ -27,7 +27,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -69,6 +68,7 @@ import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
 
+@Suppress("ktlint:standard:function-naming")
 /**
  *  * ========================================
  *  * SearchResultScreen - 검색 결과 화면
@@ -76,7 +76,7 @@ import com.example.momentag.ui.theme.Word
  * 검색 결과 메인 화면 (Navigation과 연결)
  */
 @Composable
-fun searchResultScreen(
+fun SearchResultScreen(
     initialQuery: String,
     navController: NavController,
     onNavigateBack: () -> Unit,
@@ -105,7 +105,7 @@ fun searchResultScreen(
         }
     }
 
-    searchResultScreenUi(
+    SearchResultScreenUi(
         searchText = searchText,
         onSearchTextChange = { searchText = it },
         onSearchSubmit = {
@@ -171,9 +171,10 @@ fun searchResultScreen(
  * @param onCreateTagClick 태그 생성 버튼 클릭 콜백
  * @param modifier Modifier
  */
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun searchResultScreenUi(
+fun SearchResultScreenUi(
     searchText: String,
     onSearchTextChange: (String) -> Unit,
     onSearchSubmit: () -> Unit,
@@ -193,7 +194,7 @@ fun searchResultScreenUi(
         modifier = modifier,
         containerColor = Background,
     ) { paddingValues ->
-        searchResultContent(
+        SearchResultContent(
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -219,8 +220,9 @@ fun searchResultScreenUi(
 /**
  * 검색 결과 컨텐츠 (순수 UI)
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun searchResultContent(
+private fun SearchResultContent(
     modifier: Modifier = Modifier,
     searchText: String,
     onSearchTextChange: (String) -> Unit,
@@ -244,7 +246,7 @@ private fun searchResultContent(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Header
-            searchResultHeader(onBackClick = onBackClick)
+            SearchResultHeader(onBackClick = onBackClick)
             Spacer(modifier = Modifier.height(24.dp))
 
             // Instruction + Selection mode toggle (같은 라인)
@@ -303,7 +305,7 @@ private fun searchResultContent(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Input
-            searchInputField(
+            SearchInputField(
                 value = searchText,
                 onValueChange = onSearchTextChange,
                 onSearch = onSearchSubmit,
@@ -311,7 +313,7 @@ private fun searchResultContent(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Results
-            searchResultsFromState(
+            SearchResultsFromState(
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -396,8 +398,9 @@ private fun searchResultContent(
  * UI 상태에 따라 적절한 검색 결과를 표시
  * Error 상태일 때는 기존 Success 결과 위에 오버레이로 표시 (내용 대체 X)
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun searchResultsFromState(
+private fun SearchResultsFromState(
     modifier: Modifier,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
@@ -410,20 +413,20 @@ private fun searchResultsFromState(
     Box(modifier = modifier) {
         when (uiState) {
             is SearchUiState.Idle -> {
-                searchStatusMessage(Modifier.fillMaxSize()) {
+                SearchStatusMessage(Modifier.fillMaxSize()) {
                     Text(text = "검색어를 입력해주세요.", color = Temp_word)
                 }
             }
 
             is SearchUiState.Loading -> {
-                loadingScreen(
+                LoadingScreen(
                     modifier = Modifier.fillMaxSize(),
                     onRefresh = onRetry,
                 )
             }
 
             is SearchUiState.Empty -> {
-                searchStatusMessage(Modifier.fillMaxSize()) {
+                SearchStatusMessage(Modifier.fillMaxSize()) {
                     Text(
                         text = "\"${uiState.query}\"에 대한 검색 결과가 없습니다.",
                         color = Temp_word,
@@ -432,7 +435,7 @@ private fun searchResultsFromState(
             }
 
             is SearchUiState.Success -> {
-                searchResultGrid(
+                SearchResultGrid(
                     modifier = Modifier.fillMaxSize(),
                     results = uiState.results,
                     isSelectionMode = isSelectionMode,
@@ -445,7 +448,7 @@ private fun searchResultsFromState(
 
             is SearchUiState.Error -> {
                 // Error 상태: 기본 메시지를 표시 (Success 결과가 없을 때)
-                searchStatusMessage(Modifier.fillMaxSize()) {
+                SearchStatusMessage(Modifier.fillMaxSize()) {
                     Text(text = "오류가 발생했습니다.", color = Temp_word)
                 }
             }
@@ -465,8 +468,9 @@ private fun searchResultsFromState(
 /**
  * 헤더 (뒤로가기 기능)
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun searchResultHeader(onBackClick: () -> Unit) {
+private fun SearchResultHeader(onBackClick: () -> Unit) {
     Text(
         text = "Search Results",
         fontSize = 32.sp,
@@ -479,8 +483,9 @@ private fun searchResultHeader(onBackClick: () -> Unit) {
 /**
  * 검색 안내 문구
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun searchInstructionRow() {
+private fun SearchInstructionRow() {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -501,8 +506,9 @@ private fun searchInstructionRow() {
 /**
  * 선택 모드 토글 버튼
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun selectionModeToggle(
+private fun SelectionModeToggle(
     isSelectionMode: Boolean,
     onToggle: () -> Unit,
 ) {
@@ -545,8 +551,9 @@ private fun selectionModeToggle(
 /**
  * 검색 입력 필드
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun searchInputField(
+private fun SearchInputField(
     value: String,
     onValueChange: (String) -> Unit,
     onSearch: () -> Unit,
@@ -583,8 +590,9 @@ private fun searchInputField(
 /**
  * 상태 메시지 표시 (로딩/에러/빈 결과 등)
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun searchStatusMessage(
+private fun SearchStatusMessage(
     modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -599,9 +607,10 @@ private fun searchStatusMessage(
 /**
  * 검색 결과 그리드
  */
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun searchResultGrid(
+private fun SearchResultGrid(
     modifier: Modifier,
     results: List<SearchResultItem>,
     isSelectionMode: Boolean,
@@ -618,7 +627,7 @@ private fun searchResultGrid(
     ) {
         items(results) { result ->
             result.imageUri?.let { uri ->
-                searchPhotoItem(
+                SearchPhotoItem(
                     imageUri = uri,
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedImages.contains(uri),
@@ -634,9 +643,10 @@ private fun searchResultGrid(
 /**
  * 개별 사진 아이템 (선택 모드 지원)
  */
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun searchPhotoItem(
+private fun SearchPhotoItem(
     imageUri: Uri,
     isSelectionMode: Boolean,
     isSelected: Boolean,
@@ -712,8 +722,9 @@ private fun searchPhotoItem(
  * @param modifier Modifier
  * @param onRefresh 새로고침 버튼 클릭 콜백
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun loadingScreen(
+private fun LoadingScreen(
     modifier: Modifier = Modifier,
     onRefresh: () -> Unit = {},
 ) {
@@ -726,22 +737,14 @@ private fun loadingScreen(
     }
 
     Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center,
+        modifier = modifier.fillMaxSize(),
     ) {
+        // 🔹 중앙 로딩 섹션
         Column(
+            modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize(),
         ) {
-            // 곰돌이 아이콘 (이모지로 표현)
-            Text(
-                text = "🐻",
-                fontSize = 80.sp,
-                modifier = Modifier.padding(bottom = 16.dp),
-            )
-
-            // Loading 텍스트
+            Text("🐻", fontSize = 80.sp, modifier = Modifier.padding(bottom = 16.dp))
             Text(
                 text = "Loading ...",
                 fontSize = 18.sp,
@@ -749,18 +752,21 @@ private fun loadingScreen(
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
-
-            // Progress Bar (무한 로딩)
             CircularProgressIndicator(
                 modifier = Modifier.size(48.dp),
                 color = com.example.momentag.ui.theme.Button,
                 strokeWidth = 4.dp,
             )
+        }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            // 하단 경고 메시지 (5초 후에만 표시)
-            if (showWarning) {
+        // 🔹 하단 경고 배너
+        if (showWarning) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp),
+            ) {
                 warningBanner(
                     title = "Loading is taking longer than usual.",
                     message = "Please refresh the page.",
@@ -778,16 +784,17 @@ private fun loadingScreen(
 /**
  * 로딩 화면만 보는 프리뷰 (경고 메시지 없음 - 5초 전)
  */
+@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun previewLoadingScreenWithoutWarning() {
+private fun PreviewLoadingScreenWithoutWarning() {
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .background(Background),
     ) {
-        loadingScreen(
+        LoadingScreen(
             modifier = Modifier.fillMaxSize(),
             onRefresh = {},
         )
@@ -797,28 +804,22 @@ private fun previewLoadingScreenWithoutWarning() {
 /**
  * 로딩 화면만 보는 프리뷰 (경고 메시지 있음 - 5초 후)
  */
+@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun previewLoadingScreenWithWarning() {
-    var showWarning by remember { mutableStateOf(true) }
-
+private fun PreviewLoadingScreenWithWarning() {
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .background(Background),
     ) {
+        // 🔹 중앙 로딩 섹션
         Column(
+            modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize(),
         ) {
-            Text(
-                text = "🐻",
-                fontSize = 80.sp,
-                modifier = Modifier.padding(bottom = 16.dp),
-            )
-
+            Text("🐻", fontSize = 80.sp, modifier = Modifier.padding(bottom = 16.dp))
             Text(
                 text = "Loading ...",
                 fontSize = 18.sp,
@@ -826,16 +827,18 @@ private fun previewLoadingScreenWithWarning() {
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
-
             CircularProgressIndicator(
                 modifier = Modifier.size(48.dp),
                 color = com.example.momentag.ui.theme.Button,
                 strokeWidth = 4.dp,
             )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // 경고 메시지 (강제로 표시)
+        }
+        Box(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp),
+        ) {
             warningBanner(
                 title = "Loading is taking longer than usual.",
                 message = "Please refresh the page.",
@@ -846,10 +849,11 @@ private fun previewLoadingScreenWithWarning() {
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun previewSearchResultScreenIdle() {
-    searchResultScreenUi(
+private fun PreviewSearchResultScreenIdle() {
+    SearchResultScreenUi(
         searchText = "",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -866,10 +870,11 @@ private fun previewSearchResultScreenIdle() {
     )
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun previewSearchResultScreenLoading() {
-    searchResultScreenUi(
+private fun PreviewSearchResultScreenLoading() {
+    SearchResultScreenUi(
         searchText = "nature",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -886,10 +891,11 @@ private fun previewSearchResultScreenLoading() {
     )
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun previewSearchResultScreenEmpty() {
-    searchResultScreenUi(
+private fun PreviewSearchResultScreenEmpty() {
+    SearchResultScreenUi(
         searchText = "nonexistent",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -906,10 +912,11 @@ private fun previewSearchResultScreenEmpty() {
     )
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun previewSearchResultScreenError() {
-    searchResultScreenUi(
+private fun PreviewSearchResultScreenError() {
+    SearchResultScreenUi(
         searchText = "error",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -930,9 +937,10 @@ private fun previewSearchResultScreenError() {
  * 에러 다이얼로그만 보는 프리뷰 (배경 콘텐츠와 함께)
  * 반투명 회색 배경이 뒤 콘텐츠를 덮는 것을 확인 가능
  */
+@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun previewErrorDialogWithBackdrop() {
+private fun PreviewErrorDialogWithBackdrop() {
     Box(
         modifier =
             Modifier
@@ -985,9 +993,10 @@ private fun previewErrorDialogWithBackdrop() {
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun previewSearchResultScreenSuccess() {
+private fun PreviewSearchResultScreenSuccess() {
     val dummyResults =
         listOf(
             SearchResultItem("nature", Uri.parse("content://media/1")),
@@ -998,7 +1007,7 @@ private fun previewSearchResultScreenSuccess() {
             SearchResultItem("nature", Uri.parse("content://media/6")),
         )
 
-    searchResultScreenUi(
+    SearchResultScreenUi(
         searchText = "nature",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -1015,9 +1024,10 @@ private fun previewSearchResultScreenSuccess() {
     )
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun previewSearchResultScreenSelectionMode() {
+private fun PreviewSearchResultScreenSelectionMode() {
     val dummyResults =
         listOf(
             SearchResultItem("nature", Uri.parse("content://media/1")),
@@ -1034,7 +1044,7 @@ private fun previewSearchResultScreenSelectionMode() {
             Uri.parse("content://media/3"),
         )
 
-    searchResultScreenUi(
+    SearchResultScreenUi(
         searchText = "nature",
         onSearchTextChange = {},
         onSearchSubmit = {},

@@ -56,9 +56,10 @@ import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun localGalleryScreen(
+fun LocalGalleryScreen(
     navController: NavController,
     onNavigateBack: () -> Unit,
 ) {
