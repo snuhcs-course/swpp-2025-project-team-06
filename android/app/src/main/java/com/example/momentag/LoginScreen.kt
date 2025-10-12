@@ -70,19 +70,19 @@ fun LoginScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory(context))
     val loginState by authViewModel.loginState.collectAsState()
 
-    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(false) }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
-    var isUsernameError by remember { mutableStateOf(false) }
+    var isEmailError by remember { mutableStateOf(false) }
     var isPasswordError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var usernameTouched by remember { mutableStateOf(false) }
+    var emailTouched by remember { mutableStateOf(false) }
     var passwordTouched by remember { mutableStateOf(false) }
 
     val clearAllErrors = {
-        isUsernameError = false
+        isEmailError = false
         isPasswordError = false
         errorMessage = null
     }
@@ -96,25 +96,25 @@ fun LoginScreen(navController: NavController) {
             }
             is LoginState.BadRequest -> {
                 errorMessage = state.message
-                isUsernameError = true
+                isEmailError = true
                 isPasswordError = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Unauthorized -> {
                 errorMessage = state.message
-                isUsernameError = true
+                isEmailError = true
                 isPasswordError = true
                 authViewModel.resetLoginState()
             }
             is LoginState.NetworkError -> {
                 errorMessage = state.message
-                isUsernameError = true
+                isEmailError = true
                 isPasswordError = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Error -> {
                 errorMessage = state.message
-                isUsernameError = true
+                isEmailError = true
                 isPasswordError = true
                 authViewModel.resetLoginState()
             }
@@ -189,8 +189,8 @@ fun LoginScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // username input
-                Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                // email input
+                Text(text = "Email", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -198,31 +198,31 @@ fun LoginScreen(navController: NavController) {
                             .height(52.dp)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
-                                    usernameTouched = true
+                                    emailTouched = true
                                     if (errorMessage != null) {
                                         clearAllErrors()
                                     } else {
-                                        isUsernameError = false
+                                        isEmailError = false
                                     }
                                 } else {
-                                    if (usernameTouched && username.isEmpty()) {
-                                        isUsernameError = true
+                                    if (emailTouched && email.isEmpty()) {
+                                        isEmailError = true
                                     }
                                 }
                             },
-                    value = username,
+                    value = email,
                     onValueChange = {
-                        username = it
+                        email = it
                         if (errorMessage != null) {
                             clearAllErrors()
                         } else {
-                            isUsernameError = false
+                            isEmailError = false
                         }
                     },
-                    placeholder = { Text("Username", color = Temp_word) },
+                    placeholder = { Text("Email", color = Temp_word) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    isError = isUsernameError,
+                    isError = isEmailError,
                     colors =
                         OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
@@ -241,9 +241,9 @@ fun LoginScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(top = 4.dp, start = 4.dp),
                 ) {
-                    if (isUsernameError && username.isEmpty()) {
+                    if (isEmailError && email.isEmpty()) {
                         Text(
-                            text = "Please enter your username",
+                            text = "Please enter your email",
                             color = Color.Red,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -362,12 +362,12 @@ fun LoginScreen(navController: NavController) {
                 // login button
                 Button(
                     onClick = {
-                        val usernameEmpty = username.isEmpty()
+                        val emailEmpty = email.isEmpty()
                         val passwordEmpty = password.isEmpty()
-                        isUsernameError = usernameEmpty
+                        isEmailError = emailEmpty
                         isPasswordError = passwordEmpty
-                        if (!usernameEmpty && !passwordEmpty) {
-                            authViewModel.login(username, password)
+                        if (!emailEmpty && !passwordEmpty) {
+                            authViewModel.login(email, password)
                         }
                     },
                     modifier =
