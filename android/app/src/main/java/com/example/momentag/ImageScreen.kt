@@ -58,9 +58,10 @@ import coil.compose.AsyncImage
 import com.example.momentag.ui.theme.Background
 import java.io.IOException
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun imageScreen(
+fun ImageScreen(
     imageUri: Uri?,
     onNavigateBack: () -> Unit,
 ) {
@@ -155,7 +156,7 @@ fun imageScreen(
                     modifier = Modifier.alpha(metadataAlpha).padding(vertical = 16.dp),
                     lineHeight = 22.sp,
                 )
-                tagsSection(
+                TagsSection(
                     tagSet = tagSet,
                 )
                 Spacer(modifier = Modifier.height(200.dp))
@@ -226,9 +227,10 @@ fun imageScreen(
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun tagsSection(
+fun TagsSection(
     tagSet: List<String>,
     modifier: Modifier = Modifier,
 ) {

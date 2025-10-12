@@ -3,11 +3,12 @@ package com.example.momentag.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.data.SessionManager
-import com.example.momentag.model.LoginRegisterRequest
+import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginState
 import com.example.momentag.model.LogoutState
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshState
+import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterState
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,12 +27,12 @@ class AuthViewModel(
     val loginState = _loginState.asStateFlow()
 
     fun login(
-        username: String,
+        email: String,
         password: String,
     ) {
         viewModelScope.launch {
             try {
-                val request = LoginRegisterRequest(username, password)
+                val request = LoginRequest(email, password)
                 val response = authRepository.login(request)
 
                 when {
@@ -47,7 +48,7 @@ class AuthViewModel(
                     }
 
                     response.code() == 401 -> {
-                        _loginState.value = LoginState.Unauthorized("Wrong username or password")
+                        _loginState.value = LoginState.Unauthorized("Wrong email or password")
                     }
 
                     else -> {
@@ -76,7 +77,7 @@ class AuthViewModel(
     ) {
         viewModelScope.launch {
             try {
-                val request = LoginRegisterRequest(username, password)
+                val request = RegisterRequest(username, password)
                 val response = authRepository.register(request)
 
                 when {

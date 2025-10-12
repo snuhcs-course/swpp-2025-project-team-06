@@ -57,9 +57,10 @@ import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun registerScreen(navController: NavController) {
+fun RegisterScreen(navController: NavController) {
     val context = LocalContext.current
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory(context))
     val registerState by authViewModel.registerState.collectAsState()

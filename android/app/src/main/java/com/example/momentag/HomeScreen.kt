@@ -67,9 +67,10 @@ import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun homeScreen(navController: NavController) {
+fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
 
@@ -131,13 +132,13 @@ fun homeScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(32.dp))
-            titleBlock(navController)
+            TitleBlock(navController)
 
             Spacer(modifier = Modifier.height(24.dp))
-            searchHeader()
+            SearchHeader()
 
             Spacer(modifier = Modifier.height(8.dp))
-            searchBar(
+            SearchBar(
                 onSearch = { query ->
                     if (query.isNotEmpty()) {
                         navController.navigate(Screen.SearchResult.createRoute(query))
@@ -146,13 +147,13 @@ fun homeScreen(navController: NavController) {
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-            viewToggle(
+            ViewToggle(
                 onlyTag = onlyTag,
                 onToggle = { onlyTag = it },
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-            mainContent(
+            MainContent(
                 hasPermission = hasPermission,
                 onlyTag = onlyTag,
                 imageTagPairs = imageTagPairs,
@@ -162,7 +163,7 @@ fun homeScreen(navController: NavController) {
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-            createTagRow()
+            CreateTagRow()
 
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -170,9 +171,9 @@ fun homeScreen(navController: NavController) {
 }
 
 // -------------------- Helpers --------------------
-
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun titleBlock(navController: NavController) {
+private fun TitleBlock(navController: NavController) {
     Text(
         text = "MomenTag",
         fontSize = 32.sp,
@@ -182,8 +183,9 @@ private fun titleBlock(navController: NavController) {
     )
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun searchHeader() {
+private fun SearchHeader() {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -194,9 +196,10 @@ private fun searchHeader() {
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun searchBar(onSearch: (String) -> Unit) {
+private fun SearchBar(onSearch: (String) -> Unit) {
     var searchText by remember { mutableStateOf("") }
 
     TextField(
@@ -231,8 +234,9 @@ private fun searchBar(onSearch: (String) -> Unit) {
     )
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun viewToggle(
+private fun ViewToggle(
     onlyTag: Boolean,
     onToggle: (Boolean) -> Unit,
 ) {
@@ -264,9 +268,10 @@ private fun viewToggle(
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun mainContent(
+private fun MainContent(
     hasPermission: Boolean,
     onlyTag: Boolean,
     imageTagPairs: List<Pair<Uri, String>>,
@@ -283,7 +288,7 @@ private fun mainContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(imageTagPairs) { (uri, tag) ->
-                    tagGridItem(tag, uri, navController)
+                    TagGridItem(tag, uri, navController)
                 }
             }
         } else {
@@ -294,7 +299,7 @@ private fun mainContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(imageTagPairs) { (_, tag) ->
-                    tagGridItem(tag)
+                    TagGridItem(tag)
                 }
             }
         }
@@ -315,8 +320,9 @@ private fun mainContent(
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Composable
-private fun createTagRow() {
+private fun CreateTagRow() {
     Row(
         modifier = Modifier.clickable { /* TODO */ },
         verticalAlignment = Alignment.CenterVertically,
@@ -342,8 +348,9 @@ private fun requiredImagePermission(): String =
 /*
 * TODO : change code with imageUrl
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
-fun tagGridItem(
+fun TagGridItem(
     tagName: String,
     imageUri: Uri?,
     navController: NavController,
@@ -394,8 +401,9 @@ fun tagGridItem(
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Composable
-fun tagGridItem(tagName: String) {
+fun TagGridItem(tagName: String) {
     Box(modifier = Modifier) {
         Spacer(
             modifier =
