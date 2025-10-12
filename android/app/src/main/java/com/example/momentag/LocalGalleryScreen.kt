@@ -51,30 +51,30 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Picture
-import com.example.momentag.ui.theme.Tag
+import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LocalGalleryScreen(
+fun localGalleryScreen(
     navController: NavController,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
     var hasPermission by remember { mutableStateOf(false) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                hasPermission = true
-            }
-        }
-    )
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    hasPermission = true
+                }
+            },
+        )
 
     if (hasPermission) {
         LaunchedEffect(Unit) {
@@ -83,11 +83,12 @@ fun LocalGalleryScreen(
     }
 
     LaunchedEffect(key1 = true) {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
+        val permission =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.READ_MEDIA_IMAGES
+            } else {
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            }
         permissionLauncher.launch(permission)
     }
 
@@ -101,47 +102,52 @@ fun LocalGalleryScreen(
                     Text(
                         "MomenTag",
                         fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                    ),
             )
-        }
+        },
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
         ) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Albums",
                 fontSize = 28.sp,
-                fontFamily = FontFamily.Serif
+                fontFamily = FontFamily.Serif,
             )
             HorizontalDivider(
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-                color = Color.Black.copy(alpha = 0.5f)
+                color = Color.Black.copy(alpha = 0.5f),
             )
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(albumSet) { album ->
-                    AlbumGridItem(
-                        albumName = album.albumName, albumId = album.albumId,  imageUri  = album.thumbnailUri, navController
+                    albumGridItem(
+                        albumName = album.albumName,
+                        albumId = album.albumId,
+                        imageUri = album.thumbnailUri,
+                        navController,
                     )
                 }
             }
@@ -150,33 +156,40 @@ fun LocalGalleryScreen(
 }
 
 @Composable
-fun AlbumGridItem(albumName: String, albumId : Long, imageUri: Uri?, navController: NavController) {
+fun albumGridItem(
+    albumName: String,
+    albumId: Long,
+    imageUri: Uri?,
+    navController: NavController,
+) {
     Box(modifier = Modifier) {
-        if(imageUri != null){
+        if (imageUri != null) {
             AsyncImage(
                 model = imageUri,
                 contentDescription = albumName,
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .align(Alignment.BottomCenter)
-                    .clickable {
-                        navController.navigate(Screen.LocalAlbum.createRoute(albumId, albumName))
-                    },
-                contentScale = ContentScale.Crop
+                modifier =
+                    Modifier
+                        .padding(top = 12.dp)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .align(Alignment.BottomCenter)
+                        .clickable {
+                            navController.navigate(Screen.LocalAlbum.createRoute(albumId, albumName))
+                        },
+                contentScale = ContentScale.Crop,
             )
         } else {
             Spacer(
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .aspectRatio(1f)
-                    .background(
-                        color = Picture,
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .align(Alignment.BottomCenter)
-                    .clickable { /* TODO */ }
+                modifier =
+                    Modifier
+                        .padding(top = 12.dp)
+                        .aspectRatio(1f)
+                        .background(
+                            color = Picture,
+                            shape = RoundedCornerShape(16.dp),
+                        )
+                        .align(Alignment.BottomCenter)
+                        .clickable { /* TODO */ },
             )
         }
 
@@ -184,14 +197,15 @@ fun AlbumGridItem(albumName: String, albumId : Long, imageUri: Uri?, navControll
             text = albumName,
             color = Word,
             fontSize = 12.sp,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 8.dp)
-                .background(
-                    color = Tag,
-                    shape = RoundedCornerShape(8.dp)
-                )
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp)
+                    .background(
+                        color = TagColor,
+                        shape = RoundedCornerShape(8.dp),
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }

@@ -29,9 +29,7 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,8 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -62,32 +58,28 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.momentag.ui.components.ErrorOverlay
-import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.model.SearchResultItem
+import com.example.momentag.model.SearchUiState
+import com.example.momentag.ui.components.errorOverlay
+import com.example.momentag.ui.components.warningBanner
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
-import com.example.momentag.model.SearchUiState
-import com.example.momentag.model.SearchResultItem
-
-import androidx.navigation.NavController
 
 /**
- * ========================================
- * SearchResultScreen - 검색 결과 화면
- * ========================================
- */
-
-/**
+ *  * ========================================
+ *  * SearchResultScreen - 검색 결과 화면
+ *  * ========================================
  * 검색 결과 메인 화면 (Navigation과 연결)
  */
 @Composable
-fun SearchResultScreen(
+fun searchResultScreen(
     initialQuery: String,
     navController: NavController,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
 ) {
     var searchText by remember { mutableStateOf(initialQuery) }
     var uiState by remember { mutableStateOf<SearchUiState>(SearchUiState.Idle) }
@@ -101,18 +93,19 @@ fun SearchResultScreen(
             // 현재는 더미 데이터로 테스트
             uiState = SearchUiState.Loading
             kotlinx.coroutines.delay(1000) // 로딩 시뮬레이션
-            
+
             // 더미 결과 생성
-            val dummyResults = listOf(
-                SearchResultItem(initialQuery, Uri.parse("content://media/1")),
-                SearchResultItem(initialQuery, Uri.parse("content://media/2")),
-                SearchResultItem(initialQuery, Uri.parse("content://media/3"))
-            )
+            val dummyResults =
+                listOf(
+                    SearchResultItem(initialQuery, Uri.parse("content://media/1")),
+                    SearchResultItem(initialQuery, Uri.parse("content://media/2")),
+                    SearchResultItem(initialQuery, Uri.parse("content://media/3")),
+                )
             uiState = SearchUiState.Success(dummyResults, initialQuery)
         }
     }
 
-    SearchResultScreenUI(
+    searchResultScreenUi(
         searchText = searchText,
         onSearchTextChange = { searchText = it },
         onSearchSubmit = {
@@ -126,18 +119,19 @@ fun SearchResultScreen(
         isSelectionMode = isSelectionMode,
         selectedImages = selectedImages,
         onBackClick = onNavigateBack,
-        onToggleSelectionMode = { 
+        onToggleSelectionMode = {
             isSelectionMode = !isSelectionMode
             if (!isSelectionMode) {
                 selectedImages = emptyList()
             }
         },
         onToggleImageSelection = { uri ->
-            selectedImages = if (selectedImages.contains(uri)) {
-                selectedImages - uri
-            } else {
-                selectedImages + uri
-            }
+            selectedImages =
+                if (selectedImages.contains(uri)) {
+                    selectedImages - uri
+                } else {
+                    selectedImages + uri
+                }
         },
         onImageClick = { uri ->
             // 이미지 상세 화면으로 이동
@@ -156,28 +150,13 @@ fun SearchResultScreen(
             if (searchText.isNotEmpty()) {
                 uiState = SearchUiState.Loading
             }
-        }
+        },
     )
 }
 
 /**
- * ========================================
- * 순수 UI 전용 테스트 파일
- * ========================================
- * 
- * 이 파일은 UI 렌더링만 담당하며 다음을 포함하지 않습니다:
- * - ViewModel 생성/구독
- * - LaunchedEffect (사이드 이펙트)
- * - remember로 관리되는 로컬 상태
- * - Navigation 직접 호출
- * 
- * 모든 상태와 이벤트 핸들러를 파라미터로 받아서 
- * 완전히 stateless하고 테스트/프리뷰 가능한 composable입니다.
- */
-
-/**
  * UI 전용 검색 결과 화면
- * 
+ *
  * @param searchText 현재 검색어 (외부에서 관리)
  * @param onSearchTextChange 검색어 변경 콜백
  * @param onSearchSubmit 검색 실행 콜백
@@ -194,7 +173,7 @@ fun SearchResultScreen(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchResultScreenUI(
+fun searchResultScreenUi(
     searchText: String,
     onSearchTextChange: (String) -> Unit,
     onSearchSubmit: () -> Unit,
@@ -208,17 +187,18 @@ fun SearchResultScreenUI(
     onImageLongPress: () -> Unit,
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier,
-        containerColor = Background
+        containerColor = Background,
     ) { paddingValues ->
-        SearchResultContent(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp),
+        searchResultContent(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 24.dp),
             searchText = searchText,
             onSearchTextChange = onSearchTextChange,
             onSearchSubmit = onSearchSubmit,
@@ -231,7 +211,7 @@ fun SearchResultScreenUI(
             onImageClick = onImageClick,
             onImageLongPress = onImageLongPress,
             onCreateTagClick = onCreateTagClick,
-            onRetry = onRetry
+            onRetry = onRetry,
         )
     }
 }
@@ -240,7 +220,7 @@ fun SearchResultScreenUI(
  * 검색 결과 컨텐츠 (순수 UI)
  */
 @Composable
-private fun SearchResultContent(
+private fun searchResultContent(
     modifier: Modifier = Modifier,
     searchText: String,
     onSearchTextChange: (String) -> Unit,
@@ -254,65 +234,68 @@ private fun SearchResultContent(
     onImageClick: (Uri) -> Unit,
     onImageLongPress: () -> Unit,
     onCreateTagClick: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
 ) {
     Box(modifier = modifier) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             // Header
-            SearchResultHeader(onBackClick = onBackClick)
+            searchResultHeader(onBackClick = onBackClick)
             Spacer(modifier = Modifier.height(24.dp))
 
             // Instruction + Selection mode toggle (같은 라인)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Left: Search for Photo instruction
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Search for Photo",
                         fontSize = 18.sp,
-                        fontFamily = FontFamily.Serif
+                        fontFamily = FontFamily.Serif,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
                         imageVector = Icons.Default.PhotoCamera,
-                        contentDescription = "카메라 아이콘"
+                        contentDescription = "카메라 아이콘",
                     )
                 }
-                
+
                 // Right: Selection mode toggle (결과가 있을 때만)
                 if (uiState is SearchUiState.Success && uiState.results.isNotEmpty()) {
                     Button(
                         onClick = onToggleSelectionMode,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSelectionMode) {
-                                com.example.momentag.ui.theme.Button
-                            } else {
-                                Semi_background
-                            },
-                            contentColor = if (isSelectionMode) Color.White else Word
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor =
+                                    if (isSelectionMode) {
+                                        com.example.momentag.ui.theme.Button
+                                    } else {
+                                        Semi_background
+                                    },
+                                contentColor = if (isSelectionMode) Color.White else Word,
+                            ),
                         shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = if (isSelectionMode) "선택 모드 해제" else "선택 모드",
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = if (isSelectionMode) "선택 모드" else "선택",
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
                         )
                     }
                 }
@@ -320,25 +303,26 @@ private fun SearchResultContent(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Input
-            SearchInputField(
+            searchInputField(
                 value = searchText,
                 onValueChange = onSearchTextChange,
-                onSearch = onSearchSubmit
+                onSearch = onSearchSubmit,
             )
             Spacer(modifier = Modifier.height(12.dp))
 
             // Results
-            SearchResultsFromState(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+            searchResultsFromState(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                 uiState = uiState,
                 isSelectionMode = isSelectionMode,
                 selectedImages = selectedImages,
                 onToggleImageSelection = onToggleImageSelection,
                 onImageClick = onImageClick,
                 onImageLongPress = onImageLongPress,
-                onRetry = onRetry
+                onRetry = onRetry,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -347,10 +331,11 @@ private fun SearchResultContent(
         // Bottom overlay: Photo count + Create Tag button
         if (uiState is SearchUiState.Success) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 32.dp),
             ) {
                 // Create Tag button (항상 표시)
                 // 선택 모드가 아닐 때: 클릭 시 자동으로 선택 모드 활성화
@@ -365,24 +350,26 @@ private fun SearchResultContent(
                             onCreateTagClick()
                         }
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = com.example.momentag.ui.theme.Button
-                    ),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 16.dp),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = com.example.momentag.ui.theme.Button,
+                        ),
                     shape = RoundedCornerShape(12.dp),
-                    enabled = !isSelectionMode || selectedImages.isNotEmpty()
+                    enabled = !isSelectionMode || selectedImages.isNotEmpty(),
                 ) {
                     Icon(
                         imageVector = Icons.Default.AddCircle,
                         contentDescription = "Create Tag",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Create Tag",
-                        fontSize = 16.sp
+                        fontSize = 16.sp,
                     )
                 }
 
@@ -391,14 +378,15 @@ private fun SearchResultContent(
                     text = "총 ${uiState.results.size}장",
                     fontSize = 14.sp,
                     color = Temp_word,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp)
-                        .background(
-                            color = Background.copy(alpha = 0.9f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp)
+                            .background(
+                                color = Background.copy(alpha = 0.9f),
+                                shape = RoundedCornerShape(8.dp),
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
         }
@@ -410,7 +398,7 @@ private fun SearchResultContent(
  * Error 상태일 때는 기존 Success 결과 위에 오버레이로 표시 (내용 대체 X)
  */
 @Composable
-private fun SearchResultsFromState(
+private fun searchResultsFromState(
     modifier: Modifier,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
@@ -418,58 +406,58 @@ private fun SearchResultsFromState(
     onToggleImageSelection: (Uri) -> Unit,
     onImageClick: (Uri) -> Unit,
     onImageLongPress: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
             is SearchUiState.Idle -> {
-                SearchStatusMessage(Modifier.fillMaxSize()) {
+                searchStatusMessage(Modifier.fillMaxSize()) {
                     Text(text = "검색어를 입력해주세요.", color = Temp_word)
                 }
             }
-            
+
             is SearchUiState.Loading -> {
-                LoadingScreen(
+                loadingScreen(
                     modifier = Modifier.fillMaxSize(),
-                    onRefresh = onRetry
+                    onRefresh = onRetry,
                 )
             }
-            
+
             is SearchUiState.Empty -> {
-                SearchStatusMessage(Modifier.fillMaxSize()) {
+                searchStatusMessage(Modifier.fillMaxSize()) {
                     Text(
                         text = "\"${uiState.query}\"에 대한 검색 결과가 없습니다.",
-                        color = Temp_word
+                        color = Temp_word,
                     )
                 }
             }
-            
+
             is SearchUiState.Success -> {
-                SearchResultGrid(
+                searchResultGrid(
                     modifier = Modifier.fillMaxSize(),
                     results = uiState.results,
                     isSelectionMode = isSelectionMode,
                     selectedImages = selectedImages,
                     onToggleImageSelection = onToggleImageSelection,
                     onImageClick = onImageClick,
-                    onImageLongPress = onImageLongPress
+                    onImageLongPress = onImageLongPress,
                 )
             }
-            
+
             is SearchUiState.Error -> {
                 // Error 상태: 기본 메시지를 표시 (Success 결과가 없을 때)
-                SearchStatusMessage(Modifier.fillMaxSize()) {
+                searchStatusMessage(Modifier.fillMaxSize()) {
                     Text(text = "오류가 발생했습니다.", color = Temp_word)
                 }
             }
         }
-        
+
         // Error 오버레이: 기존 내용 위에 겹쳐서 표시
         if (uiState is SearchUiState.Error) {
-            ErrorOverlay(
+            errorOverlay(
                 modifier = Modifier.fillMaxSize(),
                 errorMessage = uiState.message,
-                onRetry = onRetry
+                onRetry = onRetry,
             )
         }
     }
@@ -479,13 +467,13 @@ private fun SearchResultsFromState(
  * 헤더 (뒤로가기 기능)
  */
 @Composable
-private fun SearchResultHeader(onBackClick: () -> Unit) {
+private fun searchResultHeader(onBackClick: () -> Unit) {
     Text(
         text = "Search Results",
         fontSize = 32.sp,
         fontWeight = FontWeight.Bold,
         fontFamily = FontFamily.Serif,
-        modifier = Modifier.clickable { onBackClick() }
+        modifier = Modifier.clickable { onBackClick() },
     )
 }
 
@@ -493,20 +481,20 @@ private fun SearchResultHeader(onBackClick: () -> Unit) {
  * 검색 안내 문구
  */
 @Composable
-private fun SearchInstructionRow() {
+private fun searchInstructionRow() {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = "Search for Photo",
             fontSize = 18.sp,
-            fontFamily = FontFamily.Serif
+            fontFamily = FontFamily.Serif,
         )
         Spacer(modifier = Modifier.width(8.dp))
         Icon(
             imageVector = Icons.Default.PhotoCamera,
-            contentDescription = "카메라 아이콘"
+            contentDescription = "카메라 아이콘",
         )
     }
 }
@@ -515,38 +503,41 @@ private fun SearchInstructionRow() {
  * 선택 모드 토글 버튼
  */
 @Composable
-private fun SelectionModeToggle(
+private fun selectionModeToggle(
     isSelectionMode: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.End
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.End,
     ) {
         Button(
             onClick = onToggle,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (isSelectionMode) {
-                    com.example.momentag.ui.theme.Button
-                } else {
-                    Semi_background
-                },
-                contentColor = if (isSelectionMode) Color.White else Word
-            ),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor =
+                        if (isSelectionMode) {
+                            com.example.momentag.ui.theme.Button
+                        } else {
+                            Semi_background
+                        },
+                    contentColor = if (isSelectionMode) Color.White else Word,
+                ),
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.padding(4.dp)
+            modifier = Modifier.padding(4.dp),
         ) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = if (isSelectionMode) "선택 모드 해제" else "선택 모드",
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = if (isSelectionMode) "선택 모드" else "선택",
-                fontSize = 14.sp
+                fontSize = 14.sp,
             )
         }
     }
@@ -556,10 +547,10 @@ private fun SelectionModeToggle(
  * 검색 입력 필드
  */
 @Composable
-private fun SearchInputField(
+private fun searchInputField(
     value: String,
     onValueChange: (String) -> Unit,
-    onSearch: () -> Unit
+    onSearch: () -> Unit,
 ) {
     TextField(
         value = value,
@@ -567,14 +558,15 @@ private fun SearchInputField(
         placeholder = { Text("Search Anything...", color = Temp_word) },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = TextFieldDefaults.colors(
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            focusedContainerColor = Semi_background,
-            unfocusedContainerColor = Semi_background,
-            unfocusedTextColor = Word,
-            disabledTextColor = Word,
-        ),
+        colors =
+            TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                focusedContainerColor = Semi_background,
+                unfocusedContainerColor = Semi_background,
+                unfocusedTextColor = Word,
+                disabledTextColor = Word,
+            ),
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch() }),
@@ -582,10 +574,10 @@ private fun SearchInputField(
             IconButton(onClick = onSearch) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "검색 실행"
+                    contentDescription = "검색 실행",
                 )
             }
-        }
+        },
     )
 }
 
@@ -593,13 +585,13 @@ private fun SearchInputField(
  * 상태 메시지 표시 (로딩/에러/빈 결과 등)
  */
 @Composable
-private fun SearchStatusMessage(
+private fun searchStatusMessage(
     modifier: Modifier,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     Box(
         modifier = modifier,
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         content()
     }
@@ -610,30 +602,30 @@ private fun SearchStatusMessage(
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SearchResultGrid(
+private fun searchResultGrid(
     modifier: Modifier,
     results: List<SearchResultItem>,
     isSelectionMode: Boolean,
     selectedImages: List<Uri>,
     onToggleImageSelection: (Uri) -> Unit,
     onImageClick: (Uri) -> Unit,
-    onImageLongPress: () -> Unit
+    onImageLongPress: () -> Unit,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(results) { result ->
             result.imageUri?.let { uri ->
-                SearchPhotoItem(
+                searchPhotoItem(
                     imageUri = uri,
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedImages.contains(uri),
                     onToggleSelection = { onToggleImageSelection(uri) },
                     onClick = { onImageClick(uri) },
-                    onLongPress = onImageLongPress
+                    onLongPress = onImageLongPress,
                 )
             }
         }
@@ -645,67 +637,71 @@ private fun SearchResultGrid(
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SearchPhotoItem(
+private fun searchPhotoItem(
     imageUri: Uri,
     isSelectionMode: Boolean,
     isSelected: Boolean,
     onToggleSelection: () -> Unit,
     onClick: () -> Unit,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(12.dp))
+        modifier =
+            Modifier
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(12.dp)),
     ) {
         // 이미지
         AsyncImage(
             model = imageUri,
             contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .combinedClickable(
-                    onClick = {
-                        if (isSelectionMode) {
-                            onToggleSelection()
-                        } else {
-                            onClick()
-                        }
-                    },
-                    onLongClick = {
-                        // 선택 모드가 아닐 때만 롱프레스 활성화
-                        if (!isSelectionMode) {
-                            onLongPress()
-                            onToggleSelection() // 롱프레스 시 해당 아이템 자동 선택
-                        }
-                    }
-                )
-                .alpha(if (isSelectionMode && isSelected) 0.5f else 1f),
-            contentScale = ContentScale.Crop
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .combinedClickable(
+                        onClick = {
+                            if (isSelectionMode) {
+                                onToggleSelection()
+                            } else {
+                                onClick()
+                            }
+                        },
+                        onLongClick = {
+                            // 선택 모드가 아닐 때만 롱프레스 활성화
+                            if (!isSelectionMode) {
+                                onLongPress()
+                                onToggleSelection() // 롱프레스 시 해당 아이템 자동 선택
+                            }
+                        },
+                    )
+                    .alpha(if (isSelectionMode && isSelected) 0.5f else 1f),
+            contentScale = ContentScale.Crop,
         )
 
         // 선택 표시 (선택 모드일 때만)
         if (isSelectionMode) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        if (isSelected) {
-                            Color.Black.copy(alpha = 0.4f)
-                        } else {
-                            Color.Transparent
-                        }
-                    )
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            if (isSelected) {
+                                Color.Black.copy(alpha = 0.4f)
+                            } else {
+                                Color.Transparent
+                            },
+                        ),
             )
-            
+
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Selected",
                     tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(48.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .size(48.dp),
                 )
             }
         }
@@ -714,63 +710,63 @@ private fun SearchPhotoItem(
 
 /**
  * 로딩 화면 (곰돌이 + Loading 텍스트 + Progress Bar + 경고 메시지)
- * 
+ *
  * @param modifier Modifier
  * @param onRefresh 새로고침 버튼 클릭 콜백
  */
 @Composable
-private fun LoadingScreen(
+private fun loadingScreen(
     modifier: Modifier = Modifier,
-    onRefresh: () -> Unit = {}
+    onRefresh: () -> Unit = {},
 ) {
     // 5초 후에 경고 메시지 표시
     var showWarning by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(5000) // 5초 대기
         showWarning = true
     }
-    
+
     Box(
         modifier = modifier,
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             // 곰돌이 아이콘 (이모지로 표현)
             Text(
                 text = "🐻",
                 fontSize = 80.sp,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = 16.dp),
             )
-            
+
             // Loading 텍스트
             Text(
                 text = "Loading ...",
                 fontSize = 18.sp,
                 color = Word,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = 16.dp),
             )
-            
+
             // Progress Bar (무한 로딩)
             CircularProgressIndicator(
                 modifier = Modifier.size(48.dp),
                 color = com.example.momentag.ui.theme.Button,
-                strokeWidth = 4.dp
+                strokeWidth = 4.dp,
             )
-            
+
             Spacer(modifier = Modifier.weight(1f))
-            
+
             // 하단 경고 메시지 (5초 후에만 표시)
             if (showWarning) {
-                WarningBanner(
+                warningBanner(
                     title = "Loading is taking longer than usual.",
                     message = "Please refresh the page.",
-                    onActionClick = onRefresh
+                    onActionClick = onRefresh,
                 )
             }
         }
@@ -786,15 +782,16 @@ private fun LoadingScreen(
  */
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewLoadingScreen_WithoutWarning() {
+private fun previewLoadingScreenWithoutWarning() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Background),
     ) {
-        LoadingScreen(
+        loadingScreen(
             modifier = Modifier.fillMaxSize(),
-            onRefresh = {}
+            onRefresh = {},
         )
     }
 }
@@ -804,47 +801,48 @@ private fun PreviewLoadingScreen_WithoutWarning() {
  */
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewLoadingScreen_WithWarning() {
+private fun previewLoadingScreenWithWarning() {
     var showWarning by remember { mutableStateOf(true) }
-    
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Background),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             Text(
                 text = "🐻",
                 fontSize = 80.sp,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = 16.dp),
             )
-            
+
             Text(
                 text = "Loading ...",
                 fontSize = 18.sp,
                 color = Word,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = 16.dp),
             )
-            
+
             CircularProgressIndicator(
                 modifier = Modifier.size(48.dp),
                 color = com.example.momentag.ui.theme.Button,
-                strokeWidth = 4.dp
+                strokeWidth = 4.dp,
             )
-            
+
             Spacer(modifier = Modifier.weight(1f))
-            
+
             // 경고 메시지 (강제로 표시)
-            WarningBanner(
+            warningBanner(
                 title = "Loading is taking longer than usual.",
                 message = "Please refresh the page.",
                 onActionClick = {},
-                modifier = Modifier.padding(24.dp)
+                modifier = Modifier.padding(24.dp),
             )
         }
     }
@@ -852,8 +850,8 @@ private fun PreviewLoadingScreen_WithWarning() {
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewSearchResultScreen_Idle() {
-    SearchResultScreenUI(
+private fun previewSearchResultScreenIdle() {
+    searchResultScreenUi(
         searchText = "",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -866,14 +864,14 @@ private fun PreviewSearchResultScreen_Idle() {
         onImageClick = {},
         onImageLongPress = {},
         onCreateTagClick = {},
-        onRetry = {}
+        onRetry = {},
     )
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewSearchResultScreen_Loading() {
-    SearchResultScreenUI(
+private fun previewSearchResultScreenLoading() {
+    searchResultScreenUi(
         searchText = "nature",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -886,14 +884,14 @@ private fun PreviewSearchResultScreen_Loading() {
         onImageClick = {},
         onImageLongPress = {},
         onCreateTagClick = {},
-        onRetry = {}
+        onRetry = {},
     )
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewSearchResultScreen_Empty() {
-    SearchResultScreenUI(
+private fun previewSearchResultScreenEmpty() {
+    searchResultScreenUi(
         searchText = "nonexistent",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -906,14 +904,14 @@ private fun PreviewSearchResultScreen_Empty() {
         onImageClick = {},
         onImageLongPress = {},
         onCreateTagClick = {},
-        onRetry = {}
+        onRetry = {},
     )
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewSearchResultScreen_Error() {
-    SearchResultScreenUI(
+private fun previewSearchResultScreenError() {
+    searchResultScreenUi(
         searchText = "error",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -926,7 +924,7 @@ private fun PreviewSearchResultScreen_Error() {
         onImageClick = {},
         onImageLongPress = {},
         onCreateTagClick = {},
-        onRetry = {}
+        onRetry = {},
     )
 }
 
@@ -936,69 +934,73 @@ private fun PreviewSearchResultScreen_Error() {
  */
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewErrorDialog_WithBackdrop() {
+private fun previewErrorDialogWithBackdrop() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Background),
     ) {
         // 뒤 배경 콘텐츠 (Search Result 화면 흉내)
         Column(
             modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(32.dp))
             Text(
                 text = "Search Results",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif
+                fontFamily = FontFamily.Serif,
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(text = "Search for Photo", fontSize = 18.sp)
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // 더미 이미지 그리드
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(9) {
                     Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .background(Semi_background, RoundedCornerShape(12.dp))
+                        modifier =
+                            Modifier
+                                .aspectRatio(1f)
+                                .background(Semi_background, RoundedCornerShape(12.dp)),
                     )
                 }
             }
         }
-        
+
         // 에러 다이얼로그 (반투명 배경과 함께)
-        ErrorOverlay(
+        errorOverlay(
             modifier = Modifier.fillMaxSize(),
             errorMessage = "Network Error!\nPlease check your internet connection.",
-            onRetry = {}
+            onRetry = {},
         )
     }
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewSearchResultScreen_Success() {
-    val dummyResults = listOf(
-        SearchResultItem("nature", Uri.parse("content://media/1")),
-        SearchResultItem("nature", Uri.parse("content://media/2")),
-        SearchResultItem("nature", Uri.parse("content://media/3")),
-        SearchResultItem("nature", Uri.parse("content://media/4")),
-        SearchResultItem("nature", Uri.parse("content://media/5")),
-        SearchResultItem("nature", Uri.parse("content://media/6"))
-    )
-    
-    SearchResultScreenUI(
+private fun previewSearchResultScreenSuccess() {
+    val dummyResults =
+        listOf(
+            SearchResultItem("nature", Uri.parse("content://media/1")),
+            SearchResultItem("nature", Uri.parse("content://media/2")),
+            SearchResultItem("nature", Uri.parse("content://media/3")),
+            SearchResultItem("nature", Uri.parse("content://media/4")),
+            SearchResultItem("nature", Uri.parse("content://media/5")),
+            SearchResultItem("nature", Uri.parse("content://media/6")),
+        )
+
+    searchResultScreenUi(
         searchText = "nature",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -1011,28 +1013,30 @@ private fun PreviewSearchResultScreen_Success() {
         onImageClick = {},
         onImageLongPress = {},
         onCreateTagClick = {},
-        onRetry = {}
+        onRetry = {},
     )
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewSearchResultScreen_SelectionMode() {
-    val dummyResults = listOf(
-        SearchResultItem("nature", Uri.parse("content://media/1")),
-        SearchResultItem("nature", Uri.parse("content://media/2")),
-        SearchResultItem("nature", Uri.parse("content://media/3")),
-        SearchResultItem("nature", Uri.parse("content://media/4")),
-        SearchResultItem("nature", Uri.parse("content://media/5")),
-        SearchResultItem("nature", Uri.parse("content://media/6"))
-    )
-    
-    val selectedImages = listOf(
-        Uri.parse("content://media/1"),
-        Uri.parse("content://media/3")
-    )
-    
-    SearchResultScreenUI(
+private fun previewSearchResultScreenSelectionMode() {
+    val dummyResults =
+        listOf(
+            SearchResultItem("nature", Uri.parse("content://media/1")),
+            SearchResultItem("nature", Uri.parse("content://media/2")),
+            SearchResultItem("nature", Uri.parse("content://media/3")),
+            SearchResultItem("nature", Uri.parse("content://media/4")),
+            SearchResultItem("nature", Uri.parse("content://media/5")),
+            SearchResultItem("nature", Uri.parse("content://media/6")),
+        )
+
+    val selectedImages =
+        listOf(
+            Uri.parse("content://media/1"),
+            Uri.parse("content://media/3"),
+        )
+
+    searchResultScreenUi(
         searchText = "nature",
         onSearchTextChange = {},
         onSearchSubmit = {},
@@ -1045,6 +1049,6 @@ private fun PreviewSearchResultScreen_SelectionMode() {
         onImageClick = {},
         onImageLongPress = {},
         onCreateTagClick = {},
-        onRetry = {}
+        onRetry = {},
     )
 }

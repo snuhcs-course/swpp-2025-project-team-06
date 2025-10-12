@@ -7,7 +7,7 @@ import android.net.Uri
  */
 data class SearchResultItem(
     val query: String,
-    val imageUri: Uri?
+    val imageUri: Uri?,
 )
 
 /**
@@ -15,8 +15,12 @@ data class SearchResultItem(
  */
 sealed class SearchUiState {
     object Idle : SearchUiState()
+
     object Loading : SearchUiState()
+
     data class Success(val results: List<SearchResultItem>, val query: String) : SearchUiState()
+
     data class Empty(val query: String) : SearchUiState()
+
     data class Error(val message: String) : SearchUiState()
 }

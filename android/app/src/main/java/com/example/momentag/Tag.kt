@@ -40,16 +40,17 @@ sealed interface TagVariant {
  * 공통 컨테이너 - 배경/모서리/패딩/정렬
  */
 @Composable
-private fun TagContainer(
+private fun tagContainer(
     modifier: Modifier = Modifier,
-    content: @Composable RowScope.() -> Unit
+    content: @Composable RowScope.() -> Unit,
 ) {
     Row(
-        modifier = modifier
-            .background(color = TagColor, shape = RoundedCornerShape(50))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier =
+            modifier
+                .background(color = TagColor, shape = RoundedCornerShape(50))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        content = content
+        content = content,
     )
 }
 
@@ -57,12 +58,12 @@ private fun TagContainer(
  * 단일 진입점: 텍스트와 Variant 로 모든 동작 제어
  */
 @Composable
-fun TagChip(
+fun tagChip(
     text: String,
     variant: TagVariant = TagVariant.Plain,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    TagContainer(modifier = modifier) {
+    tagContainer(modifier = modifier) {
         Text(text = text, fontSize = 14.sp, color = Word)
         Spacer(modifier = Modifier.width(4.dp))
 
@@ -72,7 +73,7 @@ fun TagChip(
             is TagVariant.CloseAlways -> {
                 IconButton(
                     onClick = variant.onDismiss,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 ) {
                     Icon(imageVector = Icons.Default.Close, contentDescription = "Dismiss Tag")
                 }
@@ -82,7 +83,7 @@ fun TagChip(
                 AnimatedVisibility(visible = variant.isDeleteMode) {
                     IconButton(
                         onClick = variant.onDismiss,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     ) {
                         Icon(imageVector = Icons.Default.Close, contentDescription = "Dismiss Tag")
                     }
@@ -92,32 +93,32 @@ fun TagChip(
     }
 }
 
-/* ---- 기존 API와의 호환을 위한 얇은 래퍼들 ---- */
+// ---- 기존 API와의 호환을 위한 얇은 래퍼들 ----
 
 /** 기본 태그 (X 버튼 없음) */
 @Composable
-fun Tag(
+fun tag(
     text: String,
-    modifier: Modifier = Modifier
-) = TagChip(text = text, variant = TagVariant.Plain, modifier = modifier)
+    modifier: Modifier = Modifier,
+) = tagChip(text = text, variant = TagVariant.Plain, modifier = modifier)
 
 /** X 버튼 항상 보이는 태그 */
 @Composable
-fun TagX(
+fun tagX(
     text: String,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) = TagChip(text = text, variant = TagVariant.CloseAlways(onDismiss), modifier = modifier)
+    modifier: Modifier = Modifier,
+) = tagChip(text = text, variant = TagVariant.CloseAlways(onDismiss), modifier = modifier)
 
 /** 삭제 모드일 때만 X 버튼 보이는 태그 */
 @Composable
-fun TagXMode(
+fun tagXMode(
     text: String,
     isDeleteMode: Boolean,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) = TagChip(
+    modifier: Modifier = Modifier,
+) = tagChip(
     text = text,
     variant = TagVariant.CloseWhen(isDeleteMode, onDismiss),
-    modifier = modifier
+    modifier = modifier,
 )

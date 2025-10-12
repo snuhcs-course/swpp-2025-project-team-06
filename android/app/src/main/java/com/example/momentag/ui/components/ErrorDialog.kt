@@ -24,14 +24,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.TagColor
 
 /**
  * 재사용 가능한 에러 다이얼로그 컴포넌트
- * 
+ *
  * 전체 화면을 반투명 검은색으로 덮고, 중앙에 에러 다이얼로그를 표시합니다.
  * 모든 화면에서 일관된 에러 UI를 제공하기 위해 사용됩니다.
- * 
+ *
  * @param errorMessage 표시할 에러 메시지
  * @param onRetry 재시도 버튼 클릭 콜백
  * @param onDismiss 다이얼로그 닫기 콜백 (선택적, 백드롭 클릭 시 호출)
@@ -40,53 +39,58 @@ import com.example.momentag.ui.theme.TagColor
  * @param dismissible 백드롭 클릭으로 닫을 수 있는지 여부 (기본값: false)
  */
 @Composable
-fun ErrorDialog(
+fun errorDialog(
     errorMessage: String,
     onRetry: () -> Unit,
     onDismiss: (() -> Unit)? = null,
     title: String = "ERROR",
     retryButtonText: String = "RETRY",
-    dismissible: Boolean = false
+    dismissible: Boolean = false,
 ) {
     Dialog(
-        onDismissRequest = { 
+        onDismissRequest = {
             if (dismissible) {
                 onDismiss?.invoke()
             }
         },
-        properties = DialogProperties(
-            dismissOnBackPress = dismissible,
-            dismissOnClickOutside = dismissible,
-            usePlatformDefaultWidth = false
-        )
+        properties =
+            DialogProperties(
+                dismissOnBackPress = dismissible,
+                dismissOnClickOutside = dismissible,
+                usePlatformDefaultWidth = false,
+            ),
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             // 반투명 검은색 배경 (Backdrop/Scrim)
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
             )
-            
+
             // 에러 다이얼로그 카드
             Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .padding(32.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.85f)
+                        .padding(32.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = Color.White,
+                    ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     // 제목
                     Text(
@@ -94,32 +98,33 @@ fun ErrorDialog(
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(bottom = 16.dp),
                     )
-                    
+
                     // 에러 메시지
                     Text(
                         text = errorMessage,
                         fontSize = 14.sp,
                         color = Color.Gray,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 24.dp)
+                        modifier = Modifier.padding(bottom = 24.dp),
                     )
-                    
+
                     // 재시도 버튼
                     Button(
                         onClick = onRetry,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color(0xFFE57373)
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = Color(0xFFE57373),
+                            ),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
                     ) {
                         Text(
                             text = retryButtonText,
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -130,10 +135,10 @@ fun ErrorDialog(
 
 /**
  * 전체 화면을 덮는 에러 오버레이 (Dialog 없이 직접 배치)
- * 
+ *
  * Dialog를 사용하지 않고 Box로 직접 배치하는 버전입니다.
  * Navigation이나 다른 컴포저블과 함께 사용할 때 유용합니다.
- * 
+ *
  * @param errorMessage 표시할 에러 메시지
  * @param onRetry 재시도 버튼 클릭 콜백
  * @param modifier Modifier
@@ -141,40 +146,44 @@ fun ErrorDialog(
  * @param retryButtonText 재시도 버튼 텍스트 (기본값: "RETRY")
  */
 @Composable
-fun ErrorOverlay(
+fun errorOverlay(
     errorMessage: String,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     title: String = "ERROR",
-    retryButtonText: String = "RETRY"
+    retryButtonText: String = "RETRY",
 ) {
     Box(
         modifier = modifier,
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         // 반투명 검은색 배경 (Backdrop/Scrim)
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.5f))
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f)),
         )
-        
+
         // 에러 다이얼로그 카드
         Card(
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .padding(32.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.85f)
+                    .padding(32.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.White
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = Color.White,
+                ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // 제목
                 Text(
@@ -182,32 +191,33 @@ fun ErrorOverlay(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 16.dp),
                 )
-                
+
                 // 에러 메시지
                 Text(
                     text = errorMessage,
                     fontSize = 14.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    modifier = Modifier.padding(bottom = 24.dp),
                 )
-                
+
                 // 재시도 버튼
                 Button(
                     onClick = onRetry,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Red
-                    ),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Red,
+                        ),
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
                 ) {
                     Text(
                         text = retryButtonText,
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -221,61 +231,64 @@ fun ErrorOverlay(
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewErrorDialog() {
+private fun previewErrorDialog() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Background),
     ) {
-        ErrorDialog(
+        errorDialog(
             errorMessage = "Network Error!\nPlease check your internet connection.",
-            onRetry = {}
+            onRetry = {},
         )
     }
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewErrorDialog_CustomText() {
+private fun previewErrorDialogCustomText() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Background),
     ) {
-        ErrorDialog(
+        errorDialog(
             errorMessage = "서버 연결에 실패했습니다.\n잠시 후 다시 시도해주세요.",
             onRetry = {},
             title = "연결 실패",
-            retryButtonText = "다시 시도"
+            retryButtonText = "다시 시도",
         )
     }
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
-private fun PreviewErrorOverlay() {
+private fun previewErrorOverlay() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Background),
     ) {
         // 뒤 배경 콘텐츠
         Column(
             modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 text = "Some Screen Content",
                 fontSize = 24.sp,
-                modifier = Modifier.padding(32.dp)
+                modifier = Modifier.padding(32.dp),
             )
         }
-        
+
         // 에러 오버레이
-        ErrorOverlay(
+        errorOverlay(
             errorMessage = "Failed to load data.\nPlease try again.",
             onRetry = {},
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }

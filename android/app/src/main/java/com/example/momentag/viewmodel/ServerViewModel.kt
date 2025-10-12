@@ -2,8 +2,8 @@ package com.example.momentag.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.momentag.model.Tag
 import com.example.momentag.model.Photo
+import com.example.momentag.model.Tag
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,8 +19,8 @@ class ServerViewModel(private val remoteRepository: RemoteRepository) : ViewMode
                 _allTags.value = remoteRepository.getAllTags()
             } catch (e: Exception) {
                 /*
-                * TODO : Handle error
-                */
+                 * TODO : Handle error
+                 */
             }
         }
     }
@@ -28,13 +28,13 @@ class ServerViewModel(private val remoteRepository: RemoteRepository) : ViewMode
     private val _photoByTag = MutableStateFlow<List<Photo>>(emptyList())
     val photoByTag = _photoByTag.asStateFlow()
 
-    fun getPhotoByTag(tagName : String) {
+    fun getPhotoByTag(tagName: String) {
         viewModelScope.launch {
             try {
                 _photoByTag.value = remoteRepository.getPhotosByTag(tagName)
             } catch (e: Exception) {
                 /*
-                * TODO : Handle error
+                 * TODO : Handle error
                  */
             }
         }
