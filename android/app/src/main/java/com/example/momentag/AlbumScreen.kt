@@ -158,8 +158,7 @@ fun albumScreen(
                                         .background(
                                             color = Picture,
                                             shape = RoundedCornerShape(16.dp),
-                                        )
-                                        .align(Alignment.BottomCenter)
+                                        ).align(Alignment.BottomCenter)
                                         .clickable { /* TODO */ },
                             )
                         }

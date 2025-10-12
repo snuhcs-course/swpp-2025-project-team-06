@@ -9,7 +9,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class ServerViewModel(private val remoteRepository: RemoteRepository) : ViewModel() {
+class ServerViewModel(
+    private val remoteRepository: RemoteRepository,
+) : ViewModel() {
     private val _allTags = MutableStateFlow<List<Tag>>(emptyList())
     val allTags = _allTags.asStateFlow()
 

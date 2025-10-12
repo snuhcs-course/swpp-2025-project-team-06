@@ -179,8 +179,7 @@ fun imageScreen(
                             .aspectRatio(0.7f)
                             .clickable {
                                 if (isDeleteMode) isDeleteMode = false
-                            }
-                            .align(Alignment.BottomCenter),
+                            }.align(Alignment.BottomCenter),
                     contentScale = ContentScale.Crop,
                 )
 
@@ -218,7 +217,7 @@ fun imageScreen(
                         onClick = { /* TODO */ },
                         modifier = Modifier.size(32.dp),
                     ) {
-                        Icon(Icons.Default.Add, "Add Tag", tint = Color.Gray)
+                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag", tint = Color.Gray)
                     }
                 }
             }
@@ -247,7 +246,7 @@ fun tagsSection(
             }
         }
         IconButton(onClick = { /* TODO */ }, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Add, "Add Tag", tint = Color.Gray)
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag", tint = Color.Gray)
         }
     }
 }

@@ -147,7 +147,7 @@ fun localGalleryScreen(
                         albumName = album.albumName,
                         albumId = album.albumId,
                         imageUri = album.thumbnailUri,
-                        navController,
+                        navController = navController,
                     )
                 }
             }
@@ -187,8 +187,7 @@ fun albumGridItem(
                         .background(
                             color = Picture,
                             shape = RoundedCornerShape(16.dp),
-                        )
-                        .align(Alignment.BottomCenter)
+                        ).align(Alignment.BottomCenter)
                         .clickable { /* TODO */ },
             )
         }
@@ -204,8 +203,7 @@ fun albumGridItem(
                     .background(
                         color = TagColor,
                         shape = RoundedCornerShape(8.dp),
-                    )
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }

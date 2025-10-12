@@ -79,9 +79,19 @@ fun homeScreen(navController: NavController) {
     var tags by remember {
         mutableStateOf(
             listOf(
-                "#home", "#cozy", "#hobby", "#study", "#tool",
-                "#food", "#dream", "#travel", "#nature", "#animal",
-                "#fashion", "#sport", "#work",
+                "#home",
+                "#cozy",
+                "#hobby",
+                "#study",
+                "#tool",
+                "#food",
+                "#dream",
+                "#travel",
+                "#nature",
+                "#animal",
+                "#fashion",
+                "#sport",
+                "#work",
             ),
         )
     }
@@ -322,13 +332,12 @@ private fun createTagRow() {
 }
 
 // 권한 헬퍼: 기존 분기 로직 그대로 함수로만 분리
-private fun requiredImagePermission(): String {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+private fun requiredImagePermission(): String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
     } else {
         Manifest.permission.READ_EXTERNAL_STORAGE
     }
-}
 
 /*
 * TODO : change code with imageUrl
@@ -364,8 +373,7 @@ fun tagGridItem(
                         .background(
                             color = Picture,
                             shape = RoundedCornerShape(16.dp),
-                        )
-                        .align(Alignment.BottomCenter)
+                        ).align(Alignment.BottomCenter)
                         .clickable { /* TODO */ },
             )
         }
@@ -381,8 +389,7 @@ fun tagGridItem(
                     .background(
                         color = TagColor,
                         shape = RoundedCornerShape(8.dp),
-                    )
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }
@@ -398,8 +405,7 @@ fun tagGridItem(tagName: String) {
                     .background(
                         color = Picture,
                         shape = RoundedCornerShape(16.dp),
-                    )
-                    .align(Alignment.BottomCenter)
+                    ).align(Alignment.BottomCenter)
                     .clickable { /* TODO */ },
         )
 
@@ -414,8 +420,7 @@ fun tagGridItem(tagName: String) {
                     .background(
                         color = TagColor,
                         shape = RoundedCornerShape(8.dp),
-                    )
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }

@@ -9,10 +9,13 @@ import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlin.uuid.ExperimentalUuidApi
 
-class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
+class ViewModelFactory(
+    private val context: Context,
+) : ViewModelProvider.Factory {
     @OptIn(ExperimentalUuidApi::class)
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return when {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        when {
             modelClass.isAssignableFrom(ServerViewModel::class.java) -> {
                 ServerViewModel(RemoteRepository(RetrofitInstance.getApiService(context.applicationContext))) as T
             }
@@ -22,10 +25,9 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
             modelClass.isAssignableFrom(AuthViewModel::class.java) -> {
                 AuthViewModel(
                     RemoteRepository(RetrofitInstance.getApiService(context.applicationContext)),
-                    SessionManager(context.applicationContext)
+                    SessionManager(context.applicationContext),
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class")
         }
-    }
 }

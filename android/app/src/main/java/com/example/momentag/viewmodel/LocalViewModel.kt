@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class LocalViewModel(private val localRepository: LocalRepository) : ViewModel() {
+class LocalViewModel(
+    private val localRepository: LocalRepository,
+) : ViewModel() {
     private val _image = MutableStateFlow<List<Uri>>(emptyList())
     val image = _image.asStateFlow()
 

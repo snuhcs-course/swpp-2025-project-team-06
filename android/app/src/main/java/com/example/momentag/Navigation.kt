@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,7 +32,7 @@ fun appNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route
+        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route,
     ) {
         composable(route = Screen.Home.route) {
             homeScreen(navController = navController)
@@ -107,17 +106,17 @@ fun appNavigation() {
         }
 
         composable(
-            route = Screen.Login.route
+            route = Screen.Login.route,
         ) {
-            LoginScreen(
-                navController = navController
+            loginScreen(
+                navController = navController,
             )
         }
 
         composable(
             route = Screen.Register.route,
         ) {
-            RegisterScreen(
+            registerScreen(
                 navController = navController,
             )
         }
@@ -136,4 +135,3 @@ fun appNavigation() {
         }
     }
 }
-=

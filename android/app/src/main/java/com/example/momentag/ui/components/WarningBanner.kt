@@ -64,8 +64,7 @@ fun warningBanner(
                 .background(
                     color = backgroundColor,
                     shape = RoundedCornerShape(12.dp),
-                )
-                .padding(16.dp),
+                ).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 왼쪽 아이콘

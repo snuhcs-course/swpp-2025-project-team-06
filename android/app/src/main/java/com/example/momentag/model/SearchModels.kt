@@ -18,9 +18,16 @@ sealed class SearchUiState {
 
     object Loading : SearchUiState()
 
-    data class Success(val results: List<SearchResultItem>, val query: String) : SearchUiState()
+    data class Success(
+        val results: List<SearchResultItem>,
+        val query: String,
+    ) : SearchUiState()
 
-    data class Empty(val query: String) : SearchUiState()
+    data class Empty(
+        val query: String,
+    ) : SearchUiState()
 
-    data class Error(val message: String) : SearchUiState()
+    data class Error(
+        val message: String,
+    ) : SearchUiState()
 }

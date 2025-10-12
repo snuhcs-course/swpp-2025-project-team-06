@@ -19,13 +19,16 @@ import kotlin.uuid.ExperimentalUuidApi
 @OptIn(ExperimentalUuidApi::class)
 class AuthViewModel(
     private val authRepository: RemoteRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
 ) : ViewModel() {
     // login
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState = _loginState.asStateFlow()
 
-    fun login(username: String, password: String) {
+    fun login(
+        username: String,
+        password: String,
+    ) {
         viewModelScope.launch {
             try {
                 val request = LoginRegisterRequest(username, password)
@@ -44,7 +47,7 @@ class AuthViewModel(
                     }
 
                     response.code() == 401 -> {
-                        _loginState.value = LoginState.Unauthorized ("Wrong username or password")
+                        _loginState.value = LoginState.Unauthorized("Wrong username or password")
                     }
 
                     else -> {
@@ -63,12 +66,14 @@ class AuthViewModel(
         _loginState.value = LoginState.Idle
     }
 
-
     // register
     private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val registerState = _registerState.asStateFlow()
 
-    fun register(username: String, password: String) {
+    fun register(
+        username: String,
+        password: String,
+    ) {
         viewModelScope.launch {
             try {
                 val request = LoginRegisterRequest(username, password)
@@ -76,7 +81,7 @@ class AuthViewModel(
 
                 when {
                     response.isSuccessful -> { // 201 Created
-                        _registerState.value = RegisterState.Success(response.body()!!.id )
+                        _registerState.value = RegisterState.Success(response.body()!!.id)
                     }
 
                     response.code() == 400 -> {
@@ -102,7 +107,6 @@ class AuthViewModel(
     fun resetRegisterState() {
         _registerState.value = RegisterState.Idle
     }
-
 
     // refresh tokens
     private val _refreshState = MutableStateFlow<RefreshState>(RefreshState.Idle)
@@ -158,7 +162,6 @@ class AuthViewModel(
     fun resetRefreshState() {
         _refreshState.value = RefreshState.Idle
     }
-
 
     // logout
     private val _logoutState = MutableStateFlow<LogoutState>(LogoutState.Idle)

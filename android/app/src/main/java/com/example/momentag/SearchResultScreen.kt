@@ -385,8 +385,7 @@ private fun searchResultContent(
                             .background(
                                 color = Background.copy(alpha = 0.9f),
                                 shape = RoundedCornerShape(8.dp),
-                            )
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            ).padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
         }
@@ -673,8 +672,7 @@ private fun searchPhotoItem(
                                 onToggleSelection() // 롱프레스 시 해당 아이템 자동 선택
                             }
                         },
-                    )
-                    .alpha(if (isSelectionMode && isSelected) 0.5f else 1f),
+                    ).alpha(if (isSelectionMode && isSelected) 0.5f else 1f),
             contentScale = ContentScale.Crop,
         )
 

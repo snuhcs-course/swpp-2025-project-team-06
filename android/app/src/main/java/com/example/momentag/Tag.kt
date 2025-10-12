@@ -30,10 +30,15 @@ sealed interface TagVariant {
     data object Plain : TagVariant
 
     /** X 버튼 항상 보임 */
-    data class CloseAlways(val onDismiss: () -> Unit) : TagVariant
+    data class CloseAlways(
+        val onDismiss: () -> Unit,
+    ) : TagVariant
 
     /** isDeleteMode 가 true일 때만 X 버튼 보임 */
-    data class CloseWhen(val isDeleteMode: Boolean, val onDismiss: () -> Unit) : TagVariant
+    data class CloseWhen(
+        val isDeleteMode: Boolean,
+        val onDismiss: () -> Unit,
+    ) : TagVariant
 }
 
 /**

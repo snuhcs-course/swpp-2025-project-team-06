@@ -4,7 +4,9 @@ import android.net.Uri
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-sealed class Screen(val route: String) {
+sealed class Screen(
+    val route: String,
+) {
     object Home : Screen("home_screen")
 
     object Album : Screen("album_screen/{tagName}") {

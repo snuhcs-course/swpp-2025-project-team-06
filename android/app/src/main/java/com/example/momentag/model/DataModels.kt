@@ -27,18 +27,18 @@ data class LoginRegisterRequest(
 
 @OptIn(ExperimentalUuidApi::class)
 data class RegisterResponse(
-    val id: Uuid
+    val id: Uuid,
 )
 
 data class LoginResponse(
     val access_token: String,
-    val refresh_token: String
+    val refresh_token: String,
 )
 
 data class RefreshRequest(
-    val refresh_token: String
+    val refresh_token: String,
 )
 
 data class RefreshResponse(
-    val access_token: String
+    val access_token: String,
 )
