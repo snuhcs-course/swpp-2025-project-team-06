@@ -72,12 +72,13 @@ class AuthViewModel(
     val registerState = _registerState.asStateFlow()
 
     fun register(
+        email: String,
         username: String,
         password: String,
     ) {
         viewModelScope.launch {
             try {
-                val request = RegisterRequest(username, password)
+                val request = RegisterRequest(email, username, password)
                 val response = authRepository.register(request)
 
                 when {
@@ -90,7 +91,7 @@ class AuthViewModel(
                     }
 
                     response.code() == 409 -> {
-                        _registerState.value = RegisterState.Conflict("Username already in use")
+                        _registerState.value = RegisterState.Conflict("Email already in use")
                     }
 
                     else -> {
