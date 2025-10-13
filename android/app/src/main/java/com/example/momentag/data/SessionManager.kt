@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 private val Context.sessionDataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
@@ -59,10 +60,34 @@ class SessionManager(
         _refreshToken.value = refreshToken
     }
 
-    // return token from memory
-    fun getAccessToken(): String? = _accessToken.value
+    // Return latest token; if cache empty, synchronously load from DataStore to avoid stale reads across instances
+    fun getAccessToken(): String? {
+        val cached = _accessToken.value
+        if (!cached.isNullOrBlank()) return cached
 
-    fun getRefreshToken(): String? = _refreshToken.value
+        runBlocking {
+            dataStore.data.first().let { prefs ->
+                _accessToken.value = prefs[ACCESS_TOKEN_KEY]
+                _refreshToken.value = prefs[REFRESH_TOKEN_KEY]
+            }
+            _isLoaded.value = true
+        }
+        return _accessToken.value
+    }
+
+    fun getRefreshToken(): String? {
+        val cached = _refreshToken.value
+        if (!cached.isNullOrBlank()) return cached
+
+        runBlocking {
+            dataStore.data.first().let { prefs ->
+                _accessToken.value = prefs[ACCESS_TOKEN_KEY]
+                _refreshToken.value = prefs[REFRESH_TOKEN_KEY]
+            }
+            _isLoaded.value = true
+        }
+        return _refreshToken.value
+    }
 
     suspend fun clearTokens() {
         dataStore.edit { prefs ->

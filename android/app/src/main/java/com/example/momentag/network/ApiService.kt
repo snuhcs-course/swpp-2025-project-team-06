@@ -60,7 +60,7 @@ object RetrofitInstance {
         if (apiService == null) {
             val sessionManager = SessionManager(context.applicationContext)
             val authInterceptor = AuthInterceptor(sessionManager)
-            val tokenAuthenticator = TokenAuthenticator(context, sessionManager)
+            val tokenAuthenticator = TokenAuthenticator(sessionManager)
 
             val okHttpClient =
                 OkHttpClient
