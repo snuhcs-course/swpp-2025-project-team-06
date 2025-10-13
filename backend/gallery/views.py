@@ -10,7 +10,7 @@ from qdrant_client import models
 from .reponse_serializers import ResPhotoSerializer, ResPhotoTagListSerializer, ResPhotoIdSerializer, ResTagIdSerializer, ResTagVectorSerializer
 from .request_serializers import ReqPhotoDetailSerializer, ReqPhotoIdSerializer, ReqTagNameSerializer, ReqTagIdSerializer
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag, Photo
+from .models import Photo_Tag, Tag
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -21,9 +21,6 @@ from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 import os
 from .tasks import process_and_embed_photo, create_or_update_tag_embedding
-
-TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
-text_model = SentenceTransformer(TEXT_MODEL_NAME)
 
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -56,66 +53,50 @@ class PhotoView(APIView):
                 name="photo",
                 in_=openapi.IN_FORM,
                 type=openapi.TYPE_FILE,
-                description="Photo file(s) to upload",
+                description="Photo file to upload",
                 required=True,
             ),
             openapi.Parameter(
-                name="filename",
+                name="metadata",
                 in_=openapi.IN_FORM,
                 type=openapi.TYPE_STRING,
-                description="Filename of each photo",
+                description="JSON string containing metadata for each photo: [{'filename': str, 'photo_path_id': str, 'created_at': str, 'lat': float, 'lng': float}, ...]",
                 required=True,
-            ),
-            openapi.Parameter(
-                name="photo_path_id",
-                in_=openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                description="MediaStore url ID",
-                required=True,
-            ),
-            openapi.Parameter(
-                name="created_at",
-                in_=openapi.IN_FORM,
-                type=openapi.TYPE_STRING,
-                format=openapi.FORMAT_DATETIME,
-                description="Creation timestamp of each photo",
-            ),
-            openapi.Parameter(
-                name="lat",
-                in_=openapi.IN_FORM,
-                type=openapi.TYPE_NUMBER,
-                format=openapi.FORMAT_FLOAT,
-                description="Latitude of the photo",
-            ),
-            openapi.Parameter(
-                name="lng",
-                in_=openapi.IN_FORM,
-                type=openapi.TYPE_NUMBER,
-                format=openapi.FORMAT_FLOAT,
-                description="Longitude of the photo",
             ),
         ],
         consumes=["multipart/form-data"],
     )
     def post(self, request, *args, **kwargs):
         try:
+            import json
             
             photos = request.FILES.getlist('photo')
-            filenames = request.POST.getlist('filename')
-            photo_path_ids = request.POST.getlist('photo_path_id')
-            created_ats = request.POST.getlist('created_at')
-            lats = request.POST.getlist('lat')
-            lngs = request.POST.getlist('lng')
+            metadata_json = request.POST.get('metadata')
+            
+            if not metadata_json:
+                return Response({"error": "metadata field is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                metadata_list = json.loads(metadata_json)
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid JSON format in metadata field"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if len(photos) != len(metadata_list):
+                return Response({"error": "Number of photos and metadata entries must match"}, status=status.HTTP_400_BAD_REQUEST)
             
             photos_data = []
-            for i in range(len(photos)):
+            for i, photo in enumerate(photos):
+                if i >= len(metadata_list):
+                    return Response({"error": "Insufficient metadata for all photos"}, status=status.HTTP_400_BAD_REQUEST)
+                
+                metadata = metadata_list[i]
                 photos_data.append({
-                    'photo': photos[i],
-                    'filename': filenames[i],
-                    'photo_path_id': photo_path_ids[i],
-                    'created_at': created_ats[i],
-                    'lat': lats[i],
-                    'lng': lngs[i]
+                    'photo': photo,
+                    'filename': metadata.get('filename'),
+                    'photo_path_id': metadata.get('photo_path_id'),
+                    'created_at': metadata.get('created_at'),
+                    'lat': metadata.get('lat'),
+                    'lng': metadata.get('lng')
                 })
 
             serializer = ReqPhotoDetailSerializer(data=photos_data, many=True)
@@ -125,7 +106,7 @@ class PhotoView(APIView):
             
             photos_data = serializer.validated_data
             
-            fs = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'temp_images'))
+            fs = FileSystemStorage(location=settings.MEDIA_ROOT)
 
             for data in photos_data:
                 image_file = data['photo']
@@ -142,16 +123,6 @@ class PhotoView(APIView):
                     created_at=data['created_at'].isoformat(),
                     lat=data['lat'],
                     lng=data['lng']
-                )
-
-                Photo.objects.create(
-                    photo_id=uuid.uuid4(),
-                    user=request.user,
-                    filename=data['filename'],
-                    photo_path_id=data['photo_path_id'],
-                    created_at=data['created_at'],
-                    location_lat=data['lat'],
-                    location_lng=data['lng']
                 )
 
             return Response({"message": "Photos are being processed."}, status=status.HTTP_202_ACCEPTED)
