@@ -232,7 +232,7 @@ fun HomeScreen(navController: NavController) {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ExitToApp,
+                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                                 contentDescription = "Logout",
                                 modifier = Modifier.size(16.dp),
                             )
