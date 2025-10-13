@@ -7,11 +7,11 @@ from .vision_service import get_image_embedding
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME
 from .models import Tag, User
 
+import time
+
 from sentence_transformers import SentenceTransformer
 _TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 _text_model = None  # 전역 캐시
-
-import time
 
 MAX_WAIT = 2.0  # 최대 2초 대기
 WAIT_INTERVAL = 0.1

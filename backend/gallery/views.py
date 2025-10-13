@@ -15,11 +15,8 @@ from .qdrant_utils import client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-from sentence_transformers import SentenceTransformer
-
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
-import os
 from .tasks import process_and_embed_photo, create_or_update_tag_embedding
 
 class PhotoView(APIView):
