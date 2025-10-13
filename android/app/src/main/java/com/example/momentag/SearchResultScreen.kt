@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
@@ -61,6 +60,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
+import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.errorOverlay
 import com.example.momentag.ui.components.warningBanner
 import com.example.momentag.ui.theme.Background
@@ -337,12 +337,18 @@ private fun SearchResultContent(
                     Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 32.dp),
+                        .padding(bottom = 16.dp),
             ) {
                 // Create Tag button (항상 표시)
                 // 선택 모드가 아닐 때: 클릭 시 자동으로 선택 모드 활성화
                 // 선택 모드일 때: 선택된 이미지가 있어야 활성화
-                Button(
+                CreateTagButton(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 16.dp),
+                    text = "Create Tag",
+                    enabled = !isSelectionMode || selectedImages.isNotEmpty(),
                     onClick = {
                         if (!isSelectionMode) {
                             // 선택 모드로 전환
@@ -352,28 +358,7 @@ private fun SearchResultContent(
                             onCreateTagClick()
                         }
                     },
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 16.dp),
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = com.example.momentag.ui.theme.Button,
-                        ),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = !isSelectionMode || selectedImages.isNotEmpty(),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AddCircle,
-                        contentDescription = "Create Tag",
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Create Tag",
-                        fontSize = 16.sp,
-                    )
-                }
+                )
 
                 // Photo count (오른쪽에 표시 - Create Tag 버튼과 대칭)
                 Text(

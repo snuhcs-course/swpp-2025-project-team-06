@@ -3,8 +3,6 @@ package com.example.momentag.model
 import android.net.Uri
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 data class Tag(
     val tagName: String,
@@ -23,7 +21,7 @@ data class Album(
 )
 
 data class LoginRequest(
-    val email: String,
+    val username: String,
     val password: String,
 )
 
@@ -33,9 +31,9 @@ data class RegisterRequest(
     val password: String,
 )
 
-@OptIn(ExperimentalUuidApi::class)
 data class RegisterResponse(
-    val id: Uuid,
+    val id: Int,
+    // Todo: Uuid로 안 받고 Int로 받음
 )
 
 data class LoginResponse(

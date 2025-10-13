@@ -1,8 +1,5 @@
 package com.example.momentag.model
 
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
-
 sealed class LoginState {
     object Idle : LoginState()
 
@@ -25,12 +22,12 @@ sealed class LoginState {
     ) : LoginState()
 }
 
-@OptIn(ExperimentalUuidApi::class)
 sealed class RegisterState {
     object Idle : RegisterState()
 
     data class Success(
-        val id: Uuid,
+        val id: Int,
+        // TODO: UUID 대신 String
     ) : RegisterState()
 
     data class BadRequest(
@@ -69,7 +66,13 @@ sealed interface RefreshState {
 sealed interface LogoutState {
     object Idle : LogoutState
 
-    object Success : LogoutState
+    data object Loading : LogoutState
+
+    data object Success : LogoutState
+
+    data class Error(
+        val message: String? = null,
+    ) : LogoutState
 }
 
 /* UI state by screen */

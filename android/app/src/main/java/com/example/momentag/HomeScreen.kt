@@ -20,21 +20,26 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.ViewList
-import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -44,6 +49,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,16 +64,19 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.model.LogoutState
+import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
+import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.launch
 
 @Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -75,6 +84,10 @@ import com.example.momentag.viewmodel.ViewModelFactory
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
+    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory(context))
+    val logoutState by authViewModel.logoutState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory(context))
@@ -120,6 +133,22 @@ fun HomeScreen(navController: NavController) {
             localViewModel.getImages()
         }
     }
+    // 성공 시 로그인 화면으로 이동(백스택 초기화)
+    LaunchedEffect(logoutState) {
+        when (logoutState) {
+            is LogoutState.Success -> {
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(0)
+                    launchSingleTop = true
+                }
+            }
+            is LogoutState.Error -> {
+                val msg = (logoutState as LogoutState.Error).message ?: "Logout failed"
+                scope.launch { snackbarHostState.showSnackbar(msg) }
+            }
+            else -> Unit
+        }
+    }
 
     LaunchedEffect(hasPermission) { // once when got permission
         photoViewModel.uploadPhotos()
@@ -134,9 +163,31 @@ fun HomeScreen(navController: NavController) {
 
     Scaffold(
         topBar = { },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = { },
-        floatingActionButton = { },
         containerColor = Background,
+        floatingActionButton = {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, bottom = 16.dp),
+                // 왼쪽 하단 위치 조정
+                contentAlignment = Alignment.BottomStart,
+            ) {
+                CreateTagButton(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 16.dp),
+                    text = "Create Tag",
+                    onClick = {
+                        // TODO: inject screen-specific behavior via navController or callback
+                        // Example: navController.navigate(Screen.CreateTag.route)
+                    },
+                )
+            }
+        },
     ) { paddingValues ->
         Column(
             modifier =
@@ -146,8 +197,55 @@ fun HomeScreen(navController: NavController) {
                     .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
-            TitleBlock(navController)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 2) TitleBlock 우측 상단에 작은 Logout 컨트롤
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // 왼쪽 공간(아이콘 자리 균형 맞추기용)
+                Box(Modifier.width(40.dp)) {}
+
+                // 가운데에 TitleBlock 고정
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    TitleBlock(navController)
+                }
+
+                // 우상단 작은 로그아웃
+                when (logoutState) {
+                    is LogoutState.Loading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                    else -> {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .clickable { authViewModel.logout() } // 클릭 가능하게
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ExitToApp,
+                                contentDescription = "Logout",
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Logout",
+                                fontSize = 12.sp, // 🔹 작게
+                                color = Color.Gray, // 🔹 필요하면 색상 변경
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
             SearchHeader()
@@ -176,11 +274,6 @@ fun HomeScreen(navController: NavController) {
                 navController = navController,
                 modifier = Modifier.weight(1f),
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-            CreateTagRow()
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -337,20 +430,7 @@ private fun MainContent(
 
 @Suppress("ktlint:standard:function-naming")
 @Composable
-private fun CreateTagRow() {
-    Row(
-        modifier = Modifier.clickable { /* TODO */ },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = Icons.Default.AddCircle,
-            contentDescription = "Create Tag",
-            tint = Button,
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "Create Tag", fontSize = 16.sp)
-    }
-}
+private fun Deprecated_CreateTagRow() { /* replaced by CreateTagButton component */ }
 
 // 권한 헬퍼: 기존 분기 로직 그대로 함수로만 분리
 private fun requiredImagePermission(): String =
