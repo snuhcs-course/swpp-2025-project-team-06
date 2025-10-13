@@ -8,12 +8,17 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private val Context.sessionDataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
-class SessionManager(context: Context) {
+class SessionManager(
+    context: Context,
+) {
     private val dataStore = context.sessionDataStore
 
     companion object {
@@ -42,7 +47,10 @@ class SessionManager(context: Context) {
         }
     }
 
-    suspend fun saveTokens(accessToken: String, refreshToken: String) {
+    suspend fun saveTokens(
+        accessToken: String,
+        refreshToken: String,
+    ) {
         dataStore.edit { prefs ->
             prefs[ACCESS_TOKEN_KEY] = accessToken
             prefs[REFRESH_TOKEN_KEY] = refreshToken
@@ -53,6 +61,7 @@ class SessionManager(context: Context) {
 
     // return token from memory
     fun getAccessToken(): String? = _accessToken.value
+
     fun getRefreshToken(): String? = _refreshToken.value
 
     suspend fun clearTokens() {

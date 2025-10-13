@@ -29,8 +29,10 @@ import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -59,26 +61,21 @@ import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Semi_background
-import com.example.momentag.ui.theme.Tag
+import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.momentag.viewmodel.ServerViewModel
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
-import com.example.momentag.model.Tag
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun homeScreen(navController: NavController) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
 
-    /*
-    * TODO: USE ServerViewModel
-     */
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
     val imageUris by localViewModel.image.collectAsState()
+
     var tags by remember {
         mutableStateOf(
             listOf(
@@ -94,211 +91,290 @@ fun HomeScreen(navController: NavController) {
                 "#animal",
                 "#fashion",
                 "#sport",
-                "#work"
-            )
+                "#work",
+            ),
         )
     }
-    var imageTagPairs = imageUris.take(13).zip(tags)
-    
-    var only_tag by remember { mutableStateOf(false) }
+    var imageTagPairs = imageUris.take(13).zip(tags) // NOTE: 기존 로직 그대로 유지
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                hasPermission = true
-            }
-        }
+    var onlyTag by remember { mutableStateOf(false) }
 
-    )
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted -> if (isGranted) hasPermission = true },
+        )
 
+    // 권한 요청 및 이미지 로드
+    LaunchedEffect(Unit) {
+        val permission = requiredImagePermission()
+        permissionLauncher.launch(permission)
+    }
     if (hasPermission) {
         LaunchedEffect(Unit) {
             localViewModel.getImages()
         }
     }
 
-    LaunchedEffect(key1 = true) {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-        permissionLauncher.launch(permission)
-    }
-
-
     Scaffold(
         topBar = { },
         bottomBar = { },
         floatingActionButton = { },
-        containerColor = Background
+        containerColor = Background,
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Title
             Spacer(modifier = Modifier.height(32.dp))
-            Text(
-                text = "MomenTag",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
-                modifier = Modifier
-                    .clickable { navController.navigate(Screen.LocalGallery.route) }
-            )
-            Spacer(modifier = Modifier.height(24.dp))
+            titleBlock(navController)
 
-            // Search for Photo
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "Search for Photo", fontSize = 18.sp, fontFamily = FontFamily.Serif)
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(imageVector = Icons.Default.PhotoCamera, contentDescription = "Camera Icon")
-            }
+            Spacer(modifier = Modifier.height(24.dp))
+            searchHeader()
+
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Search Bar
-            var searchText by remember { mutableStateOf("") }
-            TextField(
-                value = searchText,
-                onValueChange = { searchText = it },
-                placeholder = { Text("Search Anything...", color = Temp_word) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedContainerColor = Semi_background,
-                    unfocusedContainerColor = Semi_background,
-                    unfocusedTextColor = Word,
-                    disabledTextColor = Word,
-                ),
-                singleLine = true
+            searchBar(
+                onSearch = { query ->
+                    if (query.isNotEmpty()) {
+                        navController.navigate(Screen.SearchResult.createRoute(query))
+                    }
+                },
             )
+
             Spacer(modifier = Modifier.height(16.dp))
+            viewToggle(
+                onlyTag = onlyTag,
+                onToggle = { onlyTag = it },
+            )
 
-            // Change View
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(Semi_background, RoundedCornerShape(8.dp))
-                        .padding(4.dp)
-                ) {
-                    Row {
-                        Icon(Icons.Default.GridView, contentDescription = "Grid View", tint = Color.Gray, modifier = Modifier.clickable { only_tag = false })
-                        Icon(Icons.AutoMirrored.Filled.ViewList, contentDescription = "List View", tint = Color.Gray, modifier = Modifier.clickable { only_tag = true })
-                    }
-                }
-            }
             Spacer(modifier = Modifier.height(16.dp))
+            mainContent(
+                hasPermission = hasPermission,
+                onlyTag = onlyTag,
+                imageTagPairs = imageTagPairs,
+                onRemoveTagPair = { pair -> imageTagPairs = imageTagPairs - pair },
+                navController = navController,
+                modifier = Modifier.weight(1f),
+            )
 
-
-            // Album
-            if(!only_tag) {
-                if (hasPermission) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(imageTagPairs) { (uris, tag) ->
-                            TagGridItem(tag, uris, navController)
-                        }
-                    }
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(imageTagPairs) { (uris, tag) ->
-                            TagGridItem(tag)
-                        }
-                    }
-
-                }
-            } else {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    imageTagPairs.forEach { pair ->
-                        val (uris, tag) = pair
-                        TagX(
-                            text = tag,
-                            onDismiss = {
-                                imageTagPairs = imageTagPairs - pair
-                            }
-                        )
-                    }
-                }
-
-            }
-
-            // Create Tag
             Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier.clickable { /* TODO */ },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AddCircle,
-                    contentDescription = "Create Tag",
-                    tint = Button
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Create Tag", fontSize = 16.sp)
-            }
+            createTagRow()
+
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
 
+// -------------------- Helpers --------------------
+
+@Composable
+private fun titleBlock(navController: NavController) {
+    Text(
+        text = "MomenTag",
+        fontSize = 32.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = FontFamily.Serif,
+        modifier = Modifier.clickable { navController.navigate(Screen.LocalGallery.route) },
+    )
+}
+
+@Composable
+private fun searchHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = "Search for Photo", fontSize = 18.sp, fontFamily = FontFamily.Serif)
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(imageVector = Icons.Default.PhotoCamera, contentDescription = "Camera Icon")
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun searchBar(onSearch: (String) -> Unit) {
+    var searchText by remember { mutableStateOf("") }
+
+    TextField(
+        value = searchText,
+        onValueChange = { searchText = it },
+        placeholder = { Text("Search Anything...", color = Temp_word) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors =
+            TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                focusedContainerColor = Semi_background,
+                unfocusedContainerColor = Semi_background,
+                unfocusedTextColor = Word,
+                disabledTextColor = Word,
+            ),
+        singleLine = true,
+        keyboardOptions =
+            androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+            ),
+        keyboardActions =
+            androidx.compose.foundation.text.KeyboardActions(
+                onSearch = { onSearch(searchText) },
+            ),
+        trailingIcon = {
+            IconButton(onClick = { onSearch(searchText) }) {
+                Icon(imageVector = Icons.Default.Search, contentDescription = "검색 실행")
+            }
+        },
+    )
+}
+
+@Composable
+private fun viewToggle(
+    onlyTag: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .background(Semi_background, RoundedCornerShape(8.dp))
+                    .padding(4.dp),
+        ) {
+            Row {
+                Icon(
+                    Icons.Default.GridView,
+                    contentDescription = "Grid View",
+                    tint = if (!onlyTag) Color.White else Color.Gray,
+                    modifier = Modifier.clickable { onToggle(false) },
+                )
+                Icon(
+                    Icons.AutoMirrored.Filled.ViewList,
+                    contentDescription = "List View",
+                    tint = if (onlyTag) Color.White else Color.Gray,
+                    modifier = Modifier.clickable { onToggle(true) },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun mainContent(
+    hasPermission: Boolean,
+    onlyTag: Boolean,
+    imageTagPairs: List<Pair<Uri, String>>,
+    onRemoveTagPair: (Pair<Uri, String>) -> Unit,
+    navController: NavController,
+    modifier: Modifier = Modifier,
+) {
+    if (!onlyTag) {
+        if (hasPermission) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                items(imageTagPairs) { (uri, tag) ->
+                    tagGridItem(tag, uri, navController)
+                }
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                items(imageTagPairs) { (_, tag) ->
+                    tagGridItem(tag)
+                }
+            }
+        }
+    } else {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            imageTagPairs.forEach { pair ->
+                val (_, tag) = pair
+                tagX(
+                    text = tag,
+                    onDismiss = { onRemoveTagPair(pair) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun createTagRow() {
+    Row(
+        modifier = Modifier.clickable { /* TODO */ },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Default.AddCircle,
+            contentDescription = "Create Tag",
+            tint = Button,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = "Create Tag", fontSize = 16.sp)
+    }
+}
+
+// 권한 헬퍼: 기존 분기 로직 그대로 함수로만 분리
+private fun requiredImagePermission(): String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
 
 /*
 * TODO : change code with imageUrl
  */
 @Composable
-fun TagGridItem(tagName: String, imageUri: Uri?, navController: NavController) {
+fun tagGridItem(
+    tagName: String,
+    imageUri: Uri?,
+    navController: NavController,
+) {
     Box(modifier = Modifier) {
-        if(imageUri != null){
+        if (imageUri != null) {
             AsyncImage(
                 model = imageUri,
                 contentDescription = tagName,
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .align(Alignment.BottomCenter)
-                    .clickable {
-                        navController.navigate(Screen.Album.createRoute(tagName))
-                               },
-                contentScale = ContentScale.Crop
+                modifier =
+                    Modifier
+                        .padding(top = 12.dp)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .align(Alignment.BottomCenter)
+                        .clickable {
+                            navController.navigate(Screen.Album.createRoute(tagName))
+                        },
+                contentScale = ContentScale.Crop,
             )
         } else {
             Spacer(
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .aspectRatio(1f)
-                    .background(
-                        color = Picture,
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .align(Alignment.BottomCenter)
-                    .clickable { /* TODO */ }
+                modifier =
+                    Modifier
+                        .padding(top = 12.dp)
+                        .aspectRatio(1f)
+                        .background(
+                            color = Picture,
+                            shape = RoundedCornerShape(16.dp),
+                        ).align(Alignment.BottomCenter)
+                        .clickable { /* TODO */ },
             )
         }
 
@@ -306,46 +382,45 @@ fun TagGridItem(tagName: String, imageUri: Uri?, navController: NavController) {
             text = tagName,
             color = Word,
             fontSize = 12.sp,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 8.dp)
-                .background(
-                    color = Tag,
-                    shape = RoundedCornerShape(8.dp)
-                )
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp)
+                    .background(
+                        color = TagColor,
+                        shape = RoundedCornerShape(8.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }
 
 @Composable
-fun TagGridItem(tagName: String) {
+fun tagGridItem(tagName: String) {
     Box(modifier = Modifier) {
-
         Spacer(
-            modifier = Modifier
-                .padding(top = 12.dp)
-                .aspectRatio(1f)
-                .background(
-                    color = Picture,
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .align(Alignment.BottomCenter)
-                .clickable { /* TODO */ }
+            modifier =
+                Modifier
+                    .padding(top = 12.dp)
+                    .aspectRatio(1f)
+                    .background(
+                        color = Picture,
+                        shape = RoundedCornerShape(16.dp),
+                    ).align(Alignment.BottomCenter)
+                    .clickable { /* TODO */ },
         )
 
         Text(
             text = tagName,
             color = Word,
             fontSize = 12.sp,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 8.dp)
-                .background(
-                    color = Tag,
-                    shape = RoundedCornerShape(8.dp)
-                )
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp)
+                    .background(
+                        color = TagColor,
+                        shape = RoundedCornerShape(8.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }

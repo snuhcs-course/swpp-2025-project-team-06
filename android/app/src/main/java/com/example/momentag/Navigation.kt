@@ -6,6 +6,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -14,10 +15,9 @@ import androidx.navigation.navArgument
 import com.example.momentag.data.SessionManager
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import androidx.core.net.toUri
 
 @Composable
-fun AppNavigation() {
+fun appNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
@@ -32,90 +32,105 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route
+        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route,
     ) {
         composable(route = Screen.Home.route) {
-            HomeScreen(navController = navController)
+            homeScreen(navController = navController)
         }
 
         composable(
             route = Screen.Album.route,
-            arguments = listOf(navArgument("tagName") { type = NavType.StringType })
+            arguments = listOf(navArgument("tagName") { type = NavType.StringType }),
         ) { backStackEntry ->
             val encodedTag = backStackEntry.arguments?.getString("tagName") ?: ""
             val tagName = URLDecoder.decode(encodedTag, StandardCharsets.UTF_8.toString())
 
-            AlbumScreen(
+            albumScreen(
                 tagName = tagName,
                 navController = navController,
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
             )
         }
 
         composable(
             route = Screen.Image.route,
-            arguments = listOf(navArgument("imageUri") { type = NavType.StringType })
+            arguments = listOf(navArgument("imageUri") { type = NavType.StringType }),
         ) { backStackEntry ->
             val encodedUriString = backStackEntry.arguments?.getString("imageUri")
 
-            val decodedUri = encodedUriString?.let {
-                Uri.decode(it).toUri()
-            }
+            val decodedUri =
+                encodedUriString?.let {
+                    Uri.decode(it).toUri()
+                }
 
-            ImageScreen(
+            imageScreen(
                 imageUri = decodedUri,
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
             )
         }
 
         composable(
-            route = Screen.LocalGallery.route
+            route = Screen.LocalGallery.route,
         ) {
-            LocalGalleryScreen(
+            localGalleryScreen(
                 navController = navController,
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
             )
         }
 
         composable(
             route = Screen.LocalAlbum.route,
-            arguments = listOf(
-                navArgument("id") { type = NavType.LongType },
-                navArgument("name") { type = NavType.StringType }
-            )
+            arguments =
+                listOf(
+                    navArgument("id") { type = NavType.LongType },
+                    navArgument("name") { type = NavType.StringType },
+                ),
         ) { backStackEntry ->
             val albumId = backStackEntry.arguments?.getLong("id") ?: 0L
             val albumName = backStackEntry.arguments?.getString("name") ?: ""
 
-            LocalAlbumScreen(
+            localAlbumScreen(
                 navController = navController,
                 albumId = albumId,
                 albumName = albumName,
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
             )
         }
 
         composable(
-            route = Screen.Login.route
+            route = Screen.Login.route,
         ) {
-            LoginScreen(
-                navController = navController
+            loginScreen(
+                navController = navController,
             )
         }
 
         composable(
             route = Screen.Register.route,
         ) {
-            RegisterScreen(
+            registerScreen(
                 navController = navController,
+            )
+        }
+
+        composable(
+            route = Screen.SearchResult.route,
+            arguments = listOf(navArgument("query") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val encodedQuery = backStackEntry.arguments?.getString("query") ?: ""
+            val query = URLDecoder.decode(encodedQuery, StandardCharsets.UTF_8.toString())
+            searchResultScreen(
+                initialQuery = query,
+                navController = navController,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     }
