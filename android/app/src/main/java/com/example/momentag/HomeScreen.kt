@@ -203,26 +203,11 @@ fun HomeScreen(navController: NavController) {
         bottomBar = { },
         containerColor = Background,
         floatingActionButton = {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, bottom = 16.dp),
-                // 왼쪽 하단 위치 조정
-                contentAlignment = Alignment.BottomStart,
-            ) {
-                CreateTagButton(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 16.dp),
-                    text = "Create Tag",
-                    onClick = {
-                        // TODO: inject screen-specific behavior via navController or callback
-                        // Example: navController.navigate(Screen.CreateTag.route)
-                    },
-                )
-            }
+            CreateTagButton(
+                modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
+                text = "Create Tag",
+                onClick = { },
+            )
         },
     ) { paddingValues ->
         Column(

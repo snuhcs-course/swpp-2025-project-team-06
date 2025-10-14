@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets
 fun appNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
+    val sessionManager = remember { SessionManager.getInstance(context) }
 
     val isLoaded by sessionManager.isLoaded.collectAsState()
     val accessToken by sessionManager.accessTokenFlow.collectAsState()

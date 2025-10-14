@@ -46,3 +46,13 @@ data class RefreshRequest(
 data class RefreshResponse(
     val access_token: String,
 )
+
+// ========== Semantic Search Models ==========
+
+/**
+ * Semantic Search 응답 모델
+ * Backend: {"photos": [1, 2, 3, ...]}
+ */
+data class SemanticSearchResponse(
+    val photos: List<Int>,
+)

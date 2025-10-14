@@ -40,6 +40,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,16 +51,20 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
+import com.example.momentag.model.SemanticSearchState
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.errorOverlay
 import com.example.momentag.ui.components.warningBanner
@@ -67,51 +72,84 @@ import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
+import com.example.momentag.viewmodel.SearchViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
 
 /**
  *  * ========================================
  *  * SearchResultScreen - 검색 결과 화면
  *  * ========================================
- * 검색 결과 메인 화면 (Navigation과 연결)
+ * Semantic Search 결과를 표시하는 검색 결과 메인 화면
  */
 @Composable
 fun SearchResultScreen(
     initialQuery: String,
     navController: NavController,
     onNavigateBack: () -> Unit,
+    searchViewModel: SearchViewModel =
+        viewModel(
+            factory = ViewModelFactory(LocalContext.current),
+        ),
 ) {
     var searchText by remember { mutableStateOf(initialQuery) }
-    var uiState by remember { mutableStateOf<SearchUiState>(SearchUiState.Idle) }
+    val semanticSearchState by searchViewModel.searchState.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-    // 초기 검색어가 있으면 자동으로 검색 실행
+    // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
         if (initialQuery.isNotEmpty()) {
-            // TODO: 실제 검색 로직 구현 필요
-            // 현재는 더미 데이터로 테스트
-            uiState = SearchUiState.Loading
-            kotlinx.coroutines.delay(1000) // 로딩 시뮬레이션
-
-            // 더미 결과 생성
-            val dummyResults =
-                listOf(
-                    SearchResultItem(initialQuery, Uri.parse("content://media/1")),
-                    SearchResultItem(initialQuery, Uri.parse("content://media/2")),
-                    SearchResultItem(initialQuery, Uri.parse("content://media/3")),
-                )
-            uiState = SearchUiState.Success(dummyResults, initialQuery)
+            searchViewModel.search(initialQuery)
         }
     }
+
+    // SemanticSearchState를 SearchUiState로 변환
+    val uiState =
+        remember(semanticSearchState) {
+            when (semanticSearchState) {
+                is SemanticSearchState.Idle -> SearchUiState.Idle
+                is SemanticSearchState.Loading -> SearchUiState.Loading
+                is SemanticSearchState.Success -> {
+                    val photoIds = (semanticSearchState as SemanticSearchState.Success).photoIds
+                    // photo_path_id (MediaStore ID)를 Uri로 변환
+                    val searchResults =
+                        photoIds.mapNotNull { photoId ->
+                            try {
+                                val uri =
+                                    android.content.ContentUris.withAppendedId(
+                                        android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                        photoId.toLong(),
+                                    )
+                                SearchResultItem(
+                                    query = (semanticSearchState as SemanticSearchState.Success).query,
+                                    imageUri = uri,
+                                )
+                            } catch (e: NumberFormatException) {
+                                // 잘못된 ID는 무시
+                                null
+                            }
+                        }
+                    SearchUiState.Success(searchResults, (semanticSearchState as SemanticSearchState.Success).query)
+                }
+                is SemanticSearchState.Empty -> {
+                    SearchUiState.Empty((semanticSearchState as SemanticSearchState.Empty).query)
+                }
+                is SemanticSearchState.NetworkError -> {
+                    SearchUiState.Error((semanticSearchState as SemanticSearchState.NetworkError).message)
+                }
+                is SemanticSearchState.Error -> {
+                    SearchUiState.Error((semanticSearchState as SemanticSearchState.Error).message)
+                }
+            }
+        }
 
     SearchResultScreenUi(
         searchText = searchText,
         onSearchTextChange = { searchText = it },
         onSearchSubmit = {
             if (searchText.isNotEmpty()) {
-                // TODO: 실제 검색 로직 구현
-                uiState = SearchUiState.Loading
-                // 임시로 더미 데이터 표시
+                // Semantic Search 실행
+                searchViewModel.search(searchText)
             }
         },
         uiState = uiState,
@@ -145,11 +183,12 @@ fun SearchResultScreen(
             // TODO: 태그 생성 화면으로 이동
         },
         onRetry = {
-            // 재시도 로직
+            // 재시도 로직 - Semantic Search 재실행
             if (searchText.isNotEmpty()) {
-                uiState = SearchUiState.Loading
+                searchViewModel.search(searchText)
             }
         },
+        navController = navController,
     )
 }
 
@@ -187,6 +226,7 @@ fun SearchResultScreenUi(
     onImageLongPress: () -> Unit,
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
+    navController: NavController,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -212,6 +252,7 @@ fun SearchResultScreenUi(
             onImageLongPress = onImageLongPress,
             onCreateTagClick = onCreateTagClick,
             onRetry = onRetry,
+            navController = navController,
         )
     }
 }
@@ -236,6 +277,7 @@ private fun SearchResultContent(
     onImageLongPress: () -> Unit,
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
+    navController: NavController,
 ) {
     Box(modifier = modifier) {
         Column(
@@ -270,7 +312,8 @@ private fun SearchResultContent(
                         contentDescription = "카메라 아이콘",
                     )
                 }
-
+                // TODO : 선택모드 자체를 빼도 괜찮을 수도 있겠다? 선택하고 할 일이 tag만드는거? 아니면 삭제하거나? 복사하거나 공유하는 일이 있을 수도 있으니까.... 있어야 될 것도 같고;;
+                // TODO : UI TopBar에 다 올려두기
                 // Right: Selection mode toggle (결과가 있을 때만)
                 if (uiState is SearchUiState.Success && uiState.results.isNotEmpty()) {
                     Button(
@@ -324,6 +367,7 @@ private fun SearchResultContent(
                 onImageClick = onImageClick,
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
+                navController = navController,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -375,6 +419,19 @@ private fun SearchResultContent(
                 )
             }
         }
+
+        // 🚨 전체 화면 Error 오버레이 (최상위 레이어)
+        if (uiState is SearchUiState.Error) {
+            errorOverlay(
+                modifier = Modifier.fillMaxSize(),
+                errorMessage = uiState.message,
+                onRetry = onRetry,
+                onDismiss = {
+                    // X 버튼 클릭 시 이전 화면으로 돌아가기
+                    navController.popBackStack()
+                },
+            )
+        }
     }
 }
 
@@ -393,6 +450,7 @@ private fun SearchResultsFromState(
     onImageClick: (Uri) -> Unit,
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
+    navController: NavController,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
@@ -436,15 +494,6 @@ private fun SearchResultsFromState(
                     Text(text = "오류가 발생했습니다.", color = Temp_word)
                 }
             }
-        }
-
-        // Error 오버레이: 기존 내용 위에 겹쳐서 표시
-        if (uiState is SearchUiState.Error) {
-            errorOverlay(
-                modifier = Modifier.fillMaxSize(),
-                errorMessage = uiState.message,
-                onRetry = onRetry,
-            )
         }
     }
 }
@@ -609,7 +658,11 @@ private fun SearchResultGrid(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(results) { result ->
+        items(
+            count = results.size,
+            key = { index -> index }, // 🔑 인덱스 기반 고유 키 (중복 방지)
+        ) { index ->
+            val result = results[index]
             result.imageUri?.let { uri ->
                 SearchPhotoItem(
                     imageUri = uri,
@@ -617,7 +670,11 @@ private fun SearchResultGrid(
                     isSelected = selectedImages.contains(uri),
                     onToggleSelection = { onToggleImageSelection(uri) },
                     onClick = { onImageClick(uri) },
-                    onLongPress = onImageLongPress,
+                    onLongPress = {
+                        onImageLongPress()
+                        // 롱프레스 시 해당 아이템도 선택
+                        onToggleImageSelection(uri)
+                    },
                 )
             }
         }
@@ -660,10 +717,9 @@ private fun SearchPhotoItem(
                             }
                         },
                         onLongClick = {
-                            // 선택 모드가 아닐 때만 롱프레스 활성화
+                            // 선택 모드가 아닐 때만 롱프레스로 선택 모드 진입
                             if (!isSelectionMode) {
-                                onLongPress()
-                                onToggleSelection() // 롱프레스 시 해당 아이템 자동 선택
+                                onLongPress() // 선택 모드 활성화 + 아이템 선택
                             }
                         },
                     ).alpha(if (isSelectionMode && isSelected) 0.5f else 1f),
@@ -850,6 +906,7 @@ private fun PreviewSearchResultScreenIdle() {
         onImageLongPress = {},
         onCreateTagClick = {},
         onRetry = {},
+        navController = rememberNavController(),
     )
 }
 
@@ -870,6 +927,7 @@ private fun PreviewSearchResultScreenLoading() {
         onImageLongPress = {},
         onCreateTagClick = {},
         onRetry = {},
+        navController = rememberNavController(),
     )
 }
 
@@ -890,6 +948,7 @@ private fun PreviewSearchResultScreenEmpty() {
         onImageLongPress = {},
         onCreateTagClick = {},
         onRetry = {},
+        navController = rememberNavController(),
     )
 }
 
@@ -910,67 +969,8 @@ private fun PreviewSearchResultScreenError() {
         onImageLongPress = {},
         onCreateTagClick = {},
         onRetry = {},
+        navController = rememberNavController(),
     )
-}
-
-/**
- * 에러 다이얼로그만 보는 프리뷰 (배경 콘텐츠와 함께)
- * 반투명 회색 배경이 뒤 콘텐츠를 덮는 것을 확인 가능
- */
-
-@Preview(showBackground = true, widthDp = 360, heightDp = 640)
-@Composable
-private fun PreviewErrorDialogWithBackdrop() {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(Background),
-    ) {
-        // 뒤 배경 콘텐츠 (Search Result 화면 흉내)
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(
-                text = "Search Results",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(text = "Search for Photo", fontSize = 18.sp)
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 더미 이미지 그리드
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(9) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .aspectRatio(1f)
-                                .background(Semi_background, RoundedCornerShape(12.dp)),
-                    )
-                }
-            }
-        }
-
-        // 에러 다이얼로그 (반투명 배경과 함께)
-        errorOverlay(
-            modifier = Modifier.fillMaxSize(),
-            errorMessage = "Network Error!\nPlease check your internet connection.",
-            onRetry = {},
-        )
-    }
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
@@ -1000,6 +1000,7 @@ private fun PreviewSearchResultScreenSuccess() {
         onImageLongPress = {},
         onCreateTagClick = {},
         onRetry = {},
+        navController = rememberNavController(),
     )
 }
 
@@ -1036,5 +1037,6 @@ private fun PreviewSearchResultScreenSelectionMode() {
         onImageLongPress = {},
         onCreateTagClick = {},
         onRetry = {},
+        navController = rememberNavController(),
     )
 }

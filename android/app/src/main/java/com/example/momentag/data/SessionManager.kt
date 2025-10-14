@@ -17,25 +17,45 @@ import kotlinx.coroutines.runBlocking
 
 private val Context.sessionDataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
-class SessionManager(
+/**
+ * SessionManager
+ *
+ * SessionStore 인터페이스 구현체 (싱글톤)
+ * DataStore를 사용한 토큰 저장소
+ * - 순수하게 저장/조회/삭제 기능만 제공
+ * - 비즈니스 로직 없음
+ * - 앱 전체에서 하나의 인스턴스만 사용 (싱글톤)
+ *
+ * Note: 클래스명이 SessionManager이지만 실제로는 DataStoreSessionStore입니다.
+ * 기존 코드와의 호환성을 위해 SessionManager 이름을 유지합니다.
+ */
+class SessionManager private constructor(
     context: Context,
-) {
+) : SessionStore {
     private val dataStore = context.sessionDataStore
 
     companion object {
         private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
         private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
+
+        @Volatile
+        private var instance: SessionManager? = null
+
+        fun getInstance(context: Context): SessionManager =
+            instance ?: synchronized(this) {
+                instance ?: SessionManager(context.applicationContext).also { instance = it }
+            }
     }
 
     // memory cache on StateFlow
     private val _accessToken = MutableStateFlow<String?>(null)
-    val accessTokenFlow: StateFlow<String?> = _accessToken.asStateFlow()
+    override val accessTokenFlow: StateFlow<String?> = _accessToken.asStateFlow()
 
     private val _refreshToken = MutableStateFlow<String?>(null)
-    val refreshTokenFlow: StateFlow<String?> = _refreshToken.asStateFlow()
+    override val refreshTokenFlow: StateFlow<String?> = _refreshToken.asStateFlow()
 
     private val _isLoaded = MutableStateFlow(false)
-    val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+    override val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
 
     init {
         // store token from DataStore to StateFlow
@@ -48,7 +68,7 @@ class SessionManager(
         }
     }
 
-    suspend fun saveTokens(
+    override suspend fun saveTokens(
         accessToken: String,
         refreshToken: String,
     ) {
@@ -61,7 +81,7 @@ class SessionManager(
     }
 
     // Return latest token; if cache empty, synchronously load from DataStore to avoid stale reads across instances
-    fun getAccessToken(): String? {
+    override fun getAccessToken(): String? {
         val cached = _accessToken.value
         if (!cached.isNullOrBlank()) return cached
 
@@ -75,7 +95,7 @@ class SessionManager(
         return _accessToken.value
     }
 
-    fun getRefreshToken(): String? {
+    override fun getRefreshToken(): String? {
         val cached = _refreshToken.value
         if (!cached.isNullOrBlank()) return cached
 
@@ -89,7 +109,7 @@ class SessionManager(
         return _refreshToken.value
     }
 
-    suspend fun clearTokens() {
+    override suspend fun clearTokens() {
         dataStore.edit { prefs ->
             prefs.remove(ACCESS_TOKEN_KEY)
             prefs.remove(REFRESH_TOKEN_KEY)

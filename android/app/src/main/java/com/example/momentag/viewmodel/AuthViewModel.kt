@@ -2,26 +2,40 @@ package com.example.momentag.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.momentag.data.SessionManager
-import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginState
 import com.example.momentag.model.LogoutState
-import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshState
-import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterState
-import com.example.momentag.repository.RemoteRepository
+import com.example.momentag.repository.TokenRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.IOException
 import kotlin.uuid.ExperimentalUuidApi
 
+/**
+ * AuthViewModel
+ *
+ * 역할: UI 상태/이벤트만 관리
+ * - 세션 세부 구현을 모름
+ * - TokenRepository의 상태(Flow)를 구독
+ * - 비즈니스 로직은 TokenRepository에 위임
+ */
 @OptIn(ExperimentalUuidApi::class)
 class AuthViewModel(
-    private val authRepository: RemoteRepository,
-    private val sessionManager: SessionManager,
+    private val tokenRepository: TokenRepository,
 ) : ViewModel() {
+    /**
+     * 로그인 상태 관찰
+     * TokenRepository의 isLoggedIn Flow를 노출
+     */
+    val isLoggedIn: StateFlow<String?> = tokenRepository.isLoggedIn
+
+    /**
+     * 세션 로딩 상태 관찰
+     */
+    val isSessionLoaded: StateFlow<Boolean> = tokenRepository.isSessionLoaded
+
     // login
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState = _loginState.asStateFlow()
@@ -31,34 +45,23 @@ class AuthViewModel(
         password: String,
     ) {
         viewModelScope.launch {
-            try {
-                val request = LoginRequest(username, password)
-                val response = authRepository.login(request)
-
-                when {
-                    response.isSuccessful && response.body() != null -> { // 200 OK
-                        _loginState.value = LoginState.Success
-                        val accessToken = response.body()!!.access_token
-                        val refreshToken = response.body()!!.refresh_token
-                        sessionManager.saveTokens(accessToken, refreshToken)
-                    }
-
-                    response.code() == 400 -> {
-                        _loginState.value = LoginState.BadRequest("Request form mismatch or No such user")
-                    }
-
-                    response.code() == 401 -> {
-                        _loginState.value = LoginState.Unauthorized("Wrong username or password")
-                    }
-
-                    else -> {
-                        _loginState.value = LoginState.Error("Unexpected error: ${response.code()}")
-                    }
+            // TokenRepository에 비즈니스 로직 위임
+            when (val result = tokenRepository.login(username, password)) {
+                is TokenRepository.LoginResult.Success -> {
+                    _loginState.value = LoginState.Success
                 }
-            } catch (e: IOException) {
-                _loginState.value = LoginState.NetworkError("Network error")
-            } catch (e: Exception) {
-                _loginState.value = LoginState.Error("Unknown error")
+                is TokenRepository.LoginResult.BadRequest -> {
+                    _loginState.value = LoginState.BadRequest(result.message)
+                }
+                is TokenRepository.LoginResult.Unauthorized -> {
+                    _loginState.value = LoginState.Unauthorized(result.message)
+                }
+                is TokenRepository.LoginResult.NetworkError -> {
+                    _loginState.value = LoginState.NetworkError(result.message)
+                }
+                is TokenRepository.LoginResult.Error -> {
+                    _loginState.value = LoginState.Error(result.message)
+                }
             }
         }
     }
@@ -77,45 +80,23 @@ class AuthViewModel(
         password: String,
     ) {
         viewModelScope.launch {
-            try {
-                val request = RegisterRequest(email, username, password)
-                val response = authRepository.register(request)
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    val id = body?.id
-                    when {
-                        id != null -> {
-                            _registerState.value = RegisterState.Success(id)
-                        }
-                        else -> {
-                            // 성공이지만 바디/필드가 비어있는 경우를 명시적으로 처리
-                            _registerState.value =
-                                RegisterState.Error(
-                                    "Empty body or missing 'id' in response",
-                                )
-                        }
-                    }
-                    return@launch
+            // TokenRepository에 비즈니스 로직 위임
+            when (val result = tokenRepository.register(email, username, password)) {
+                is TokenRepository.RegisterResult.Success -> {
+                    _registerState.value = RegisterState.Success(result.userId)
                 }
-
-                // 비정상 응답 코드 상세 처리
-                when (response.code()) {
-                    400 -> _registerState.value = RegisterState.BadRequest("Request form mismatch")
-                    409 -> _registerState.value = RegisterState.Conflict("Email already in use")
-                    else -> {
-                        val msg =
-                            try {
-                                response.errorBody()?.string()
-                            } catch (_: Exception) {
-                                null
-                            }
-                        _registerState.value = RegisterState.Error("Unexpected error: ${response.code()}")
-                    }
+                is TokenRepository.RegisterResult.BadRequest -> {
+                    _registerState.value = RegisterState.BadRequest(result.message)
                 }
-            } catch (e: IOException) {
-                _registerState.value = RegisterState.NetworkError("Network error")
-            } catch (e: Exception) {
-                _registerState.value = RegisterState.Error("Unknown error")
+                is TokenRepository.RegisterResult.Conflict -> {
+                    _registerState.value = RegisterState.Conflict(result.message)
+                }
+                is TokenRepository.RegisterResult.NetworkError -> {
+                    _registerState.value = RegisterState.NetworkError(result.message)
+                }
+                is TokenRepository.RegisterResult.Error -> {
+                    _registerState.value = RegisterState.Error(result.message)
+                }
             }
         }
     }
@@ -130,47 +111,20 @@ class AuthViewModel(
 
     fun refreshTokens() {
         viewModelScope.launch {
-            val refreshToken = sessionManager.getRefreshToken()
-            if (refreshToken == null) {
-                _refreshState.value = RefreshState.Unauthorized
-                return@launch
-            }
-
-            try {
-                val request = RefreshRequest(refreshToken)
-                val response = authRepository.refreshToken(request)
-
-                when {
-                    response.isSuccessful && response.body() != null -> {
-                        // 200 OK: restore new access token
-                        val newAccessToken = response.body()!!.access_token
-                        sessionManager.saveTokens(newAccessToken, refreshToken)
-                        _refreshState.value = RefreshState.Success
-                    }
-
-                    response.code() == 400 -> {
-                        // Bad Request
-                        sessionManager.clearTokens()
-                        _refreshState.value = RefreshState.Success
-                    }
-
-                    response.code() == 401 -> {
-                        // Unauthorized: expired refresh token
-                        sessionManager.clearTokens()
-                        _refreshState.value = RefreshState.Unauthorized
-                    }
-
-                    else -> {
-                        // else
-                        _refreshState.value =
-                            RefreshState.Error("Unexpected error: ${response.code()}")
-                    }
+            // TokenRepository에 비즈니스 로직 위임
+            when (val result = tokenRepository.refreshTokens()) {
+                is TokenRepository.RefreshResult.Success -> {
+                    _refreshState.value = RefreshState.Success
                 }
-            } catch (e: IOException) {
-                _refreshState.value =
-                    RefreshState.NetworkError("Network error while refreshing tokens")
-            } catch (e: Exception) {
-                _refreshState.value = RefreshState.Error("Unknown error while refreshing tokens")
+                is TokenRepository.RefreshResult.Unauthorized -> {
+                    _refreshState.value = RefreshState.Unauthorized
+                }
+                is TokenRepository.RefreshResult.NetworkError -> {
+                    _refreshState.value = RefreshState.NetworkError(result.message)
+                }
+                is TokenRepository.RefreshResult.Error -> {
+                    _refreshState.value = RefreshState.Error(result.message)
+                }
             }
         }
     }
@@ -185,30 +139,8 @@ class AuthViewModel(
 
     fun logout() {
         viewModelScope.launch {
-            val refreshToken = sessionManager.getRefreshToken()
-            if (refreshToken == null) {
-                return@launch
-            }
-
-            try {
-                val request = RefreshRequest(refreshToken)
-                val response = authRepository.logout(request)
-
-                when (response.code()) {
-                    200, 204 -> {
-                        // OK or No Content
-                    }
-                    400, 401, 403 -> {
-                        // BadRequest / Unauthorized / Forbidden
-                    }
-                    else -> {
-                        // else
-                    }
-                }
-            } catch (e: Exception) {
-                // else
-            }
-            sessionManager.clearTokens()
+            // TokenRepository에 비즈니스 로직 위임
+            tokenRepository.logout()
             _logoutState.value = LogoutState.Success
         }
     }

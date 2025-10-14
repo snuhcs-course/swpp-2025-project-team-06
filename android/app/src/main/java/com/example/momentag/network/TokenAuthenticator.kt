@@ -1,6 +1,6 @@
 package com.example.momentag.network
 
-import com.example.momentag.data.SessionManager
+import com.example.momentag.data.SessionStore
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import kotlinx.coroutines.runBlocking
@@ -12,8 +12,16 @@ import okhttp3.Route
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
+/**
+ * TokenAuthenticator
+ *
+ * 역할: 401 응답 시 자동으로 토큰 리프레시 후 요청 재시도
+ * - SessionStore를 사용하여 토큰 관리
+ * - 리프레시 실패 시 토큰 삭제 (로그아웃)
+ * - 재귀 호출 방지를 위해 별도 OkHttpClient 사용
+ */
 class TokenAuthenticator(
-    private val sessionManager: SessionManager,
+    private val sessionStore: SessionStore,
 ) : Authenticator {
     override fun authenticate(
         route: Route?,
@@ -30,10 +38,10 @@ class TokenAuthenticator(
         }
 
         return runBlocking {
-            val refreshToken = sessionManager.getRefreshToken()
+            val refreshToken = sessionStore.getRefreshToken()
 
             if (refreshToken == null) { // no refresh token
-                sessionManager.clearTokens()
+                sessionStore.clearTokens()
                 return@runBlocking null
             }
 
@@ -41,18 +49,18 @@ class TokenAuthenticator(
                 try {
                     refreshTokenApi(refreshToken)
                 } catch (e: Exception) {
-                    sessionManager.clearTokens()
+                    sessionStore.clearTokens()
                     return@runBlocking null
                 }
 
             if (!tokenResponse.isSuccessful || tokenResponse.body() == null) { // expired or wrong Refresh Token
-                sessionManager.clearTokens()
+                sessionStore.clearTokens()
                 return@runBlocking null
             }
 
             // restore new token
             val newAccessToken = tokenResponse.body()!!.access_token
-            sessionManager.saveTokens(newAccessToken, refreshToken)
+            sessionStore.saveTokens(newAccessToken, refreshToken)
 
             // redo request
             response.request
