@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,8 +42,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -146,7 +150,54 @@ fun HomeScreen(navController: NavController) {
     }
 
     Scaffold(
-        topBar = { },
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = "MomenTag",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif,
+                        modifier = Modifier.clickable {
+                            navController.navigate(Screen.LocalGallery.route)
+                        }
+                    )
+                },
+                actions = {
+                    when (logoutState) {
+                        is LogoutState.Loading -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                        else -> {
+                            TextButton(
+                                onClick = { authViewModel.logout() }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                        contentDescription = "Logout",
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Text(
+                                        text = "Logout",
+                                        fontSize = 12.sp,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Background
+                )
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = { },
         containerColor = Background,
@@ -182,56 +233,6 @@ fun HomeScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(24.dp))
-
-            // 2) TitleBlock 우측 상단에 작은 Logout 컨트롤
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // 왼쪽 공간(아이콘 자리 균형 맞추기용)
-                Box(Modifier.width(40.dp)) {}
-
-                // 가운데에 TitleBlock 고정
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    TitleBlock(navController)
-                }
-
-                // 우상단 작은 로그아웃
-                when (logoutState) {
-                    is LogoutState.Loading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                    else -> {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .clickable { authViewModel.logout() } // 클릭 가능하게
-                                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Logout",
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Logout",
-                                fontSize = 12.sp, // 🔹 작게
-                                color = Color.Gray, // 🔹 필요하면 색상 변경
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
             SearchHeader()
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -263,17 +264,6 @@ fun HomeScreen(navController: NavController) {
 }
 
 // -------------------- Helpers --------------------
-@Composable
-private fun TitleBlock(navController: NavController) {
-    Text(
-        text = "MomenTag",
-        fontSize = 32.sp,
-        fontWeight = FontWeight.Bold,
-        fontFamily = FontFamily.Serif,
-        modifier = Modifier.clickable { navController.navigate(Screen.LocalGallery.route) },
-    )
-}
-
 @Composable
 private fun SearchHeader() {
     Row(
