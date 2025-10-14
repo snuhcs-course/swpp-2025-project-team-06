@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -158,9 +157,10 @@ fun HomeScreen(navController: NavController) {
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Serif,
-                        modifier = Modifier.clickable {
-                            navController.navigate(Screen.LocalGallery.route)
-                        }
+                        modifier =
+                            Modifier.clickable {
+                                navController.navigate(Screen.LocalGallery.route)
+                            },
                     )
                 },
                 actions = {
@@ -173,11 +173,11 @@ fun HomeScreen(navController: NavController) {
                         }
                         else -> {
                             TextButton(
-                                onClick = { authViewModel.logout() }
+                                onClick = { authViewModel.logout() },
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.ExitToApp,
@@ -193,9 +193,10 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Background
-                )
+                colors =
+                    TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Background,
+                    ),
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
