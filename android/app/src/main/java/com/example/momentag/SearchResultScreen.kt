@@ -68,7 +68,6 @@ import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
 
-@Suppress("ktlint:standard:function-naming")
 /**
  *  * ========================================
  *  * SearchResultScreen - 검색 결과 화면
@@ -171,7 +170,7 @@ fun SearchResultScreen(
  * @param onCreateTagClick 태그 생성 버튼 클릭 콜백
  * @param modifier Modifier
  */
-@Suppress("ktlint:standard:function-naming")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchResultScreenUi(
@@ -220,7 +219,7 @@ fun SearchResultScreenUi(
 /**
  * 검색 결과 컨텐츠 (순수 UI)
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Composable
 private fun SearchResultContent(
     modifier: Modifier = Modifier,
@@ -383,7 +382,7 @@ private fun SearchResultContent(
  * UI 상태에 따라 적절한 검색 결과를 표시
  * Error 상태일 때는 기존 Success 결과 위에 오버레이로 표시 (내용 대체 X)
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Composable
 private fun SearchResultsFromState(
     modifier: Modifier,
@@ -453,7 +452,7 @@ private fun SearchResultsFromState(
 /**
  * 헤더 (뒤로가기 기능)
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Composable
 private fun SearchResultHeader(onBackClick: () -> Unit) {
     Text(
@@ -468,7 +467,7 @@ private fun SearchResultHeader(onBackClick: () -> Unit) {
 /**
  * 검색 안내 문구
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Composable
 private fun SearchInstructionRow() {
     Row(
@@ -491,7 +490,7 @@ private fun SearchInstructionRow() {
 /**
  * 선택 모드 토글 버튼
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Composable
 private fun SelectionModeToggle(
     isSelectionMode: Boolean,
@@ -536,7 +535,7 @@ private fun SelectionModeToggle(
 /**
  * 검색 입력 필드
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Composable
 private fun SearchInputField(
     value: String,
@@ -575,7 +574,7 @@ private fun SearchInputField(
 /**
  * 상태 메시지 표시 (로딩/에러/빈 결과 등)
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Composable
 private fun SearchStatusMessage(
     modifier: Modifier,
@@ -592,7 +591,7 @@ private fun SearchStatusMessage(
 /**
  * 검색 결과 그리드
  */
-@Suppress("ktlint:standard:function-naming")
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SearchResultGrid(
@@ -628,7 +627,7 @@ private fun SearchResultGrid(
 /**
  * 개별 사진 아이템 (선택 모드 지원)
  */
-@Suppress("ktlint:standard:function-naming")
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SearchPhotoItem(
@@ -707,7 +706,7 @@ private fun SearchPhotoItem(
  * @param modifier Modifier
  * @param onRefresh 새로고침 버튼 클릭 콜백
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Composable
 private fun LoadingScreen(
     modifier: Modifier = Modifier,
@@ -769,7 +768,7 @@ private fun LoadingScreen(
 /**
  * 로딩 화면만 보는 프리뷰 (경고 메시지 없음 - 5초 전)
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun PreviewLoadingScreenWithoutWarning() {
@@ -789,7 +788,7 @@ private fun PreviewLoadingScreenWithoutWarning() {
 /**
  * 로딩 화면만 보는 프리뷰 (경고 메시지 있음 - 5초 후)
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun PreviewLoadingScreenWithWarning() {
@@ -834,7 +833,6 @@ private fun PreviewLoadingScreenWithWarning() {
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun PreviewSearchResultScreenIdle() {
@@ -855,7 +853,6 @@ private fun PreviewSearchResultScreenIdle() {
     )
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun PreviewSearchResultScreenLoading() {
@@ -876,7 +873,6 @@ private fun PreviewSearchResultScreenLoading() {
     )
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun PreviewSearchResultScreenEmpty() {
@@ -897,7 +893,6 @@ private fun PreviewSearchResultScreenEmpty() {
     )
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun PreviewSearchResultScreenError() {
@@ -922,7 +917,7 @@ private fun PreviewSearchResultScreenError() {
  * 에러 다이얼로그만 보는 프리뷰 (배경 콘텐츠와 함께)
  * 반투명 회색 배경이 뒤 콘텐츠를 덮는 것을 확인 가능
  */
-@Suppress("ktlint:standard:function-naming")
+
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun PreviewErrorDialogWithBackdrop() {
@@ -978,7 +973,6 @@ private fun PreviewErrorDialogWithBackdrop() {
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun PreviewSearchResultScreenSuccess() {
@@ -1009,7 +1003,6 @@ private fun PreviewSearchResultScreenSuccess() {
     )
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 private fun PreviewSearchResultScreenSelectionMode() {

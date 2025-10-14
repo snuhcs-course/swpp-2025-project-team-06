@@ -58,7 +58,6 @@ import coil.compose.AsyncImage
 import com.example.momentag.ui.theme.Background
 import java.io.IOException
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ImageScreen(
@@ -227,7 +226,6 @@ fun ImageScreen(
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagsSection(

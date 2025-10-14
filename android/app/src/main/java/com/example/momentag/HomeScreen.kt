@@ -76,7 +76,6 @@ import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -264,7 +263,6 @@ fun HomeScreen(navController: NavController) {
 }
 
 // -------------------- Helpers --------------------
-@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun TitleBlock(navController: NavController) {
     Text(
@@ -276,7 +274,6 @@ private fun TitleBlock(navController: NavController) {
     )
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun SearchHeader() {
     Row(
@@ -289,7 +286,6 @@ private fun SearchHeader() {
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchBar(onSearch: (String) -> Unit) {
@@ -327,7 +323,6 @@ private fun SearchBar(onSearch: (String) -> Unit) {
     )
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun ViewToggle(
     onlyTag: Boolean,
@@ -361,7 +356,6 @@ private fun ViewToggle(
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MainContent(
@@ -413,7 +407,6 @@ private fun MainContent(
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun Deprecated_CreateTagRow() { /* replaced by CreateTagButton component */ }
 
@@ -428,7 +421,6 @@ private fun requiredImagePermission(): String =
 /*
 * TODO : change code with imageUrl
  */
-@Suppress("ktlint:standard:function-naming")
 @Composable
 fun TagGridItem(
     tagName: String,
@@ -481,7 +473,6 @@ fun TagGridItem(
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
 @Composable
 fun TagGridItem(tagName: String) {
     Box(modifier = Modifier) {
