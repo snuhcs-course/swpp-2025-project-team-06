@@ -7,12 +7,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.momentag.data.SessionManager
+import com.example.momentag.viewmodel.ImageDetailViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -21,6 +24,9 @@ fun appNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val sessionManager = remember { SessionManager.getInstance(context) }
+
+    // ImageDetailViewModel을 Navigation 레벨에서 공유
+    val imageDetailViewModel: ImageDetailViewModel = viewModel(factory = ViewModelFactory(context))
 
     val isLoaded by sessionManager.isLoaded.collectAsState()
     val accessToken by sessionManager.accessTokenFlow.collectAsState()
@@ -51,6 +57,7 @@ fun appNavigation() {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
+                imageDetailViewModel = imageDetailViewModel,
             )
         }
 
@@ -65,8 +72,12 @@ fun appNavigation() {
                     Uri.decode(it).toUri()
                 }
 
+            val imageContext by imageDetailViewModel.imageContext.collectAsState()
+
             ImageScreen(
                 imageUri = decodedUri,
+                imageUris = imageContext?.images,
+                initialIndex = imageContext?.currentIndex ?: 0,
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -102,6 +113,7 @@ fun appNavigation() {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
+                imageDetailViewModel = imageDetailViewModel,
             )
         }
 
@@ -131,6 +143,7 @@ fun appNavigation() {
                 initialQuery = query,
                 navController = navController,
                 onNavigateBack = { navController.popBackStack() },
+                imageDetailViewModel = imageDetailViewModel,
             )
         }
     }

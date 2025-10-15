@@ -45,8 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.momentag.model.ImageContext
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Picture
+import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -56,6 +58,7 @@ fun AlbumScreen(
     tagName: String,
     navController: NavController,
     onNavigateBack: () -> Unit,
+    imageDetailViewModel: ImageDetailViewModel,
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
@@ -139,7 +142,13 @@ fun AlbumScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(imageUris) { imageUri ->
-                        ImageGridUriItem(imageUri, navController)
+                        ImageGridUriItem(
+                            imageUri = imageUri,
+                            navController = navController,
+                            imageDetailViewModel = imageDetailViewModel,
+                            allImages = imageUris,
+                            contextType = ImageContext.ContextType.TAG_ALBUM,
+                        )
                     }
                 }
             } else {
@@ -148,7 +157,7 @@ fun AlbumScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(imageUris) { imageUri ->
+                    items(imageUris) { _ ->
                         Box(modifier = Modifier) {
                             Spacer(
                                 modifier =

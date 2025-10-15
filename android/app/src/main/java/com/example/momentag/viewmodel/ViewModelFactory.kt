@@ -61,6 +61,10 @@ class ViewModelFactory(
                 // SearchViewModel은 SearchRepository에 의존
                 SearchViewModel(searchRepository, context.applicationContext) as T
             }
+            modelClass.isAssignableFrom(ImageDetailViewModel::class.java) -> {
+                // ImageDetailViewModel은 의존성 없음
+                ImageDetailViewModel() as T
+            }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
 }

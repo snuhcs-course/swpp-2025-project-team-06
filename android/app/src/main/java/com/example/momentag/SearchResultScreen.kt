@@ -62,6 +62,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.example.momentag.model.ImageContext
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
@@ -72,6 +73,7 @@ import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
+import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -86,6 +88,7 @@ fun SearchResultScreen(
     initialQuery: String,
     navController: NavController,
     onNavigateBack: () -> Unit,
+    imageDetailViewModel: ImageDetailViewModel? = null,
     searchViewModel: SearchViewModel =
         viewModel(
             factory = ViewModelFactory(LocalContext.current),
@@ -171,6 +174,18 @@ fun SearchResultScreen(
                 }
         },
         onImageClick = { uri ->
+            // 이미지 컨텍스트 설정
+            if (imageDetailViewModel != null && uiState is SearchUiState.Success) {
+                val allImages = uiState.results.mapNotNull { it.imageUri }
+                val index = allImages.indexOf(uri)
+                imageDetailViewModel.setImageContext(
+                    ImageContext(
+                        images = allImages,
+                        currentIndex = index.coerceAtLeast(0),
+                        contextType = ImageContext.ContextType.SEARCH_RESULT
+                    )
+                )
+            }
             // 이미지 상세 화면으로 이동
             navController.navigate(Screen.Image.createRoute(uri))
         },

@@ -20,7 +20,6 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
-import java.util.concurrent.TimeUnit
 import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
@@ -91,9 +90,9 @@ object RetrofitInstance {
                     .Builder()
                     .addInterceptor(authInterceptor)
                     .authenticator(tokenAuthenticator)
-                    .connectTimeout(30, TimeUnit.SECONDS)
-                    .readTimeout(30, TimeUnit.SECONDS)
-                    .writeTimeout(30, TimeUnit.SECONDS)
+//                    .connectTimeout(30, TimeUnit.SECONDS)
+//                    .readTimeout(30, TimeUnit.SECONDS)
+//                    .writeTimeout(30, TimeUnit.SECONDS)
                     .build()
 
             val retrofit =

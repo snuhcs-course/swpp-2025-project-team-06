@@ -14,11 +14,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.model.ImageContext
+import com.example.momentag.viewmodel.ImageDetailViewModel
 
 @Composable
 fun ImageGridUriItem(
     imageUri: Uri,
     navController: NavController,
+    imageDetailViewModel: ImageDetailViewModel? = null,
+    allImages: List<Uri>? = null,
+    contextType: ImageContext.ContextType = ImageContext.ContextType.GALLERY,
 ) {
     Box(modifier = Modifier) {
         AsyncImage(
@@ -31,6 +36,17 @@ fun ImageGridUriItem(
                     .clip(RoundedCornerShape(16.dp))
                     .align(Alignment.BottomCenter)
                     .clickable {
+                        // 이미지 컨텍스트 설정
+                        if (imageDetailViewModel != null && allImages != null) {
+                            val index = allImages.indexOf(imageUri)
+                            imageDetailViewModel.setImageContext(
+                                ImageContext(
+                                    images = allImages,
+                                    currentIndex = index.coerceAtLeast(0),
+                                    contextType = contextType,
+                                ),
+                            )
+                        }
                         navController.navigate(Screen.Image.createRoute(imageUri))
                     },
             contentScale = ContentScale.Crop,
