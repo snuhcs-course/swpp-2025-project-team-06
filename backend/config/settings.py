@@ -52,7 +52,6 @@ if DEBUG:
 
 INSTALLED_APPS = [
     'accounts',
-    'corsheaders',  # CORS 헤더 처리
     'drf_yasg',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -69,7 +68,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # CORS 미들웨어 (가장 위에)
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.django
     container_name: django_app
     env_file:
-      - .env.prod
+      - .env
     ports:
       - "8000:8000"
     volumes:

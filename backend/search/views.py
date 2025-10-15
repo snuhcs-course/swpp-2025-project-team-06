@@ -53,7 +53,13 @@ class SemanticSearchView(APIView):
         query = request.GET.get('query', '')
         offset = int(request.GET.get('offset', 0))
         
-        query_embedding = create_query_embedding(query).tolist()
+        # Celery 태스크로 실행하고 결과 기다리기
+        task_result = create_query_embedding.delay(query)
+        query_embedding = task_result.get()  # 동기적으로 결과 기다림
+
+        # numpy array를 리스트로 변환
+        if hasattr(query_embedding, 'tolist'):
+            query_embedding = query_embedding.tolist()
 
         search_result = client.query_points(
             collection_name=IMAGE_COLLECTION_NAME,

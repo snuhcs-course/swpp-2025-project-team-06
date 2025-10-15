@@ -1,10 +1,10 @@
-from sentence_transformers import SentenceTransformer
-from PIL import Image
-import torch
 
 _image_model = None  # 전역 캐시
 
 def get_image_model():
+    from sentence_transformers import SentenceTransformer
+    from PIL import Image
+    import torch
     """Lazy-load image model once per worker"""
     global _image_model
     if _image_model is None:
@@ -13,6 +13,9 @@ def get_image_model():
     return _image_model
 
 def get_image_embedding(image_path):
+    from sentence_transformers import SentenceTransformer
+    from PIL import Image
+    import torch
     try:
         print(f"[INFO] Generating embedding for: {image_path} ...", flush=True)   # Debug print statement
 

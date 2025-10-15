@@ -63,6 +63,10 @@ dependencies = [
     { name = "qdrant-client" },
     { name = "redis" },
     { name = "requests" },
+]
+
+[package.optional-dependencies]
+gpu = [
     { name = "sentence-transformers" },
     { name = "torch" },
     { name = "torchvision" },
@@ -84,11 +88,12 @@ requires-dist = [
     { name = "qdrant-client", specifier = "==1.15.1" },
     { name = "redis", specifier = "==6.4.0" },
     { name = "requests", specifier = ">=2.32.5" },
-    { name = "sentence-transformers", specifier = "==5.1.1" },
-    { name = "torch", specifier = "==2.8.0" },
-    { name = "torchvision", specifier = "==0.23.0" },
-    { name = "transformers", specifier = "==4.57.0" },
+    { name = "sentence-transformers", marker = "extra == 'gpu'", specifier = "==5.1.1" },
+    { name = "torch", marker = "extra == 'gpu'", specifier = "==2.8.0" },
+    { name = "torchvision", marker = "extra == 'gpu'", specifier = "==0.23.0" },
+    { name = "transformers", marker = "extra == 'gpu'", specifier = "==4.57.0" },
 ]
+provides-extras = ["gpu"]
 
 [[package]]
 name = "billiard"

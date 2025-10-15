@@ -9,7 +9,7 @@ from .models import Tag, User
 
 import time
 
-from sentence_transformers import SentenceTransformer
+
 _TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 _text_model = None  # 전역 캐시
 
@@ -18,6 +18,7 @@ WAIT_INTERVAL = 0.1
 
 
 def get_text_model():
+    from sentence_transformers import SentenceTransformer
     """Lazy-load text model inside worker"""
     global _text_model
     if _text_model is None:
@@ -98,7 +99,7 @@ def create_or_update_tag_embedding(user_id, tag_name, tag_id):
     except Exception as e:
         print(f"[Celery Task Exception] Error creating/updating tag '{tag_name}': {str(e)}")
 
-
+@shared_task
 def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
