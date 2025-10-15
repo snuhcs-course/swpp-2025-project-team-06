@@ -244,31 +244,47 @@ fun SearchResultScreenUi(
     navController: NavController,
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
-        modifier = modifier,
-        containerColor = Background,
-    ) { paddingValues ->
-        SearchResultContent(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 24.dp),
-            searchText = searchText,
-            onSearchTextChange = onSearchTextChange,
-            onSearchSubmit = onSearchSubmit,
-            uiState = uiState,
-            isSelectionMode = isSelectionMode,
-            selectedImages = selectedImages,
-            onBackClick = onBackClick,
-            onToggleSelectionMode = onToggleSelectionMode,
-            onToggleImageSelection = onToggleImageSelection,
-            onImageClick = onImageClick,
-            onImageLongPress = onImageLongPress,
-            onCreateTagClick = onCreateTagClick,
-            onRetry = onRetry,
-            navController = navController,
-        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = modifier,
+            containerColor = Background,
+        ) { paddingValues ->
+            SearchResultContent(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(horizontal = 24.dp),
+                searchText = searchText,
+                onSearchTextChange = onSearchTextChange,
+                onSearchSubmit = onSearchSubmit,
+                uiState = uiState,
+                isSelectionMode = isSelectionMode,
+                selectedImages = selectedImages,
+                onBackClick = onBackClick,
+                onToggleSelectionMode = onToggleSelectionMode,
+                onToggleImageSelection = onToggleImageSelection,
+                onImageClick = onImageClick,
+                onImageLongPress = onImageLongPress,
+                onCreateTagClick = onCreateTagClick,
+                onRetry = onRetry,
+                navController = navController,
+            )
+
+            if (uiState is SearchUiState.Error) {
+                // 🔥 Scaffold 위를 완전히 덮는 오버레이
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                ) {
+                    errorOverlay(
+                        modifier = Modifier.fillMaxSize(),
+                        errorMessage = uiState.message,
+                        onRetry = onRetry,
+                        onDismiss = { navController.popBackStack() }
+                    )
+                }
+            }  }
     }
 }
 
@@ -433,19 +449,6 @@ private fun SearchResultContent(
                             ).padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
-        }
-
-        // 🚨 전체 화면 Error 오버레이 (최상위 레이어)
-        if (uiState is SearchUiState.Error) {
-            errorOverlay(
-                modifier = Modifier.fillMaxSize(),
-                errorMessage = uiState.message,
-                onRetry = onRetry,
-                onDismiss = {
-                    // X 버튼 클릭 시 이전 화면으로 돌아가기
-                    navController.popBackStack()
-                },
-            )
         }
     }
 }
