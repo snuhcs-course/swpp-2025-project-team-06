@@ -1,0 +1,25 @@
+version: '3.9'
+
+services:
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile.django
+    container_name: django_app
+    env_file:
+      - .env.prod
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./media:/app/media
+    depends_on:
+      - redis
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: my-redis
+    ports:
+      - "6379:6379"
+    restart: always

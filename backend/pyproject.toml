@@ -1,24 +1,34 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
 requires-python = ">=3.13"
+
 dependencies = [
-    "celery==5.5.3",
+    # --- Django Core ---
     "django==5.2.7",
+    "gunicorn", 
     "django-environ==0.12.0",
     "djangorestframework==3.16.1",
     "djangorestframework-simplejwt==5.5.1",
     "drf-yasg==1.21.11",
+    "python-dotenv==1.1.1",
+
+    # --- Infra / Queue ---
+    "celery==5.5.3",
+    "redis==6.4.0",
+    "qdrant-client==1.15.1",
+    "requests>=2.32.5",
+
+    # --- Utils ---
     "numpy==2.3.3",
     "pillow==11.3.0",
-    "python-dotenv==1.1.1",
-    "qdrant-client==1.15.1",
-    "redis==6.4.0",
-    "requests>=2.32.5",
-    "sentence-transformers==5.1.1",
+]
+
+[project.optional-dependencies]
+gpu = [
+    # GPU 모델 전용 의존성
     "torch==2.8.0",
     "torchvision==0.23.0",
     "transformers==4.57.0",
+    "sentence-transformers==5.1.1",
 ]
