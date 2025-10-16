@@ -21,3 +21,15 @@ class Photo_Tag(models.Model):
 
     def __str__(self):
         return f"{self.photo_id} tagged with {self.tag_id}"
+    
+# class Photo(models.Model):
+#     photo_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     filename = models.CharField()
+#     photo_path_id = models.IntegerField()
+#     created_at = models.DateTimeField()
+#     location_lat = models.FloatField()
+#     location_lng = models.FloatField()
+
+#     def __str__(self):
+#         return self.filename
