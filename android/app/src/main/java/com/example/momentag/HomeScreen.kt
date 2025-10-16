@@ -3,6 +3,7 @@ package com.example.momentag
 import android.Manifest
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -65,6 +66,7 @@ import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -74,7 +76,9 @@ fun homeScreen(navController: NavController) {
     var hasPermission by remember { mutableStateOf(false) }
 
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
+    val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory(context))
     val imageUris by localViewModel.image.collectAsState()
+    val uiState by photoViewModel.uiState.collectAsState()
 
     var tags by remember {
         mutableStateOf(
@@ -113,6 +117,17 @@ fun homeScreen(navController: NavController) {
     if (hasPermission) {
         LaunchedEffect(Unit) {
             localViewModel.getImages()
+        }
+    }
+
+    LaunchedEffect(hasPermission) { // once when got permission
+        photoViewModel.uploadPhotos()
+    }
+
+    LaunchedEffect(uiState.userMessage) {
+        uiState.userMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            photoViewModel.userMessageShown()
         }
     }
 

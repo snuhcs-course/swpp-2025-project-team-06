@@ -28,6 +28,12 @@ class ViewModelFactory(
                     SessionManager(context.applicationContext),
                 ) as T
             }
+            modelClass.isAssignableFrom(PhotoViewModel::class.java) -> {
+                PhotoViewModel(
+                    RemoteRepository(RetrofitInstance.getApiService(context.applicationContext)),
+                    LocalRepository(context.applicationContext),
+                ) as T
+            }
             else -> throw IllegalArgumentException("Unknown ViewModel class")
         }
 }

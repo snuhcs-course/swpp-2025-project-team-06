@@ -9,13 +9,17 @@ import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.Tag
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -47,6 +51,13 @@ interface ApiService {
     @POST("api/auth/signout")
     suspend fun logout(
         @Body logoutRequest: RefreshRequest,
+    ): Response<Unit>
+
+    @Multipart
+    @POST("api/photos")
+    suspend fun uploadPhotos(
+        @Part photo: List<MultipartBody.Part>,
+        @Part metadata: RequestBody
     ): Response<Unit>
 }
 

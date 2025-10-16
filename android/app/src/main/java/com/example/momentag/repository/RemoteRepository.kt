@@ -3,6 +3,7 @@ package com.example.momentag.repository
 import com.example.momentag.model.LoginRegisterRequest
 import com.example.momentag.model.LoginResponse
 import com.example.momentag.model.Photo
+import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterResponse
@@ -24,4 +25,8 @@ class RemoteRepository(
     suspend fun refreshToken(refreshToken: RefreshRequest): Response<RefreshResponse> = apiService.refreshToken(refreshToken)
 
     suspend fun logout(refreshToken: RefreshRequest): Response<Unit> = apiService.logout(refreshToken)
+    suspend fun uploadPhotos(photoUploadData: PhotoUploadData): Response<Unit> = apiService.uploadPhotos(
+        photo = photoUploadData.photo,
+        metadata = photoUploadData.metadata,
+    )
 }

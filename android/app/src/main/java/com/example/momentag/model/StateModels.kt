@@ -71,3 +71,10 @@ sealed interface LogoutState {
 
     object Success : LogoutState
 }
+
+/* UI state by screen */
+data class HomeScreenUiState(
+    val isLoading: Boolean = false,
+    val userMessage: String? = null,
+    val isUploadSuccess: Boolean = false
+)
