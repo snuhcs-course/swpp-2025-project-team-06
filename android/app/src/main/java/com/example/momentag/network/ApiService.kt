@@ -55,7 +55,7 @@ interface ApiService {
     ): Response<Unit>
 
     @Multipart
-    @POST("api/photos")
+    @POST("api/photos/")
     suspend fun uploadPhotos(
         @Part photo: List<MultipartBody.Part>,
         @Part metadata: RequestBody
@@ -63,7 +63,7 @@ interface ApiService {
 }
 
 object RetrofitInstance {
-    private const val BASE_URL = "http://10.0.2.2:8000/"
+    private const val BASE_URL = "http://xxx.xxx.xxx.xxx:8000/" // fill
 
     private var apiService: ApiService? = null
 

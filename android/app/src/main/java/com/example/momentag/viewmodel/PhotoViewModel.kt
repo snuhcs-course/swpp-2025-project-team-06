@@ -3,9 +3,6 @@ package com.example.momentag.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.HomeScreenUiState
-import com.example.momentag.model.LoginRegisterRequest
-import com.example.momentag.model.LoginState
-import com.example.momentag.model.PhotoMeta
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,7 +38,6 @@ class PhotoViewModel(
                     else -> "Unexpected error: ${response.code()}"
                 }
 
-                // 4. 최종 상태 업데이트 (로딩 종료, 메시지 설정)
                 _uiState.update { it.copy(isLoading = false, userMessage = message) }
             } catch (e: IOException) {
                 _uiState.update { it.copy(isLoading = false, userMessage = "Network error") }

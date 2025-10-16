@@ -4,6 +4,7 @@ import android.Manifest
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -83,6 +84,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
+    val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory(context))
     val logoutState by authViewModel.logoutState.collectAsState()
@@ -150,8 +152,15 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    LaunchedEffect(hasPermission) { // once when got permission
-        photoViewModel.uploadPhotos()
+    // done once when got permission
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED", false)
+            if (!hasAlreadyUploaded) {
+                photoViewModel.uploadPhotos()
+                sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED", true).apply()
+            }
+        }
     }
 
     LaunchedEffect(uiState.userMessage) {

@@ -12,6 +12,10 @@ import com.google.gson.Gson
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 class LocalRepository(
     private val context: Context,
@@ -43,9 +47,28 @@ class LocalRepository(
         return imageUriList
     }
 
-    // Metadata 를 포함한 사진을 upload request 형태로 반환
-    // test 시 일부만 upload 하게 수정 : 3개 정도
-    // 인자로 album id list를 받아 selection, selectionArgs에 대입하면 album 별 사진 upload 하게 가능 (현재는 전체 upload)
+    fun dmsToDecimal(dms: String?, ref: String?): Double {
+        if (dms == null) return 0.0
+
+        val parts = dms.split(",")
+        if (parts.size != 3) return 0.0
+
+        try {
+            val deg = parts[0].split("/").let { it[0].toDouble() / it[1].toDouble() }
+            val min = parts[1].split("/").let { it[0].toDouble() / it[1].toDouble() }
+            val sec = parts[2].split("/").let { it[0].toDouble() / it[1].toDouble() }
+
+            var decimal = deg + min / 60.0 + sec / 3600.0
+            if (ref == "S" || ref == "W") decimal = -decimal
+            return decimal
+        } catch (e: Exception) {
+            return 0.0
+        }
+    }
+
+    // Returns an 'upload request' with photo metadata
+    // Currently uploads only 3 photos for testing
+    // Can be adapted to upload by album by providing album ID list and modifying selection/selectionArgs
     fun getPhotoUploadRequest(): PhotoUploadData {
         val photoParts = mutableListOf<MultipartBody.Part>()
         val metadataList = mutableListOf<PhotoMeta>()
@@ -71,30 +94,33 @@ class LocalRepository(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id
                 )
 
-                // 파일 정보 가져오기
                 val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
-                val createdAt = cursor.getLong(dateColumn).toString()
 
-                // EXIF에서 위치 정보 가져오기 (변수 스코프 버그 수정)
+                val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)) * 1000L  // 초 -> 밀리초
+                val date = Date(dateValue)
+
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                sdf.timeZone = TimeZone.getTimeZone("Asia/Seoul")
+                val createdAt = sdf.format(date)
+
                 var finalLat = 0.0
                 var finalLng = 0.0
                 try {
                     context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
                         val exif = ExifInterface(inputStream)
-                        val lat = exif.getAttributeDouble(ExifInterface.TAG_GPS_LATITUDE, 0.0)
-                        val lng = exif.getAttributeDouble(ExifInterface.TAG_GPS_LONGITUDE, 0.0)
+                        val latDms = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+                        val lngDms = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
                         val latRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
                         val lngRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
 
-                        // 남/서반구 보정
-                        finalLat = if (latRef == "S") -lat else lat
-                        finalLng = if (lngRef == "W") -lng else lng
+                        finalLat = dmsToDecimal(latDms, latRef)
+                        finalLng = dmsToDecimal(lngDms, lngRef)
                     }
                 } catch (e: Exception) {
-                    // EXIF 정보가 없거나 오류 발생 시 기본값(0.0, 0.0) 사용
+                    // 0.0 for no EXIF info
                 }
 
-                // 1. 이미지 파일로 MultipartBody.Part 생성
+                // generate MultipartBody.Part
                 context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
                     val bytes = inputStream.readBytes()
                     val requestBody = bytes.toRequestBody("image/*".toMediaTypeOrNull())
@@ -102,7 +128,7 @@ class LocalRepository(
                     photoParts.add(part)
                 }
 
-                // 2. 메타데이터 객체 생성 후 리스트에 추가
+                // generate metadata list
                 metadataList.add(
                     PhotoMeta(
                         filename = filename,
@@ -115,7 +141,7 @@ class LocalRepository(
             }
         }
 
-        // 3. 메타데이터 리스트를 하나의 JSON 문자열로 변환
+        // convert metadata to JSON
         val gson = Gson()
         val metadataJson = gson.toJson(metadataList)
         val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
