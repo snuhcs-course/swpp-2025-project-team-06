@@ -66,9 +66,9 @@ import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
 /**
- * ========================================
- * SearchResultScreen - 검색 결과 화면
- * ========================================
+ *  * ========================================
+ *  * SearchResultScreen - 검색 결과 화면
+ *  * ========================================
  * Semantic Search 결과를 표시하는 검색 결과 메인 화면
  */
 @Composable
