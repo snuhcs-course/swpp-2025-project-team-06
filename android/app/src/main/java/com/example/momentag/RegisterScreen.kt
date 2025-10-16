@@ -57,28 +57,41 @@ import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
+// TODO:Register보내고 돌아오는 거 기다릴 동안 Loading 화면 띄워 줘야 할 듯
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun registerScreen(navController: NavController) {
+fun RegisterScreen(navController: NavController) {
     val context = LocalContext.current
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory(context))
     val registerState by authViewModel.registerState.collectAsState()
 
+    var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordCheck by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordCheckVisible by rememberSaveable { mutableStateOf(false) }
 
+    var isEmailError by remember { mutableStateOf(false) }
     var isUsernameError by remember { mutableStateOf(false) }
     var isPasswordError by remember { mutableStateOf(false) }
     var isPasswordCheckError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var emailTouched by remember { mutableStateOf(false) }
     var usernameTouched by remember { mutableStateOf(false) }
     var passwordTouched by remember { mutableStateOf(false) }
     var passwordCheckTouched by remember { mutableStateOf(false) }
 
+    // Email validation helper
+    fun isValidEmail(email: String): Boolean =
+        android.util.Patterns
+            .EMAIL_ADDRESS
+            .matcher(email)
+            .matches()
+
     val clearAllErrors = {
+        isEmailError = false
         isUsernameError = false
         isPasswordError = false
         isPasswordCheckError = false
@@ -94,6 +107,7 @@ fun registerScreen(navController: NavController) {
             }
             is RegisterState.BadRequest -> {
                 errorMessage = state.message
+                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
@@ -101,6 +115,7 @@ fun registerScreen(navController: NavController) {
             }
             is RegisterState.Conflict -> {
                 errorMessage = state.message
+                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
@@ -108,6 +123,7 @@ fun registerScreen(navController: NavController) {
             }
             is RegisterState.NetworkError -> {
                 errorMessage = state.message
+                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
@@ -115,6 +131,7 @@ fun registerScreen(navController: NavController) {
             }
             is RegisterState.Error -> {
                 errorMessage = state.message
+                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
@@ -190,6 +207,73 @@ fun registerScreen(navController: NavController) {
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+
+                // email input
+                Text(text = "Email", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                OutlinedTextField(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    emailTouched = true
+                                    if (errorMessage != null) {
+                                        clearAllErrors()
+                                    } else {
+                                        isEmailError = false
+                                    }
+                                } else {
+                                    if (emailTouched && (email.isEmpty() || !isValidEmail(email))) {
+                                        isEmailError = true
+                                    }
+                                }
+                            },
+                    value = email,
+                    onValueChange = {
+                        email = it
+                        if (errorMessage != null) {
+                            clearAllErrors()
+                        } else {
+                            isEmailError = false
+                        }
+                    },
+                    placeholder = { Text("Email", color = Temp_word) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    isError = isEmailError || (emailTouched && email.isNotEmpty() && !isValidEmail(email)),
+                    colors =
+                        OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            disabledContainerColor = Color.White,
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.LightGray,
+                            errorBorderColor = Color.Red,
+                            errorContainerColor = Color.White,
+                        ),
+                )
+                Box(
+                    modifier =
+                        Modifier
+                            .height(20.dp)
+                            .fillMaxWidth()
+                            .padding(top = 4.dp, start = 4.dp),
+                ) {
+                    if (isEmailError && email.isEmpty()) {
+                        Text(
+                            text = "Please enter your email",
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else if (emailTouched && email.isNotEmpty() && !isValidEmail(email)) {
+                        Text(
+                            text = "Please enter a valid email address",
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
 
                 // username input
                 Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
@@ -408,17 +492,20 @@ fun registerScreen(navController: NavController) {
                 // register button
                 Button(
                     onClick = {
+                        val emailEmpty = email.isEmpty()
+                        val emailInvalid = !isValidEmail(email)
                         val usernameEmpty = username.isEmpty()
                         val passwordEmpty = password.isEmpty()
                         val passwordCheckEmpty = passwordCheck.isEmpty()
+                        isEmailError = emailEmpty || emailInvalid
                         isUsernameError = usernameEmpty
                         isPasswordError = passwordEmpty
                         isPasswordCheckError = passwordCheckEmpty
 
                         if (password != passwordCheck) {
                             isPasswordCheckError = true
-                        } else if (!usernameEmpty && !passwordEmpty && !passwordCheckEmpty) {
-                            authViewModel.register(username, password)
+                        } else if (!emailEmpty && !emailInvalid && !usernameEmpty && !passwordEmpty && !passwordCheckEmpty) {
+                            authViewModel.register(email, username, password)
                         }
                     },
                     modifier =

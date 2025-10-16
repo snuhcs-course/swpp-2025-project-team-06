@@ -38,7 +38,7 @@ DEBUG = True
 QDRANT_CLUSTER_URL = env('QDRANT_CLUSTER_URL')
 QDRANT_API_KEY = env('QDRANT_API_KEY')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["10.0.2.2",]
 
 
 # Application definition

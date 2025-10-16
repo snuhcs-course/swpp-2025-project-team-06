@@ -3,11 +3,12 @@ package com.example.momentag.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.data.SessionManager
-import com.example.momentag.model.LoginRegisterRequest
+import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginState
 import com.example.momentag.model.LogoutState
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshState
+import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterState
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,7 @@ class AuthViewModel(
     ) {
         viewModelScope.launch {
             try {
-                val request = LoginRegisterRequest(username, password)
+                val request = LoginRequest(username, password)
                 val response = authRepository.login(request)
 
                 when {
@@ -71,28 +72,43 @@ class AuthViewModel(
     val registerState = _registerState.asStateFlow()
 
     fun register(
+        email: String,
         username: String,
         password: String,
     ) {
         viewModelScope.launch {
             try {
-                val request = LoginRegisterRequest(username, password)
+                val request = RegisterRequest(email, username, password)
                 val response = authRepository.register(request)
-
-                when {
-                    response.isSuccessful -> { // 201 Created
-                        _registerState.value = RegisterState.Success(response.body()!!.id)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val id = body?.id
+                    when {
+                        id != null -> {
+                            _registerState.value = RegisterState.Success(id)
+                        }
+                        else -> {
+                            // 성공이지만 바디/필드가 비어있는 경우를 명시적으로 처리
+                            _registerState.value =
+                                RegisterState.Error(
+                                    "Empty body or missing 'id' in response",
+                                )
+                        }
                     }
+                    return@launch
+                }
 
-                    response.code() == 400 -> {
-                        _registerState.value = RegisterState.BadRequest("Request form mismatch")
-                    }
-
-                    response.code() == 409 -> {
-                        _registerState.value = RegisterState.Conflict("Username already in use")
-                    }
-
+                // 비정상 응답 코드 상세 처리
+                when (response.code()) {
+                    400 -> _registerState.value = RegisterState.BadRequest("Request form mismatch")
+                    409 -> _registerState.value = RegisterState.Conflict("Email already in use")
                     else -> {
+                        val msg =
+                            try {
+                                response.errorBody()?.string()
+                            } catch (_: Exception) {
+                                null
+                            }
                         _registerState.value = RegisterState.Error("Unexpected error: ${response.code()}")
                     }
                 }
@@ -179,8 +195,8 @@ class AuthViewModel(
                 val response = authRepository.logout(request)
 
                 when (response.code()) {
-                    204 -> {
-                        // 204 No Content
+                    200, 204 -> {
+                        // OK or No Content
                     }
                     400, 401, 403 -> {
                         // BadRequest / Unauthorized / Forbidden

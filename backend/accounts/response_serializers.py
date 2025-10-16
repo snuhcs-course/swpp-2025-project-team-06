@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 class SignUpResponse(serializers.Serializer):
-    id = serializers.UUIDField()
+    id = serializers.IntegerField()
 
 class SignInResponse(serializers.Serializer):
     access_token = serializers.CharField()

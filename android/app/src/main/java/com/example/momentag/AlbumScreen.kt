@@ -50,9 +50,10 @@ import com.example.momentag.ui.theme.Picture
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun albumScreen(
+fun AlbumScreen(
     tagName: String,
     navController: NavController,
     onNavigateBack: () -> Unit,
@@ -139,7 +140,7 @@ fun albumScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(imageUris) { imageUri ->
-                        imageGridUriItem(imageUri, navController)
+                        ImageGridUriItem(imageUri, navController)
                     }
                 }
             } else {

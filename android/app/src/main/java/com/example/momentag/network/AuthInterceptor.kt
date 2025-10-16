@@ -8,16 +8,26 @@ class AuthInterceptor(
     private val sessionManager: SessionManager,
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
-        val token = sessionManager.getAccessToken()
+        val originalRequest = chain.request()
+        val url = originalRequest.url.encodedPath
+
+        // Skip auth header for login/signup/refresh endpoints
+        val skipAuthPaths = listOf("/api/auth/signin/", "/api/auth/signup/", "/api/auth/refresh/")
+        val shouldSkipAuth = skipAuthPaths.any { url.contains(it) }
+
         val request =
-            chain
-                .request()
-                .newBuilder()
-                .apply {
-                    if (!token.isNullOrBlank()) {
-                        addHeader("Authorization", "Bearer $token")
-                    }
-                }.build()
+            if (shouldSkipAuth) {
+                originalRequest
+            } else {
+                val token = sessionManager.getAccessToken()
+                originalRequest
+                    .newBuilder()
+                    .apply {
+                        if (!token.isNullOrBlank()) {
+                            header("Authorization", "Bearer $token")
+                        }
+                    }.build()
+            }
 
         return chain.proceed(request)
     }
