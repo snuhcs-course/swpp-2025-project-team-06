@@ -3,6 +3,7 @@ package com.example.momentag
 import android.Manifest
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -19,32 +20,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.ViewList
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,7 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,11 +58,12 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.LogoutState
 import com.example.momentag.ui.components.CreateTagButton
+import com.example.momentag.ui.components.HomeTopBar
+import com.example.momentag.ui.components.SearchBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.TagColor
-import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.LocalViewModel
@@ -91,6 +82,8 @@ fun HomeScreen(navController: NavController) {
 
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
     val imageUris by localViewModel.image.collectAsState()
+
+    var isRefreshing by remember { mutableStateOf(false) }
 
     var tags by remember {
         mutableStateOf(
@@ -135,6 +128,7 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(logoutState) {
         when (logoutState) {
             is LogoutState.Success -> {
+                Toast.makeText(context, "로그아웃되었습니다", Toast.LENGTH_SHORT).show()
                 navController.navigate(Screen.Login.route) {
                     popUpTo(0)
                     launchSingleTop = true
@@ -150,53 +144,12 @@ fun HomeScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "MomenTag",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        modifier =
-                            Modifier.clickable {
-                                navController.navigate(Screen.LocalGallery.route)
-                            },
-                    )
+            HomeTopBar(
+                onTitleClick = {
+                    navController.navigate(Screen.LocalGallery.route)
                 },
-                actions = {
-                    when (logoutState) {
-                        is LogoutState.Loading -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                            )
-                        }
-                        else -> {
-                            TextButton(
-                                onClick = { authViewModel.logout() },
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                        contentDescription = "Logout",
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                    Text(
-                                        text = "Logout",
-                                        fontSize = 12.sp,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Background,
-                    ),
+                onLogoutClick = { authViewModel.logout() },
+                isLogoutLoading = logoutState is LogoutState.Loading,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -210,41 +163,62 @@ fun HomeScreen(navController: NavController) {
             )
         },
     ) { paddingValues ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                scope.launch {
+                    isRefreshing = true
+                    try {
+                        if (hasPermission) {
+                            localViewModel.getImages()
+                        }
+                        // TODO: 서버 태그 목록도 새로고침 필요 시 추가
+                        // serverViewModel.getAllTags()
+                    } finally {
+                        isRefreshing = false
+                    }
+                }
+            },
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                    .padding(paddingValues),
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
-            SearchHeader()
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+                SearchHeader()
 
-            Spacer(modifier = Modifier.height(8.dp))
-            SearchBar(
-                onSearch = { query ->
-                    if (query.isNotEmpty()) {
-                        navController.navigate(Screen.SearchResult.createRoute(query))
-                    }
-                },
-            )
+                Spacer(modifier = Modifier.height(8.dp))
+                SearchBar(
+                    onSearch = { query ->
+                        if (query.isNotEmpty()) {
+                            navController.navigate(Screen.SearchResult.createRoute(query))
+                        }
+                    },
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
-            ViewToggle(
-                onlyTag = onlyTag,
-                onToggle = { onlyTag = it },
-            )
+                Spacer(modifier = Modifier.height(16.dp))
+                ViewToggle(
+                    onlyTag = onlyTag,
+                    onToggle = { onlyTag = it },
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
-            MainContent(
-                hasPermission = hasPermission,
-                onlyTag = onlyTag,
-                imageTagPairs = imageTagPairs,
-                onRemoveTagPair = { pair -> imageTagPairs = imageTagPairs - pair },
-                navController = navController,
-                modifier = Modifier.weight(1f),
-            )
+                Spacer(modifier = Modifier.height(16.dp))
+                MainContent(
+                    hasPermission = hasPermission,
+                    onlyTag = onlyTag,
+                    imageTagPairs = imageTagPairs,
+                    onRemoveTagPair = { pair -> imageTagPairs = imageTagPairs - pair },
+                    navController = navController,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
@@ -262,42 +236,7 @@ private fun SearchHeader() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SearchBar(onSearch: (String) -> Unit) {
-    var searchText by remember { mutableStateOf("") }
-
-    TextField(
-        value = searchText,
-        onValueChange = { searchText = it },
-        placeholder = { Text("Search Anything...", color = Temp_word) },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors =
-            TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = Semi_background,
-                unfocusedContainerColor = Semi_background,
-                unfocusedTextColor = Word,
-                disabledTextColor = Word,
-            ),
-        singleLine = true,
-        keyboardOptions =
-            androidx.compose.foundation.text.KeyboardOptions(
-                imeAction = androidx.compose.ui.text.input.ImeAction.Search,
-            ),
-        keyboardActions =
-            androidx.compose.foundation.text.KeyboardActions(
-                onSearch = { onSearch(searchText) },
-            ),
-        trailingIcon = {
-            IconButton(onClick = { onSearch(searchText) }) {
-                Icon(imageVector = Icons.Default.Search, contentDescription = "검색 실행")
-            }
-        },
-    )
-}
+// SearchBar는 이제 ui.components.SearchBar로 이동됨
 
 @Composable
 private fun ViewToggle(

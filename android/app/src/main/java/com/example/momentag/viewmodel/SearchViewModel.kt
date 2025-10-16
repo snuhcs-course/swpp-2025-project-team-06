@@ -27,7 +27,7 @@ class SearchViewModel(
     /**
      * Semantic Search 수행 (GET 방식)
      * @param query 검색 쿼리
-     * @param offset 페이지네이션 오프셋
+     * @param offset 오프셋
      */
     fun search(
         query: String,

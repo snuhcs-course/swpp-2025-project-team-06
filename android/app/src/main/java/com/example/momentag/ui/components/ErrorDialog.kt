@@ -152,7 +152,7 @@ fun errorDialog(
  * @param retryButtonText 재시도 버튼 텍스트 (기본값: "RETRY")
  */
 @Composable
-fun errorOverlay(
+fun ErrorOverlay(
     errorMessage: String,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
@@ -314,7 +314,7 @@ private fun previewErrorOverlay() {
         }
 
         // 에러 오버레이
-        errorOverlay(
+        ErrorOverlay(
             errorMessage = "Failed to load data.\nPlease try again.",
             onRetry = {},
             modifier = Modifier.fillMaxSize(),
