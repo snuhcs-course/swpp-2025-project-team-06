@@ -14,10 +14,11 @@ val Pink40 = Color(0xFF7D5260)
 Color Palette
     Color variable names start with a capital letter
  */
-val Tag = Color(0xFFFBC4AB)
+val TagColor = Color(0xFFFBC4AB)
 val Picture = Color(0xFFD8D8D8)
 val Background = Color(0xFFFFFBF5)
 val Button = Color(0xFFF88379)
 val Temp_word = Color(0xFFB2B2B2)
 val Word = Color(0xFF000000)
 val Semi_background = Color(0xFFF0F0F0)
+val Blue_word = Color(0xFF4A90E2)

@@ -11,15 +11,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class LocalViewModel(private val localRepository: LocalRepository) : ViewModel() {
-
+class LocalViewModel(
+    private val localRepository: LocalRepository,
+) : ViewModel() {
     private val _image = MutableStateFlow<List<Uri>>(emptyList())
     val image = _image.asStateFlow()
+
     fun getImages() {
         viewModelScope.launch {
-            _image.value = withContext(Dispatchers.IO) {
-                localRepository.getImages()
-            }
+            _image.value =
+                withContext(Dispatchers.IO) {
+                    localRepository.getImages()
+                }
         }
     }
 
@@ -28,9 +31,10 @@ class LocalViewModel(private val localRepository: LocalRepository) : ViewModel()
 
     fun getAlbums() {
         viewModelScope.launch {
-            _albums.value = withContext(Dispatchers.IO) {
-                localRepository.getAlbums()
-            }
+            _albums.value =
+                withContext(Dispatchers.IO) {
+                    localRepository.getAlbums()
+                }
         }
     }
 
@@ -39,9 +43,10 @@ class LocalViewModel(private val localRepository: LocalRepository) : ViewModel()
 
     fun getImagesForAlbum(albumId: Long) {
         viewModelScope.launch {
-            _imagesInAlbum.value = withContext(Dispatchers.IO) {
-                localRepository.getImagesForAlbum(albumId)
-            }
+            _imagesInAlbum.value =
+                withContext(Dispatchers.IO) {
+                    localRepository.getImagesForAlbum(albumId)
+                }
         }
     }
 }
