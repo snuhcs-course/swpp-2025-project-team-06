@@ -57,7 +57,7 @@ interface ApiService {
     @POST("api/photos")
     suspend fun uploadPhotos(
         @Part photo: List<MultipartBody.Part>,
-        @Part metadata: RequestBody
+        @Part("metadata") metadata: RequestBody
     ): Response<Unit>
 }
 
