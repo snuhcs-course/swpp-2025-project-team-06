@@ -46,7 +46,7 @@ class PhotoViewModel(
             } catch (e: IOException) {
                 _uiState.update { it.copy(isLoading = false, userMessage = "Network error") }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, userMessage = "Unknown error: ${e.message}") }
+                _uiState.update { it.copy(isLoading = false, userMessage = "Unknown error") }
             }
         }
     }
