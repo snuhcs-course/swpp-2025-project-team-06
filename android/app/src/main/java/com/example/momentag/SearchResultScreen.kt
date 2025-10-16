@@ -196,6 +196,7 @@ fun SearchResultScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchResultScreenUi(
+    modifier: Modifier = Modifier,
     searchText: String,
     onSearchTextChange: (String) -> Unit,
     onSearchSubmit: () -> Unit,
@@ -211,7 +212,6 @@ fun SearchResultScreenUi(
     onRetry: () -> Unit,
     navController: NavController,
     imageDetailViewModel: ImageDetailViewModel? = null,
-    modifier: Modifier = Modifier,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -247,7 +247,7 @@ fun SearchResultScreenUi(
                 imageDetailViewModel = imageDetailViewModel,
             )
         }
-        //TODO : 혹시 네트워크 에러일 때만 오버레이 띄울거면 NetworkError 상태로 바꾸기
+        // TODO : 혹시 네트워크 에러일 때만 오버레이 띄울거면 NetworkError 상태로 바꾸기
         if (uiState is SearchUiState.Error) {
             Box(modifier = Modifier.matchParentSize()) {
                 ErrorOverlay(
@@ -383,7 +383,7 @@ private fun SearchResultContent(
                 CreateTagButton(
                     modifier =
                         Modifier
-                            .align(Alignment.BottomStart)
+                            .align(Alignment.BottomEnd)
                             .padding(start = 16.dp),
                     text = "Create Tag",
                     enabled = !isSelectionMode || selectedImages.isNotEmpty(),
@@ -402,7 +402,7 @@ private fun SearchResultContent(
                     color = Temp_word,
                     modifier =
                         Modifier
-                            .align(Alignment.BottomEnd)
+                            .align(Alignment.BottomStart)
                             .padding(end = 16.dp)
                             .background(
                                 color = Background.copy(alpha = 0.9f),
