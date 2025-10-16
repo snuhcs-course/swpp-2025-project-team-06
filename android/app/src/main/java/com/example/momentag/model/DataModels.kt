@@ -54,10 +54,10 @@ data class PhotoMeta(
     val photo_path_id: Int,
     val created_at: String,
     val lat: Double,
-    val lng: Double
+    val lng: Double,
 )
 
 data class PhotoUploadData(
     val photo: List<MultipartBody.Part>,
-    val metadata: RequestBody
+    val metadata: RequestBody,
 )

@@ -26,8 +26,10 @@ class RemoteRepository(
     suspend fun refreshToken(refreshToken: RefreshRequest): Response<RefreshResponse> = apiService.refreshToken(refreshToken)
 
     suspend fun logout(refreshToken: RefreshRequest): Response<Unit> = apiService.logout(refreshToken)
-    suspend fun uploadPhotos(photoUploadData: PhotoUploadData): Response<Unit> = apiService.uploadPhotos(
-        photo = photoUploadData.photo,
-        metadata = photoUploadData.metadata,
-    )
+
+    suspend fun uploadPhotos(photoUploadData: PhotoUploadData): Response<Unit> =
+        apiService.uploadPhotos(
+            photo = photoUploadData.photo,
+            metadata = photoUploadData.metadata,
+        )
 }

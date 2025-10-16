@@ -47,7 +47,10 @@ class LocalRepository(
         return imageUriList
     }
 
-    fun dmsToDecimal(dms: String?, ref: String?): Double {
+    fun dmsToDecimal(
+        dms: String?,
+        ref: String?,
+    ): Double {
         if (dms == null) return 0.0
 
         val parts = dms.split(",")
@@ -73,74 +76,81 @@ class LocalRepository(
         val photoParts = mutableListOf<MultipartBody.Part>()
         val metadataList = mutableListOf<PhotoMeta>()
 
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.DATE_ADDED
-        )
+        val projection =
+            arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_ADDED,
+            )
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
-        context.contentResolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            projection, null, null, sortOrder
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-            val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
-            var count = 3 // for testing
+        context.contentResolver
+            .query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                null,
+                null,
+                sortOrder,
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+                var count = 3 // for testing
 
-            while (cursor.moveToNext() && count-- > 0) {
-                val id = cursor.getLong(idColumn)
-                val contentUri = ContentUris.withAppendedId(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id
-                )
+                while (cursor.moveToNext() && count-- > 0) {
+                    val id = cursor.getLong(idColumn)
+                    val contentUri =
+                        ContentUris.withAppendedId(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                            id,
+                        )
 
-                val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
+                    val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
 
-                val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)) * 1000L  // 초 -> 밀리초
-                val date = Date(dateValue)
+                    val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)) * 1000L // 초 -> 밀리초
+                    val date = Date(dateValue)
 
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                sdf.timeZone = TimeZone.getTimeZone("Asia/Seoul")
-                val createdAt = sdf.format(date)
+                    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                    sdf.timeZone = TimeZone.getTimeZone("Asia/Seoul")
+                    val createdAt = sdf.format(date)
 
-                var finalLat = 0.0
-                var finalLng = 0.0
-                try {
-                    context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
-                        val exif = ExifInterface(inputStream)
-                        val latDms = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
-                        val lngDms = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
-                        val latRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
-                        val lngRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
+                    var finalLat = 0.0
+                    var finalLng = 0.0
+                    try {
+                        context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
+                            val exif = ExifInterface(inputStream)
+                            val latDms = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+                            val lngDms = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
+                            val latRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
+                            val lngRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
 
-                        finalLat = dmsToDecimal(latDms, latRef)
-                        finalLng = dmsToDecimal(lngDms, lngRef)
+                            finalLat = dmsToDecimal(latDms, latRef)
+                            finalLng = dmsToDecimal(lngDms, lngRef)
+                        }
+                    } catch (e: Exception) {
+                        // 0.0 for no EXIF info
                     }
-                } catch (e: Exception) {
-                    // 0.0 for no EXIF info
-                }
 
-                // generate MultipartBody.Part
-                context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
-                    val bytes = inputStream.readBytes()
-                    val requestBody = bytes.toRequestBody("image/*".toMediaTypeOrNull())
-                    val part = MultipartBody.Part.createFormData("photo", filename, requestBody)
-                    photoParts.add(part)
-                }
+                    // generate MultipartBody.Part
+                    context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
+                        val bytes = inputStream.readBytes()
+                        val requestBody = bytes.toRequestBody("image/*".toMediaTypeOrNull())
+                        val part = MultipartBody.Part.createFormData("photo", filename, requestBody)
+                        photoParts.add(part)
+                    }
 
-                // generate metadata list
-                metadataList.add(
-                    PhotoMeta(
-                        filename = filename,
-                        photo_path_id = id.toInt(),
-                        created_at = createdAt,
-                        lat = finalLat,
-                        lng = finalLng
+                    // generate metadata list
+                    metadataList.add(
+                        PhotoMeta(
+                            filename = filename,
+                            photo_path_id = id.toInt(),
+                            created_at = createdAt,
+                            lat = finalLat,
+                            lng = finalLng,
+                        ),
                     )
-                )
+                }
             }
-        }
 
         // convert metadata to JSON
         val gson = Gson()
@@ -149,7 +159,6 @@ class LocalRepository(
 
         return PhotoUploadData(photoParts, metadataBody)
     }
-
 
     fun getAlbums(): List<Album> {
         val albums = mutableMapOf<Long, Album>()

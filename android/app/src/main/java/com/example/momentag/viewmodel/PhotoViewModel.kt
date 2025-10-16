@@ -13,7 +13,7 @@ import java.io.IOException
 
 class PhotoViewModel(
     private val remoteRepository: RemoteRepository,
-    private val localRepository: LocalRepository
+    private val localRepository: LocalRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeScreenUiState())
     val uiState = _uiState.asStateFlow()
@@ -28,15 +28,16 @@ class PhotoViewModel(
                 val response = remoteRepository.uploadPhotos(photoUploadData)
 
                 // update ui state
-                val message = when (response.code()) {
-                    202 -> { // Accepted
-                        _uiState.update { it.copy(isUploadSuccess = true) }
-                        "Success"
+                val message =
+                    when (response.code()) {
+                        202 -> { // Accepted
+                            _uiState.update { it.copy(isUploadSuccess = true) }
+                            "Success"
+                        }
+                        400 -> "Request form mismatch" // Bad Request
+                        401 -> "The refresh token is expired" // Unauthorized
+                        else -> "Unexpected error: ${response.code()}"
                     }
-                    400 -> "Request form mismatch" // Bad Request
-                    401 -> "The refresh token is expired" // Unauthorized
-                    else -> "Unexpected error: ${response.code()}"
-                }
 
                 _uiState.update { it.copy(isLoading = false, userMessage = message) }
             } catch (e: IOException) {
