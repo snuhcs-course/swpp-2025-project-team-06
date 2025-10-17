@@ -32,6 +32,7 @@ import com.example.momentag.viewmodel.ImageDetailViewModel
  *
  * @param imageUri 이미지 URI
  * @param navController 네비게이션 컨트롤러
+ * @param modifier Modifier
  * @param imageDetailViewModel 이미지 상세 뷰모델 (선택사항)
  * @param allImages 전체 이미지 리스트 (스와이프용)
  * @param contextType 이미지 컨텍스트 타입
@@ -41,13 +42,13 @@ import com.example.momentag.viewmodel.ImageDetailViewModel
  * @param onLongPress 롱프레스 콜백 (선택사항)
  * @param cornerRadius 모서리 둥글기 (기본: 16dp)
  * @param topPadding 상단 패딩 (기본: 12dp)
- * @param modifier Modifier
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ImageGridUriItem(
     imageUri: Uri,
     navController: NavController,
+    modifier: Modifier = Modifier,
     imageDetailViewModel: ImageDetailViewModel? = null,
     allImages: List<Uri>? = null,
     contextType: ImageContext.ContextType = ImageContext.ContextType.GALLERY,
@@ -57,7 +58,6 @@ fun ImageGridUriItem(
     onLongPress: (() -> Unit)? = null,
     cornerRadius: Dp = 16.dp,
     topPadding: Dp = 12.dp,
-    modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
         // 이미지

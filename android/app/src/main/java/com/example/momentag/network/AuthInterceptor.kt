@@ -1,5 +1,6 @@
 package com.example.momentag.network
 
+import android.util.Log
 import com.example.momentag.data.SessionStore
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -15,6 +16,10 @@ import okhttp3.Response
 class AuthInterceptor(
     private val sessionStore: SessionStore,
 ) : Interceptor {
+    companion object {
+        private const val TAG = "AuthInterceptor"
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         val url = originalRequest.url.encodedPath
@@ -25,12 +30,12 @@ class AuthInterceptor(
 
         val request =
             if (shouldSkipAuth) {
-                println("AuthInterceptor: Skipping auth for $url")
+                Log.d(TAG, "Skipping auth for $url")
                 originalRequest
             } else {
                 // SessionStore에서 메모리 캐시된 토큰을 즉시 가져옴
                 val token = sessionStore.getAccessToken()
-                println("AuthInterceptor: Adding token to $url, token=${token?.take(20)}...")
+                Log.d(TAG, "Adding token to $url, token=${token?.take(20)}...")
                 originalRequest
                     .newBuilder()
                     .apply {
