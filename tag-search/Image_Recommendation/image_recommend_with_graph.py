@@ -54,68 +54,58 @@ def recommend_images(B, group_A, image_nodes, top_n=10, alpha=0.5):
 
 # --- function for outside ---
 def get_recommendation_list(target_group_name, topn):
-    # --- 1. 그래프 및 데이터 로딩 ---
-    print(f"'{GRAPH_FILE_PATH}'에서 그래프를 불러옵니다...")
+    # --- Load graph and data ---
+    print(f"Load graph from '{GRAPH_FILE_PATH}'...")
     try:
         B = nx.read_graphml(GRAPH_FILE_PATH)
         all_image_nodes = {n for n, d in B.nodes(data=True) if d['bipartite'] == 0}
     except FileNotFoundError:
-        print(f"오류: '{GRAPH_FILE_PATH}' 파일이 없습니다.")
-        print("먼저 create_graph.py를 실행하여 파일을 생성해주세요.")
+        print(f"Error: '{GRAPH_FILE_PATH}' file not found.")
+        print("Please run create_graph.py first to generate the file.")
         return []
-    print("그래프 로딩 완료.")
 
-    # --- 2. JSON에서 그룹 정보 로딩 ---
-    print(f"'{JSON_FILE_PATH}'에서 그룹 정보를 불러옵니다...")
+    # --- Load group info from JSON ---
+    print(f"Load group info from '{JSON_FILE_PATH}'...")
     try:
         with open(JSON_FILE_PATH, 'r') as f:
             train_data = json.load(f)
-        
-        # 그룹별로 이미지 파일 목록을 정리
+
+        # Group images by their tags
         image_groups = {}
-        for fname, tags in train_data.items():  # 새로운 JSON 구조: filename -> [tags]
+        for fname, tags in train_data.items():  # New JSON structure: filename -> [tags]
             for group_name in tags:
                 if group_name not in image_groups:
                     image_groups[group_name] = []
                 image_groups[group_name].append(fname)
-        print("그룹 정보 로딩 완료.")
         
     except FileNotFoundError:
-        print(f"오류: '{JSON_FILE_PATH}' 파일이 없습니다.")
+        print(f"Error: '{JSON_FILE_PATH}' file not found.")
         return []
 
-    # --- 3. 추천 시스템 실행 ---
+    # --- 3. Run recommendation system ---
     target_images = image_groups.get(target_group_name)
 
     if not target_images:
-        print(f"오류: JSON 파일에 '{target_group_name}' 그룹이 존재하지 않습니다.")
+        print(f"Error: '{target_group_name}' group not found in JSON.")
         return []
-    
-    # JSON에 있는 이미지 중 실제 그래프에 존재하는 노드만 필터링
+
+    # Filter images that actually exist in the graph
     group_A = [img for img in target_images if img in all_image_nodes]
     
     if not group_A:
-        print(f"오류: '{target_group_name}' 그룹의 이미지들이 그래프에 존재하지 않습니다.")
+        print(f"Error: '{target_group_name}' group images do not exist in the graph.")
         return []
 
     print("\n==============================================")
-    print(f"추천 기준 그룹: '{target_group_name}'")
-    print(f"'{target_group_name}' 그룹에 속한 이미지 (그래프에 존재하는 {len(group_A)}개): {group_A}")
-    
-    # 추천 함수 호출
-    recommendations = recommend_images(B, group_A, all_image_nodes, top_n=topn, alpha=0.6)
-    
-    print("\n--- 최종 추천 결과 ---")
-    if recommendations:
-        for i, (image, score) in enumerate(recommendations):
-            print(f"{i+1}위: {image} (점수: {score:.4f})")
-    else:
-        print("추천 결과를 생성하지 못했습니다.")
-    print("==============================================")
+    print(f"Recommendation base group: '{target_group_name}'")
+    print(f"Images belonging to '{target_group_name}' group (#{len(group_A)} existing in graph): {group_A}")
 
-    # 추천 리스트만 반환
+    # Call recommendation function
+    recommendations = recommend_images(B, group_A, all_image_nodes, top_n=topn, alpha=0.6)
+
+    # Return only the recommendation list
     return [image for image, score in recommendations]
 
-# --- 독립 실행 시 테스트 ---
+# --- Test when run independently ---
 if __name__ == "__main__":
     get_recommendation_list(TARGET_GROUP_NAME, topn=10)

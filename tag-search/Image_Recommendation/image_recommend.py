@@ -60,11 +60,12 @@ def main():
         if only_rep_vec:
             result.append(only_rep_vec.pop(0))
 
-    print("\n".join(result)) # debug
-
-    # copy to folder
+    print(f"\n--- Image recommend Top {topk} ---")
+    for rank, image_file in enumerate(result[:topk], start=1):
+        print(f"Rank {rank}: {image_file}")
+        
     copy_images_to_folder(result[:topk], folder_path)
-    print(f"Recommend {len(result[:topk])} photos at '{folder_path}'")
+    print(f"\nRecommend {len(result[:topk])} photos at '{folder_path}'")
 
 if __name__ == "__main__":
     main()
