@@ -6,11 +6,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -141,15 +146,17 @@ fun errorDialog(
  *
  * @param errorMessage 표시할 에러 메시지
  * @param onRetry 재시도 버튼 클릭 콜백
+ * @param onDismiss 닫기(X) 버튼 클릭 콜백 (옵션, null이면 X 버튼 표시 안 함)
  * @param modifier Modifier
  * @param title 다이얼로그 제목 (기본값: "ERROR")
  * @param retryButtonText 재시도 버튼 텍스트 (기본값: "RETRY")
  */
 @Composable
-fun errorOverlay(
+fun ErrorOverlay(
     errorMessage: String,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null,
     title: String = "ERROR",
     retryButtonText: String = "RETRY",
 ) {
@@ -157,12 +164,12 @@ fun errorOverlay(
         modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
-        // 반투명 검은색 배경 (Backdrop/Scrim)
+        // 반투명 검은색 배경 (Backdrop/Scrim) - 전체 화면을 덮음
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f)),
+                    .background(Color.Black.copy(alpha = 0.7f)),
         )
 
         // 에러 다이얼로그 카드
@@ -178,47 +185,69 @@ fun errorOverlay(
                 ),
             elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
         ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Box(
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                // 제목
-                Text(
-                    text = title,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black,
-                    modifier = Modifier.padding(bottom = 16.dp),
-                )
-
-                // 에러 메시지
-                Text(
-                    text = errorMessage,
-                    fontSize = 14.sp,
-                    color = Color.Gray,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 24.dp),
-                )
-
-                // 재시도 버튼
-                Button(
-                    onClick = onRetry,
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Red,
-                        ),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    // 제목
                     Text(
-                        text = retryButtonText,
-                        fontSize = 16.sp,
+                        text = title,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        modifier = Modifier.padding(bottom = 16.dp),
                     )
+
+                    // 에러 메시지
+                    Text(
+                        text = errorMessage,
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 24.dp),
+                    )
+
+                    // 재시도 버튼
+                    Button(
+                        onClick = onRetry,
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = Color.Red,
+                            ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                    ) {
+                        Text(
+                            text = retryButtonText,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+
+                // X 닫기 버튼 (오른쪽 상단)
+                if (onDismiss != null) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(32.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.Gray,
+                        )
+                    }
                 }
             }
         }
@@ -285,7 +314,7 @@ private fun previewErrorOverlay() {
         }
 
         // 에러 오버레이
-        errorOverlay(
+        ErrorOverlay(
             errorMessage = "Failed to load data.\nPlease try again.",
             onRetry = {},
             modifier = Modifier.fillMaxSize(),

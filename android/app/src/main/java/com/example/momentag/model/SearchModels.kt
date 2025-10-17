@@ -31,3 +31,29 @@ sealed class SearchUiState {
         val message: String,
     ) : SearchUiState()
 }
+
+/**
+ * Semantic Search 상태
+ */
+sealed class SemanticSearchState {
+    object Idle : SemanticSearchState()
+
+    object Loading : SemanticSearchState()
+
+    data class Success(
+        val photoIds: List<Int>,
+        val query: String,
+    ) : SemanticSearchState()
+
+    data class Empty(
+        val query: String,
+    ) : SemanticSearchState()
+
+    data class NetworkError(
+        val message: String,
+    ) : SemanticSearchState()
+
+    data class Error(
+        val message: String,
+    ) : SemanticSearchState()
+}
