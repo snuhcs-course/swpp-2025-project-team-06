@@ -65,6 +65,7 @@ import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
+@Suppress("ktlint:standard:function-naming")
 /**
  *  * ========================================
  *  * SearchResultScreen - 검색 결과 화면
@@ -264,6 +265,7 @@ fun SearchResultScreenUi(
 /**
  * 검색 결과 컨텐츠 (순수 UI)
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun SearchResultContent(
     modifier: Modifier = Modifier,
@@ -417,6 +419,7 @@ private fun SearchResultContent(
 /**
  * UI 상태에 따라 적절한 검색 결과를 표시
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun SearchResultsFromState(
     modifier: Modifier,

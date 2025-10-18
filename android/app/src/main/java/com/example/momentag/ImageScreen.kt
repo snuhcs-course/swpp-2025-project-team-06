@@ -259,6 +259,7 @@ fun ImageScreen(
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagsSection(

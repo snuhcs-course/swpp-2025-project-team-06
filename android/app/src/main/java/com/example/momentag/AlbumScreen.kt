@@ -49,6 +49,7 @@ import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumScreen(

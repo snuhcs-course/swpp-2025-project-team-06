@@ -1,6 +1,7 @@
 package com.example.momentag.repository
 
 import com.example.momentag.model.Photo
+import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.model.Tag
 import com.example.momentag.network.ApiService
 
@@ -28,4 +29,10 @@ class RemoteRepository(
      * (인증 헤더는 AuthInterceptor가 자동 추가)
      */
     suspend fun getPhotosByTag(tagName: String): List<Photo> = apiService.getPhotosByTag(tagName)
+
+    suspend fun uploadPhotos(photoUploadData: PhotoUploadData) =
+        apiService.uploadPhotos(
+            photo = photoUploadData.photo,
+            metadata = photoUploadData.metadata,
+        )
 }
