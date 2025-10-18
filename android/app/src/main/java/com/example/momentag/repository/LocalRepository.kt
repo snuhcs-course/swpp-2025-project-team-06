@@ -84,7 +84,7 @@ class LocalRepository(
 
                     val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
 
-                    val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)) * 1000L // 초 -> 밀리초
+                    val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
                     val date = Date(dateValue)
 
                     val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
