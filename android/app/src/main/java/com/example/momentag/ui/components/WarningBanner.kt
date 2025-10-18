@@ -45,12 +45,12 @@ import androidx.compose.ui.unit.sp
  * @param showDismissButton 닫기 버튼 표시 여부 (기본값: false)
  */
 @Composable
-fun warningBanner(
+fun WarningBanner(
+    modifier: Modifier = Modifier,
     title: String,
     message: String,
     onActionClick: () -> Unit,
     onDismiss: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
     backgroundColor: Color = Color(0xFFE57373),
     icon: ImageVector = Icons.Default.Error,
     actionIcon: ImageVector = Icons.Default.Refresh,
@@ -133,7 +133,7 @@ fun warningBanner(
 @Preview(showBackground = true, widthDp = 360)
 @Composable
 private fun previewWarningBannerLoadingDelay() {
-    warningBanner(
+    WarningBanner(
         title = "Loading is taking longer than usual.",
         message = "Please refresh the page.",
         onActionClick = {},
@@ -144,7 +144,7 @@ private fun previewWarningBannerLoadingDelay() {
 @Preview(showBackground = true, widthDp = 360)
 @Composable
 private fun previewWarningBannerWithDismiss() {
-    warningBanner(
+    WarningBanner(
         title = "Connection timeout",
         message = "Unable to reach server.",
         onActionClick = {},
@@ -157,7 +157,7 @@ private fun previewWarningBannerWithDismiss() {
 @Preview(showBackground = true, widthDp = 360)
 @Composable
 private fun previewWarningBannerCustomColor() {
-    warningBanner(
+    WarningBanner(
         title = "Update available",
         message = "A new version is ready to install.",
         onActionClick = {},
@@ -171,7 +171,7 @@ private fun previewWarningBannerCustomColor() {
 @Preview(showBackground = true, widthDp = 360)
 @Composable
 private fun previewWarningBannerNoAction() {
-    warningBanner(
+    WarningBanner(
         title = "Syncing data...",
         message = "This may take a moment.",
         onActionClick = {},

@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -58,14 +60,26 @@ import coil.compose.AsyncImage
 import com.example.momentag.ui.theme.Background
 import java.io.IOException
 
-@Suppress("ktlint:standard:function-naming")
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ImageScreen(
     imageUri: Uri?,
+    imageUris: List<Uri>? = null, // 전체 이미지 목록
+    initialIndex: Int = 0, // 시작 인덱스
     onNavigateBack: () -> Unit,
 ) {
     val context = LocalContext.current
+
+    // 이미지 목록이 있으면 사용, 없으면 단일 이미지만
+    val images = imageUris ?: listOfNotNull(imageUri)
+    val startIndex = if (imageUris != null) initialIndex else 0
+
+    val pagerState =
+        rememberPagerState(
+            initialPage = startIndex,
+            pageCount = { images.size },
+        )
+
     var tagSet by remember {
         mutableStateOf(
             listOf("#home", "#cozy", "#hobby", "#study", "#tool"),
@@ -103,19 +117,28 @@ fun ImageScreen(
         }
     }
 
-    var dateTime: String? = null
-    var latLong: DoubleArray? = null
-    if (hasPermission) {
-        try {
-            if (imageUri != null) {
-                context.contentResolver.openInputStream(imageUri)?.use { inputStream ->
-                    val exifInterface = ExifInterface(inputStream)
-                    dateTime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
-                    latLong = exifInterface.latLong
+    // 현재 페이지의 이미지 Uri
+    val currentImageUri = images.getOrNull(pagerState.currentPage)
+
+    var dateTime: String? by remember { mutableStateOf(null) }
+    var latLong: DoubleArray? by remember { mutableStateOf(null) }
+
+    // 페이지가 변경될 때마다 EXIF 데이터 업데이트
+    LaunchedEffect(pagerState.currentPage, hasPermission) {
+        if (hasPermission) {
+            try {
+                currentImageUri?.let { uri ->
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val exifInterface = ExifInterface(inputStream)
+                        dateTime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
+                        latLong = exifInterface.latLong
+                    }
                 }
+            } catch (e: IOException) {
+                e.printStackTrace()
+                dateTime = null
+                latLong = null
             }
-        } catch (e: IOException) {
-            e.printStackTrace()
         }
     }
 
@@ -171,18 +194,27 @@ fun ImageScreen(
                     .padding(paddingValues),
         ) {
             Box(modifier = Modifier) {
-                AsyncImage(
-                    model = imageUri,
-                    contentDescription = null,
+                // HorizontalPager로 이미지 스와이프 기능 구현
+                HorizontalPager(
+                    state = pagerState,
                     modifier =
                         Modifier
                             .padding(top = 50.dp)
                             .aspectRatio(0.7f)
-                            .clickable {
-                                if (isDeleteMode) isDeleteMode = false
-                            }.align(Alignment.BottomCenter),
-                    contentScale = ContentScale.Crop,
-                )
+                            .align(Alignment.BottomCenter),
+                ) { page ->
+                    AsyncImage(
+                        model = images[page],
+                        contentDescription = null,
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .clickable {
+                                    if (isDeleteMode) isDeleteMode = false
+                                },
+                        contentScale = ContentScale.Crop,
+                    )
+                }
 
                 val scrollState = rememberScrollState()
                 Row(
