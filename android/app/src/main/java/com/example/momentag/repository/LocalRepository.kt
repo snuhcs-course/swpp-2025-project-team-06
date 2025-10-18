@@ -47,28 +47,6 @@ class LocalRepository(
         return imageUriList
     }
 
-    fun dmsToDecimal(
-        dms: String?,
-        ref: String?,
-    ): Double {
-        if (dms == null) return 0.0
-
-        val parts = dms.split(",")
-        if (parts.size != 3) return 0.0
-
-        try {
-            val deg = parts[0].split("/").let { it[0].toDouble() / it[1].toDouble() }
-            val min = parts[1].split("/").let { it[0].toDouble() / it[1].toDouble() }
-            val sec = parts[2].split("/").let { it[0].toDouble() / it[1].toDouble() }
-
-            var decimal = deg + min / 60.0 + sec / 3600.0
-            if (ref == "S" || ref == "W") decimal = -decimal
-            return decimal
-        } catch (e: Exception) {
-            return 0.0
-        }
-    }
-
     // Returns an 'upload request' with photo metadata
     // Currently uploads only 3 photos for testing
     // Can be adapted to upload by album by providing album ID list and modifying selection/selectionArgs
@@ -94,7 +72,6 @@ class LocalRepository(
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
                 var count = 3 // for testing
 
                 while (cursor.moveToNext() && count-- > 0) {
@@ -107,7 +84,7 @@ class LocalRepository(
 
                     val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
 
-                    val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)) * 1000L // 초 -> 밀리초
+                    val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)) * 1000L // 초 -> 밀리초
                     val date = Date(dateValue)
 
                     val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
@@ -119,13 +96,14 @@ class LocalRepository(
                     try {
                         context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
                             val exif = ExifInterface(inputStream)
-                            val latDms = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
-                            val lngDms = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
-                            val latRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
-                            val lngRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
+                            val latOutput = FloatArray(2)
 
-                            finalLat = dmsToDecimal(latDms, latRef)
-                            finalLng = dmsToDecimal(lngDms, lngRef)
+                            val hasLatLong: Boolean = exif.getLatLong(latOutput)
+
+                            if (hasLatLong) {
+                                finalLat = latOutput[0].toDouble()
+                                finalLng = latOutput[1].toDouble()
+                            }
                         }
                     } catch (e: Exception) {
                         // 0.0 for no EXIF info

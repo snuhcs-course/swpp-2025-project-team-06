@@ -30,7 +30,7 @@ class RemoteRepository(
      */
     suspend fun getPhotosByTag(tagName: String): List<Photo> = apiService.getPhotosByTag(tagName)
 
-    suspend fun uploadPhotos(photoUploadData: PhotoUploadData): Response<Unit> =
+    suspend fun uploadPhotos(photoUploadData: PhotoUploadData) =
         apiService.uploadPhotos(
             photo = photoUploadData.photo,
             metadata = photoUploadData.metadata,

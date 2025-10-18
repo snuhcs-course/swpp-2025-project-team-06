@@ -39,20 +39,12 @@ QDRANT_CLUSTER_URL = env('QDRANT_CLUSTER_URL')
 QDRANT_API_KEY = env('QDRANT_API_KEY')
 
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=[])
-CORS_ALLOWED_ORIGINS = env.list('DJANGO_CORS_ALLOWED_ORIGINS', default=[])
 CSRF_TRUSTED_ORIGINS = env.list('DJANGO_CSRF_TRUSTED_ORIGINS', default=[])
-
-# 개발 환경에서 CORS 설정 완화
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-    CORS_ALLOW_CREDENTIALS = True
-
 
 # Application definition
 
 INSTALLED_APPS = [
     'accounts',
-    'corsheaders',  # CORS 헤더 처리
     'drf_yasg',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -69,7 +61,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # CORS 미들웨어 (가장 위에)
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
