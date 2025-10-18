@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.LoginState
 import com.example.momentag.model.LogoutState
 import com.example.momentag.model.RefreshState
-import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterState
 import com.example.momentag.repository.TokenRepository
 import kotlinx.coroutines.flow.MutableStateFlow
