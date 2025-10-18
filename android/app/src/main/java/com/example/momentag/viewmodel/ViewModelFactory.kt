@@ -71,6 +71,6 @@ class ViewModelFactory(
                     LocalRepository(context.applicationContext),
                 ) as T
             }
-            else -> throw IllegalArgumentException("Unknown ViewModel class")
+            else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
 }
