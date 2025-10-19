@@ -31,6 +31,38 @@ The command is run from within the tag-search folder
 
     uv run ./Tag_Recommendation/tag_recommend_with_rep_vec.py <image_id.jpg> (e.g. 20230429_165859.jpg)
 
+## Measure and Results
+
+- Grouping
+
+    measure: numer of iamges
+
+    result: 1837 images → 1128 images
+
+- Captioning with LLM
+
+    measure: speed
+
+    result: 1200 images / 30 second
+
+- Image Recommendation with rep. vector
+
+    measure: using coco data set
+
+    result: accuracy is 90% for one tag, but only about 10-30% of photos can be found
+
+- Link Prediction
+
+    measure: human judgment
+
+    result: top 70 - roughly 10% noise due to incomplete tagging info
+
+- Tag Recommendation with rep. vector
+
+    measure: using coco data set
+
+    result: accuracy is 90% for one tag, but only about 10-30% of photos can be found
+
 ## Analysis and Improvement Plans
 
 - NL Search
