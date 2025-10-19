@@ -1,6 +1,7 @@
 package com.example.momentag
 
 import android.Manifest
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -67,13 +68,16 @@ import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
+    val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory(context))
     val logoutState by authViewModel.logoutState.collectAsState()
@@ -81,9 +85,11 @@ fun HomeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
 
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
+    val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory(context))
     val imageUris by localViewModel.image.collectAsState()
 
     var isRefreshing by remember { mutableStateOf(false) }
+    val uiState by photoViewModel.uiState.collectAsState()
 
     var tags by remember {
         mutableStateOf(
@@ -139,6 +145,24 @@ fun HomeScreen(navController: NavController) {
                 scope.launch { snackbarHostState.showSnackbar(msg) }
             }
             else -> Unit
+        }
+    }
+
+    // done once when got permission
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED", false)
+            if (!hasAlreadyUploaded) {
+                photoViewModel.uploadPhotos()
+                sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED", true).apply()
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.userMessage) {
+        uiState.userMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            photoViewModel.userMessageShown()
         }
     }
 
@@ -238,6 +262,7 @@ private fun SearchHeader() {
 
 // SearchBar는 이제 ui.components.SearchBar로 이동됨
 
+@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun ViewToggle(
     onlyTag: Boolean,
@@ -271,6 +296,7 @@ private fun ViewToggle(
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MainContent(
@@ -322,6 +348,7 @@ private fun MainContent(
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun Deprecated_CreateTagRow() { /* replaced by CreateTagButton component */ }
 
@@ -336,6 +363,7 @@ private fun requiredImagePermission(): String =
 /*
 * TODO : change code with imageUrl
  */
+@Suppress("ktlint:standard:function-naming")
 @Composable
 fun TagGridItem(
     tagName: String,
@@ -388,6 +416,7 @@ fun TagGridItem(
     }
 }
 
+@Suppress("ktlint:standard:function-naming")
 @Composable
 fun TagGridItem(tagName: String) {
     Box(modifier = Modifier) {

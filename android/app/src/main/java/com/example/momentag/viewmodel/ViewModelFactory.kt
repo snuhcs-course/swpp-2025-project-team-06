@@ -65,6 +65,12 @@ class ViewModelFactory(
                 // ImageDetailViewModel은 의존성 없음
                 ImageDetailViewModel() as T
             }
+            modelClass.isAssignableFrom(PhotoViewModel::class.java) -> {
+                PhotoViewModel(
+                    RemoteRepository(RetrofitInstance.getApiService(context.applicationContext)),
+                    LocalRepository(context.applicationContext),
+                ) as T
+            }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
 }
