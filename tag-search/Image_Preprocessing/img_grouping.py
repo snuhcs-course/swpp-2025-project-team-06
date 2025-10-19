@@ -11,7 +11,7 @@ import time
 
 MODEL_NAME = "clip-ViT-B-32"
 SRC_DIR = Path("/home/team6/real_image_testset")
-DST_DIR = Path("/home/team6/dummy")
+DST_DIR = Path("/home/team6/real_image_grouped")
 DST_DIR.mkdir(parents=True, exist_ok=True)
 
 SIM_THRESHOLD = 0.85  # experimental value
