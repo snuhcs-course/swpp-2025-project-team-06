@@ -1,83 +1,93 @@
-# iter1_demo-frontend
+# Tag Search PoC
 
-The most basic parts for frontend implementation have been implemented.
+We've written functions that implement the MomenTag app's features. They were written in proof-of-concept form, and will be applied to the frontend and backend appropriately in subsequent iterations.
 
-The images were accessed from a local gallery and used a dataset sorted chronologically. Once the backend implementation is complete, the photos will be displayed via the URI received through the backend.
+It consists of three types of functions.
 
-For the tags, 13 tags were displayed in order through hard coding. Once the backend implementation is complete, the tags will be displayed via the URI received through the backend.
+- Preprocessing: reduce file number
+- NL Search: output photos appropriate to the query
+- Image Recommendation: recommend images that match the image set
+- Tag Recommendation: recommend tags that match the image
 
-## Features
+# Architecture Diagram
 
-1. Tag-based Album View
-On the home screen, you can view user-created tags and featured images at a glance. Tap on each tag to collect related photos.
-
-2. Photo Detail View and Tag Management
-Selecting a photo allows you to view it full screen. You can view a list of tags associated with the photo, add new tags, or delete existing ones.
-
-3. Local Gallery Integration
-MomenTag integrates with existing gallery albums stored on your device. You can easily add and manage tags by importing photos from local albums. You can access it by clicking the momentag screen on the home screen. It will be modified to the same format as the original wire diagram.
-
-4. Tag Search
-You can quickly search for relevant photos by tagging them using the search bar on the home screen. Searching will be possible once the search algorithm and backend are implemented.
+![alt text](architecture_diagram.png)
 
 ## Getting Started
 
-You need to install the app on your personal phone through Android Studio and allow it to access the gallery.
+Image data is required. The data set is on the GPU server. If you want to run it, you must run it on the GPU server.
 
+The command is run from within the tag-search folder
 
-# iter1_demo-embedding
+- NL Search
 
-Simple text/image embedding API service has been implemented.
+    uv run ./NL_Search/search.py <query_text> (e.g. "play room escape and take a photo")
 
-PoC client is provided to test image retrieval via natural language search.
+- Image Recommendation
 
-## Features
+    uv run ./Image_Recommendation/image_recommend.py <tag_name>
 
-Embedding API provides following endpoints:
-- GET `/ping`: healthcheck
-- POST `/embed/text`: takes text given as parameter `text`, returns embedding of the text
-- POST `/embed/image`: takes list of multipart-encoded image files, returns list of `{filename, embedding}`
+- Tag Recommendation
 
-PoC client provides following features:
-- insert images in `images` directory to self-hosted qdrant instance
-- search images using natural language query
+    uv run ./Tag_Recommendation/tag_recommend_with_rep_vec.py <image_id.jpg> (e.g. 20230429_165859.jpg)
 
-## Running demo
+## Measure and Results
 
-### Prerequisite
+- Grouping
 
-This demo uses
-- `uv` for dependency management
-- `docker, docker-compose` for running local qdrant instance
-Install above tools properly.
+    measure: numer of iamges
 
-Also, this demo targets python >= 3.9.
-If necessary, install python with uv.
+    result: 1837 images → 1128 images
 
-### Getting started
+- Captioning with LLM
 
-```bash
-# Sync dependencies
-uv sync
+    measure: speed
 
-# Create directories
-mkdir images qdrant_storage
+    result: 1200 images / 30 second
 
-# Place your images in images directory
+- Image Recommendation with rep. vector
 
-# Run local qdrant instance
-docker-compose up -d
+    measure: using coco data set
 
-# Run local embedding API service (terminal 1)
-uv run uvicorn api:app --host 127.0.0.1 --port 8888
+    result: accuracy is 90% for one tag, but only about 10-30% of photos can be found
 
-# or host embedding API on remote via SSH tunneling
-# ssh -L 8888:127.0.0.1:8000 <gpu host>
-# clone, sync dependencies
-# uv run uvicorn api:app --host 127.0.0.1 --port 8000
+- Link Prediction
 
-# Run PoC client (terminal 2)
-uv run poc-client.py
+    measure: human judgment
 
-# retrieved images will be placed in output/<query> directory
-```
+    result: top 70 - roughly 10% noise due to incomplete tagging info
+
+- Tag Recommendation with rep. vector
+
+    measure: using coco data set
+
+    result: accuracy is 90% for one tag, but only about 10-30% of photos can be found
+
+## Analysis and Improvement Plans
+
+- NL Search
+
+    Captions are currently unused, but will be changed to include captions in the future.
+
+    Fine-tuning has been confirmed. For queries that are not found, the diversity of the photo set may be questionable.
+
+- Image Recommendation
+    The tag_name can contain three values: [singing_room, board, person_in_room_escape].
+
+    The implementation utilizes two methods: ILM captioning, graph, and link analysis, and the representative vector method. 
+    
+    The representative vector method was implemented for approximately 100,000 photos, but it doesn't yet work well for the current set of photos (approximately 1,180). This is because the captions contain too many words, and they don't overlap well. This will be addressed by applying a dynamic algorithm based on the number of photos. This includes adding fewer captions when the number of photos is small, and reducing caption diversity by specifying a word set.
+
+    As a result, the current code relies heavily on the captioning method. For captioning, the more specific the situation, the more common the matching words, resulting in better search results. Therefore, it currently only works well for the personalized tag "person_in_room_escape."
+
+- Tag Recommendation
+
+    Similarly, using the representative vector method, it is difficult to recommend personalized tags given the limited number of photos and tags. 
+    
+    Therefore, we temporarily implemented code that recommends non-personalized tags, i.e., words appearing in captions. 
+    
+    Similarly, the implementation will be modified in the future based on the size of the photo set.
+
+## Working Videos
+
+https://drive.google.com/drive/folders/1nwz9Xg2rpoedahLPNRaxQp9nwXKj5FF1?usp=sharing
