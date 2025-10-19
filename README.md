@@ -87,3 +87,7 @@ The command is run from within the tag-search folder
     Therefore, we temporarily implemented code that recommends non-personalized tags, i.e., words appearing in captions. 
     
     Similarly, the implementation will be modified in the future based on the size of the photo set.
+
+## Working Videos
+
+https://drive.google.com/drive/folders/1nwz9Xg2rpoedahLPNRaxQp9nwXKj5FF1?usp=sharing
