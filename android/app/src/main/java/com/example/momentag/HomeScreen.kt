@@ -1,0 +1,449 @@
+package com.example.momentag
+
+import android.Manifest
+import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.example.momentag.model.LogoutState
+import com.example.momentag.ui.components.CreateTagButton
+import com.example.momentag.ui.components.HomeTopBar
+import com.example.momentag.ui.components.SearchBar
+import com.example.momentag.ui.theme.Background
+import com.example.momentag.ui.theme.Picture
+import com.example.momentag.ui.theme.Semi_background
+import com.example.momentag.ui.theme.TagColor
+import com.example.momentag.ui.theme.Word
+import com.example.momentag.viewmodel.AuthViewModel
+import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.PhotoViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.launch
+
+@Suppress("ktlint:standard:function-naming")
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun HomeScreen(navController: NavController) {
+    val context = LocalContext.current
+    val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
+    var hasPermission by remember { mutableStateOf(false) }
+    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory(context))
+    val logoutState by authViewModel.logoutState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
+    val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory(context))
+    val imageUris by localViewModel.image.collectAsState()
+
+    var isRefreshing by remember { mutableStateOf(false) }
+    val uiState by photoViewModel.uiState.collectAsState()
+
+    var tags by remember {
+        mutableStateOf(
+            listOf(
+                "#home",
+                "#cozy",
+                "#hobby",
+                "#study",
+                "#tool",
+                "#food",
+                "#dream",
+                "#travel",
+                "#nature",
+                "#animal",
+                "#fashion",
+                "#sport",
+                "#work",
+            ),
+        )
+    }
+    var imageTagPairs = imageUris.take(13).zip(tags) // NOTE: 기존 로직 그대로 유지
+
+    var onlyTag by remember { mutableStateOf(false) }
+
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted -> if (isGranted) hasPermission = true },
+        )
+
+    // 권한 요청 및 이미지 로드
+    LaunchedEffect(Unit) {
+        val permission = requiredImagePermission()
+        permissionLauncher.launch(permission)
+    }
+    if (hasPermission) {
+        LaunchedEffect(Unit) {
+            localViewModel.getImages()
+        }
+    }
+    // 성공 시 로그인 화면으로 이동(백스택 초기화)
+    LaunchedEffect(logoutState) {
+        when (logoutState) {
+            is LogoutState.Success -> {
+                Toast.makeText(context, "로그아웃되었습니다", Toast.LENGTH_SHORT).show()
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(0)
+                    launchSingleTop = true
+                }
+            }
+            is LogoutState.Error -> {
+                val msg = (logoutState as LogoutState.Error).message ?: "Logout failed"
+                scope.launch { snackbarHostState.showSnackbar(msg) }
+            }
+            else -> Unit
+        }
+    }
+
+    // done once when got permission
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED", false)
+            if (!hasAlreadyUploaded) {
+                photoViewModel.uploadPhotos()
+                sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED", true).apply()
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.userMessage) {
+        uiState.userMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            photoViewModel.userMessageShown()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            HomeTopBar(
+                onTitleClick = {
+                    navController.navigate(Screen.LocalGallery.route)
+                },
+                onLogoutClick = { authViewModel.logout() },
+                isLogoutLoading = logoutState is LogoutState.Loading,
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = { },
+        containerColor = Background,
+        floatingActionButton = {
+            CreateTagButton(
+                modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
+                text = "Create Tag",
+                onClick = { },
+            )
+        },
+    ) { paddingValues ->
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                scope.launch {
+                    isRefreshing = true
+                    try {
+                        if (hasPermission) {
+                            localViewModel.getImages()
+                        }
+                        // TODO: 서버 태그 목록도 새로고침 필요 시 추가
+                        // serverViewModel.getAllTags()
+                    } finally {
+                        isRefreshing = false
+                    }
+                }
+            },
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+                SearchHeader()
+
+                Spacer(modifier = Modifier.height(8.dp))
+                SearchBar(
+                    onSearch = { query ->
+                        if (query.isNotEmpty()) {
+                            navController.navigate(Screen.SearchResult.createRoute(query))
+                        }
+                    },
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                ViewToggle(
+                    onlyTag = onlyTag,
+                    onToggle = { onlyTag = it },
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                MainContent(
+                    hasPermission = hasPermission,
+                    onlyTag = onlyTag,
+                    imageTagPairs = imageTagPairs,
+                    onRemoveTagPair = { pair -> imageTagPairs = imageTagPairs - pair },
+                    navController = navController,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+// -------------------- Helpers --------------------
+@Composable
+private fun SearchHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = "Search for Photo", fontSize = 18.sp, fontFamily = FontFamily.Serif)
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(imageVector = Icons.Default.PhotoCamera, contentDescription = "Camera Icon")
+    }
+}
+
+// SearchBar는 이제 ui.components.SearchBar로 이동됨
+
+@Suppress("ktlint:standard:function-naming")
+@Composable
+private fun ViewToggle(
+    onlyTag: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .background(Semi_background, RoundedCornerShape(8.dp))
+                    .padding(4.dp),
+        ) {
+            Row {
+                Icon(
+                    Icons.Default.GridView,
+                    contentDescription = "Grid View",
+                    tint = if (!onlyTag) Color.White else Color.Gray,
+                    modifier = Modifier.clickable { onToggle(false) },
+                )
+                Icon(
+                    Icons.AutoMirrored.Filled.ViewList,
+                    contentDescription = "List View",
+                    tint = if (onlyTag) Color.White else Color.Gray,
+                    modifier = Modifier.clickable { onToggle(true) },
+                )
+            }
+        }
+    }
+}
+
+@Suppress("ktlint:standard:function-naming")
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MainContent(
+    hasPermission: Boolean,
+    onlyTag: Boolean,
+    imageTagPairs: List<Pair<Uri, String>>,
+    onRemoveTagPair: (Pair<Uri, String>) -> Unit,
+    navController: NavController,
+    modifier: Modifier = Modifier,
+) {
+    if (!onlyTag) {
+        if (hasPermission) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                items(imageTagPairs) { (uri, tag) ->
+                    TagGridItem(tag, uri, navController)
+                }
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                items(imageTagPairs) { (_, tag) ->
+                    TagGridItem(tag)
+                }
+            }
+        }
+    } else {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            imageTagPairs.forEach { pair ->
+                val (_, tag) = pair
+                tagX(
+                    text = tag,
+                    onDismiss = { onRemoveTagPair(pair) },
+                )
+            }
+        }
+    }
+}
+
+@Suppress("ktlint:standard:function-naming")
+@Composable
+private fun Deprecated_CreateTagRow() { /* replaced by CreateTagButton component */ }
+
+// 권한 헬퍼: 기존 분기 로직 그대로 함수로만 분리
+private fun requiredImagePermission(): String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+
+/*
+* TODO : change code with imageUrl
+ */
+@Suppress("ktlint:standard:function-naming")
+@Composable
+fun TagGridItem(
+    tagName: String,
+    imageUri: Uri?,
+    navController: NavController,
+) {
+    Box(modifier = Modifier) {
+        if (imageUri != null) {
+            AsyncImage(
+                model = imageUri,
+                contentDescription = tagName,
+                modifier =
+                    Modifier
+                        .padding(top = 12.dp)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .align(Alignment.BottomCenter)
+                        .clickable {
+                            navController.navigate(Screen.Album.createRoute(tagName))
+                        },
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Spacer(
+                modifier =
+                    Modifier
+                        .padding(top = 12.dp)
+                        .aspectRatio(1f)
+                        .background(
+                            color = Picture,
+                            shape = RoundedCornerShape(16.dp),
+                        ).align(Alignment.BottomCenter)
+                        .clickable { /* TODO */ },
+            )
+        }
+
+        Text(
+            text = tagName,
+            color = Word,
+            fontSize = 12.sp,
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp)
+                    .background(
+                        color = TagColor,
+                        shape = RoundedCornerShape(8.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
+}
+
+@Suppress("ktlint:standard:function-naming")
+@Composable
+fun TagGridItem(tagName: String) {
+    Box(modifier = Modifier) {
+        Spacer(
+            modifier =
+                Modifier
+                    .padding(top = 12.dp)
+                    .aspectRatio(1f)
+                    .background(
+                        color = Picture,
+                        shape = RoundedCornerShape(16.dp),
+                    ).align(Alignment.BottomCenter)
+                    .clickable { /* TODO */ },
+        )
+
+        Text(
+            text = tagName,
+            color = Word,
+            fontSize = 12.sp,
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp)
+                    .background(
+                        color = TagColor,
+                        shape = RoundedCornerShape(8.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
+}
