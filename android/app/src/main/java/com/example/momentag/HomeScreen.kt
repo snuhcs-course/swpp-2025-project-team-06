@@ -68,6 +68,7 @@ import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -86,6 +87,7 @@ fun HomeScreen(navController: NavController) {
 
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory(context))
+    val photoTagViewModel: PhotoTagViewModel = viewModel(factory = ViewModelFactory(context))
     val imageUris by localViewModel.image.collectAsState()
 
     var isRefreshing by remember { mutableStateOf(false) }
@@ -183,7 +185,10 @@ fun HomeScreen(navController: NavController) {
             CreateTagButton(
                 modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
                 text = "Create Tag",
-                onClick = { },
+                onClick = {
+                    photoTagViewModel.setInitialData(null, emptyList())
+                    navController.navigate(Screen.AddTag.route)
+                          },
             )
         },
     ) { paddingValues ->

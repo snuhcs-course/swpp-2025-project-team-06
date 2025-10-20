@@ -81,14 +81,14 @@ import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.RecommendViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTagScreen(
-    tagName: String? = null,
-    initSelectedPhotos: List<Photo> = emptyList(),
+    viewModel: PhotoTagViewModel,
     navController: NavController
 ) {
     val context = LocalContext.current
@@ -114,27 +114,30 @@ fun AddTagScreen(
         permissionLauncher.launch(permission)
     }
 
+    val tagName by remember(viewModel.tagName) { mutableStateOf(viewModel.tagName) }
+    val initSelectedPhotos = viewModel.initSelectedPhotos
+
     val recommendViewModel: RecommendViewModel = viewModel(factory = ViewModelFactory(context))
 
     var inputTagName by remember(tagName) {
         mutableStateOf(tagName ?: "")
     }
 
-    var selectedPhotos = remember { mutableStateListOf<Photo>() }
-    var recommendedPhotos = remember { mutableStateListOf<Photo>() }
+    var selectedPhotos = remember { mutableStateListOf<Long>() }
+    var recommendedPhotos = remember { mutableStateListOf<Long>() }
 
     LaunchedEffect(initSelectedPhotos) {
         selectedPhotos.clear()
         selectedPhotos.addAll(initSelectedPhotos)
     }
 
-    val onDeselectPhoto: (Photo) -> Unit = { photo ->
-        selectedPhotos.remove(photo)
+    val onDeselectPhoto: (Long) -> Unit = { photoId ->
+        selectedPhotos.remove(photoId)
     }
 
-    val onSelectPhoto: (Photo) -> Unit = { photo ->
-        recommendedPhotos.remove(photo)
-        selectedPhotos.add(photo)
+    val onSelectPhoto: (Long) -> Unit = { photoId ->
+        recommendedPhotos.remove(photoId)
+        selectedPhotos.add(photoId)
         var tagAlbum = TagAlbum(inputTagName, selectedPhotos)
         recommendViewModel.recommend(tagAlbum)
         if (recommendViewModel.recommendState.value is RecommendState.Success) {
@@ -152,23 +155,29 @@ fun AddTagScreen(
                 modifier = Modifier.background(Background)
             )
         },
+        containerColor = Background,
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(vertical = 16.dp)
         ) {
-            TagNameSection(
-                tagName = inputTagName,
-                onTagNameChange = { inputTagName = it },
-            )
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp)
+            ) {
+                TagNameSection(
+                    tagName = inputTagName,
+                    onTagNameChange = { viewModel.updateTagName(it) },
+                )
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            SelectPicturesButton(onClick = { /* TODO */ })
+                SelectPicturesButton(onClick = { navController.navigate(Screen.SelectImage.route) })
+            }
 
-            if(hasPermission){
+            if (hasPermission) {
+
                 SelectedPhotosSection(
                     photos = selectedPhotos,
                     onPhotoClick = onDeselectPhoto,
@@ -177,12 +186,18 @@ fun AddTagScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            if(hasPermission) {
-                RecommendedPicturesSection(
-                    photos = recommendedPhotos,
-                    onPhotoClick = onSelectPhoto,
-                    modifier = Modifier.weight(1f),
-                )
+            if (hasPermission) {
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .weight(1f)
+                ) {
+                    RecommendedPicturesSection(
+                        photos = recommendedPhotos,
+                        onPhotoClick = onSelectPhoto,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }
@@ -196,7 +211,7 @@ private fun TagNameSection(
     Column {
         Text(
             text = "New tag name",
-            fontSize = 18.sp,
+            fontSize = 21.sp,
             fontFamily = FontFamily.Serif,
             color = Word,
         )
@@ -206,9 +221,9 @@ private fun TagNameSection(
             value = tagName,
             onValueChange = onTagNameChange,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = TextStyle(fontSize = 16.sp),
+            textStyle = TextStyle(fontSize = 21.sp),
             placeholder = { Text("태그 입력") },
-            leadingIcon = { Text("#", fontSize = 16.sp, color = Color.Gray) },
+            leadingIcon = { Text("#", fontSize = 16.sp, color = Word) },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
@@ -250,21 +265,22 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
 
 @Composable
 private fun SelectedPhotosSection(
-    photos: List<Photo>,
-    onPhotoClick: (Photo) -> Unit,
+    photos: List<Long>,
+    onPhotoClick: (Long) -> Unit,
 ) {
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp),
+            .height(120.dp)
+            .background(Semi_background),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
-        items(photos, key = { it.photoId }) { photo ->
+        items(photos) { photoId ->
             PhotoCheckedItem(
-                photo = photo,
+                photoId = photoId,
                 isSelected = true,
-                onClick = { onPhotoClick(photo) },
+                onClick = { onPhotoClick(photoId) },
                 modifier = Modifier.aspectRatio(1f),
             )
         }
@@ -273,14 +289,14 @@ private fun SelectedPhotosSection(
 
 @Composable
 private fun RecommendedPicturesSection(
-    photos: List<Photo>,
-    onPhotoClick: (Photo) -> Unit,
+    photos: List<Long>,
+    onPhotoClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "Recommended Pictures",
-            fontSize = 18.sp,
+            fontSize = 21.sp,
             fontFamily = FontFamily.Serif,
             color = Word,
         )
@@ -291,11 +307,11 @@ private fun RecommendedPicturesSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(photos, key = { it.photoId }) { photo ->
+            items(photos) { photoId ->
                 PhotoCheckedItem(
-                    photo = photo,
+                    photoId = photoId,
                     isSelected = false,
-                    onClick = { onPhotoClick(photo) },
+                    onClick = { onPhotoClick(photoId) },
                     modifier = Modifier.aspectRatio(1f),
                 )
             }
@@ -305,12 +321,12 @@ private fun RecommendedPicturesSection(
 
 @Composable
 fun PhotoCheckedItem(
-    photo: Photo,
+    photoId: Long,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val imageUri = getUriFromPhotoId(photo.photoId)
+    val imageUri = getUriFromPhotoId(photoId)
 
     Box(
         modifier = modifier
@@ -320,7 +336,7 @@ fun PhotoCheckedItem(
     ) {
         AsyncImage(
             model = imageUri,
-            contentDescription = "사진 ${photo.photoId}",
+            contentDescription = "사진 ${photoId}",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
