@@ -59,6 +59,12 @@ data class SemanticSearchResponse(
     val photos: List<Int>,
 )
 
+data class recommendPhotosResponse(
+    val photos: List<Long>,
+)
+
+// ========== Upload Models ==========
+
 data class PhotoMeta(
     val filename: String,
     val photo_path_id: Int,

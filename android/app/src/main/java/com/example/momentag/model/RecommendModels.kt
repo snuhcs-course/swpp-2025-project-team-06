@@ -2,7 +2,7 @@ package com.example.momentag.model
 
 data class TagAlbum(
     val tagName : String,
-    val photos : List<Photo>
+    val photos : List<Long>
 )
 
 sealed interface RecommendState {
@@ -11,7 +11,7 @@ sealed interface RecommendState {
     object Loading : RecommendState
 
     data class Success(
-        val photos: List<Photo>,
+        val photos: List<Long>,
     ) : RecommendState
 
     data class Error(

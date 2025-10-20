@@ -21,15 +21,12 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,31 +40,24 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.momentag.model.ImageContext
-import com.example.momentag.model.Photo
-import com.example.momentag.model.RecommendState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.ui.theme.Button
-import com.example.momentag.viewmodel.LocalViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
+import com.example.momentag.viewmodel.PhotoTagViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelectImageScreen(
     navController: NavController,
-    tagName: String,
-    initSelectedPhotos: List<Photo>,
-    onDone: (String, List<Photo>, NavController) -> Unit,
+    viewModel: PhotoTagViewModel,
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
     /* TODO: GET /api/photos/ */
-    val allPhotos : List<Photo> = emptyList();
+    val allPhotos : List<Long> = emptyList();
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -89,18 +79,20 @@ fun SelectImageScreen(
         permissionLauncher.launch(permission)
     }
 
-    var selectedPhotos = remember { mutableStateListOf<Photo>() }
+    var selectedPhotos = remember { mutableStateListOf<Long>() }
+    val tagName = viewModel.tagName
+    val initSelectedPhotos = viewModel.initSelectedPhotos.toList()
 
     LaunchedEffect(initSelectedPhotos) {
         selectedPhotos.clear()
         selectedPhotos.addAll(initSelectedPhotos)
     }
 
-    val onPhotoClick: (Photo) -> Unit = { photo ->
-        if (selectedPhotos.contains(photo)) {
-            selectedPhotos.remove(photo)
+    val onPhotoClick: (Long) -> Unit = { photoId ->
+        if (selectedPhotos.contains(photoId)) {
+            selectedPhotos.remove(photoId)
         } else {
-            selectedPhotos.add(photo)
+            selectedPhotos.add(photoId)
         }
     }
 
@@ -112,6 +104,7 @@ fun SelectImageScreen(
                 modifier = Modifier.background(Background)
             )
         },
+        containerColor = Background,
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -121,15 +114,14 @@ fun SelectImageScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 1. 태그 이름 표시
             Text(
                 text = "#$tagName",
-                fontSize = 20.sp,
+                fontSize = 21.sp,
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
                 color = Word,
             )
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp),
@@ -138,26 +130,25 @@ fun SelectImageScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Choose more than 5 pictures",
-                fontSize = 14.sp,
+                fontSize = 21.sp,
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Bold,
                 color = Word,
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 2. 사진 그리드
             if (hasPermission) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(allPhotos, key = { it.photoId }) { photo ->
-                        val isSelected = selectedPhotos.contains(photo)
+                    items(allPhotos) { photoId ->
+                        val isSelected = selectedPhotos.contains(photoId)
                         PhotoCheckedItem(
-                            photo = photo,
+                            photoId = photoId,
                             isSelected = isSelected,
-                            onClick = { onPhotoClick(photo) },
+                            onClick = { onPhotoClick(photoId) },
                             modifier = Modifier.aspectRatio(1f),
                         )
                     }
@@ -168,7 +159,7 @@ fun SelectImageScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(allPhotos, key = { it.photoId }) { _ ->
+                    items(allPhotos) { _ ->
                         Box(modifier = Modifier) {
                             Spacer(
                                 modifier =
@@ -185,9 +176,8 @@ fun SelectImageScreen(
                 }
             }
 
-            // 3. 하단 'Done' 버튼
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
@@ -195,8 +185,8 @@ fun SelectImageScreen(
                 )
                 Button(
                     onClick = {
-                        onDone(tagName, selectedPhotos.toList(), navController)
-                        navController.popBackStack()
+                        viewModel.updateSelectedPhotos(selectedPhotos)
+                        navController.navigate(Screen.AddTag.route)
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
