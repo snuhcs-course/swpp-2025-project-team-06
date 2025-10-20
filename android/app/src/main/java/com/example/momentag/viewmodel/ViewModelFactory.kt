@@ -75,8 +75,10 @@ class ViewModelFactory(
             modelClass.isAssignableFrom(RecommendViewModel::class.java) -> {
                 RecommendViewModel(
                     RecommendRepository(RetrofitInstance.getApiService(context.applicationContext)),
-                    context.applicationContext,
                 ) as T
+            }
+            modelClass.isAssignableFrom(PhotoTagViewModel::class.java) -> {
+                PhotoTagViewModel() as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
 
 class RecommendViewModel(
     private val RecommendRepository: RecommendRepository,
-    private val context: Context,
 ) : ViewModel() {
     private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
     val recommendState = _recommendState.asStateFlow()
@@ -48,6 +47,14 @@ class RecommendViewModel(
 
                 is RecommendRepository.RecommendResult.NetworkError -> {
                     _recommendState.value = RecommendState.NetworkError(result.message)
+                }
+
+                is RecommendRepository.RecommendResult.BadRequest -> {
+                    _recommendState.value = RecommendState.Error(result.message)
+                }
+
+                is RecommendRepository.RecommendResult.Empty -> {
+                    _recommendState.value = RecommendState.Error("Query cannot be empty")
                 }
             }
         }

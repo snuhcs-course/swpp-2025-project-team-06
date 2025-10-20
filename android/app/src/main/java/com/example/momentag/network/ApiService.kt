@@ -12,6 +12,7 @@ import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.SemanticSearchResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagAlbum
+import com.example.momentag.model.recommendPhotosResponse
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -81,7 +82,7 @@ interface ApiService {
     @POST("api/recommend/")
     suspend fun recommendPhotos(
         @Body tagAlbum: TagAlbum,
-    ): List<Photo>
+    ): Response<recommendPhotosResponse>
 }
 
 /**
