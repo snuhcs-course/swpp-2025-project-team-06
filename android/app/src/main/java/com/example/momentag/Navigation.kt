@@ -146,5 +146,21 @@ fun appNavigation() {
                 imageDetailViewModel = imageDetailViewModel,
             )
         }
+
+        composable(
+            route = Screen.AddTag.route,
+        ) {
+            AddTagScreen(
+                navController = navController,
+            )
+        }
+
+        composable(
+            route = Screen.SelectImage.route,
+        ) {
+            SelectImageScreen(
+                navController = navController,
+            )
+        }
     }
 }
