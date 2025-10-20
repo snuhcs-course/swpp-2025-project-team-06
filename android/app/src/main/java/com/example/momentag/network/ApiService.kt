@@ -11,6 +11,7 @@ import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.SemanticSearchResponse
 import com.example.momentag.model.Tag
+import com.example.momentag.model.TagAlbum
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -76,6 +77,11 @@ interface ApiService {
         @Query("query") query: String,
         @Query("offset") offset: Int = 0,
     ): Response<SemanticSearchResponse>
+
+    @POST("api/recommend/")
+    suspend fun recommendPhotos(
+        @Body tagAlbum: TagAlbum,
+    ): List<Photo>
 }
 
 /**
