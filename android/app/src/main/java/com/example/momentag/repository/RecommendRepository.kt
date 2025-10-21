@@ -13,7 +13,6 @@ class RecommendRepository(
         data class Success(
             val photos: List<Long>,
         ) : RecommendResult()
-
         data class Empty(
             val query: String,
         ) : RecommendResult()
