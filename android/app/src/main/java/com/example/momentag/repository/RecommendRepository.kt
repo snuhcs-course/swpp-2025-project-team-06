@@ -34,6 +34,7 @@ class RecommendRepository(
         ) : RecommendResult()
     }
 
+    /* TODO sync with spec*/
     suspend fun recommendPhotos(
         tagAlbum: TagAlbum
     ): RecommendResult {

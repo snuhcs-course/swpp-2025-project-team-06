@@ -19,6 +19,7 @@ class RecommendViewModel(
     private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
     val recommendState = _recommendState.asStateFlow()
 
+    /* TODO sync with spec*/
     fun recommend(
         tagAlbum: TagAlbum,
     ) {
