@@ -35,7 +35,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -93,6 +96,8 @@ fun AddTagScreen(
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
+    var isChanged by remember { mutableStateOf(true) }
+
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -132,10 +137,12 @@ fun AddTagScreen(
     }
 
     val onDeselectPhoto: (Long) -> Unit = { photoId ->
+        isChanged = true
         selectedPhotos.remove(photoId)
     }
 
     val onSelectPhoto: (Long) -> Unit = { photoId ->
+        isChanged = true
         recommendedPhotos.remove(photoId)
         selectedPhotos.add(photoId)
         var tagAlbum = TagAlbum(inputTagName, selectedPhotos)
@@ -168,13 +175,18 @@ fun AddTagScreen(
             ) {
                 TagNameSection(
                     tagName = inputTagName,
-                    onTagNameChange = { viewModel.updateTagName(it) },
+                    onTagNameChange = {
+                        viewModel.updateTagName(it)
+                        inputTagName = it
+                                      },
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(41.dp))
 
                 SelectPicturesButton(onClick = { navController.navigate(Screen.SelectImage.route) })
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             if (hasPermission) {
 
@@ -199,6 +211,32 @@ fun AddTagScreen(
                     )
                 }
             }
+
+            if(isChanged) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            viewModel.updateSelectedPhotos(selectedPhotos)
+                            viewModel.updateTagName(tagName)
+                            navController.popBackStack()
+                        },
+                        shape = RoundedCornerShape(15.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Button,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier.align(Alignment.End),
+                        contentPadding = PaddingValues(horizontal = 32.dp)
+                    ) {
+                        Text(text = "Done")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
         }
     }
 }
@@ -215,7 +253,7 @@ private fun TagNameSection(
             fontFamily = FontFamily.Serif,
             color = Word,
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         TextField(
             value = tagName,
@@ -223,10 +261,10 @@ private fun TagNameSection(
             modifier = Modifier.fillMaxWidth(),
             textStyle = TextStyle(fontSize = 21.sp),
             placeholder = { Text("태그 입력") },
-            leadingIcon = { Text("#", fontSize = 16.sp, color = Word) },
+            leadingIcon = { Text("#", fontSize = 21.sp, color = Word) },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
+                focusedContainerColor = Background,
+                unfocusedContainerColor = Background,
                 focusedIndicatorColor = Word,
                 unfocusedIndicatorColor = Temp_word,
             ),
@@ -256,7 +294,7 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Select Pictures",
-            fontSize = 18.sp,
+            fontSize = 21.sp,
             fontFamily = FontFamily.Serif,
             color = Word,
         )
@@ -273,7 +311,7 @@ private fun SelectedPhotosSection(
             .fillMaxWidth()
             .height(120.dp)
             .background(Semi_background),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(21.dp),
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
         items(photos) { photoId ->
@@ -300,12 +338,12 @@ private fun RecommendedPicturesSection(
             fontFamily = FontFamily.Serif,
             color = Word,
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(11.dp))
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(21.dp),
+            modifier = Modifier.height(193.dp),
         ) {
             items(photos) { photoId ->
                 PhotoCheckedItem(
