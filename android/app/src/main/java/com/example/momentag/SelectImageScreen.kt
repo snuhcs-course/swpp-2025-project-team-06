@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -142,6 +143,7 @@ fun SelectImageScreen(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.height(453.dp),
                 ) {
                     items(allPhotos) { photoId ->
                         val isSelected = selectedPhotos.contains(photoId)
@@ -156,8 +158,9 @@ fun SelectImageScreen(
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(21.dp),
+                    modifier = Modifier.height(453.dp),
                 ) {
                     items(allPhotos) { _ ->
                         Box(modifier = Modifier) {
@@ -176,7 +179,7 @@ fun SelectImageScreen(
                 }
             }
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column {
                 HorizontalDivider(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -186,15 +189,19 @@ fun SelectImageScreen(
                 Button(
                     onClick = {
                         viewModel.updateSelectedPhotos(selectedPhotos)
-                        navController.navigate(Screen.AddTag.route)
+                        navController.navigate(Screen.AddTag.route) {
+                            popUpTo(Screen.AddTag.route) { inclusive = true }
+                        }
                     },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(15.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Button,
                         contentColor = Color.White
                     ),
+                    modifier = Modifier.align(Alignment.End),
+                    contentPadding = PaddingValues(horizontal = 32.dp)
                 ) {
-                    Text(text = "Done", modifier = Modifier.padding(horizontal = 24.dp))
+                    Text(text = "Done")
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
