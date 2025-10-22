@@ -1,6 +1,6 @@
 package com.example.momentag.model
 
-// TODO sync with spec
+// TODO : tag name 보내지 않기
 data class TagAlbum(
     val tagName: String,
     val photos: List<Long>,

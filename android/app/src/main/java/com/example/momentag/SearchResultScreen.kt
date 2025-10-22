@@ -62,6 +62,7 @@ import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.ImageDetailViewModel
+import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -83,10 +84,12 @@ fun SearchResultScreen(
             factory = ViewModelFactory(LocalContext.current),
         ),
 ) {
+    val context = LocalContext.current
     var searchText by remember { mutableStateOf(initialQuery) }
     val semanticSearchState by searchViewModel.searchState.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val photoTagViewModel: PhotoTagViewModel = viewModel(factory = ViewModelFactory(context))
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
@@ -179,7 +182,8 @@ fun SearchResultScreen(
             }
         },
         onCreateTagClick = {
-            // TODO: 태그 생성 화면으로 이동
+            photoTagViewModel.setInitialData(null, emptyList())
+            navController.navigate(Screen.AddTag.route)
         },
         onRetry = {
             if (searchText.isNotEmpty()) {

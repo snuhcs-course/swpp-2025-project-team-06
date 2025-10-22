@@ -40,8 +40,8 @@ fun appNavigation() {
 
     NavHost(
         navController = navController,
-//        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route,
-        startDestination = Screen.Home.route,
+        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route,
+//        startDestination = Screen.Home.route,
     ) {
         composable(route = Screen.Home.route) {
             HomeScreen(navController = navController)
