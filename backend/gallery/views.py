@@ -17,7 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
-from .tasks import process_and_embed_photo, create_or_update_tag_embedding
+from .tasks import process_and_embed_photo, create_or_update_tag_embedding, tag_recommendation, is_valid_uuid
 
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -412,8 +412,12 @@ class PostPhotoTagsView(APIView):
 
             tag_ids = [data['tag_id'] for data in serializer.validated_data]
             
-            if not client.exists(collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)):
-                return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
+            points = client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME,
+                ids=[str(photo_id)]
+            )
+            if not points:
+                return Response({"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND)
 
             created_photo_tags = []
             
@@ -469,6 +473,58 @@ class DeletePhotoTagsView(APIView):
             return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+class GetRecommendTagView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_summary="Get Recommended Tag of Photo",
+        operation_description="Get recommended tag about a photo.",
+        request_body=None,
+        responses={
+            200: openapi.Response(
+                description="Success",
+                schema=TagSerializer()
+            ),
+            400: openapi.Response(
+                description="Bad Request - Request form mismatch"   
+            ),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+            404: openapi.Response(
+                description="Not Found - : No photo with photo_id as its id"
+            ),
+        },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+    )
+    def get(self, request, photo_id, *args, **kwargs):
+        try:
+            if is_valid_uuid(photo_id) == False:
+                return Response({"error": "Request form mismatch."}, status=status.HTTP_400_NOT_FOUND)
+            
+            points = client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME,
+                ids=[str(photo_id)]
+            )
+            if not points:
+                return Response({"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND)
+                        
+            tag, tag_id = tag_recommendation(photo_id)
+            
+            tag = {"tag_id": tag_id, "tag": tag}
+            response_serializer = TagSerializer(tag)
+            
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+    
+    
       
 
 class TagView(APIView):

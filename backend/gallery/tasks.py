@@ -102,3 +102,17 @@ def create_or_update_tag_embedding(user_id, tag_name, tag_id):
 def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
+
+def tag_recommendation(photo_id):
+    tag = "test"
+    tag_id = uuid.uuid4()
+    
+    return tag, tag_id
+
+def is_valid_uuid(uuid_to_test):
+    try:
+        uuid.UUID(str(uuid_to_test))
+    except ValueError:
+        return False
+    return True
+    
