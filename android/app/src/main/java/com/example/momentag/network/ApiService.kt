@@ -79,6 +79,7 @@ interface ApiService {
         @Query("offset") offset: Int = 0,
     ): Response<SemanticSearchResponse>
 
+    // TODO : api 주소 변경
     @POST("api/recommend/")
     suspend fun recommendPhotos(
         @Body tagAlbum: TagAlbum,
