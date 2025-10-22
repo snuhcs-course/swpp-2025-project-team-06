@@ -22,7 +22,7 @@ class Photo_Tag(models.Model):
     def __str__(self):
         return f"{self.photo_id} tagged with {self.tag_id}"
     
-class Caption_Tag(models.Model):
+class Photo_Caption(models.Model):
     ct_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     
