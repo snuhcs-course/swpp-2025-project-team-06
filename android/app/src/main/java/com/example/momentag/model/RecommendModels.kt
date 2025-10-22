@@ -1,9 +1,9 @@
 package com.example.momentag.model
 
-/* TODO sync with spec*/
+// TODO sync with spec
 data class TagAlbum(
-    val tagName : String,
-    val photos : List<Long>
+    val tagName: String,
+    val photos: List<Long>,
 )
 
 sealed interface RecommendState {

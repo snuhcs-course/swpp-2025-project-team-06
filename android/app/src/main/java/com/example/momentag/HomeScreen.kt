@@ -188,7 +188,7 @@ fun HomeScreen(navController: NavController) {
                 onClick = {
                     photoTagViewModel.setInitialData(null, emptyList())
                     navController.navigate(Screen.AddTag.route)
-                          },
+                },
             )
         },
     ) { paddingValues ->

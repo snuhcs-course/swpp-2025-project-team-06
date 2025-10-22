@@ -6,7 +6,8 @@ import com.example.momentag.model.TagAlbum
 import com.example.momentag.repository.RecommendRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -19,7 +20,6 @@ import org.mockito.kotlin.whenever
 
 @ExperimentalCoroutinesApi
 class RecommendViewModelTest {
-
     @get:Rule
     val mainCoroutineRule = MainCoroutineRule()
 
@@ -43,7 +43,8 @@ class RecommendViewModelTest {
      */
     @Test
     fun recommendEmptyQuery() =
-        runTest(mainCoroutineRule.testDispatcher) { // [수정]
+        runTest(mainCoroutineRule.testDispatcher) {
+            // [수정]
 
             viewModel.recommendState.test {
                 assertEquals(RecommendState.Idle, awaitItem())
@@ -63,7 +64,8 @@ class RecommendViewModelTest {
      */
     @Test
     fun recommendSuccess() =
-        runTest(mainCoroutineRule.testDispatcher) { // [수정]
+        runTest(mainCoroutineRule.testDispatcher) {
+            // [수정]
 
             // Given
             val successResult = RecommendRepository.RecommendResult.Success(mockResultPhotos)
@@ -92,7 +94,6 @@ class RecommendViewModelTest {
     @Test
     fun recommendUnauthorized() =
         runTest(mainCoroutineRule.testDispatcher) {
-
             val repoResult = RecommendRepository.RecommendResult.Unauthorized("Authentication failed")
             whenever(mockRecommendRepository.recommendPhotos(validTagAlbum)).thenReturn(repoResult)
 
@@ -118,7 +119,6 @@ class RecommendViewModelTest {
     @Test
     fun recommendBadRequest() =
         runTest(mainCoroutineRule.testDispatcher) {
-
             val repoMessage = "Bad request"
             val repoResult = RecommendRepository.RecommendResult.BadRequest(repoMessage)
             whenever(mockRecommendRepository.recommendPhotos(validTagAlbum)).thenReturn(repoResult)
@@ -145,7 +145,6 @@ class RecommendViewModelTest {
     @Test
     fun recommendNetworkError() =
         runTest(mainCoroutineRule.testDispatcher) {
-
             val repoMessage = "Network error: No connection"
             val repoResult = RecommendRepository.RecommendResult.NetworkError(repoMessage)
             whenever(mockRecommendRepository.recommendPhotos(validTagAlbum)).thenReturn(repoResult)
@@ -173,7 +172,6 @@ class RecommendViewModelTest {
     @Test
     fun recommendEmpty() =
         runTest(mainCoroutineRule.testDispatcher) {
-
             val repoResult = RecommendRepository.RecommendResult.Empty(query = "some_query")
             whenever(mockRecommendRepository.recommendPhotos(validTagAlbum)).thenReturn(repoResult)
 

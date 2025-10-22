@@ -41,7 +41,7 @@ fun appNavigation() {
     NavHost(
         navController = navController,
 //        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route,
-        startDestination = Screen.Home.route
+        startDestination = Screen.Home.route,
     ) {
         composable(route = Screen.Home.route) {
             HomeScreen(navController = navController)
@@ -160,10 +160,8 @@ fun appNavigation() {
         composable(route = Screen.SelectImage.route) {
             SelectImageScreen(
                 navController = navController,
-                viewModel = photoTagViewModel
+                viewModel = photoTagViewModel,
             )
         }
-
-
     }
 }
