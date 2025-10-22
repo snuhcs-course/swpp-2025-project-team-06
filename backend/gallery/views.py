@@ -512,7 +512,8 @@ class GetRecommendTagView(APIView):
             if not points:
                 return Response({"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND)
                         
-            tag, tag_id = tag_recommendation(photo_id)
+            user_id = request.user.id
+            tag, tag_id = tag_recommendation(user_id, photo_id)
             
             tag = {"tag_id": tag_id, "tag": tag}
             response_serializer = TagSerializer(tag)

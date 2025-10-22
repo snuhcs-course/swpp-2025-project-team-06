@@ -10,9 +10,6 @@ from .models import Tag, User
 import numpy as np
 import faiss
 
-import numpy as np
-import faiss
-
 import time
 
 from sentence_transformers import SentenceTransformer
