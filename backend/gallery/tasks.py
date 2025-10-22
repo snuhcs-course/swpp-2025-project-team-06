@@ -170,7 +170,8 @@ def find_most_similar_tag(image_vector: np.ndarray, refvecs: list) -> str:
 
     query_vector = np.array(image_vector).reshape(1, -1).astype('float32')
     norm = np.linalg.norm(query_vector)
-    if norm == 0: norm = 1e-10
+    if norm == 0: 
+        norm = 1e-10
     normalized_query = query_vector / norm
 
     _distances, indices = index.search(normalized_query, 1)
