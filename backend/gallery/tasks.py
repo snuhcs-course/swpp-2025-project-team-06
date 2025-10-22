@@ -7,6 +7,9 @@ from .vision_service import get_image_embedding
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME
 from .models import Tag, User
 
+import numpy as np
+import faiss
+
 import time
 
 from sentence_transformers import SentenceTransformer
@@ -102,3 +105,85 @@ def create_or_update_tag_embedding(user_id, tag_name, tag_id):
 def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
+
+def tag_recommendation(user_id, photo_id):
+    refvec_points = []
+    
+    user_filter = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="user_id",
+                        match=models.MatchValue(value=user_id),
+                    )
+                ]
+            )
+    next_offset = None
+    while True:
+        points, next_offset = client.scroll(
+            collection_name=IMAGE_COLLECTION_NAME,
+            scroll_filter=user_filter,
+            limit=200,
+            offset=next_offset, 
+            with_payload=True
+        )
+        
+        refvec_points.extend(points)
+        
+        if next_offset is None:
+            break
+    
+    all_representative_vectors = []
+    
+    for point in refvec_points:
+        tag = Tag.objects.get(tag_id = point.payload['tag_id'])
+        tag_name = tag.tag
+        all_representative_vectors.append({"vector":point.vector, "tag_name":tag_name})
+    
+    retrieved_points = client.retrieve(
+        collection_name=IMAGE_COLLECTION_NAME,
+        ids=photo_id,
+        with_payload=True, 
+        with_vectors=True,
+    )
+    
+    image_vec = retrieved_points.vector
+    image_vector = np.array(image_vec)
+    
+    tag = find_most_similar_tag(image_vector, all_representative_vectors)
+    tag_id = Tag.objects.get(tag = tag).tag_id
+    
+    return tag, tag_id
+
+
+def find_most_similar_tag(image_vector: np.ndarray, refvecs: list) -> str:
+    representative_vectors = np.array([item["vector"] for item in refvecs])
+    representative_tags = [item["tag_name"] for item in refvecs]
+
+    d = representative_vectors.shape[1]
+    
+    norms = np.linalg.norm(representative_vectors, axis=1, keepdims=True)
+    norms[norms == 0] = 1e-10
+    normalized_vectors = (representative_vectors / norms).astype('float32')
+
+    index = faiss.IndexFlatL2(d)
+    index.add(normalized_vectors)
+
+    query_vector = np.array(image_vector).reshape(1, -1).astype('float32')
+    norm = np.linalg.norm(query_vector)
+    if norm == 0: norm = 1e-10
+    normalized_query = query_vector / norm
+
+    _distances, indices = index.search(normalized_query, 1)
+    
+    most_similar_index = indices[0][0]
+    most_similar_tag = representative_tags[most_similar_index]
+    
+    return most_similar_tag
+
+def is_valid_uuid(uuid_to_test):
+    try:
+        uuid.UUID(str(uuid_to_test))
+    except ValueError:
+        return False
+    return True
+    

@@ -21,4 +21,5 @@ dependencies = [
     "torch==2.8.0",
     "torchvision==0.23.0",
     "transformers==4.57.0",
+    "faiss-cpu",
 ]
