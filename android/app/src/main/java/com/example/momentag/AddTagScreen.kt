@@ -8,7 +8,6 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,34 +26,26 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,26 +55,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
-import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
 import com.example.momentag.model.TagAlbum
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Semi_background
-import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
-import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.RecommendViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -92,12 +76,11 @@ import com.example.momentag.viewmodel.ViewModelFactory
 @Composable
 fun AddTagScreen(
     viewModel: PhotoTagViewModel,
-    navController: NavController
+    navController: NavController,
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
-
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -159,26 +142,27 @@ fun AddTagScreen(
             BackTopBar(
                 title = "MomenTag",
                 onBackClick = { navController.popBackStack() },
-                modifier = Modifier.background(Background)
+                modifier = Modifier.background(Background),
             )
         },
         containerColor = Background,
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(vertical = 16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(vertical = 16.dp),
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 24.dp)
+                modifier = Modifier.padding(horizontal = 24.dp),
             ) {
                 TagNameSection(
                     tagName = inputTagName,
                     onTagNameChange = {
                         viewModel.updateTagName(it)
                         inputTagName = it
-                                      },
+                    },
                 )
 
                 Spacer(modifier = Modifier.height(41.dp))
@@ -189,7 +173,6 @@ fun AddTagScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             if (hasPermission) {
-
                 SelectedPhotosSection(
                     photos = selectedPhotos,
                     onPhotoClick = onDeselectPhoto,
@@ -200,23 +183,25 @@ fun AddTagScreen(
 
             if (hasPermission) {
                 Column(
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp)
-                        .weight(1f)
+                    modifier =
+                        Modifier
+                            .padding(horizontal = 24.dp)
+                            .weight(1f),
                 ) {
                     RecommendedPicturesSection(
                         photos = recommendedPhotos,
                         onPhotoClick = onSelectPhoto,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
             }
 
-            if(isChanged) {
+            if (isChanged) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
                 ) {
                     Button(
                         onClick = {
@@ -225,12 +210,13 @@ fun AddTagScreen(
                             navController.popBackStack()
                         },
                         shape = RoundedCornerShape(15.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Button,
-                            contentColor = Color.White
-                        ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = Button,
+                                contentColor = Color.White,
+                            ),
                         modifier = Modifier.align(Alignment.End),
-                        contentPadding = PaddingValues(horizontal = 32.dp)
+                        contentPadding = PaddingValues(horizontal = 32.dp),
                     ) {
                         Text(text = "Done")
                     }
@@ -262,12 +248,13 @@ private fun TagNameSection(
             textStyle = TextStyle(fontSize = 21.sp),
             placeholder = { Text("태그 입력") },
             leadingIcon = { Text("#", fontSize = 21.sp, color = Word) },
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Background,
-                unfocusedContainerColor = Background,
-                focusedIndicatorColor = Word,
-                unfocusedIndicatorColor = Temp_word,
-            ),
+            colors =
+                TextFieldDefaults.colors(
+                    focusedContainerColor = Background,
+                    unfocusedContainerColor = Background,
+                    focusedIndicatorColor = Word,
+                    unfocusedIndicatorColor = Temp_word,
+                ),
             singleLine = true,
         )
     }
@@ -277,18 +264,20 @@ private fun TagNameSection(
 private fun SelectPicturesButton(onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 8.dp),
     ) {
         Icon(
             imageVector = Icons.Default.Add,
             contentDescription = "Select Pictures",
-            modifier = Modifier
-                .clip(CircleShape)
-                .background(Button)
-                .padding(2.dp),
+            modifier =
+                Modifier
+                    .clip(CircleShape)
+                    .background(Button)
+                    .padding(2.dp),
             tint = Word,
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -307,10 +296,11 @@ private fun SelectedPhotosSection(
     onPhotoClick: (Long) -> Unit,
 ) {
     LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(120.dp)
-            .background(Semi_background),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .background(Semi_background),
         horizontalArrangement = Arrangement.spacedBy(21.dp),
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
@@ -367,14 +357,15 @@ fun PhotoCheckedItem(
     val imageUri = getUriFromPhotoId(photoId)
 
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(Semi_background)
-            .clickable(onClick = onClick),
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(Semi_background)
+                .clickable(onClick = onClick),
     ) {
         AsyncImage(
             model = imageUri,
-            contentDescription = "사진 ${photoId}",
+            contentDescription = "사진 $photoId",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -391,11 +382,12 @@ private fun CheckboxOverlay(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .padding(8.dp)
-            .size(24.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .background(Background),
+        modifier =
+            modifier
+                .padding(8.dp)
+                .size(24.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Background),
         contentAlignment = Alignment.Center,
     ) {
         if (isSelected) {
@@ -410,9 +402,8 @@ private fun CheckboxOverlay(
 }
 
 @Composable
-private fun getUriFromPhotoId(photoId: Long): Uri {
-    return ContentUris.withAppendedId(
+private fun getUriFromPhotoId(photoId: Long): Uri =
+    ContentUris.withAppendedId(
         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
         photoId,
     )
-}

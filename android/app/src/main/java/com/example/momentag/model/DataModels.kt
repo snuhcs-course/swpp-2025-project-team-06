@@ -59,7 +59,7 @@ data class SemanticSearchResponse(
     val photos: List<Int>,
 )
 
-data class recommendPhotosResponse(
+data class RecommendPhotosResponse(
     val photos: List<Long>,
 )
 

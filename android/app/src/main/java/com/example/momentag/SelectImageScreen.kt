@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,9 +43,9 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
+import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Word
-import com.example.momentag.ui.theme.Button
 import com.example.momentag.viewmodel.PhotoTagViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,8 +56,8 @@ fun SelectImageScreen(
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
-    /* TODO: GET /api/photos/ */
-    val allPhotos : List<Long> = emptyList();
+    // TODO: GET /api/photos/
+    val allPhotos: List<Long> = emptyList()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -102,16 +101,17 @@ fun SelectImageScreen(
             BackTopBar(
                 title = "MomenTag",
                 onBackClick = { navController.popBackStack() },
-                modifier = Modifier.background(Background)
+                modifier = Modifier.background(Background),
             )
         },
         containerColor = Background,
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 24.dp),
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -123,9 +123,10 @@ fun SelectImageScreen(
                 color = Word,
             )
             HorizontalDivider(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
                 color = Word,
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -172,7 +173,7 @@ fun SelectImageScreen(
                                         .background(
                                             color = Picture,
                                             shape = RoundedCornerShape(16.dp),
-                                        ).align(Alignment.BottomCenter)
+                                        ).align(Alignment.BottomCenter),
                             )
                         }
                     }
@@ -181,9 +182,10 @@ fun SelectImageScreen(
 
             Column {
                 HorizontalDivider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
                     color = Word,
                 )
                 Button(
@@ -194,12 +196,13 @@ fun SelectImageScreen(
                         }
                     },
                     shape = RoundedCornerShape(15.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Button,
-                        contentColor = Color.White
-                    ),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = Button,
+                            contentColor = Color.White,
+                        ),
                     modifier = Modifier.align(Alignment.End),
-                    contentPadding = PaddingValues(horizontal = 32.dp)
+                    contentPadding = PaddingValues(horizontal = 32.dp),
                 ) {
                     Text(text = "Done")
                 }

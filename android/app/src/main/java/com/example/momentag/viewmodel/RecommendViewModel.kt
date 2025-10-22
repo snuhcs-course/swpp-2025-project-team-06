@@ -1,14 +1,10 @@
 package com.example.momentag.viewmodel
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.RecommendState
-import com.example.momentag.model.SemanticSearchState
 import com.example.momentag.model.TagAlbum
 import com.example.momentag.repository.RecommendRepository
-import com.example.momentag.repository.RemoteRepository
-import com.example.momentag.repository.SearchRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -19,10 +15,8 @@ class RecommendViewModel(
     private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
     val recommendState = _recommendState.asStateFlow()
 
-    /* TODO sync with spec*/
-    fun recommend(
-        tagAlbum: TagAlbum,
-    ) {
+    // TODO sync with spec
+    fun recommend(tagAlbum: TagAlbum) {
         if (tagAlbum.tagName.isBlank() && tagAlbum.photos.isEmpty()) {
             _recommendState.value = RecommendState.Error("Query cannot be empty")
             return
