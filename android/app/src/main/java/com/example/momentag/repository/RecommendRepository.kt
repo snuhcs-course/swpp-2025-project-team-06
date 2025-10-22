@@ -1,9 +1,7 @@
 package com.example.momentag.repository
 
-import com.example.momentag.model.Photo
 import com.example.momentag.model.TagAlbum
 import com.example.momentag.network.ApiService
-import com.example.momentag.repository.SearchRepository.SearchResult
 import java.io.IOException
 
 class RecommendRepository(
@@ -13,6 +11,7 @@ class RecommendRepository(
         data class Success(
             val photos: List<Long>,
         ) : RecommendResult()
+
         data class Empty(
             val query: String,
         ) : RecommendResult()
@@ -34,11 +33,9 @@ class RecommendRepository(
         ) : RecommendResult()
     }
 
-    /* TODO sync with spec*/
-    suspend fun recommendPhotos(
-        tagAlbum: TagAlbum
-    ): RecommendResult {
-        return try {
+    // TODO sync with spec
+    suspend fun recommendPhotos(tagAlbum: TagAlbum): RecommendResult =
+        try {
             val response = apiService.recommendPhotos(tagAlbum)
 
             if (response.isSuccessful) {
@@ -57,6 +54,4 @@ class RecommendRepository(
         } catch (e: Exception) {
             RecommendResult.Error("An unexpected error occurred: ${e.message}")
         }
-    }
-
 }

@@ -4,28 +4,24 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 
 class PhotoTagViewModel : ViewModel() {
-    var tagName : String = ""
+    var tagName: String = ""
     var initSelectedPhotos = mutableStateListOf<Long>()
 
     fun setInitialData(
         TagName: String?,
         InitSelectedPhotos: List<Long>,
     ) {
-        tagName = TagName?:""
+        tagName = TagName ?: ""
 
         initSelectedPhotos.clear()
         initSelectedPhotos.addAll(InitSelectedPhotos)
     }
 
-    fun updateTagName(
-        newTagName: String,
-    ) {
+    fun updateTagName(newTagName: String) {
         tagName = newTagName
     }
 
-    fun updateSelectedPhotos(
-        newSelectedPhotos: List<Long>,
-    ) {
+    fun updateSelectedPhotos(newSelectedPhotos: List<Long>) {
         initSelectedPhotos.clear()
         initSelectedPhotos.addAll(newSelectedPhotos)
     }
