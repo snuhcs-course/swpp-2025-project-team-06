@@ -8,6 +8,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -44,8 +46,6 @@ class RecommendViewModelTest {
     @Test
     fun recommendEmptyQuery() =
         runTest(mainCoroutineRule.testDispatcher) {
-            // [수정]
-
             viewModel.recommendState.test {
                 assertEquals(RecommendState.Idle, awaitItem())
 
@@ -65,8 +65,6 @@ class RecommendViewModelTest {
     @Test
     fun recommendSuccess() =
         runTest(mainCoroutineRule.testDispatcher) {
-            // [수정]
-
             // Given
             val successResult = RecommendRepository.RecommendResult.Success(mockResultPhotos)
             whenever(mockRecommendRepository.recommendPhotos(validTagAlbum)).thenReturn(successResult)
