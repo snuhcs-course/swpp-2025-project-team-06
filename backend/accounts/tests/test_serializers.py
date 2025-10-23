@@ -1,6 +1,5 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
-from rest_framework.exceptions import ValidationError
 
 from ..serializers import UserSerializer
 from ..request_serializers import SignUpRequest, SignInRequest, SignOutRequest
