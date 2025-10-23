@@ -118,7 +118,7 @@ def tag_recommendation(photo_id):
     return tag, tag_id
 
 
-def recommend_photo_from_tag(user_id: int, tag_id: int):
+def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
     rep_vectors, rep_vec_idx_to_tag = retrieve_all_rep_vectors(user_id)
 
     faiss_index = build_faiss_index(rep_vectors)
