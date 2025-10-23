@@ -76,7 +76,10 @@ import kotlinx.coroutines.launch
 @Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(
+    navController: NavController,
+    photoTagViewModel: PhotoTagViewModel,
+) {
     val context = LocalContext.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
@@ -87,7 +90,6 @@ fun HomeScreen(navController: NavController) {
 
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory(context))
-    val photoTagViewModel: PhotoTagViewModel = viewModel(factory = ViewModelFactory(context))
     val imageUris by localViewModel.image.collectAsState()
 
     var isRefreshing by remember { mutableStateOf(false) }
