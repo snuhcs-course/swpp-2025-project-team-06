@@ -1,5 +1,7 @@
 package com.example.momentag
 
+import android.Manifest
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -57,14 +59,25 @@ fun SelectImageScreen(
     // TODO: GET /api/photos/
     val allPhotos: List<Long> = emptyList()
 
-    rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                hasPermission = true
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    hasPermission = true
+                }
+            },
+        )
+
+    LaunchedEffect(key1 = true) {
+        val permission =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.READ_MEDIA_IMAGES
+            } else {
+                Manifest.permission.READ_EXTERNAL_STORAGE
             }
-        },
-    )
+        permissionLauncher.launch(permission)
+    }
 
     var selectedPhotos = remember { mutableStateListOf<Long>() }
     val tagName = viewModel.tagName
