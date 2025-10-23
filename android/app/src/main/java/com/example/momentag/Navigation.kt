@@ -147,6 +147,7 @@ fun appNavigation() {
                 navController = navController,
                 onNavigateBack = { navController.popBackStack() },
                 imageDetailViewModel = imageDetailViewModel,
+                photoTagViewModel = photoTagViewModel,
             )
         }
 

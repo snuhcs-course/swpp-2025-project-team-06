@@ -83,13 +83,12 @@ fun SearchResultScreen(
         viewModel(
             factory = ViewModelFactory(LocalContext.current),
         ),
+    photoTagViewModel: PhotoTagViewModel,
 ) {
-    val context = LocalContext.current
     var searchText by remember { mutableStateOf(initialQuery) }
     val semanticSearchState by searchViewModel.searchState.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
-    val photoTagViewModel: PhotoTagViewModel = viewModel(factory = ViewModelFactory(context))
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
@@ -182,7 +181,11 @@ fun SearchResultScreen(
             }
         },
         onCreateTagClick = {
-            photoTagViewModel.setInitialData(null, emptyList())
+            var selectedImagesId = mutableListOf<Long>()
+            for (uri in selectedImages) {
+                selectedImagesId.add(ContentUris.parseId(uri))
+            }
+            photoTagViewModel.setInitialData(null, selectedImagesId)
             navController.navigate(Screen.AddTag.route)
         },
         onRetry = {

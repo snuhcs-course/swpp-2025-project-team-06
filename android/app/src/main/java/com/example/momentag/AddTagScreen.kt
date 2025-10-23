@@ -2,6 +2,7 @@ package com.example.momentag
 
 import android.content.ContentUris
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -69,6 +70,7 @@ import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.RecommendViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import android.Manifest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,16 +80,27 @@ fun AddTagScreen(
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
-    var isChanged by remember { mutableStateOf(false) }
+    var isChanged by remember { mutableStateOf(true) }
 
-    rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                hasPermission = true
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    hasPermission = true
+                }
+            },
+        )
+
+    LaunchedEffect(key1 = true) {
+        val permission =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.READ_MEDIA_IMAGES
+            } else {
+                Manifest.permission.READ_EXTERNAL_STORAGE
             }
-        },
-    )
+            permissionLauncher.launch(permission)
+        }
 
     val tagName by remember(viewModel.tagName) { mutableStateOf(viewModel.tagName) }
     val initSelectedPhotos = viewModel.initSelectedPhotos
@@ -109,6 +122,7 @@ fun AddTagScreen(
     val onDeselectPhoto: (Long) -> Unit = { photoId ->
         isChanged = true
         selectedPhotos.remove(photoId)
+        recommendedPhotos.add(photoId)
     }
 
     val onSelectPhoto: (Long) -> Unit = { photoId ->
