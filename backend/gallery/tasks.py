@@ -77,28 +77,6 @@ def process_and_embed_photo(image_path, user_id, filename, photo_path_id, create
 
 
 @shared_task
-def create_or_update_tag_embedding(user_id, tag_name, tag_id):
-    try:
-        model = get_text_model()  # lazy-load
-        embedding = model.encode([tag_name])
-        
-        user_instance = User.objects.get(id=user_id)
-
-        tag, created = Tag.objects.update_or_create(
-            tag_id=tag_id,
-            user=user_instance,
-            defaults={'tag': tag_name, 'embedding': embedding}
-        )
-        
-        if created:
-            print(f"[Celery Task Success] Created tag '{tag_name}' with id {tag_id}")
-        else:
-            print(f"[Celery Task Success] Updated tag '{tag_name}' with id {tag_id}")
-
-    except Exception as e:
-        print(f"[Celery Task Exception] Error creating/updating tag '{tag_name}': {str(e)}")
-
-
 def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
