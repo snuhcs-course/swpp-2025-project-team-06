@@ -1,5 +1,6 @@
 package com.example.momentag
 
+import android.Manifest
 import android.content.ContentUris
 import android.net.Uri
 import android.os.Build
@@ -70,7 +71,6 @@ import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.RecommendViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
-import android.Manifest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,8 +99,8 @@ fun AddTagScreen(
             } else {
                 Manifest.permission.READ_EXTERNAL_STORAGE
             }
-            permissionLauncher.launch(permission)
-        }
+        permissionLauncher.launch(permission)
+    }
 
     val tagName by remember(viewModel.tagName) { mutableStateOf(viewModel.tagName) }
     val initSelectedPhotos = viewModel.initSelectedPhotos
