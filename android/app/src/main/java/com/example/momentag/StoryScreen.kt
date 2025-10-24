@@ -68,12 +68,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
+import com.example.momentag.Screen
 import com.example.momentag.StoryTagChip
-import com.example.momentag.model.Story
+import com.example.momentag.model.StoryModel
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
+import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Pink80
 import com.example.momentag.ui.theme.Temp_word
@@ -84,13 +88,14 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun StoryTagSelectionScreen(
-    stories: List<Story>,
+    stories: List<StoryModel>,
     selectedTags: Map<String, Set<String>>, // storyId -> Set<tag>
     onTagToggle: (storyId: String, tag: String) -> Unit,
     onDone: (storyId: String) -> Unit,
     onComplete: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    navController: NavController,
 ) {
     val pagerState = rememberPagerState(pageCount = { stories.size })
     val coroutineScope = rememberCoroutineScope()
@@ -144,16 +149,35 @@ fun StoryTagSelectionScreen(
         }
 
         // 하단 네비게이션 바
+        var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
         BottomNavBar(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(
-                        WindowInsets.navigationBars
-                            .only(WindowInsetsSides.Bottom)
-                            .asPaddingValues(),
-                    ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(
+                    WindowInsets.navigationBars
+                        .only(WindowInsetsSides.Bottom)
+                        .asPaddingValues(),
+                ),
+            currentTab = currentTab,
+            onTabSelected = { tab ->
+                currentTab = tab
+                when (tab) {
+                    BottomTab.HomeScreen -> {
+                        navController.navigate(Screen.Home.route)
+                    }
+                    BottomTab.SearchScreen -> {
+                        navController.navigate(Screen.SearchResult.route)
+                    }
+                    BottomTab.TagScreen -> {
+                        navController.navigate(Screen.Album.route)
+                        //TODO : TagScreen연결
+                    }
+                    BottomTab.StoryScreen -> {
+                        // 이미 Story 화면이라서 아무 것도 안 해도 됨
+                    }
+                }
+            }
         )
     }
 }
@@ -162,7 +186,7 @@ fun StoryTagSelectionScreen(
 // StoryPageFullBlock = 날짜/위치 + 이미지 + (공백) + TagSelectionCard
 @Composable
 private fun StoryPageFullBlock(
-    story: Story,
+    story: StoryModel,
     selectedTags: Set<String>,
     isLastPage: Boolean,
     showScrollHint: Boolean,
@@ -356,8 +380,6 @@ private fun TagSelectionCard(
             )
 
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(bottom = 16.dp),
             ) {
                 tags.forEach { tagText ->
@@ -463,8 +485,6 @@ private fun GradientPillButton(
 @Composable
 private fun FlowRow(
     modifier: Modifier = Modifier,
-    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
-    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
     content: @Composable () -> Unit,
 ) {
     Layout(
@@ -481,7 +501,7 @@ private fun FlowRow(
         val colSpacingPx = 8.dp.roundToPx()
 
         val rows = mutableListOf<List<Placeable>>()
-        var currentRow = mutableListOf<Placeable>()
+        val currentRow = mutableListOf<Placeable>()
         var currentRowWidth = 0
         var currentRowHeight = 0
 
@@ -542,14 +562,14 @@ private fun FlowRow(
 private fun Preview_StoryTagSelectionScreen() {
     val sampleStories =
         listOf(
-            Story(
+            StoryModel(
                 id = "1",
                 images = listOf("https://images.unsplash.com/photo-1504674900247-0877df9cc836"),
                 date = "2024.10.15",
                 location = "강남 맛집",
                 suggestedTags = listOf("#food", "#맛집", "#행복", "+"),
             ),
-            Story(
+            StoryModel(
                 id = "2",
                 images = listOf("https://images.unsplash.com/photo-1501594907352-04cda38ebc29"),
                 date = "2024.09.22",
@@ -573,6 +593,7 @@ private fun Preview_StoryTagSelectionScreen() {
         onDone = { true },
         onComplete = { },
         onBack = { },
+        navController = rememberNavController(),
     )
 }
 

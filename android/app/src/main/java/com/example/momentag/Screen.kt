@@ -46,4 +46,6 @@ sealed class Screen(
     object Login : Screen("login_screen")
 
     object Register : Screen("register_screen")
+
+    object Story : Screen("story_screen")
 }

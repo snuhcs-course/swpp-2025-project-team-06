@@ -73,10 +73,10 @@ data class PhotoUploadData(
 )
 
 // ========== Story Models =================
-data class Story(
+data class StoryModel(
     val id: String,
     val images: List<String>,
     val date: String,
     val location: String,
-    val suggestedTags: List<String>,
+    val suggestedTags: List<String>
 )
