@@ -503,7 +503,7 @@ class GetRecommendTagView(APIView):
     def get(self, request, photo_id, *args, **kwargs):
         try:
             if not is_valid_uuid(photo_id):
-                return Response({"error": "Request form mismatch."}, status=status.HTTP_400_NOT_FOUND)
+                return Response({"error": "Request form mismatch."}, status=status.HTTP_400_BAD_REQUEST)
             
             points = client.retrieve(
                 collection_name=IMAGE_COLLECTION_NAME,
