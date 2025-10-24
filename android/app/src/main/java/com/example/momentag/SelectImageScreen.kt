@@ -27,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -54,10 +55,12 @@ fun SelectImageScreen(
     navController: NavController,
     viewModel: PhotoTagViewModel,
 ) {
-    val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
     // TODO: GET /api/photos/
-    val allPhotos: List<Long> = emptyList()
+    val allPhotos: List<Long> = remember { (1L..20L).toList() }
+
+    val tagName by viewModel.tagName.collectAsState()
+    val selectedPhotos by viewModel.selectedPhotos.collectAsState()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -79,20 +82,11 @@ fun SelectImageScreen(
         permissionLauncher.launch(permission)
     }
 
-    var selectedPhotos = remember { mutableStateListOf<Long>() }
-    val tagName = viewModel.tagName
-    val initSelectedPhotos = viewModel.initSelectedPhotos.toList()
-
-    LaunchedEffect(initSelectedPhotos) {
-        selectedPhotos.clear()
-        selectedPhotos.addAll(initSelectedPhotos)
-    }
-
     val onPhotoClick: (Long) -> Unit = { photoId ->
         if (selectedPhotos.contains(photoId)) {
-            selectedPhotos.remove(photoId)
+            viewModel.removePhoto(photoId)
         } else {
-            selectedPhotos.add(photoId)
+            viewModel.addPhoto(photoId)
         }
     }
 
@@ -190,7 +184,6 @@ fun SelectImageScreen(
                 )
                 Button(
                     onClick = {
-                        viewModel.updateSelectedPhotos(selectedPhotos)
                         navController.navigate(Screen.AddTag.route) {
                             popUpTo(Screen.AddTag.route) { inclusive = true }
                         }
