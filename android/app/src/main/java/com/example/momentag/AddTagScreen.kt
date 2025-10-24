@@ -42,6 +42,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +83,14 @@ fun AddTagScreen(
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
 
+    val tagName by viewModel.tagName.collectAsState()
+    val selectedPhotos by viewModel.selectedPhotos.collectAsState()
+
+    val recommendViewModel: RecommendViewModel = viewModel(factory = ViewModelFactory(context))
+    val recommendState by recommendViewModel.recommendState.collectAsState()
+
+    val recommendedPhotos = remember { mutableStateListOf<Long>() }
+
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -102,40 +111,27 @@ fun AddTagScreen(
         permissionLauncher.launch(permission)
     }
 
-    val tagName by remember(viewModel.tagName) { mutableStateOf(viewModel.tagName) }
-    val initSelectedPhotos = viewModel.initSelectedPhotos
-
-    val recommendViewModel: RecommendViewModel = viewModel(factory = ViewModelFactory(context))
-
-    var inputTagName by remember(tagName) {
-        mutableStateOf(tagName ?: "")
-    }
-
-    var selectedPhotos = remember { mutableStateListOf<Long>() }
-    var recommendedPhotos = remember { mutableStateListOf<Long>() }
-
-    LaunchedEffect(initSelectedPhotos) {
-        selectedPhotos.clear()
-        selectedPhotos.addAll(initSelectedPhotos)
+    LaunchedEffect(recommendState) {
+        if (recommendState is RecommendState.Success) {
+            val successState = recommendState as RecommendState.Success
+            recommendedPhotos.clear()
+            val newRecommended = successState.photos.filter { it !in selectedPhotos }
+            recommendedPhotos.addAll(newRecommended)
+        }
     }
 
     val onDeselectPhoto: (Long) -> Unit = { photoId ->
         isChanged = true
-        selectedPhotos.remove(photoId)
+        viewModel.removePhoto(photoId)
         recommendedPhotos.add(photoId)
     }
 
     val onSelectPhoto: (Long) -> Unit = { photoId ->
         isChanged = true
+        viewModel.addPhoto(photoId)
         recommendedPhotos.remove(photoId)
-        selectedPhotos.add(photoId)
-        var tagAlbum = TagAlbum(inputTagName, selectedPhotos)
+        val tagAlbum = TagAlbum(tagName, selectedPhotos + photoId)
         recommendViewModel.recommend(tagAlbum)
-        if (recommendViewModel.recommendState.value is RecommendState.Success) {
-            val successState = recommendViewModel.recommendState.value as RecommendState.Success
-            recommendedPhotos.clear()
-            recommendedPhotos.addAll(successState.photos)
-        }
     }
 
     Scaffold(
@@ -159,10 +155,10 @@ fun AddTagScreen(
                 modifier = Modifier.padding(horizontal = 24.dp),
             ) {
                 TagNameSection(
-                    tagName = inputTagName,
+                    tagName = tagName,
                     onTagNameChange = {
                         viewModel.updateTagName(it)
-                        inputTagName = it
+                        viewModel.updateTagName(it)
                     },
                 )
 
@@ -206,7 +202,6 @@ fun AddTagScreen(
                 ) {
                     Button(
                         onClick = {
-                            viewModel.updateSelectedPhotos(selectedPhotos)
                             viewModel.updateTagName(tagName)
                             navController.popBackStack()
                         },

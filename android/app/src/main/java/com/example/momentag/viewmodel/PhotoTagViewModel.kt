@@ -2,27 +2,34 @@ package com.example.momentag.viewmodel
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 class PhotoTagViewModel : ViewModel() {
-    var tagName: String = ""
-    var initSelectedPhotos = mutableStateListOf<Long>()
+    private val _tagName = MutableStateFlow("")
+    val tagName = _tagName.asStateFlow()
+
+    private val _selectedPhotos = MutableStateFlow<List<Long>>(emptyList())
+    val selectedPhotos = _selectedPhotos.asStateFlow()
 
     fun setInitialData(
-        TagName: String?,
-        InitSelectedPhotos: List<Long>,
+        initialTagName: String?,
+        initialSelectedPhotos: List<Long>,
     ) {
-        tagName = TagName ?: ""
-
-        initSelectedPhotos.clear()
-        initSelectedPhotos.addAll(InitSelectedPhotos)
+        _tagName.value = initialTagName ?: ""
+        _selectedPhotos.value = initialSelectedPhotos
     }
 
     fun updateTagName(newTagName: String) {
-        tagName = newTagName
+        _tagName.value = newTagName
     }
 
-    fun updateSelectedPhotos(newSelectedPhotos: List<Long>) {
-        initSelectedPhotos.clear()
-        initSelectedPhotos.addAll(newSelectedPhotos)
+    fun addPhoto(photoId: Long) {
+        _selectedPhotos.update { currentList -> currentList + photoId }
+    }
+
+    fun removePhoto(photoId: Long) {
+        _selectedPhotos.update { currentList -> currentList - photoId }
     }
 }
