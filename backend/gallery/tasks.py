@@ -1,8 +1,8 @@
 import os
 import uuid
+from collections import defaultdict
 import numpy as np
 from celery import shared_task
-from faiss import IndexFlatL2
 from qdrant_client import models
 
 from .vision_service import get_image_embedding
@@ -12,6 +12,7 @@ from .models import Tag, User, Photo_Tag
 import time
 
 from sentence_transformers import SentenceTransformer
+
 _TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 _text_model = None  # 전역 캐시
 
@@ -29,9 +30,10 @@ def get_text_model():
 
 
 @shared_task
-def process_and_embed_photo(image_path, user_id, filename, photo_path_id, created_at, lat, lng):
+def process_and_embed_photo(
+    image_path, user_id, filename, photo_path_id, created_at, lat, lng
+):
     try:
-
         # 파일이 실제로 생길 때까지 잠시 대기
         waited = 0
         while not os.path.exists(image_path) and waited < MAX_WAIT:
@@ -39,15 +41,15 @@ def process_and_embed_photo(image_path, user_id, filename, photo_path_id, create
             waited += WAIT_INTERVAL
 
         if not os.path.exists(image_path):
-            print(f"[Celery Task Error] File not found even after waiting: {
-                  image_path}")
+            print(
+                f"[Celery Task Error] File not found even after waiting: {image_path}"
+            )
             return
 
         embedding = get_image_embedding(image_path)
 
         if embedding is None:
-            print(
-                f"[Celery Task Error] Failed to create embedding for {filename}")
+            print(f"[Celery Task Error] Failed to create embedding for {filename}")
             if os.path.exists(image_path):
                 os.remove(image_path)
             return
@@ -62,14 +64,12 @@ def process_and_embed_photo(image_path, user_id, filename, photo_path_id, create
                 "photo_path_id": photo_path_id,
                 "created_at": created_at,
                 "lat": lat,
-                "lng": lng
-            }
+                "lng": lng,
+            },
         )
 
         client.upsert(
-            collection_name=IMAGE_COLLECTION_NAME,
-            points=[point_to_upsert],
-            wait=True
+            collection_name=IMAGE_COLLECTION_NAME, points=[point_to_upsert], wait=True
         )
         print(f"[Celery Task Success] Processed and upserted photo {filename}")
 
@@ -91,19 +91,18 @@ def create_or_update_tag_embedding(user_id, tag_name, tag_id):
         tag, created = Tag.objects.update_or_create(
             tag_id=tag_id,
             user=user_instance,
-            defaults={'tag': tag_name, 'embedding': embedding}
+            defaults={"tag": tag_name, "embedding": embedding},
         )
 
         if created:
-            print(f"[Celery Task Success] Created tag '{
-                  tag_name}' with id {tag_id}")
+            print(f"[Celery Task Success] Created tag '{tag_name}' with id {tag_id}")
         else:
-            print(f"[Celery Task Success] Updated tag '{
-                  tag_name}' with id {tag_id}")
+            print(f"[Celery Task Success] Updated tag '{tag_name}' with id {tag_id}")
 
     except Exception as e:
         print(
-            f"[Celery Task Exception] Error creating/updating tag '{tag_name}': {str(e)}")
+            f"[Celery Task Exception] Error creating/updating tag '{tag_name}': {str(e)}"
+        )
 
 
 def create_query_embedding(query):
@@ -118,26 +117,50 @@ def tag_recommendation(photo_id):
     return tag, tag_id
 
 
+# aggregates N similarity queries with Reciprocal Rank Fusion
 def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
-    rep_vectors, rep_vec_idx_to_tag = retrieve_all_rep_vectors(user_id)
+    LIMIT = 40
+    RRF_CONSTANT = 40
 
-    faiss_index = build_faiss_index(rep_vectors)
+    rep_vectors = retrieve_all_rep_vectors_of_tag(user_id, tag_id)
 
-    img_vectors, img_idx_to_metadata = retrieve_images_without_tag(
-        user_id, tag_id)
+    rrf_scores = defaultdict(float)
+    photo_id_to_path_id = {}
 
-    recommendation_idx = find_similar_images_with_tag(
-        tag_id,
-        faiss_index,
-        rep_vectors,
-        rep_vec_idx_to_tag,
-        img_vectors,
+    for rep_vector in rep_vectors:
+        img_points = client.query_points(
+            IMAGE_COLLECTION_NAME,
+            query=rep_vector,
+            with_payload=["photo_id", "photo_path_id"],
+            limit=LIMIT,
+        ).points
+
+        for i, img_point in enumerate(img_points):
+            photo_id = img_point.payload["photo_id"]
+            photo_path_id = img_point.payload["photo_path_id"]
+
+            rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
+            photo_id_to_path_id[photo_id] = photo_path_id
+
+    rrf_sorted = sorted(
+        rrf_scores.items(),
+        key=lambda item: item[1],
+        reverse=True,
     )
 
-    return [
-        img_idx_to_metadata[idx]
-        for idx in recommendation_idx
-    ]
+    tagged_photo_ids = (
+        Photo_Tag.objects.filter(user__id=user_id)
+        .filter(tag_id=tag_id)
+        .values_list("photo_id", flat=True)
+    )
+
+    recommendations = [
+        {"photo_id": photo_id, "photo_path_id": photo_id_to_path_id[photo_id]}
+        for (photo_id, _) in rrf_sorted
+        if photo_id not in tagged_photo_ids
+    ][:LIMIT]
+
+    return recommendations
 
 
 def is_valid_uuid(uuid_to_test):
@@ -148,124 +171,27 @@ def is_valid_uuid(uuid_to_test):
     return True
 
 
-def retrieve_all_rep_vectors(user_id: int):
-    BATCH_SIZE = 256
+def retrieve_all_rep_vectors_of_tag(user_id: int, tag_id: uuid.UUID):
+    LIMIT = 32  # assert max num of rep vectors <= 32
 
-    rep_vectors = np.array(dtype=np.float32)
-    rep_vec_idx_to_tag = []
-
-    user_filter = models.Filter(
-        must=[
-            models.FieldCondition(
-                key="user_id", match=models.MatchValue(value=user_id))
-        ]
-    )
-
-    offset = 0
-
-    while offset is not None:
-        rep_points, offset = client.scroll(
-            REFVEC_COLLECTION_NAME,
-            scroll_filter=user_filter,
-            offset=offset,
-            limit=BATCH_SIZE,
-            with_payload=True,
-            with_vectors=True,
-        )
-
-        rep_vectors = np.vstack(
-            rep_vectors, [point.vector for point in rep_points])
-
-        rep_vec_idx_to_tag.extend(
-            (point.payload["tag_id"] for point in rep_points))
-
-    return rep_vectors, rep_vec_idx_to_tag
-
-
-def retrieve_images_without_tag(user_id: int, tag_id: uuid.UUID):
-    BATCH_SIZE = 256
-
-    all_points = []
-
-    user_filter = models.Filter(
+    filters = models.Filter(
         must=[
             models.FieldCondition(
                 key="user_id", match=models.MatchValue(value=user_id)
-            )
+            ),
+            models.FieldCondition(
+                key="tag_id", match=models.MatchValue(value=str(tag_id))
+            ),
         ]
     )
 
-    offset = 0
-
-    while offset is not None:
-        points, offset = client.scroll(
-            IMAGE_COLLECTION_NAME,
-            scroll_filter=user_filter,
-            offset=offset,
-            limit=BATCH_SIZE,
-            with_payload=True,
-            with_vectors=True,
-        )
-
-        all_points.extend(points)
-
-    tagged_photo_ids = Photo_Tag.objects.filter(
-        user__id=user_id
-    ).filter(
-        tag_id=tag_id
-    ).values_list("photo_id", flat=True)
-
-    points_without_tag = all_points.filter(
-        lambda point: point.payload["photo_id"] not in tagged_photo_ids
+    rep_points, _ = client.scroll(
+        REFVEC_COLLECTION_NAME,
+        scroll_filter=filters,
+        limit=LIMIT,
+        with_vectors=True,
     )
 
-    img_vectors = np.ndarray(
-        [point.vector for point in points_without_tag], dtype=np.float32)
+    rep_vectors: list[list[float]] = [point.vector for point in rep_points]
 
-    img_idx_to_metadata = [
-        {
-            "photo_id": point.payload["photo_id"],
-            "photo_path_id": point.payload["photo_path_id"],
-        }
-        for point in points_without_tag
-    ]
-
-    return img_vectors, img_idx_to_metadata
-
-
-def build_faiss_index(rep_vectors: np.ndarray):
-    # normalize rep. vectors
-    norms = np.linalg.norm(rep_vectors, axis=1, keepdims=True)
-    norms[norms == 0] = 1e-10
-    rep_vectors = rep_vectors / norms
-
-    faiss_index = IndexFlatL2(rep_vectors.shape[1])
-    faiss_index.add(rep_vectors)
-
-    return faiss_index
-
-
-def find_similar_images_with_tag(
-    tag_id,
-    faiss_index,
-    rep_vector,
-    rep_vec_idx_to_tag,
-    img_vectors
-):
-    K = 1
-
-    # normalize img vectors
-    norms = np.linalg.norm(img_vectors, axis=1, keepdims=True)
-    norms[norms == 0] = 1e-10
-    img_vectors = img_vectors / norms
-
-    _, top_k_tags = faiss_index.search(img_vectors, K)
-
-    img_idx = [
-        idx
-        for idx, closest_tags
-        in enumerate(top_k_tags)
-        if any((rep_vec_idx_to_tag[idx] == tag_id for idx in closest_tags))
-    ]
-
-    return img_idx
+    return rep_vectors
