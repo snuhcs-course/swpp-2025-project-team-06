@@ -136,6 +136,7 @@ fun tagXMode(
     variant = TagVariant.CloseWhen(isDeleteMode, onDismiss),
     modifier = modifier,
 )
+
 @Composable
 fun StoryTagChip(
     text: String,
@@ -144,34 +145,37 @@ fun StoryTagChip(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .clickable { onClick() }, // 전체 칩 클릭 가능하게
-        contentAlignment = Alignment.CenterStart // 기본 칩은 왼쪽부터 배치되니까 큰 의미는 없음
+        modifier =
+            modifier
+                .clickable { onClick() },
+        // 전체 칩 클릭 가능하게
+        contentAlignment = Alignment.CenterStart, // 기본 칩은 왼쪽부터 배치되니까 큰 의미는 없음
     ) {
-
         // 1) 원래 tagChip 그대로 그린다 (스타일 건드리지 않음)
         tagChip(
             text = text,
             variant = TagVariant.Plain,
-            modifier = Modifier // 여기선 아무 커스텀 x
+            modifier = Modifier, // 여기선 아무 커스텀 x
         )
 
         // 2) 선택된 경우에만 우상단 체크 뱃지 오버레이
         if (isSelected) {
             Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd) // tagChip의 영역 기준 우상단
-                    .offset(x = 4.dp, y = (-4).dp) // 살짝 밖으로 튀어나오게 보이게
-                    .size(18.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF4CAF50)), // 초록 동그라미
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd) // tagChip의 영역 기준 우상단
+                        .offset(x = 4.dp, y = (-4).dp) // 살짝 밖으로 튀어나오게 보이게
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4CAF50)),
+                // 초록 동그라미
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Selected",
                     tint = Color.White,
-                    modifier = Modifier.size(12.dp)
+                    modifier = Modifier.size(12.dp),
                 )
             }
         }
