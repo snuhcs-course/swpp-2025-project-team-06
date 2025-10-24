@@ -1,7 +1,6 @@
 import os
 import uuid
 from collections import defaultdict
-import numpy as np
 from celery import shared_task
 from qdrant_client import models
 
