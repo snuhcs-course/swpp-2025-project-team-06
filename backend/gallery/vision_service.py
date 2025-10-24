@@ -90,10 +90,9 @@ def get_image_captions(image_path: str) -> dict[str, int]:
         ]
 
     counter = Counter(
-        list(chain.from_iterable((preprocess_text(phrase) for phrase in phrases)))
+        list(chain.from_iterable((phrase_to_words(phrase) for phrase in phrases)))
     )
 
-    print(f"[INFO] Caption generated: {counter}")
     print(f"[DONE] Finished: {image_path}\n", flush=True)
 
     return dict(counter)
@@ -128,7 +127,7 @@ STOP_WORDS = {
 
 
 # caption(sentence) -> word list
-def preprocess_text(text: str) -> list[str]:
+def phrase_to_words(text: str) -> list[str]:
     text = text.lower()  # unified in lowercase
     cleaned_text = re.sub(r"[^a-zA-Z\s]", "", text)
 
