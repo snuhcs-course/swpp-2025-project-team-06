@@ -155,22 +155,23 @@ fun appNavigation() {
             route = Screen.Story.route,
         ) {
             // TODO : 샘플/임시 상태. 실제로는 ViewModel 주입.
-            val mockStories = listOf(
-                StoryModel(
-                    id = "1",
-                    images = listOf("https://images.unsplash.com/photo-1504674900247-0877df9cc836"),
-                    date = "2024.10.15",
-                    location = "강남 맛집",
-                    suggestedTags = listOf("#food", "#맛집", "#행복", "+")
-                ),
-                StoryModel(
-                    id = "2",
-                    images = listOf("https://images.unsplash.com/photo-1501594907352-04cda38ebc29"),
-                    date = "2024.09.22",
-                    location = "제주도 여행",
-                    suggestedTags = listOf("#여행", "#바다", "#힐링", "+")
+            val mockStories =
+                listOf(
+                    StoryModel(
+                        id = "1",
+                        images = listOf("https://images.unsplash.com/photo-1504674900247-0877df9cc836"),
+                        date = "2024.10.15",
+                        location = "강남 맛집",
+                        suggestedTags = listOf("#food", "#맛집", "#행복", "+"),
+                    ),
+                    StoryModel(
+                        id = "2",
+                        images = listOf("https://images.unsplash.com/photo-1501594907352-04cda38ebc29"),
+                        date = "2024.09.22",
+                        location = "제주도 여행",
+                        suggestedTags = listOf("#여행", "#바다", "#힐링", "+"),
+                    ),
                 )
-            )
 
             var selectedTags by remember {
                 mutableStateOf<Map<String, Set<String>>>(emptyMap())
@@ -180,11 +181,12 @@ fun appNavigation() {
                 stories = mockStories,
                 selectedTags = selectedTags,
                 onTagToggle = { storyId, tag ->
-                    selectedTags = selectedTags.toMutableMap().apply {
-                        val current = this[storyId] ?: emptySet()
-                        this[storyId] =
-                            if (tag in current) current - tag else current + tag
-                    }
+                    selectedTags =
+                        selectedTags.toMutableMap().apply {
+                            val current = this[storyId] ?: emptySet()
+                            this[storyId] =
+                                if (tag in current) current - tag else current + tag
+                        }
                 },
                 onDone = { storyId ->
                     // ex: 서버 업로드 등
@@ -195,7 +197,7 @@ fun appNavigation() {
                 onBack = {
                     navController.popBackStack()
                 },
-                navController = navController
+                navController = navController,
             )
         }
     }

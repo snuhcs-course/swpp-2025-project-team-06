@@ -14,7 +14,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -151,14 +150,15 @@ fun StoryTagSelectionScreen(
         // 하단 네비게이션 바
         var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
         BottomNavBar(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(
-                    WindowInsets.navigationBars
-                        .only(WindowInsetsSides.Bottom)
-                        .asPaddingValues(),
-                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(
+                        WindowInsets.navigationBars
+                            .only(WindowInsetsSides.Bottom)
+                            .asPaddingValues(),
+                    ),
             currentTab = currentTab,
             onTabSelected = { tab ->
                 currentTab = tab
@@ -171,13 +171,13 @@ fun StoryTagSelectionScreen(
                     }
                     BottomTab.TagScreen -> {
                         navController.navigate(Screen.Album.route)
-                        //TODO : TagScreen연결
+                        // TODO : TagScreen연결
                     }
                     BottomTab.StoryScreen -> {
                         // 이미 Story 화면이라서 아무 것도 안 해도 됨
                     }
                 }
-            }
+            },
         )
     }
 }

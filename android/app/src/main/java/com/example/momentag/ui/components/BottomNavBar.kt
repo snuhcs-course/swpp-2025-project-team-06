@@ -11,12 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Label
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -25,14 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Temp_word
-
 
 /**
  * 하단 Bottom Navigation
@@ -42,20 +36,22 @@ import com.example.momentag.ui.theme.Temp_word
 fun BottomNavBar(
     modifier: Modifier = Modifier,
     currentTab: BottomTab,
-    onTabSelected: (BottomTab) -> Unit
+    onTabSelected: (BottomTab) -> Unit,
 ) {
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(56.dp),
         color = Color.White,
         tonalElevation = 4.dp,
         shadowElevation = 8.dp,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -86,10 +82,12 @@ fun BottomNavBar(
     }
 }
 
-
 // 어떤 탭이 선택돼 있는지 표현할 enum
 enum class BottomTab {
-    HomeScreen, SearchScreen, TagScreen, StoryScreen
+    HomeScreen,
+    SearchScreen,
+    TagScreen,
+    StoryScreen,
 }
 
 @Composable

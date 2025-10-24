@@ -78,5 +78,5 @@ data class StoryModel(
     val images: List<String>,
     val date: String,
     val location: String,
-    val suggestedTags: List<String>
+    val suggestedTags: List<String>,
 )

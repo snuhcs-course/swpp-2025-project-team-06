@@ -30,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -193,19 +192,19 @@ fun HomeScreen(navController: NavController) {
                         }
                         BottomTab.SearchScreen -> {
                             // 예: 검색 화면으로 이동
-                             navController.navigate(Screen.SearchResult.route)
+                            navController.navigate(Screen.SearchResult.route)
                         }
                         BottomTab.TagScreen -> {
                             // 예: 태그 생성 / 업로드 등
-                             navController.navigate(Screen.Album.route)
-                            //TODO : 여기도 Tag 화면으로 이동
+                            navController.navigate(Screen.Album.route)
+                            // TODO : 여기도 Tag 화면으로 이동
                         }
                         BottomTab.StoryScreen -> {
                             // ✅ 여기서 스토리 화면으로 이동하면 돼
                             navController.navigate(Screen.Story.route)
                         }
                     }
-                }
+                },
             )
         },
         containerColor = Background,
@@ -233,14 +232,16 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
             },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Spacer(modifier = Modifier.height(24.dp))
@@ -301,9 +302,10 @@ private fun ViewToggle(
         horizontalArrangement = Arrangement.End,
     ) {
         Box(
-            modifier = Modifier
-                .background(Semi_background, RoundedCornerShape(8.dp))
-                .padding(4.dp),
+            modifier =
+                Modifier
+                    .background(Semi_background, RoundedCornerShape(8.dp))
+                    .padding(4.dp),
         ) {
             Row {
                 Icon(
@@ -402,26 +404,28 @@ fun TagGridItem(
             AsyncImage(
                 model = imageUri,
                 contentDescription = tagName,
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .align(Alignment.BottomCenter)
-                    .clickable {
-                        navController.navigate(Screen.Album.createRoute(tagName))
-                    },
+                modifier =
+                    Modifier
+                        .padding(top = 12.dp)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .align(Alignment.BottomCenter)
+                        .clickable {
+                            navController.navigate(Screen.Album.createRoute(tagName))
+                        },
                 contentScale = ContentScale.Crop,
             )
         } else {
             Spacer(
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .aspectRatio(1f)
-                    .background(
-                        color = Picture,
-                        shape = RoundedCornerShape(16.dp),
-                    ).align(Alignment.BottomCenter)
-                    .clickable { /* TODO */ },
+                modifier =
+                    Modifier
+                        .padding(top = 12.dp)
+                        .aspectRatio(1f)
+                        .background(
+                            color = Picture,
+                            shape = RoundedCornerShape(16.dp),
+                        ).align(Alignment.BottomCenter)
+                        .clickable { /* TODO */ },
             )
         }
 
@@ -429,13 +433,14 @@ fun TagGridItem(
             text = tagName,
             color = Word,
             fontSize = 12.sp,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 8.dp)
-                .background(
-                    color = TagColor,
-                    shape = RoundedCornerShape(8.dp),
-                ).padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp)
+                    .background(
+                        color = TagColor,
+                        shape = RoundedCornerShape(8.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }
@@ -445,27 +450,29 @@ fun TagGridItem(
 fun TagGridItem(tagName: String) {
     Box(modifier = Modifier) {
         Spacer(
-            modifier = Modifier
-                .padding(top = 12.dp)
-                .aspectRatio(1f)
-                .background(
-                    color = Picture,
-                    shape = RoundedCornerShape(16.dp),
-                ).align(Alignment.BottomCenter)
-                .clickable { /* TODO */ },
+            modifier =
+                Modifier
+                    .padding(top = 12.dp)
+                    .aspectRatio(1f)
+                    .background(
+                        color = Picture,
+                        shape = RoundedCornerShape(16.dp),
+                    ).align(Alignment.BottomCenter)
+                    .clickable { /* TODO */ },
         )
 
         Text(
             text = tagName,
             color = Word,
             fontSize = 12.sp,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 8.dp)
-                .background(
-                    color = TagColor,
-                    shape = RoundedCornerShape(8.dp),
-                ).padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp)
+                    .background(
+                        color = TagColor,
+                        shape = RoundedCornerShape(8.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
 }
