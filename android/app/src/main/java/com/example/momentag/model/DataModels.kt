@@ -71,3 +71,12 @@ data class PhotoUploadData(
     val photo: List<MultipartBody.Part>,
     val metadata: RequestBody,
 )
+
+// ========== Story Models =================
+data class Story(
+    val id: String,
+    val images: List<String>,
+    val date: String,
+    val location: String,
+    val suggestedTags: List<String>
+)
