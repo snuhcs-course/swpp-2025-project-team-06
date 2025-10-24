@@ -4,11 +4,8 @@ from celery import shared_task
 from qdrant_client import models
 
 from .vision_service import get_image_embedding
-from .qdrant_utils import client, IMAGE_COLLECTION_NAME
+from .qdrant_utils import client, IMAGE_COLLECTION_NAME, REPVEC_COLLECTION_NAME
 from .models import Tag, User
-
-import numpy as np
-import faiss
 
 import time
 
@@ -107,79 +104,47 @@ def create_query_embedding(query):
     return model.encode(query)
 
 def tag_recommendation(user_id, photo_id):
-    refvec_points = []
-    
-    user_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="user_id",
-                        match=models.MatchValue(value=user_id),
-                    )
-                ]
-            )
-    next_offset = None
-    while True:
-        points, next_offset = client.scroll(
-            collection_name=IMAGE_COLLECTION_NAME,
-            scroll_filter=user_filter,
-            limit=200,
-            offset=next_offset, 
-            with_payload=True
-        )
-        
-        refvec_points.extend(points)
-        
-        if next_offset is None:
-            break
-    
-    all_representative_vectors = []
-    
-    for point in refvec_points:
-        tag = Tag.objects.get(tag_id = point.payload['tag_id'])
-        tag_name = tag.tag
-        all_representative_vectors.append({"vector":point.vector, "tag_name":tag_name})
-    
     retrieved_points = client.retrieve(
         collection_name=IMAGE_COLLECTION_NAME,
-        ids=photo_id,
-        with_payload=True, 
+        ids=[photo_id],
         with_vectors=True,
     )
     
-    image_vec = retrieved_points.vector
-    image_vector = np.array(image_vec)
+    if not retrieved_points:
+        raise ValueError(f"Image with id {photo_id} not found in collection.")
     
-    tag = find_most_similar_tag(image_vector, all_representative_vectors)
-    tag_id = Tag.objects.get(tag = tag).tag_id
+    image_vector = retrieved_points[0].vector
     
-    return tag, tag_id
-
-
-def find_most_similar_tag(image_vector: np.ndarray, refvecs: list) -> str:
-    representative_vectors = np.array([item["vector"] for item in refvecs])
-    representative_tags = [item["tag_name"] for item in refvecs]
-
-    d = representative_vectors.shape[1]
+    user_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="user_id",
+                match=models.MatchValue(value=user_id),
+            )
+        ]
+    )
     
-    norms = np.linalg.norm(representative_vectors, axis=1, keepdims=True)
-    norms[norms == 0] = 1e-10
-    normalized_vectors = (representative_vectors / norms).astype('float32')
-
-    index = faiss.IndexFlatL2(d)
-    index.add(normalized_vectors)
-
-    query_vector = np.array(image_vector).reshape(1, -1).astype('float32')
-    norm = np.linalg.norm(query_vector)
-    if norm == 0: 
-        norm = 1e-10
-    normalized_query = query_vector / norm
-
-    _distances, indices = index.search(normalized_query, 1)
+    search_result = client.search(
+        collection_name=REPVEC_COLLECTION_NAME,
+        query_vector=image_vector,
+        query_filter=user_filter,
+        limit=1,
+        with_payload=True,
+    )
     
-    most_similar_index = indices[0][0]
-    most_similar_tag = representative_tags[most_similar_index]
+    if not search_result:
+        return None, None
+        
+    most_similar_point = search_result[0]
+    recommended_tag_id = most_similar_point.payload['tag_id']
     
-    return most_similar_tag
+    try:
+        tag = Tag.objects.get(tag_id=recommended_tag_id)
+        recommended_tag_name = tag.tag
+    except Tag.DoesNotExist:
+        return None, None
+        
+    return recommended_tag_name, recommended_tag_id
 
 def is_valid_uuid(uuid_to_test):
     try:

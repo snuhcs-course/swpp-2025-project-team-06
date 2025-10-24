@@ -12,7 +12,7 @@ client = QdrantClient(
 )
 
 IMAGE_COLLECTION_NAME = "my_image_collection"
-REFVEC_COLLECTION_NAME = "my_refvec_collection"
+REPVEC_COLLECTION_NAME = "my_repvec_collection"
 
 def initialize_qdrant():
     try:
@@ -25,13 +25,13 @@ def initialize_qdrant():
         print(f"Collection '{IMAGE_COLLECTION_NAME}' created.")
 
     try:
-        client.get_collection(collection_name=REFVEC_COLLECTION_NAME)
+        client.get_collection(collection_name=REPVEC_COLLECTION_NAME)
     except (UnexpectedResponse, ValueError):
         client.create_collection(
-            collection_name=REFVEC_COLLECTION_NAME,
+            collection_name=REPVEC_COLLECTION_NAME,
             vectors_config=models.VectorParams(size=512, distance=models.Distance.COSINE),
         )
-        print(f"Collection '{REFVEC_COLLECTION_NAME}' created.")
+        print(f"Collection '{REPVEC_COLLECTION_NAME}' created.")
 
     image_indexes = {
         "user_id": models.PayloadSchemaType.INTEGER,
@@ -58,7 +58,7 @@ def initialize_qdrant():
     for field, schema in refvec_indexes.items():
         try:
             client.create_payload_index(
-                collection_name=REFVEC_COLLECTION_NAME,
+                collection_name=REPVEC_COLLECTION_NAME,
                 field_name=field,
                 field_schema=schema,
             )
