@@ -2,8 +2,12 @@ package com.example.momentag.repository
 
 import android.content.ContentUris
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.media.ExifInterface
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import com.example.momentag.model.Album
 import com.example.momentag.model.PhotoMeta
@@ -12,10 +16,6 @@ import com.google.gson.Gson
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.ImageDecoder
-import android.os.Build
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,26 +52,54 @@ class LocalRepository(
         return imageUriList
     }
 
-    // Resize and compress image from content Uri to a JPEG byte array.
-    // Returns null on failure.
-    private fun resizeImage(contentUri: Uri, maxWidth: Int, maxHeight: Int, quality: Int = 85): ByteArray? {
+    // 이미지 리사이즈 & JPEG 압축
+    // - contentUri 이미지를 비율 유지하며 maxWidth/maxHeight 안으로 줄이고
+    // - JPEG로 압축한 ByteArray를 반환 (실패 시 null)
+    // - API 28+ : ImageDecoder (EXIF 자동 반영) + 정수 샘플링 우선
+    // - API <28 : BitmapFactory + inSampleSize(OR 루프) + EXIF 수동 회전 보정
+    private fun resizeImage(
+        contentUri: Uri,
+        maxWidth: Int,
+        maxHeight: Int,
+        quality: Int = 85,
+    ): ByteArray? {
         try {
-            // Prefer ImageDecoder on P+ for correct orientation, sampling and better memory behavior
+            val cr = context.contentResolver
+
+            // API 28 이상: ImageDecoder 사용
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val source = ImageDecoder.createSource(context.contentResolver, contentUri)
-                val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-                    val origW = info.size.width
-                    val origH = info.size.height
-                    if (origW > 0 && origH > 0 && (origW > maxWidth || origH > maxHeight)) {
-                        val ratio = minOf(maxWidth.toFloat() / origW.toFloat(), maxHeight.toFloat() / origH.toFloat())
-                        val targetW = (origW * ratio).toInt().coerceAtLeast(1)
-                        val targetH = (origH * ratio).toInt().coerceAtLeast(1)
-                        decoder.setTargetSize(targetW, targetH)
+                val source = ImageDecoder.createSource(cr, contentUri)
+                val bitmap =
+                    ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                        val ow = info.size.width
+                        val oh = info.size.height
+
+                        if (ow > 0 && oh > 0) {
+                            // 크게 줄일 때 정수 샘플링으로 효율 올림.
+                            val sample =
+                                maxOf(
+                                    (ow + maxWidth - 1) / maxWidth,
+                                    (oh + maxHeight - 1) / maxHeight,
+                                ).coerceAtLeast(1)
+
+                            if (sample > 1) {
+                                decoder.setTargetSampleSize(sample)
+                            } else if (ow > maxWidth || oh > maxHeight) {
+                                val ratio =
+                                    minOf(
+                                        maxWidth.toFloat() / ow.toFloat(),
+                                        maxHeight.toFloat() / oh.toFloat(),
+                                    )
+                                val tw = (ow * ratio).toInt().coerceAtLeast(1)
+                                val th = (oh * ratio).toInt().coerceAtLeast(1)
+                                decoder.setTargetSize(tw, th)
+                            }
+                        }
+
+                        // JPEG 압축 안정성을 위해 SW 비트맵으로
+                        decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                        decoder.isMutableRequired = false
                     }
-                    // prefer software allocator for reliable compress
-                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                    decoder.isMutableRequired = false
-                }
 
                 val baos = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
@@ -81,50 +109,101 @@ class LocalRepository(
                 return bytes
             }
 
-            // Fallback for older devices: use BitmapFactory sampling + scaling
-            val cr = context.contentResolver
+            // API 28 미만일 때
+            // 먼저 원본 크기 파악
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            cr.openInputStream(contentUri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
 
-            val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            cr.openInputStream(contentUri)?.use { BitmapFactory.decodeStream(it, null, boundsOptions) } ?: return null
+            val ow = bounds.outWidth
+            val oh = bounds.outHeight
+            if (ow <= 0 || oh <= 0) return null
 
-            val origWidth = boundsOptions.outWidth
-            val origHeight = boundsOptions.outHeight
-            if (origWidth <= 0 || origHeight <= 0) return null
-
+            // inSampleSize 계산: OR 조건으로 한쪽이라도 넘으면 계속 2배로
             var inSampleSize = 1
-            if (origHeight > maxHeight || origWidth > maxWidth) {
-                val halfHeight = origHeight / 2
-                val halfWidth = origWidth / 2
-                while ((halfHeight / inSampleSize) >= maxHeight && (halfWidth / inSampleSize) >= maxWidth) {
-                    inSampleSize *= 2
+            while ((oh / inSampleSize) > maxHeight || (ow / inSampleSize) > maxWidth) {
+                inSampleSize *= 2
+            }
+
+            // Sampling Decode
+            val decodeOpts =
+                BitmapFactory.Options().apply {
+                    this.inSampleSize = inSampleSize
                 }
-            }
+            val sampled =
+                cr.openInputStream(contentUri)?.use {
+                    BitmapFactory.decodeStream(it, null, decodeOpts)
+                } ?: return null
 
-            val decodeOptions = BitmapFactory.Options().apply { this.inSampleSize = inSampleSize }
-            val sampledBitmap = cr.openInputStream(contentUri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) } ?: return null
+            // EXIF 회전/플립 보정
+            val rotated = applyExifRotation(cr, contentUri, sampled)
 
-            var finalBitmap = sampledBitmap
-            val width = sampledBitmap.width
-            val height = sampledBitmap.height
-            if (width > maxWidth || height > maxHeight) {
-                val ratio = minOf(maxWidth.toFloat() / width.toFloat(), maxHeight.toFloat() / height.toFloat())
-                val targetW = (width * ratio).toInt()
-                val targetH = (height * ratio).toInt()
-                val scaled = Bitmap.createScaledBitmap(sampledBitmap, targetW, targetH, true)
-                if (scaled != sampledBitmap) sampledBitmap.recycle()
-                finalBitmap = scaled
-            }
+            // 아직도 큰 경우, 비율 유지 Scale (최소 1픽셀 보장)
+            val cw = rotated.width
+            val ch = rotated.height
+            val finalBitmap =
+                if (cw > maxWidth || ch > maxHeight) {
+                    val ratio =
+                        minOf(
+                            maxWidth.toFloat() / cw.toFloat(),
+                            maxHeight.toFloat() / ch.toFloat(),
+                        )
+                    val tw = (cw * ratio).toInt().coerceAtLeast(1)
+                    val th = (ch * ratio).toInt().coerceAtLeast(1)
+                    val scaled = Bitmap.createScaledBitmap(rotated, tw, th, true)
+                    if (scaled !== rotated) rotated.recycle()
+                    scaled
+                } else {
+                    rotated
+                }
 
+            // JPEG 압축
             val baos = ByteArrayOutputStream()
             finalBitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
             val bytes = baos.toByteArray()
             baos.close()
             finalBitmap.recycle()
             return bytes
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
+            // OOM 포함 모든 치명적 오류에 대해 null로 fail-safe
             return null
         }
     }
+
+    // EXIF 회전/플립 보정 API < 28 전용
+    // 새 비트맵을 만들면 원본은 recycle() 처리
+    private fun applyExifRotation(
+        cr: android.content.ContentResolver,
+        uri: Uri,
+        bitmap: Bitmap,
+    ): Bitmap =
+        try {
+            val exif = cr.openInputStream(uri)?.use { ExifInterface(it) }
+            val o =
+                exif?.getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL,
+                ) ?: ExifInterface.ORIENTATION_NORMAL
+
+            val m = android.graphics.Matrix()
+            when (o) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> m.postRotate(90f)
+                ExifInterface.ORIENTATION_ROTATE_180 -> m.postRotate(180f)
+                ExifInterface.ORIENTATION_ROTATE_270 -> m.postRotate(270f)
+                ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> m.postScale(-1f, 1f)
+                ExifInterface.ORIENTATION_FLIP_VERTICAL -> m.postScale(1f, -1f)
+                else -> { /* no-op */ }
+            }
+
+            if (m.isIdentity) {
+                bitmap
+            } else {
+                val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, true)
+                if (rotated !== bitmap) bitmap.recycle()
+                rotated
+            }
+        } catch (_: Throwable) {
+            bitmap
+        }
 
     // Returns an 'upload request' with photo metadata
     // Currently uploads only 3 photos for testing
@@ -191,16 +270,19 @@ class LocalRepository(
                     // generate MultipartBody.Part
                     // Resize & compress to JPEG to reduce upload size and memory usage. If resize fails, fall back to raw bytes.
                     val resizedBytes = resizeImage(contentUri, maxWidth = 1280, maxHeight = 1280, quality = 85)
-                        ?: context.contentResolver.openInputStream(contentUri)?.use { it.readBytes() }
-
-                    resizedBytes?.let { bytes ->
-                        // compressed to JPEG when resizeImage succeeds; if fallback raw bytes, keep generic image/* or prefer jpeg
-                        val mediaType = if (resizedBytes === bytes) "image/jpeg" else "image/*"
-                        val requestBody = bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                    val (bytes, mime) =
+                        if (resizedBytes != null) {
+                            resizedBytes to "image/jpeg"
+                        } else {
+                            val raw = context.contentResolver.openInputStream(contentUri)?.use { it.readBytes() }
+                            val type = context.contentResolver.getType(contentUri) ?: "application/octet-stream"
+                            raw to type
+                        }
+                    bytes?.let { b ->
+                        val requestBody = b.toRequestBody(mime.toMediaTypeOrNull())
                         val part = MultipartBody.Part.createFormData("photo", filename, requestBody)
                         photoParts.add(part)
                     }
-
                     // generate metadata list
                     metadataList.add(
                         PhotoMeta(
