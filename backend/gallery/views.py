@@ -18,7 +18,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 from .tasks import process_and_embed_photo
-from django.db import IntegrityError
+
 
 
 class PhotoView(APIView):
@@ -246,10 +246,10 @@ class PhotoDetailView(APIView):
             for point in all_photo_points:
                 photo_tags = Photo_Tag.objects.filter(photo_id=point.id)
                 for pt in photo_tags:
-                    tag = Tag.objects.get(id=pt.tag_id)
+                    tag = Tag.objects.get(tag_id=pt.tag_id)
                     photos.append({
                         "photo_path_id": point.payload.get("photo_path_id"),
-                        "tags": [{"tag_id": tag.id, "tag": tag.tag}]
+                        "tags": [{"tag_id": tag.tag_id, "tag": tag.tag}]
                     })
                     
             return Response(photos, status=status.HTTP_200_OK)
@@ -272,7 +272,7 @@ class PhotoDetailView(APIView):
     )
     def delete(self, request, photo_id):
         try:
-            photo_tag = Photo_Tag.objects.get(id=photo_id, user=request.user)
+            photo_tag = Photo_Tag.objects.get(photo_id=photo_id, user=request.user)
             photo_tag.delete()
 
             client.delete(
@@ -459,7 +459,7 @@ class DeletePhotoTagsView(APIView):
     )
     def delete(self, request, photo_id, tag_id):
         try:
-            Tag.objects.get(id=tag_id, user=request.user)
+            Tag.objects.get(tag_id=tag_id, user=request.user)
             
             if not client.exists(collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)):
                 return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
@@ -543,6 +543,12 @@ class TagView(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
             data = serializer.validated_data
+
+            if len(data['tag']) > 50:
+                return Response(
+                    {"error": "Tag name cannot exceed 50 characters."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             if Tag.objects.filter(tag=data['tag'], user=request.user).exists():
                 return Response(
