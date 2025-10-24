@@ -35,10 +35,10 @@ class SignUpView(APIView):
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         if User.objects.filter(email=request.data['email']).exists():
-            return Response(status=status.HTTP_409_CONFLICT)
+            return Response({"detail": "email conflict"}, status=status.HTTP_409_CONFLICT)
 
         user = serializer.save()
         user.set_password(request.data['password'])
