@@ -12,6 +12,11 @@ import com.google.gson.Gson
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.os.Build
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -45,6 +50,80 @@ class LocalRepository(
                 }
             }
         return imageUriList
+    }
+
+    // Resize and compress image from content Uri to a JPEG byte array.
+    // Returns null on failure.
+    private fun resizeImage(contentUri: Uri, maxWidth: Int, maxHeight: Int, quality: Int = 85): ByteArray? {
+        try {
+            // Prefer ImageDecoder on P+ for correct orientation, sampling and better memory behavior
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val source = ImageDecoder.createSource(context.contentResolver, contentUri)
+                val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                    val origW = info.size.width
+                    val origH = info.size.height
+                    if (origW > 0 && origH > 0 && (origW > maxWidth || origH > maxHeight)) {
+                        val ratio = minOf(maxWidth.toFloat() / origW.toFloat(), maxHeight.toFloat() / origH.toFloat())
+                        val targetW = (origW * ratio).toInt().coerceAtLeast(1)
+                        val targetH = (origH * ratio).toInt().coerceAtLeast(1)
+                        decoder.setTargetSize(targetW, targetH)
+                    }
+                    // prefer software allocator for reliable compress
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    decoder.isMutableRequired = false
+                }
+
+                val baos = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
+                val bytes = baos.toByteArray()
+                baos.close()
+                bitmap.recycle()
+                return bytes
+            }
+
+            // Fallback for older devices: use BitmapFactory sampling + scaling
+            val cr = context.contentResolver
+
+            val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            cr.openInputStream(contentUri)?.use { BitmapFactory.decodeStream(it, null, boundsOptions) } ?: return null
+
+            val origWidth = boundsOptions.outWidth
+            val origHeight = boundsOptions.outHeight
+            if (origWidth <= 0 || origHeight <= 0) return null
+
+            var inSampleSize = 1
+            if (origHeight > maxHeight || origWidth > maxWidth) {
+                val halfHeight = origHeight / 2
+                val halfWidth = origWidth / 2
+                while ((halfHeight / inSampleSize) >= maxHeight && (halfWidth / inSampleSize) >= maxWidth) {
+                    inSampleSize *= 2
+                }
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply { this.inSampleSize = inSampleSize }
+            val sampledBitmap = cr.openInputStream(contentUri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) } ?: return null
+
+            var finalBitmap = sampledBitmap
+            val width = sampledBitmap.width
+            val height = sampledBitmap.height
+            if (width > maxWidth || height > maxHeight) {
+                val ratio = minOf(maxWidth.toFloat() / width.toFloat(), maxHeight.toFloat() / height.toFloat())
+                val targetW = (width * ratio).toInt()
+                val targetH = (height * ratio).toInt()
+                val scaled = Bitmap.createScaledBitmap(sampledBitmap, targetW, targetH, true)
+                if (scaled != sampledBitmap) sampledBitmap.recycle()
+                finalBitmap = scaled
+            }
+
+            val baos = ByteArrayOutputStream()
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
+            val bytes = baos.toByteArray()
+            baos.close()
+            finalBitmap.recycle()
+            return bytes
+        } catch (e: Exception) {
+            return null
+        }
     }
 
     // Returns an 'upload request' with photo metadata
@@ -110,9 +189,14 @@ class LocalRepository(
                     }
 
                     // generate MultipartBody.Part
-                    context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
-                        val bytes = inputStream.readBytes()
-                        val requestBody = bytes.toRequestBody("image/*".toMediaTypeOrNull())
+                    // Resize & compress to JPEG to reduce upload size and memory usage. If resize fails, fall back to raw bytes.
+                    val resizedBytes = resizeImage(contentUri, maxWidth = 1280, maxHeight = 1280, quality = 85)
+                        ?: context.contentResolver.openInputStream(contentUri)?.use { it.readBytes() }
+
+                    resizedBytes?.let { bytes ->
+                        // compressed to JPEG when resizeImage succeeds; if fallback raw bytes, keep generic image/* or prefer jpeg
+                        val mediaType = if (resizedBytes === bytes) "image/jpeg" else "image/*"
+                        val requestBody = bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
                         val part = MultipartBody.Part.createFormData("photo", filename, requestBody)
                         photoParts.add(part)
                     }
