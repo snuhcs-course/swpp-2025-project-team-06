@@ -187,6 +187,8 @@ fun SearchResultScreen(
             }
             photoTagViewModel.setInitialData(null, selectedImagesId)
             navController.navigate(Screen.AddTag.route)
+            isSelectionMode = false
+            selectedImages = emptyList()
         },
         onRetry = {
             if (searchText.isNotEmpty()) {
