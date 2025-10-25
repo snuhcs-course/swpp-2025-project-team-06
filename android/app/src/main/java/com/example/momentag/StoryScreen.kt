@@ -30,6 +30,9 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -48,6 +51,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,12 +102,30 @@ fun StoryTagSelectionScreen(
     onDone: (storyId: String) -> Unit,
     onComplete: () -> Unit,
     onBack: () -> Unit,
+    onLoadMore: () -> Unit = {}, //더 많은 스토리 로드 (기본값: no-op)
+    isLoading: Boolean = false, // 로딩 상태
+    hasMore: Boolean = true, //더 로드할 스토리 있는지 확인용
     modifier: Modifier = Modifier,
     navController: NavController,
 ) {
-    val pagerState = rememberPagerState(pageCount = { stories.size })
-    val coroutineScope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
+
+    // 스크롤이 끝에 가까워지면 감지!! (뒤에서 2번째가 보일 때)
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            val totalItems = listState.layoutInfo.totalItemsCount
+            lastVisibleItem != null && lastVisibleItem.index >= totalItems - 2 && totalItems > 0
+        }
+    }
+
+    // 스크롤이 끝에 가까워지면 더 로드
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore && !isLoading && hasMore) {
+            onLoadMore()
+        }
+    }
 
     Column(
         modifier =
@@ -117,52 +140,84 @@ fun StoryTagSelectionScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // 상단 컨텐츠
-        VerticalPager(
-            state = pagerState,
+        // 스토리 리스트 (무한 스크롤 반영)
+        LazyColumn(
+            state = listState,
             modifier =
                 Modifier
-                    .weight(1f) // 상단 영역을 가능한 크게
-                    .fillMaxSize(),
-        ) { page ->
-            val story = stories[page]
+                    .weight(1f)
+                    .fillMaxWidth(),
+        ) {
+            itemsIndexed(
+                items = stories,
+                key = { _, story -> story.id }, // 중요: 각 아이템에 고유 키가 필수
+            ) { index, story ->
+                val isFirstStory = index == 0
+                val selectedForThisStory = selectedTags[story.id] ?: emptySet()
 
-            StoryPageFullBlock(
-                story = story,
-                showScrollHint = (page == 0),
-            )
-        }
-
-        // 여기서 TagSelectionCard를 보이도록 변경
-        val currentPage = pagerState.currentPage
-        val currentStory = stories.getOrNull(currentPage)
-        val isLastPage = currentPage == stories.lastIndex
-        val selectedForThisStory = currentStory?.let { selectedTags[it.id] } ?: emptySet()
-
-        if (currentStory != null) {
-            TagSelectionCard(
-                tags = currentStory.suggestedTags,
-                selectedTags = selectedForThisStory,
-                onTagToggle = { tag ->
-                    onTagToggle(currentStory.id, tag)
-                },
-                onDone = {
-                    onDone(currentStory.id)
-                    coroutineScope.launch {
-                        if (!isLastPage) {
-                            pagerState.animateScrollToPage(currentPage + 1)
-                        } else {
-                            onComplete()
+                // 각 스토리 페이지
+                Box(
+                    modifier =
+                        Modifier
+                            .fillParentMaxHeight() // LazyColumn의 전체 높이를 차지
+                            .fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        // 스토리 컨텐츠 영역
+                        Box(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                        ) {
+                            StoryPageFullBlock(
+                                story = story,
+                                showScrollHint = isFirstStory,
+                            )
                         }
+
+                        // 태그 선택 카드
+                        TagSelectionCard(
+                            tags = story.suggestedTags,
+                            selectedTags = selectedForThisStory,
+                            onTagToggle = { tag ->
+                                onTagToggle(story.id, tag)
+                            },
+                            onDone = {
+                                onDone(story.id)
+                                // 마지막 스토리가 아니면 다음으로 자동 스크롤 가능
+                                // (선택사항: 자동 스크롤을 원하지 않으면 제거)
+                            },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .padding(bottom = 12.dp),
+                        )
                     }
-                },
-                isLastPage = isLastPage,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 12.dp),
-            )
+                }
+            }
+
+            // 로딩 인디케이터
+            if (isLoading) {
+                item {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "더 많은 추억을 불러오는 중...",
+                            color = Temp_word,
+                            fontSize = 14.sp,
+                        )
+                    }
+                }
+            }
         }
 
         // 하단 네비게이션 바
@@ -350,7 +405,6 @@ private fun TagSelectionCard(
     selectedTags: Set<String>,
     onTagToggle: (String) -> Unit,
     onDone: () -> Unit,
-    isLastPage: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val borderColor = Pink80
@@ -414,7 +468,7 @@ private fun TagSelectionCard(
             val hasSelection = selectedTags.isNotEmpty()
 
             GradientPillButton(
-                text = if (isLastPage) "Save" else "Done",
+                text = "Done",
                 enabled = hasSelection,
                 onClick = onDone,
             )
@@ -585,21 +639,23 @@ private fun Preview_StoryTagSelectionScreen() {
             ),
         )
 
-    var selectedTags by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
+    val selectedTags = remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
 
     StoryTagSelectionScreen(
         stories = sampleStories,
-        selectedTags = selectedTags,
-        onTagToggle = { storyId, tag ->
-            selectedTags =
-                selectedTags.toMutableMap().apply {
-                    val cur = this[storyId] ?: emptySet()
-                    this[storyId] = if (tag in cur) cur - tag else cur + tag
-                }
+        selectedTags = selectedTags.value,
+        onTagToggle = { storyId: String, tag: String ->
+            // Preview에서는 실제 업데이트 하지 않음
         },
-        onDone = { true },
-        onComplete = { },
-        onBack = { },
+        onDone = { storyId: String ->
+            // Preview에서는 아무것도 안함
+        },
+        onComplete = {
+            // Preview에서는 아무것도 안함
+        },
+        onBack = {
+            // Preview에서는 아무것도 안함
+        },
         navController = rememberNavController(),
     )
 }
@@ -663,7 +719,6 @@ private fun StoryPageFullBlockPreviewContent(
                 selectedTags = setOf("#카페", "#디저트"),
                 onTagToggle = {},
                 onDone = {},
-                isLastPage = false,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
