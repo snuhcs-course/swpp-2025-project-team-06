@@ -73,7 +73,7 @@ def get_image_captions(image_path: str) -> dict[str, int]:
 
     image = Image.open(image_path).convert("RGB")
 
-    inputs = processor(images=image, return_tensors="pt").to(_DEVICE)  # pyright: ignore[reportCallIssue]
+    inputs = processor(images=image, return_tensors="pt")  # pyright: ignore[reportCallIssue]
 
     with torch.no_grad():
         outputs = model.generate(
