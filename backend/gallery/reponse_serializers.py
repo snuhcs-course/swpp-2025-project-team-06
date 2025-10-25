@@ -17,4 +17,3 @@ class ResTagIdSerializer(serializers.Serializer):
     
 class ResTagVectorSerializer(serializers.Serializer):
     tag = serializers.CharField(help_text="태그 이름")
-    embedding = serializers.ListField(child=serializers.FloatField(), help_text="태그의 벡터 임베딩")
