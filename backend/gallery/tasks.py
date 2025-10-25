@@ -5,7 +5,7 @@ from qdrant_client import models
 
 from .vision_service import get_image_embedding, get_image_captions
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME
-from .models import Tag, User, Photo_Caption, Caption
+from .models import User, Photo_Caption, Caption
 
 import time
 
