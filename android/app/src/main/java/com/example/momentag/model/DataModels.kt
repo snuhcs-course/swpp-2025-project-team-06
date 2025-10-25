@@ -9,13 +9,25 @@ data class Tag(
     val tagId: Long,
 )
 
+data class Tags(
+    val tags: List<Tag>,
+)
+
+data class TagItem(
+    val tagName: String,
+    val coverImageId: Long?
+)
+
 data class TagCreateRequest(
     val name: String,
 )
 
 data class Photo(
     val photoId: Long,
-    val tags: List<String>,
+)
+
+data class Photos(
+    val photos: List<Photo>,
 )
 
 data class PhotoTag(

@@ -1,7 +1,10 @@
 package com.example.momentag
 
 import android.Manifest
+import android.content.ContentUris
+import android.net.Uri
 import android.os.Build
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -18,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
@@ -41,11 +45,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.ImageContext
+import com.example.momentag.model.ImageOfTagLoadState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.TagViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
@@ -60,10 +66,10 @@ fun AlbumScreen(
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
-    var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
-    val imageUris by localViewModel.image.collectAsState()
+    val tagViewModel: TagViewModel = viewModel(factory = ViewModelFactory(context))
+
+    val imageLoadState by tagViewModel.imageOfTagLoadState.collectAsState()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -75,9 +81,9 @@ fun AlbumScreen(
             },
         )
 
-    if (hasPermission) {
-        LaunchedEffect(Unit) {
-            localViewModel.getImages()
+    LaunchedEffect(hasPermission, tagName) {
+        if (hasPermission) {
+            tagViewModel.loadImagesOfTag(tagName)
         }
     }
 
@@ -101,16 +107,11 @@ fun AlbumScreen(
         },
     ) { paddingValues ->
         PullToRefreshBox(
-            isRefreshing = isRefreshing,
+            isRefreshing = imageLoadState is ImageOfTagLoadState.Loading,
             onRefresh = {
                 scope.launch {
-                    isRefreshing = true
-                    try {
-                        if (hasPermission) {
-                            localViewModel.getImages()
-                        }
-                    } finally {
-                        isRefreshing = false
+                    if (hasPermission) {
+                        tagViewModel.loadImagesOfTag(tagName)
                     }
                 }
             },
@@ -136,42 +137,52 @@ fun AlbumScreen(
                     color = Color.Black.copy(alpha = 0.5f),
                 )
 
-                if (hasPermission) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(imageUris) { imageUri ->
-                            ImageGridUriItem(
-                                imageUri = imageUri,
-                                navController = navController,
-                                imageDetailViewModel = imageDetailViewModel,
-                                allImages = imageUris,
-                                contextType = ImageContext.ContextType.TAG_ALBUM,
-                            )
-                        }
+                if (!hasPermission) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("이미지 접근 권한을 허용해주세요.")
                     }
                 } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(imageUris) { _ ->
-                            Box(modifier = Modifier) {
-                                Spacer(
-                                    modifier =
-                                        Modifier
-                                            .padding(top = 12.dp)
-                                            .aspectRatio(1f)
-                                            .background(
-                                                color = Picture,
-                                                shape = RoundedCornerShape(16.dp),
-                                            ).align(Alignment.BottomCenter)
-                                            .clickable { /* TODO */ },
-                                )
+                    when (imageLoadState) {
+                        is ImageOfTagLoadState.Loading -> {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
                             }
+                        }
+                        is ImageOfTagLoadState.Success -> {
+                            val photosWrapper = (imageLoadState as ImageOfTagLoadState.Success).photos
+                            val imageUris: List<Uri> = remember(photosWrapper) {
+                                photosWrapper.photos.mapNotNull { photo ->
+                                    photo.photoId?.let { id ->
+                                        ContentUris.withAppendedId(
+                                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                            id
+                                        )
+                                    }
+                                }
+                            }
+
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                items(imageUris) { imageUri ->
+                                    ImageGridUriItem(
+                                        imageUri = imageUri,
+                                        navController = navController,
+                                        imageDetailViewModel = imageDetailViewModel,
+                                        allImages = imageUris,
+                                        contextType = ImageContext.ContextType.TAG_ALBUM,
+                                    )
+                                }
+                            }
+                        }
+                        is ImageOfTagLoadState.Error, is ImageOfTagLoadState.NetworkError -> {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("사진을 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.")
+                            }
+                        }
+                        is ImageOfTagLoadState.Idle -> {
                         }
                     }
                 }

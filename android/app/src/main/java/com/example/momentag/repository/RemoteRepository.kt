@@ -2,8 +2,10 @@ package com.example.momentag.repository
 
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoUploadData
+import com.example.momentag.model.Photos
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagCreateRequest
+import com.example.momentag.model.Tags
 import com.example.momentag.network.ApiService
 import retrofit2.HttpException
 import java.io.IOException
@@ -38,10 +40,21 @@ class RemoteRepository(
         ) : Result<T>()
     }
 
-    suspend fun getAllTags(): Result<List<Tag>> =
+    suspend fun getAllTags(): Result<Tags> =
         try {
-            val response = apiService.getHomeTags()
-            Result.Success(response)
+            val response = apiService.getAllTags()
+
+            if (response.isSuccessful) {
+                response.body()?.let { tags ->
+                    Result.Success(tags)
+                } ?: Result.Error(response.code(), "Response body is null")
+            } else {
+                when (response.code()) {
+                    401 -> Result.Unauthorized("Authentication failed")
+                    400 -> Result.BadRequest("Bad request")
+                    else -> Result.Error(response.code(), "An unknown error occurred: ${response.message()}")
+                }
+            }
         } catch (e: HttpException) {
             Result.Error(e.code(), e.message())
         } catch (e: IOException) {
@@ -50,10 +63,21 @@ class RemoteRepository(
             Result.Exception(e)
         }
 
-    suspend fun getPhotosByTag(tagName: String): Result<List<Photo>> =
+    suspend fun getPhotosByTag(tagName: String): Result<Photos> =
         try {
             val response = apiService.getPhotosByTag(tagName)
-            Result.Success(response)
+
+            if (response.isSuccessful) {
+                response.body()?.let { photos ->
+                    Result.Success(photos)
+                } ?: Result.Error(response.code(), "Response body is null")
+            } else {
+                when (response.code()) {
+                    401 -> Result.Unauthorized("Authentication failed")
+                    400 -> Result.BadRequest("Bad request")
+                    else -> Result.Error(response.code(), "An unknown error occurred: ${response.message()}")
+                }
+            }
         } catch (e: HttpException) {
             Result.Error(e.code(), e.message())
         } catch (e: IOException) {

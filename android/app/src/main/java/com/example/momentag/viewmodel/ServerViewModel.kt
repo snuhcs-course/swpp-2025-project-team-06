@@ -19,7 +19,7 @@ class ServerViewModel(
         viewModelScope.launch {
             when (val result = remoteRepository.getAllTags()) {
                 is RemoteRepository.Result.Success -> {
-                    _allTags.value = result.data
+                    _allTags.value = result.data.tags
                 }
                 else -> {
                     // TODO : Handle error
@@ -35,7 +35,7 @@ class ServerViewModel(
         viewModelScope.launch {
             when (val result = remoteRepository.getPhotosByTag(tagName)) {
                 is RemoteRepository.Result.Success -> {
-                    _photoByTag.value = result.data
+                    _photoByTag.value = result.data.photos
                 }
                 else -> {
                     // TODO : Handle error

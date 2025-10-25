@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class RecommendViewModel(
-    private val RecommendRepository: RecommendRepository,
+    private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
     private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
     val recommendState = _recommendState.asStateFlow()
@@ -25,7 +25,7 @@ class RecommendViewModel(
         viewModelScope.launch {
             _recommendState.value = RecommendState.Loading
 
-            when (val result = RecommendRepository.recommendPhotos(tagAlbum)) {
+            when (val result = recommendRepository.recommendPhotos(tagAlbum)) {
                 is RecommendRepository.RecommendResult.Success -> {
                     _recommendState.value =
                         RecommendState.Success(

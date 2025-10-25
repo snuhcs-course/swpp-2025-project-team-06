@@ -6,15 +6,16 @@ import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoTag
+import com.example.momentag.model.Photos
 import com.example.momentag.model.RecommendPhotosResponse
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.SemanticSearchResponse
-import com.example.momentag.model.Tag
 import com.example.momentag.model.TagAlbum
 import com.example.momentag.model.TagCreateRequest
+import com.example.momentag.model.Tags
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -34,7 +35,7 @@ import kotlin.uuid.ExperimentalUuidApi
 @OptIn(ExperimentalUuidApi::class)
 interface ApiService {
     @GET("api/tags")
-    suspend fun getAllTags(): List<Tag>
+    suspend fun getAllTags(): Response<Tags>
 
     @POST("api/tags/")
     suspend fun postTags(
@@ -44,7 +45,7 @@ interface ApiService {
     @GET("tags/{tagName}")
     suspend fun getPhotosByTag(
         @Path("tagName") tagName: String,
-    ): List<Photo>
+    ): Response<Photos>
 
     @DELETE("api/photos/{photo_id}/tags/{tag_id}/")
     suspend fun removeTagFromPhoto(
@@ -115,7 +116,7 @@ interface ApiService {
  */
 object RetrofitInstance {
 //    private const val BASE_URL = "http://10.0.2.2:8000/"
-    private const val BASE_URL = "http://10.238.4.234:8000/"
+    private const val BASE_URL = "http://10.172.49.234:8000/"
 
     private var apiService: ApiService? = null
 

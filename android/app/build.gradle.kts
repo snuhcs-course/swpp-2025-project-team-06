@@ -57,6 +57,7 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.room.ktx)
 
     testImplementation(libs.junit)
     testImplementation("org.mockito:mockito-core:4.8.0")

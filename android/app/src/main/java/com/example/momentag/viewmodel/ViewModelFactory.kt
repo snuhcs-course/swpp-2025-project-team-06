@@ -9,6 +9,7 @@ import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.repository.TokenRepository
+import kotlinx.coroutines.Dispatchers
 import kotlin.uuid.ExperimentalUuidApi
 
 /**
@@ -80,6 +81,11 @@ class ViewModelFactory(
             modelClass.isAssignableFrom(PhotoTagViewModel::class.java) -> {
                 PhotoTagViewModel(
                     RemoteRepository(RetrofitInstance.getApiService(context.applicationContext)),
+                ) as T
+            }
+            modelClass.isAssignableFrom(TagViewModel::class.java) -> {
+                TagViewModel(
+                    RemoteRepository(RetrofitInstance.getApiService(context.applicationContext)), Dispatchers.IO
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
