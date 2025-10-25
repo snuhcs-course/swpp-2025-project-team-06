@@ -17,7 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
-from .tasks import process_and_embed_photo, create_or_update_tag_embedding, tag_recommendation, is_valid_uuid, recommend_photo_from_tag
+from .tasks import process_and_embed_photo, tag_recommendation, is_valid_uuid, recommend_photo_from_tag
 
 
 class PhotoView(APIView):
@@ -64,7 +64,7 @@ class PhotoView(APIView):
         ],
         consumes=["multipart/form-data"],
     )
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         try:
             import json
 
@@ -143,7 +143,7 @@ class PhotoView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def get(self, request, *args, **kwargs):
+    def get(self, request):
         try:
             user_filter = models.Filter(
                 must=[
@@ -206,7 +206,7 @@ class PhotoDetailView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def get(self, request, photo_id, *args, **kwargs):
+    def get(self, request, photo_id):
         try:
             user_filter = models.Filter(
                 must=[
@@ -246,10 +246,10 @@ class PhotoDetailView(APIView):
             for point in all_photo_points:
                 photo_tags = Photo_Tag.objects.filter(photo_id=point.id)
                 for pt in photo_tags:
-                    tag = Tag.objects.get(id=pt.tag_id)
+                    tag = Tag.objects.get(tag_id=pt.tag_id)
                     photos.append({
                         "photo_path_id": point.payload.get("photo_path_id"),
-                        "tags": [{"tag_id": tag.id, "tag": tag.tag}]
+                        "tags": [{"tag_id": tag.tag_id, "tag": tag.tag}]
                     })
 
             return Response(photos, status=status.HTTP_200_OK)
@@ -271,9 +271,9 @@ class PhotoDetailView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def delete(self, request, photo_id, *args, **kwargs):
+    def delete(self, request, photo_id):
         try:
-            photo_tag = Photo_Tag.objects.get(id=photo_id, user=request.user)
+            photo_tag = Photo_Tag.objects.get(photo_id=photo_id, user=request.user)
             photo_tag.delete()
 
             client.delete(
@@ -285,6 +285,7 @@ class PhotoDetailView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class BulkDeletePhotoView(APIView):
@@ -309,7 +310,7 @@ class BulkDeletePhotoView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def delete(self, request, *args, **kwargs):
+    def delete(self, request):
         try:
             serializer = ReqPhotoDetailSerializer(data=request.data, many=True)
 
@@ -332,6 +333,7 @@ class BulkDeletePhotoView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class GetPhotosByTagView(APIView):
@@ -357,7 +359,7 @@ class GetPhotosByTagView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def get(self, request, tag_id, *args, **kwargs):
+    def get(self, request, tag_id):
         try:
             photo_tags = Photo_Tag.objects.filter(tag_id=tag_id)
 
@@ -382,6 +384,7 @@ class GetPhotosByTagView(APIView):
             return Response({"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class PostPhotoTagsView(APIView):
@@ -409,7 +412,7 @@ class PostPhotoTagsView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def post(self, request, photo_id, *args, **kwargs):
+    def post(self, request, photo_id):
         try:
             serializer = ReqTagIdSerializer(data=request.data, many=True)
 
@@ -463,10 +466,9 @@ class DeletePhotoTagsView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def delete(self, request, photo_id, tag_id, *args, **kwargs):
+    def delete(self, request, photo_id, tag_id):
         try:
-            Tag.objects.get(id=tag_id, user=request.user)
-
+            Tag.objects.get(tag_id=tag_id, user=request.user)
             if not client.exists(collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)):
                 return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -575,6 +577,7 @@ class PhotoRecommendationView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
 class TagView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -598,24 +601,21 @@ class TagView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def get(self, request, *args, **kwargs):
+    def get(self, request):
         try:
-            tag = Tag.objects.filter(user=request.user)
-            tags = []
-            for t in tag:
-                tags.append({"tag_id": t.id, "tag": t.tag})
-
+            tags = Tag.objects.filter(user=request.user)
+                   
             response_serializer = TagSerializer(tags, many=True)
 
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
-            return Response({"error": "No tag with tag_id as its id"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "The user has no tags"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @swagger_auto_schema(
         operation_summary="Create a Tag",
-        operation_description="Createa new tag",
+        operation_description="Create a new tag",
         request_body=ReqTagNameSerializer(),
         responses={
             201: openapi.Response(
@@ -627,12 +627,15 @@ class TagView(APIView):
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
+            ), 
+            409: openapi.Response(
+                description="Conflict - Tag already exists"
             ),
         },
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         try:
             serializer = ReqTagNameSerializer(data=request.data)
 
@@ -641,20 +644,29 @@ class TagView(APIView):
 
             data = serializer.validated_data
 
-            tag_id = uuid.uuid4()
-            tag_name = data['tag']
+            if len(data['tag']) > 50:
+                return Response(
+                    {"error": "Tag name cannot exceed 50 characters."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if Tag.objects.filter(tag=data['tag'], user=request.user).exists():
+                return Response(
+                    {"detail": f"Tag '{data['tag']}' already exists."},
+                    status=status.HTTP_409_CONFLICT
+                )
 
-            create_or_update_tag_embedding.delay(
-                user_id=request.user.id,
-                tag_name=tag_name,
-                tag_id=tag_id
+            new_tag = Tag.objects.create(
+                tag=data['tag'],
+                user=request.user
             )
 
-            response_serializer = ResTagIdSerializer({"tag_id": tag_id})
-
+            response_serializer = ResTagIdSerializer({"tag_id": new_tag.tag_id})
+            
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class TagDetailView(APIView):
@@ -663,7 +675,7 @@ class TagDetailView(APIView):
 
     @swagger_auto_schema(
         operation_summary="Delete a Tag",
-        operation_description="Delete a tag",
+        operation_description="Delete a tag (only the tag owner can delete)",
         request_body=None,
         responses={
             204: openapi.Response(
@@ -672,6 +684,9 @@ class TagDetailView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
+            403: openapi.Response(
+                description="Forbidden - You are not the owner of this tag"
+            ),
             404: openapi.Response(
                 description="Not Found - No tag such that tag's id is tag_id"
             ),
@@ -679,14 +694,18 @@ class TagDetailView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def delete(self, request, tag_id, *args, **kwargs):
+    def delete(self, request, tag_id):
         try:
-            tag = Tag.objects.get(id=tag_id, user=request.user)
-            tag.delete()
+            try:
+                tag = Tag.objects.get(tag_id=tag_id)
+            except Tag.DoesNotExist:
+                return Response({"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND)
 
+            if tag.user != request.user:
+                return Response({"error": "Forbidden - you are not the owner of this tag."}, status=status.HTTP_403_FORBIDDEN)
+
+            tag.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except Tag.DoesNotExist:
-            return Response({"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -702,6 +721,9 @@ class TagDetailView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
+            403: openapi.Response(
+                description="Forbidden - You are not the owner of this tag"
+            ),
             404: openapi.Response(
                 description="Not Found - Tag not found"
             ),
@@ -709,7 +731,7 @@ class TagDetailView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def put(self, request, tag_id, *args, **kwargs):
+    def put(self, request, tag_id):
         try:
             serializer = ReqTagNameSerializer(data=request.data)
 
@@ -717,18 +739,20 @@ class TagDetailView(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             data = serializer.validated_data
-            tag_name = data['tag']
-            create_or_update_tag_embedding.delay(
-                user_id=request.user.id,
-                tag_name=tag_name,
-                tag_id=tag_id
-            )
+
+            try:
+                old_tag = Tag.objects.get(tag_id=tag_id)
+            except Tag.DoesNotExist:
+                return Response({"error": "Tag not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            if old_tag.user != request.user:
+                return Response({"error": "Forbidden - you are not the owner of this tag."}, status=status.HTTP_403_FORBIDDEN)
+
+            old_tag.tag = data['tag']
+            old_tag.save()
 
             response_serializer = ResTagIdSerializer({"tag_id": tag_id})
-
             return Response(response_serializer.data, status=status.HTTP_200_OK)
-        except Tag.DoesNotExist:
-            return Response({"error": "Tag not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -744,6 +768,9 @@ class TagDetailView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
+            403: openapi.Response(
+                description="Forbidden - You are not the owner of this tag"
+            ),
             404: openapi.Response(
                 description="Not Found - No tag with tag_id as its id"
             ),
@@ -751,12 +778,15 @@ class TagDetailView(APIView):
         manual_parameters=[openapi.Parameter(
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
-    def get(self, request, tag_id, *args, **kwargs):
+    def get(self, request, tag_id):
         try:
-            tag = Tag.objects.get(id=tag_id, user=request.user)
-            response_serializer = ResTagVectorSerializer(
-                {"tag": tag.tag, "embedding": tag.embedding})
+            tag = Tag.objects.get(tag_id=tag_id)
+            
+            if tag.user != request.user:
+                return Response({"error": "Forbidden - you are not the owner of this tag."}, status=status.HTTP_403_FORBIDDEN)
 
+            response_serializer = ResTagVectorSerializer({"tag": tag.tag})
+            
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
             return Response({"error": "No tag with tag_id as its id"}, status=status.HTTP_404_NOT_FOUND)
