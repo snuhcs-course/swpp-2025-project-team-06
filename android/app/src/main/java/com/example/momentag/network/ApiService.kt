@@ -38,7 +38,7 @@ interface ApiService {
 
     @POST("api/tags/")
     suspend fun postTags(
-        @Body request: TagCreateRequest
+        @Body request: TagCreateRequest,
     ): Response<Long>
 
     @GET("tags/{tagName}")
@@ -57,7 +57,6 @@ interface ApiService {
         @Path("photo_id") photoId: Long,
         @Body tag_id: Long,
     ): Response<PhotoTag>
-
 
     @POST("api/auth/signin/")
     suspend fun login(

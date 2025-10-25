@@ -12,16 +12,34 @@ class RemoteRepository(
     private val apiService: ApiService,
 ) {
     sealed class Result<T> {
-        data class Success<T>(val data: T) : Result<T>()
-        data class Error<T>(val code: Int, val message: String) : Result<T>()
-        data class Unauthorized<T>(val message: String) : Result<T>()
-        data class BadRequest<T>(val message: String) : Result<T>()
-        data class NetworkError<T>(val message: String) : Result<T>()
-        data class Exception<T>(val e: kotlin.Exception) : Result<T>()
+        data class Success<T>(
+            val data: T,
+        ) : Result<T>()
+
+        data class Error<T>(
+            val code: Int,
+            val message: String,
+        ) : Result<T>()
+
+        data class Unauthorized<T>(
+            val message: String,
+        ) : Result<T>()
+
+        data class BadRequest<T>(
+            val message: String,
+        ) : Result<T>()
+
+        data class NetworkError<T>(
+            val message: String,
+        ) : Result<T>()
+
+        data class Exception<T>(
+            val e: kotlin.Exception,
+        ) : Result<T>()
     }
 
-    suspend fun getAllTags(): Result<List<Tag>> {
-        return try {
+    suspend fun getAllTags(): Result<List<Tag>> =
+        try {
             val response = apiService.getHomeTags()
             Result.Success(response)
         } catch (e: HttpException) {
@@ -31,10 +49,9 @@ class RemoteRepository(
         } catch (e: Exception) {
             Result.Exception(e)
         }
-    }
 
-    suspend fun getPhotosByTag(tagName: String): Result<List<Photo>> {
-        return try {
+    suspend fun getPhotosByTag(tagName: String): Result<List<Photo>> =
+        try {
             val response = apiService.getPhotosByTag(tagName)
             Result.Success(response)
         } catch (e: HttpException) {
@@ -44,14 +61,13 @@ class RemoteRepository(
         } catch (e: Exception) {
             Result.Exception(e)
         }
-    }
 
-    suspend fun postTags(tagName: String): Result<Long> {
-        return try {
+    suspend fun postTags(tagName: String): Result<Long> =
+        try {
             val request = TagCreateRequest(name = tagName)
             val response = apiService.postTags(request)
 
-            if(response.isSuccessful) {
+            if (response.isSuccessful) {
                 response.body()?.let { tagId ->
                     Result.Success(tagId)
                 } ?: Result.Error(response.code(), "Response body is null")
@@ -69,15 +85,14 @@ class RemoteRepository(
         } catch (e: Exception) {
             Result.Exception(e)
         }
-    }
-
 
     suspend fun uploadPhotos(photoUploadData: PhotoUploadData): Result<Int> { // 성공 시 반환값이 없다면 Unit 사용
         return try {
-            val response = apiService.uploadPhotos(
-                photo = photoUploadData.photo,
-                metadata = photoUploadData.metadata,
-            )
+            val response =
+                apiService.uploadPhotos(
+                    photo = photoUploadData.photo,
+                    metadata = photoUploadData.metadata,
+                )
             if (response.isSuccessful) {
                 Result.Success(response.code())
             } else {
@@ -97,8 +112,11 @@ class RemoteRepository(
         }
     }
 
-    suspend fun removeTagFromPhoto(photoId: Long, tagId: Long): Result<Unit> {
-        return try {
+    suspend fun removeTagFromPhoto(
+        photoId: Long,
+        tagId: Long,
+    ): Result<Unit> =
+        try {
             val response = apiService.removeTagFromPhoto(photoId, tagId)
 
             if (response.isSuccessful) {
@@ -116,10 +134,12 @@ class RemoteRepository(
         } catch (e: Exception) {
             Result.Exception(e)
         }
-    }
 
-    suspend fun postTagsToPhoto(photoId: Long, tagId: Long): Result<Unit> {
-        return try {
+    suspend fun postTagsToPhoto(
+        photoId: Long,
+        tagId: Long,
+    ): Result<Unit> =
+        try {
             val response = apiService.postTagsToPhoto(photoId, tagId)
 
             if (response.isSuccessful) {
@@ -139,5 +159,4 @@ class RemoteRepository(
         } catch (e: Exception) {
             Result.Exception(e)
         }
-    }
 }

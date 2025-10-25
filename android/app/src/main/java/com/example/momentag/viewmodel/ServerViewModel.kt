@@ -22,7 +22,7 @@ class ServerViewModel(
                     _allTags.value = result.data
                 }
                 else -> {
-                    /* TODO : Handle error */
+                    // TODO : Handle error
                 }
             }
         }
@@ -38,7 +38,7 @@ class ServerViewModel(
                     _photoByTag.value = result.data
                 }
                 else -> {
-                    /* TODO : Handle error */
+                    // TODO : Handle error
                 }
             }
         }

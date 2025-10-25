@@ -79,7 +79,7 @@ class ViewModelFactory(
             }
             modelClass.isAssignableFrom(PhotoTagViewModel::class.java) -> {
                 PhotoTagViewModel(
-                    RemoteRepository(RetrofitInstance.getApiService(context.applicationContext))
+                    RemoteRepository(RetrofitInstance.getApiService(context.applicationContext)),
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

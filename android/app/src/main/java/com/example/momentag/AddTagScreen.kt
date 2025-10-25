@@ -95,7 +95,6 @@ fun AddTagScreen(
 
     val saveState by viewModel.saveState.collectAsState()
 
-
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -136,7 +135,7 @@ fun AddTagScreen(
                 viewModel.resetSaveState()
             }
             else -> {
-                /* TODO loading etc.*/
+                // TODO loading etc.
             }
         }
     }

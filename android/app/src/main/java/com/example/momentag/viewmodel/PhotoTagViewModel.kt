@@ -19,9 +19,14 @@ class PhotoTagViewModel(
 
     sealed class SaveState {
         object Idle : SaveState()
+
         object Loading : SaveState()
+
         object Success : SaveState()
-        data class Error(val message: String) : SaveState()
+
+        data class Error(
+            val message: String,
+        ) : SaveState()
     }
 
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
@@ -56,7 +61,6 @@ class PhotoTagViewModel(
         viewModelScope.launch {
             _saveState.value = SaveState.Loading
 
-
             val tagResult = remoteRepository.postTags(_tagName.value)
             val tagId: Long
 
@@ -89,8 +93,8 @@ class PhotoTagViewModel(
         }
     }
 
-    private fun getErrorMessage(result: RemoteRepository.Result<*>): String {
-        return when (result) {
+    private fun getErrorMessage(result: RemoteRepository.Result<*>): String =
+        when (result) {
             is RemoteRepository.Result.BadRequest -> "Bad Request: ${result.message}"
             is RemoteRepository.Result.Unauthorized -> "Login error: ${result.message}"
             is RemoteRepository.Result.Error -> "Server Error (${result.code}): ${result.message}"
@@ -98,7 +102,6 @@ class PhotoTagViewModel(
             is RemoteRepository.Result.Success -> "An unknown error occurred (Success was passed to error handler)"
             is RemoteRepository.Result.NetworkError -> "Network Error: ${result.message}"
         }
-    }
 
     fun resetSaveState() {
         _saveState.value = SaveState.Idle

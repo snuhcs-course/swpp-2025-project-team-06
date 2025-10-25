@@ -10,7 +10,7 @@ data class Tag(
 )
 
 data class TagCreateRequest(
-    val name: String
+    val name: String,
 )
 
 data class Photo(
