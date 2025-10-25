@@ -4,7 +4,6 @@ import android.content.Context
 import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
-import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoTag
 import com.example.momentag.model.Photos
 import com.example.momentag.model.RecommendPhotosResponse

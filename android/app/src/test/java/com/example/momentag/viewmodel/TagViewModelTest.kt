@@ -23,7 +23,6 @@ import org.mockito.kotlin.whenever
 
 @ExperimentalCoroutinesApi
 class TagViewModelTest {
-
     @get:Rule
     val mainCoroutineRule = MainCoroutineRule()
 
@@ -48,151 +47,159 @@ class TagViewModelTest {
 
     // ‼️ [수정됨] "Init" 테스트가 아닌, 수동 호출 테스트
     @Test
-    fun loadServerTagsSuccessTest() = runTest {
-        // --- Arrange ---
-        val tag1 = Tag(tagName = "food", tagId = 1L)
-        val tag2 = Tag(tagName = "travel", tagId = 2L)
-        val photo1 = Photo(photoId = 1001L)
-        val photo2 = Photo(photoId = 1002L)
+    fun loadServerTagsSuccessTest() =
+        runTest {
+            // --- Arrange ---
+            val tag1 = Tag(tagName = "food", tagId = 1L)
+            val tag2 = Tag(tagName = "travel", tagId = 2L)
+            val photo1 = Photo(photoId = 1001L)
+            val photo2 = Photo(photoId = 1002L)
 
-        val tagsResult = RemoteRepository.Result.Success(Tags(listOf(tag1, tag2)))
-        val photos1Result = RemoteRepository.Result.Success(Photos(listOf(photo1)))
-        val photos2Result = RemoteRepository.Result.Success(Photos(listOf(photo2)))
+            val tagsResult = RemoteRepository.Result.Success(Tags(listOf(tag1, tag2)))
+            val photos1Result = RemoteRepository.Result.Success(Photos(listOf(photo1)))
+            val photos2Result = RemoteRepository.Result.Success(Photos(listOf(photo2)))
 
-        whenever(remoteRepository.getAllTags()).thenReturn(tagsResult)
-        whenever(remoteRepository.getPhotosByTag("food")).thenReturn(photos1Result)
-        whenever(remoteRepository.getPhotosByTag("travel")).thenReturn(photos2Result)
+            whenever(remoteRepository.getAllTags()).thenReturn(tagsResult)
+            whenever(remoteRepository.getPhotosByTag("food")).thenReturn(photos1Result)
+            whenever(remoteRepository.getPhotosByTag("travel")).thenReturn(photos2Result)
 
-        // --- Act ---
-        viewModel.loadServerTags() // ‼️ 수동으로 함수 호출
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent() // 예약된 코루틴 실행
+            // --- Act ---
+            viewModel.loadServerTags() // ‼️ 수동으로 함수 호출
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent() // 예약된 코루틴 실행
 
-        // --- Assert ---
-        val state = viewModel.tagLoadState.value
-        assertTrue(state is TagLoadState.Success)
+            // --- Assert ---
+            val state = viewModel.tagLoadState.value
+            assertTrue(state is TagLoadState.Success)
 
-        val expectedTagItems = listOf(
-            TagItem(tagName = "food", coverImageId = 1001L),
-            TagItem(tagName = "travel", coverImageId = 1002L)
-        )
-        assertEquals(expectedTagItems, (state as TagLoadState.Success).tagItems)
+            val expectedTagItems =
+                listOf(
+                    TagItem(tagName = "food", coverImageId = 1001L),
+                    TagItem(tagName = "travel", coverImageId = 1002L),
+                )
+            assertEquals(expectedTagItems, (state as TagLoadState.Success).tagItems)
 
-        verify(remoteRepository).getAllTags()
-        verify(remoteRepository).getPhotosByTag("food")
-        verify(remoteRepository).getPhotosByTag("travel")
-    }
-
-    // ‼️ [수정됨] "Init" 테스트가 아닌, 수동 호출 테스트
-    @Test
-    fun loadServerTagsGetAllTagsErrorTest() = runTest {
-        // --- Arrange ---
-        val errorResult = RemoteRepository.Result.Error<Tags>(500, "Server Error")
-        whenever(remoteRepository.getAllTags()).thenReturn(errorResult)
-
-        // --- Act ---
-        viewModel.loadServerTags() // ‼️ 수동으로 함수 호출
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
-
-        // --- Assert ---
-        val state = viewModel.tagLoadState.value
-        assertTrue(state is TagLoadState.Error)
-        assertEquals("Server Error", (state as TagLoadState.Error).message)
-
-        verify(remoteRepository).getAllTags()
-        verify(remoteRepository, never()).getPhotosByTag(any())
-    }
+            verify(remoteRepository).getAllTags()
+            verify(remoteRepository).getPhotosByTag("food")
+            verify(remoteRepository).getPhotosByTag("travel")
+        }
 
     // ‼️ [수정됨] "Init" 테스트가 아닌, 수동 호출 테스트
     @Test
-    fun loadServerTagsPartialPhotoErrorTest() = runTest {
-        // --- Arrange ---
-        val tag1 = Tag(tagName = "food", tagId = 1L)
-        val tag2 = Tag(tagName = "fail", tagId = 2L)
-        val photo1 = Photo(photoId = 1001L)
+    fun loadServerTagsGetAllTagsErrorTest() =
+        runTest {
+            // --- Arrange ---
+            val errorResult = RemoteRepository.Result.Error<Tags>(500, "Server Error")
+            whenever(remoteRepository.getAllTags()).thenReturn(errorResult)
 
-        val tagsResult = RemoteRepository.Result.Success(Tags(listOf(tag1, tag2)))
-        val photos1Result = RemoteRepository.Result.Success(Photos(listOf(photo1)))
-        val photos2Error = RemoteRepository.Result.Error<Photos>(404, "Not Found")
+            // --- Act ---
+            viewModel.loadServerTags() // ‼️ 수동으로 함수 호출
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
-        whenever(remoteRepository.getAllTags()).thenReturn(tagsResult)
-        whenever(remoteRepository.getPhotosByTag("food")).thenReturn(photos1Result)
-        whenever(remoteRepository.getPhotosByTag("fail")).thenReturn(photos2Error)
+            // --- Assert ---
+            val state = viewModel.tagLoadState.value
+            assertTrue(state is TagLoadState.Error)
+            assertEquals("Server Error", (state as TagLoadState.Error).message)
 
-        // --- Act ---
-        viewModel.loadServerTags() // ‼️ 수동으로 함수 호출
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+            verify(remoteRepository).getAllTags()
+            verify(remoteRepository, never()).getPhotosByTag(any())
+        }
 
-        // --- Assert ---
-        val state = viewModel.tagLoadState.value
-        assertTrue(state is TagLoadState.Success)
+    // ‼️ [수정됨] "Init" 테스트가 아닌, 수동 호출 테스트
+    @Test
+    fun loadServerTagsPartialPhotoErrorTest() =
+        runTest {
+            // --- Arrange ---
+            val tag1 = Tag(tagName = "food", tagId = 1L)
+            val tag2 = Tag(tagName = "fail", tagId = 2L)
+            val photo1 = Photo(photoId = 1001L)
 
-        val expectedTagItems = listOf(
-            TagItem(tagName = "food", coverImageId = 1001L),
-            TagItem(tagName = "fail", coverImageId = null)
-        )
-        assertEquals(expectedTagItems, (state as TagLoadState.Success).tagItems)
-    }
+            val tagsResult = RemoteRepository.Result.Success(Tags(listOf(tag1, tag2)))
+            val photos1Result = RemoteRepository.Result.Success(Photos(listOf(photo1)))
+            val photos2Error = RemoteRepository.Result.Error<Photos>(404, "Not Found")
+
+            whenever(remoteRepository.getAllTags()).thenReturn(tagsResult)
+            whenever(remoteRepository.getPhotosByTag("food")).thenReturn(photos1Result)
+            whenever(remoteRepository.getPhotosByTag("fail")).thenReturn(photos2Error)
+
+            // --- Act ---
+            viewModel.loadServerTags() // ‼️ 수동으로 함수 호출
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // --- Assert ---
+            val state = viewModel.tagLoadState.value
+            assertTrue(state is TagLoadState.Success)
+
+            val expectedTagItems =
+                listOf(
+                    TagItem(tagName = "food", coverImageId = 1001L),
+                    TagItem(tagName = "fail", coverImageId = null),
+                )
+            assertEquals(expectedTagItems, (state as TagLoadState.Success).tagItems)
+        }
 
     // ---------------------------------------------------------------
     // ‼️ loadImagesOfTag, resetState 테스트는 (Init과 무관하므로) 동일
     // ---------------------------------------------------------------
 
     @Test
-    fun loadImagesOfTagSuccessTest() = runTest {
-        // --- Arrange ---
-        val photo1 = Photo(photoId = 1001L)
-        val photo2 = Photo(photoId = 1002L)
-        val photosList = listOf(photo1, photo2)
-        val photosWrapper = Photos(photosList)
+    fun loadImagesOfTagSuccessTest() =
+        runTest {
+            // --- Arrange ---
+            val photo1 = Photo(photoId = 1001L)
+            val photo2 = Photo(photoId = 1002L)
+            val photosList = listOf(photo1, photo2)
+            val photosWrapper = Photos(photosList)
 
-        val photosResult = RemoteRepository.Result.Success(photosWrapper)
-        whenever(remoteRepository.getPhotosByTag("album-tag")).thenReturn(photosResult)
+            val photosResult = RemoteRepository.Result.Success(photosWrapper)
+            whenever(remoteRepository.getPhotosByTag("album-tag")).thenReturn(photosResult)
 
-        // --- Act ---
-        viewModel.loadImagesOfTag("album-tag")
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+            // --- Act ---
+            viewModel.loadImagesOfTag("album-tag")
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
-        // --- Assert ---
-        val state = viewModel.imageOfTagLoadState.value
-        assertTrue(state is ImageOfTagLoadState.Success)
+            // --- Assert ---
+            val state = viewModel.imageOfTagLoadState.value
+            assertTrue(state is ImageOfTagLoadState.Success)
 
-        // ImageOfTagLoadState.Success가 Photos 래퍼 객체를 갖는지 확인
-        assertEquals(photosWrapper, (state as ImageOfTagLoadState.Success).photos)
+            // ImageOfTagLoadState.Success가 Photos 래퍼 객체를 갖는지 확인
+            assertEquals(photosWrapper, (state as ImageOfTagLoadState.Success).photos)
 
-        verify(remoteRepository).getPhotosByTag("album-tag")
-    }
-
-    @Test
-    fun loadImagesOfTagErrorTest() = runTest {
-        // --- Arrange ---
-        val errorResult = RemoteRepository.Result.NetworkError<Photos>("No network")
-        whenever(remoteRepository.getPhotosByTag("error-tag")).thenReturn(errorResult)
-
-        // --- Act ---
-        viewModel.loadImagesOfTag("error-tag")
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
-
-        // --- Assert ---
-        val state = viewModel.imageOfTagLoadState.value
-        assertTrue(state is ImageOfTagLoadState.NetworkError)
-        assertEquals("No network", (state as ImageOfTagLoadState.NetworkError).message)
-    }
+            verify(remoteRepository).getPhotosByTag("album-tag")
+        }
 
     @Test
-    fun resetStateTest() = runTest {
-        // --- Arrange ---
-        val errorResult = RemoteRepository.Result.NetworkError<Photos>("No network")
-        whenever(remoteRepository.getPhotosByTag("test-tag")).thenReturn(errorResult)
-        viewModel.loadImagesOfTag("test-tag")
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+    fun loadImagesOfTagErrorTest() =
+        runTest {
+            // --- Arrange ---
+            val errorResult = RemoteRepository.Result.NetworkError<Photos>("No network")
+            whenever(remoteRepository.getPhotosByTag("error-tag")).thenReturn(errorResult)
 
-        assertTrue(viewModel.imageOfTagLoadState.value is ImageOfTagLoadState.NetworkError)
+            // --- Act ---
+            viewModel.loadImagesOfTag("error-tag")
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
-        // --- Act ---
-        viewModel.resetState()
+            // --- Assert ---
+            val state = viewModel.imageOfTagLoadState.value
+            assertTrue(state is ImageOfTagLoadState.NetworkError)
+            assertEquals("No network", (state as ImageOfTagLoadState.NetworkError).message)
+        }
 
-        // --- Assert ---
-        assertTrue(viewModel.tagLoadState.value is TagLoadState.Idle)
-        assertTrue(viewModel.imageOfTagLoadState.value is ImageOfTagLoadState.Idle)
-    }
+    @Test
+    fun resetStateTest() =
+        runTest {
+            // --- Arrange ---
+            val errorResult = RemoteRepository.Result.NetworkError<Photos>("No network")
+            whenever(remoteRepository.getPhotosByTag("test-tag")).thenReturn(errorResult)
+            viewModel.loadImagesOfTag("test-tag")
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            assertTrue(viewModel.imageOfTagLoadState.value is ImageOfTagLoadState.NetworkError)
+
+            // --- Act ---
+            viewModel.resetState()
+
+            // --- Assert ---
+            assertTrue(viewModel.tagLoadState.value is TagLoadState.Idle)
+            assertTrue(viewModel.imageOfTagLoadState.value is ImageOfTagLoadState.Idle)
+        }
 }

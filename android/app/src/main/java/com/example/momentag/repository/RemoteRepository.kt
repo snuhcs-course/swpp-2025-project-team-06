@@ -1,9 +1,7 @@
 package com.example.momentag.repository
 
-import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.model.Photos
-import com.example.momentag.model.Tag
 import com.example.momentag.model.TagCreateRequest
 import com.example.momentag.model.Tags
 import com.example.momentag.network.ApiService

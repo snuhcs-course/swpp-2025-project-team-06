@@ -72,7 +72,6 @@ import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
-import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.TagViewModel
@@ -154,11 +153,12 @@ fun HomeScreen(
     }
 
     LaunchedEffect(tagLoadState) {
-        val message = when(tagLoadState) {
-            is TagLoadState.Error -> (tagLoadState as TagLoadState.Error).message
-            is TagLoadState.NetworkError -> (tagLoadState as TagLoadState.NetworkError).message
-            else -> null
-        }
+        val message =
+            when (tagLoadState) {
+                is TagLoadState.Error -> (tagLoadState as TagLoadState.Error).message
+                is TagLoadState.NetworkError -> (tagLoadState as TagLoadState.NetworkError).message
+                else -> null
+            }
         message?.let {
             scope.launch { snackbarHostState.showSnackbar(it) }
         }
@@ -245,7 +245,7 @@ fun HomeScreen(
                         is TagLoadState.Loading -> {
                             Box(
                                 modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.Center,
                             ) {
                                 CircularProgressIndicator()
                             }
@@ -254,7 +254,7 @@ fun HomeScreen(
                         else -> { // Error, NetworkError, Idle
                             Box(
                                 modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Text("태그를 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.")
                             }
@@ -335,7 +335,7 @@ private fun MainContent(
                 TagGridItem(
                     tagName = item.tagName,
                     imageId = item.coverImageId,
-                    navController = navController
+                    navController = navController,
                 )
             }
         }
@@ -373,14 +373,15 @@ fun TagGridItem(
     imageId: Long?,
     navController: NavController,
 ) {
-    val imageUri: Uri? = remember(imageId) {
-        imageId?.let { id ->
-            ContentUris.withAppendedId(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                id
-            )
+    val imageUri: Uri? =
+        remember(imageId) {
+            imageId?.let { id ->
+                ContentUris.withAppendedId(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    id,
+                )
+            }
         }
-    }
 
     Box(modifier = Modifier) {
         if (imageUri != null) {

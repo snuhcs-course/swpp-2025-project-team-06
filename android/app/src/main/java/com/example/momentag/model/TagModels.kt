@@ -35,4 +35,3 @@ sealed interface ImageOfTagLoadState {
         val message: String,
     ) : ImageOfTagLoadState
 }
-

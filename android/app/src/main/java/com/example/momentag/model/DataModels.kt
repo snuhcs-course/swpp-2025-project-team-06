@@ -15,7 +15,7 @@ data class Tags(
 
 data class TagItem(
     val tagName: String,
-    val coverImageId: Long?
+    val coverImageId: Long?,
 )
 
 data class TagCreateRequest(

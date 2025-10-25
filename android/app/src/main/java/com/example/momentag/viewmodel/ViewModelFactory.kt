@@ -85,7 +85,8 @@ class ViewModelFactory(
             }
             modelClass.isAssignableFrom(TagViewModel::class.java) -> {
                 TagViewModel(
-                    RemoteRepository(RetrofitInstance.getApiService(context.applicationContext)), Dispatchers.IO
+                    RemoteRepository(RetrofitInstance.getApiService(context.applicationContext)),
+                    Dispatchers.IO,
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

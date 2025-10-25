@@ -7,20 +7,16 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -48,9 +44,7 @@ import com.example.momentag.model.ImageContext
 import com.example.momentag.model.ImageOfTagLoadState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Picture
 import com.example.momentag.viewmodel.ImageDetailViewModel
-import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.TagViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -150,16 +144,17 @@ fun AlbumScreen(
                         }
                         is ImageOfTagLoadState.Success -> {
                             val photosWrapper = (imageLoadState as ImageOfTagLoadState.Success).photos
-                            val imageUris: List<Uri> = remember(photosWrapper) {
-                                photosWrapper.photos.mapNotNull { photo ->
-                                    photo.photoId?.let { id ->
-                                        ContentUris.withAppendedId(
-                                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                            id
-                                        )
+                            val imageUris: List<Uri> =
+                                remember(photosWrapper) {
+                                    photosWrapper.photos.mapNotNull { photo ->
+                                        photo.photoId?.let { id ->
+                                            ContentUris.withAppendedId(
+                                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                                id,
+                                            )
+                                        }
                                     }
                                 }
-                            }
 
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
