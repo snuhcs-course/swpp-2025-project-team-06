@@ -17,12 +17,13 @@ class ServerViewModel(
 
     fun getAllTags() {
         viewModelScope.launch {
-            try {
-                _allTags.value = remoteRepository.getAllTags()
-            } catch (e: Exception) {
-                /*
-                 * TODO : Handle error
-                 */
+            when (val result = remoteRepository.getAllTags()) {
+                is RemoteRepository.Result.Success -> {
+                    _allTags.value = result.data
+                }
+                else -> {
+                    /* TODO : Handle error */
+                }
             }
         }
     }
@@ -32,12 +33,13 @@ class ServerViewModel(
 
     fun getPhotoByTag(tagName: String) {
         viewModelScope.launch {
-            try {
-                _photoByTag.value = remoteRepository.getPhotosByTag(tagName)
-            } catch (e: Exception) {
-                /*
-                 * TODO : Handle error
-                 */
+            when (val result = remoteRepository.getPhotosByTag(tagName)) {
+                is RemoteRepository.Result.Success -> {
+                    _photoByTag.value = result.data
+                }
+                else -> {
+                    /* TODO : Handle error */
+                }
             }
         }
     }

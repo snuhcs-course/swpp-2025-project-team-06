@@ -9,9 +9,17 @@ data class Tag(
     val thumbnailId: Long,
 )
 
+data class TagCreateRequest(
+    val name: String
+)
+
 data class Photo(
     val photoId: Long,
     val tags: List<String>,
+)
+
+data class PhotoTag(
+    val ptId: Long,
 )
 
 data class Album(

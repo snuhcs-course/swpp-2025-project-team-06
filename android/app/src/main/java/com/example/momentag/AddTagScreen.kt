@@ -5,6 +5,7 @@ import android.content.ContentUris
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -91,6 +93,9 @@ fun AddTagScreen(
 
     val recommendedPhotos = remember { mutableStateListOf<Long>() }
 
+    val saveState by viewModel.saveState.collectAsState()
+
+
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -117,6 +122,22 @@ fun AddTagScreen(
             recommendedPhotos.clear()
             val newRecommended = successState.photos.filter { it !in selectedPhotos }
             recommendedPhotos.addAll(newRecommended)
+        }
+    }
+
+    LaunchedEffect(saveState) {
+        when (val state = saveState) {
+            is PhotoTagViewModel.SaveState.Success -> {
+                Toast.makeText(context, "Save Complete", Toast.LENGTH_SHORT).show()
+                navController.popBackStack()
+            }
+            is PhotoTagViewModel.SaveState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
+                viewModel.resetSaveState()
+            }
+            else -> {
+                /* TODO loading etc.*/
+            }
         }
     }
 
@@ -203,6 +224,7 @@ fun AddTagScreen(
                     Button(
                         onClick = {
                             viewModel.updateTagName(tagName)
+                            viewModel.saveTagAndPhotos()
                             navController.popBackStack()
                         },
                         shape = RoundedCornerShape(15.dp),
@@ -213,8 +235,13 @@ fun AddTagScreen(
                             ),
                         modifier = Modifier.align(Alignment.End),
                         contentPadding = PaddingValues(horizontal = 32.dp),
+                        enabled = saveState != PhotoTagViewModel.SaveState.Loading,
                     ) {
-                        Text(text = "Done")
+                        if (saveState == PhotoTagViewModel.SaveState.Loading) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            Text("Done")
+                        }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }

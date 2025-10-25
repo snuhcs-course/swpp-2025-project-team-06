@@ -5,6 +5,7 @@ import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
 import com.example.momentag.model.Photo
+import com.example.momentag.model.PhotoTag
 import com.example.momentag.model.RecommendPhotosResponse
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
@@ -13,6 +14,7 @@ import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.SemanticSearchResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagAlbum
+import com.example.momentag.model.TagCreateRequest
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -20,6 +22,7 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -33,10 +36,28 @@ interface ApiService {
     @GET("home/tags")
     suspend fun getHomeTags(): List<Tag>
 
+    @POST("api/tags/")
+    suspend fun postTags(
+        @Body request: TagCreateRequest
+    ): Response<Long>
+
     @GET("tags/{tagName}")
     suspend fun getPhotosByTag(
         @Path("tagName") tagName: String,
     ): List<Photo>
+
+    @DELETE("api/photos/{photo_id}/tags/{tag_id}/")
+    suspend fun removeTagFromPhoto(
+        @Path("photo_id") photoId: Long,
+        @Path("tag_id") tagId: Long,
+    ): Response<Unit>
+
+    @POST("api/photos/{photo_id}/tags/")
+    suspend fun postTagsToPhoto(
+        @Path("photo_id") photoId: Long,
+        @Body tag_id: Long,
+    ): Response<PhotoTag>
+
 
     @POST("api/auth/signin/")
     suspend fun login(
