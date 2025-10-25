@@ -5,12 +5,14 @@ import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
 import com.example.momentag.model.Photo
+import com.example.momentag.model.RecommendPhotosResponse
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.SemanticSearchResponse
 import com.example.momentag.model.Tag
+import com.example.momentag.model.TagAlbum
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -76,6 +78,12 @@ interface ApiService {
         @Query("query") query: String,
         @Query("offset") offset: Int = 0,
     ): Response<SemanticSearchResponse>
+
+    // TODO : api 주소 변경
+    @POST("api/recommend/")
+    suspend fun recommendPhotos(
+        @Body tagAlbum: TagAlbum,
+    ): Response<RecommendPhotosResponse>
 }
 
 /**
@@ -86,7 +94,8 @@ interface ApiService {
  * - TokenAuthenticator: 401 시 자동 리프레시 → 재시도
  */
 object RetrofitInstance {
-    private const val BASE_URL = "http://10.0.2.2:8000/"
+//    private const val BASE_URL = "http://10.0.2.2:8000/"
+    private const val BASE_URL = "http://10.238.4.234:8000/"
 
     private var apiService: ApiService? = null
 

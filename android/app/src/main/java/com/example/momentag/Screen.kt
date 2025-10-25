@@ -46,4 +46,8 @@ sealed class Screen(
     object Login : Screen("login_screen")
 
     object Register : Screen("register_screen")
+
+    object AddTag : Screen("add_tag_screen")
+
+    object SelectImage : Screen("select_image_screen")
 }

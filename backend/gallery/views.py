@@ -28,8 +28,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
-from .tasks import process_and_embed_photo
-
+from .tasks import process_and_embed_photo, tag_recommendation, is_valid_uuid, recommend_photo_from_tag
 
 
 
@@ -297,7 +296,7 @@ class PhotoDetailView(APIView):
                         "photo_path_id": point.payload.get("photo_path_id"),
                         "tags": [{"tag_id": tag.tag_id, "tag": tag.tag}]
                     })
-                    
+
             return Response(photos, status=status.HTTP_200_OK)
         except Exception as e:
             return Response(
@@ -484,14 +483,14 @@ class PostPhotoTagsView(APIView):
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            tag_ids = [data["tag_id"] for data in serializer.validated_data]
+            tag_ids = [data['tag_id'] for data in serializer.validated_data]
 
-            if not client.exists(
-                collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)
-            ):
-                return Response(
-                    {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
-                )
+            points = client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME,
+                ids=[str(photo_id)]
+            )
+            if not points:
+                return Response({"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND)
 
             created_photo_tags = []
 
@@ -543,20 +542,11 @@ class DeletePhotoTagsView(APIView):
     def delete(self, request, photo_id, tag_id):
         try:
             Tag.objects.get(tag_id=tag_id, user=request.user)
-            
             if not client.exists(collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)):
                 return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
 
-            if not client.exists(
-                collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)
-            ):
-                return Response(
-                    {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
-                )
-
             photo_tag = Photo_Tag.objects.get(
-                photo_id=photo_id, tag_id=tag_id, user=request.user
-            )
+                photo_id=photo_id, tag_id=tag_id, user=request.user)
 
             if photo_tag.exists():
                 photo_tag.delete()
@@ -571,9 +561,97 @@ class DeletePhotoTagsView(APIView):
                 {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GetRecommendTagView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Recommended Tag of Photo",
+        operation_description="Get recommended tag about a photo.",
+        request_body=None,
+        responses={
+            200: openapi.Response(
+                description="Success",
+                schema=TagSerializer()
+            ),
+            400: openapi.Response(
+                description="Bad Request - Request form mismatch"
+            ),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+            404: openapi.Response(
+                description="Not Found - : No photo with photo_id as its id"
+            ),
+        },
+        manual_parameters=[openapi.Parameter(
+            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+    )
+    def get(self, request, photo_id, *args, **kwargs):
+        try:
+            if not is_valid_uuid(photo_id):
+                return Response({"error": "Request form mismatch."}, status=status.HTTP_400_NOT_FOUND)
+
+            points = client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME,
+                ids=[str(photo_id)]
             )
+            if not points:
+                return Response({"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND)
+
+            tag, tag_id = tag_recommendation(photo_id)
+
+            tag = {"tag_id": tag_id, "tag": tag}
+            response_serializer = TagSerializer(tag)
+
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PhotoRecommendationView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Recommended Photos of a Tag",
+        operation_description="Get recommended photos about a tag.",
+        request_body=None,
+        responses={
+            200: openapi.Response(
+                description="Success",
+                schema=ResPhotoSerializer(many=True),
+            ),
+            400: openapi.Response(
+                description="Bad Request - Request form mismatch"
+            ),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+            404: openapi.Response(
+                description="Not Found - : No tag with tag_id as its id"
+            ),
+        },
+        manual_parameters=[openapi.Parameter(
+            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+    )
+    def get(self, request, tag_id, *args, **kwargs):
+        try:
+            if not Tag.objects.filter(
+                tag_id=tag_id, user__id=request.user.id
+            ).exists():
+                return Response({"error": f"No tag with id {tag_id}"}, status=status.HTTP_404_NOT_FOUND)
+
+            photos = recommend_photo_from_tag(request.user.id, tag_id)
+
+            return Response(photos, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
