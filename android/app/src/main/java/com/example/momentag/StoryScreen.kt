@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,12 +56,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -78,6 +81,7 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.theme.Background
+import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Pink80
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
@@ -98,6 +102,7 @@ fun StoryTagSelectionScreen(
 ) {
     val pagerState = rememberPagerState(pageCount = { stories.size })
     val coroutineScope = rememberCoroutineScope()
+    var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
     Column(
         modifier =
@@ -112,48 +117,59 @@ fun StoryTagSelectionScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // 각 페이지 전체(텍스트 + 이미지 + TagSelectionCard)를 pager 내부에서 렌더
+        // 상단 컨텐츠
         VerticalPager(
             state = pagerState,
             modifier =
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                    .weight(1f) // 상단 영역을 가능한 크게
+                    .fillMaxSize(),
         ) { page ->
             val story = stories[page]
-            val selectedForThisStory = selectedTags[story.id] ?: emptySet()
-            val isLastPage = page == stories.lastIndex
 
             StoryPageFullBlock(
                 story = story,
-                selectedTags = selectedForThisStory,
-                isLastPage = isLastPage,
                 showScrollHint = (page == 0),
+            )
+        }
+
+        // 여기서 TagSelectionCard를 보이도록 변경
+        val currentPage = pagerState.currentPage
+        val currentStory = stories.getOrNull(currentPage)
+        val isLastPage = currentPage == stories.lastIndex
+        val selectedForThisStory = currentStory?.let { selectedTags[it.id] } ?: emptySet()
+
+        if (currentStory != null) {
+            TagSelectionCard(
+                tags = currentStory.suggestedTags,
+                selectedTags = selectedForThisStory,
                 onTagToggle = { tag ->
-                    onTagToggle(story.id, tag)
+                    onTagToggle(currentStory.id, tag)
                 },
                 onDone = {
-                    onDone(story.id)
+                    onDone(currentStory.id)
                     coroutineScope.launch {
                         if (!isLastPage) {
-                            // 다음 페이지로 스크롤
-                            pagerState.animateScrollToPage(page + 1)
+                            pagerState.animateScrollToPage(currentPage + 1)
                         } else {
-                            // 마지막이면 전체 완료 콜백
                             onComplete()
                         }
                     }
                 },
+                isLastPage = isLastPage,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 12.dp),
             )
         }
 
         // 하단 네비게이션 바
-        var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
         BottomNavBar(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
                     .padding(
                         WindowInsets.navigationBars
                             .only(WindowInsetsSides.Bottom)
@@ -171,10 +187,9 @@ fun StoryTagSelectionScreen(
                     }
                     BottomTab.TagScreen -> {
                         navController.navigate(Screen.Album.route)
-                        // TODO : TagScreen연결
                     }
                     BottomTab.StoryScreen -> {
-                        // 이미 Story 화면이라서 아무 것도 안 해도 됨
+                        // 이미 Story 화면
                     }
                 }
             },
@@ -187,29 +202,21 @@ fun StoryTagSelectionScreen(
 @Composable
 private fun StoryPageFullBlock(
     story: StoryModel,
-    selectedTags: Set<String>,
-    isLastPage: Boolean,
     showScrollHint: Boolean,
-    onTagToggle: (String) -> Unit,
-    onDone: () -> Unit,
 ) {
     Box(
-        modifier =
-            Modifier
-                .fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
     ) {
-        // 전체 컨텐츠 스크롤 가능
         Column(
             modifier =
-                Modifier.run {
-                    matchParentSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp)
-                },
+                Modifier
+                    .matchParentSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
         ) {
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ===== 상단 정보 + 즐겨찾기 Row =====
+            // 상단 정보 + 즐겨찾기
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
@@ -217,28 +224,21 @@ private fun StoryPageFullBlock(
                 Column(
                     modifier = Modifier.weight(1f),
                 ) {
-                    // 날짜
                     Text(
                         text = story.date,
                         fontSize = 12.sp,
                         color = Word,
                     )
-
-                    // 위치명 (타이틀)
                     Text(
                         text = story.location,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Word,
-                        modifier =
-                            Modifier
-                                .padding(top = 4.dp),
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
 
-                // ❤️ 즐겨찾기 버튼 (우측)
                 var isFavorite by remember { mutableStateOf(false) }
-
                 IconButton(
                     onClick = { isFavorite = !isFavorite },
                     modifier =
@@ -250,46 +250,35 @@ private fun StoryPageFullBlock(
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Favorite",
-                        tint = if (isFavorite) Color(0xFFFF6F61) else Color.Gray,
+                        tint = if (isFavorite) Button else Color.Gray,
                         modifier = Modifier.size(20.dp),
                     )
                 }
             }
 
-            // ===== 사진 영역 =====
             Spacer(modifier = Modifier.height(12.dp))
 
+            // 이미지 영역 최대한 크게
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .aspectRatio(3f / 4f)
+                        .weight(1f) // 남는 공간을 모두 차지
                         .clip(RoundedCornerShape(8.dp))
                         .background(Temp_word),
+                contentAlignment = Alignment.Center,
             ) {
                 AsyncImage(
                     model = story.images.firstOrNull(),
                     contentDescription = "story image",
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit, // 가로/세로 비율 유지하며 최대한 맞춰서 보여줌
+                    contentScale = ContentScale.Fit, // 비율 유지하며 프레임 최대한 채우기
                 )
             }
 
-            // 이미지랑 카드 사이 여백
             Spacer(modifier = Modifier.height(8.dp))
-
-            // ===== TagSelectionCard 영역 =====
-            TagSelectionCard(
-                tags = story.suggestedTags,
-                selectedTags = selectedTags,
-                onTagToggle = onTagToggle,
-                onDone = onDone,
-                isLastPage = isLastPage,
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
 
-        // 첫 페이지에서만 스크롤 힌트
         if (showScrollHint) {
             ScrollHintOverlay(
                 modifier =
@@ -325,12 +314,27 @@ private fun ScrollHintOverlay(modifier: Modifier = Modifier) {
             imageVector = Icons.Default.KeyboardArrowUp,
             contentDescription = null,
             tint = Color.Black.copy(alpha = 0.4f),
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier
+                .size(24.dp)
+                .drawBehind {
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.5f), // 빛 색상
+                            radius = this.size.maxDimension / 1.8f,       // 번짐 크기
+                            center = this.center
+                        )
+                    },
         )
         Text(
             text = "스크롤하여 다음 추억",
             fontSize = 12.sp,
-            color = Color.Black.copy(alpha = 0.4f),
+            color = Color.Black,
+            style = TextStyle(
+                shadow = androidx.compose.ui.graphics.Shadow(
+                    color = Color.White, // 그림자(빛) 색상
+                    offset = Offset(0f, 0f),   // 중심에서 얼마나 이동시킬지
+                    blurRadius = 12f           // 얼마나 번지게 할지
+                )
+            ),
         )
     }
 }
@@ -635,7 +639,7 @@ private fun StoryPageFullBlockPreviewContent(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .aspectRatio(3f / 4f)
+//                        .aspectRatio(3f / 4f)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFFEDEDED)),
             ) {
