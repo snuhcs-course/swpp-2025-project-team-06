@@ -314,13 +314,14 @@ private fun ScrollHintOverlay(modifier: Modifier = Modifier) {
             imageVector = Icons.Default.KeyboardArrowUp,
             contentDescription = null,
             tint = Color.Black.copy(alpha = 0.4f),
-            modifier = Modifier
-                .size(24.dp)
-                .drawBehind {
+            modifier =
+                Modifier
+                    .size(24.dp)
+                    .drawBehind {
                         drawCircle(
                             color = Color.White.copy(alpha = 0.5f), // 빛 색상
-                            radius = this.size.maxDimension / 1.8f,       // 번짐 크기
-                            center = this.center
+                            radius = this.size.maxDimension / 1.8f, // 번짐 크기
+                            center = this.center,
                         )
                     },
         )
@@ -328,13 +329,15 @@ private fun ScrollHintOverlay(modifier: Modifier = Modifier) {
             text = "스크롤하여 다음 추억",
             fontSize = 12.sp,
             color = Color.Black,
-            style = TextStyle(
-                shadow = androidx.compose.ui.graphics.Shadow(
-                    color = Color.White, // 그림자(빛) 색상
-                    offset = Offset(0f, 0f),   // 중심에서 얼마나 이동시킬지
-                    blurRadius = 12f           // 얼마나 번지게 할지
-                )
-            ),
+            style =
+                TextStyle(
+                    shadow =
+                        androidx.compose.ui.graphics.Shadow(
+                            color = Color.White, // 그림자(빛) 색상
+                            offset = Offset(0f, 0f), // 중심에서 얼마나 이동시킬지
+                            blurRadius = 12f, // 얼마나 번지게 할지
+                        ),
+                ),
         )
     }
 }
