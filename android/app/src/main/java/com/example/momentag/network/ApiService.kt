@@ -33,8 +33,8 @@ import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
 interface ApiService {
-    @GET("home/tags")
-    suspend fun getHomeTags(): List<Tag>
+    @GET("api/tags")
+    suspend fun getAllTags(): List<Tag>
 
     @POST("api/tags/")
     suspend fun postTags(

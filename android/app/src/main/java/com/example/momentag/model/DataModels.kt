@@ -6,7 +6,7 @@ import okhttp3.RequestBody
 
 data class Tag(
     val tagName: String,
-    val thumbnailId: Long,
+    val tagId: Long,
 )
 
 data class TagCreateRequest(
