@@ -1,16 +1,15 @@
 import uuid
 
-from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APITestCase
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch
 from gallery.models import Tag, Photo_Tag
 
 
-class PhotoRecommendationViewTest(TestCase):
+class PhotoRecommendationViewTest(APITestCase):
     def setUp(self):
         """Set up test client and test data"""
         self.client = APIClient()
@@ -37,7 +36,7 @@ class PhotoRecommendationViewTest(TestCase):
 
         # URL for the view
         self.url = reverse(
-            "photo_recommendation", kwargs={"tag_id": self.user_tag.tag_id}
+            "gallery:photo_recommendation", kwargs={"tag_id": self.user_tag.tag_id}
         )
 
     @patch("gallery.views.recommend_photo_from_tag")
@@ -82,7 +81,7 @@ class PhotoRecommendationViewTest(TestCase):
     def test_get_recommendations_tag_belongs_to_other_user(self):
         """Test that user cannot access another user's tags"""
         url = reverse(
-            "photo_recommendation", kwargs={"tag_id": self.other_user_tag.tag_id}
+            "gallery:photo_recommendation", kwargs={"tag_id": self.other_user_tag.tag_id}
         )
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")

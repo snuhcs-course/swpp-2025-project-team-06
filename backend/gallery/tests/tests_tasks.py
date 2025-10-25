@@ -19,7 +19,7 @@ class TaskFunctionsTest(TestCase):
         self.tag_id = uuid.uuid4()
         self.tag = Tag.objects.create(tag_id=self.tag_id, user=self.user, tag="test")
         self.photo_tag = Photo_Tag.objects.create(
-            user=self.user, tag_id=self.tag, photo_id=self.photo_id
+            user=self.user, tag=self.tag, photo_id=self.photo_id
         )
 
     @patch("gallery.tasks.client")

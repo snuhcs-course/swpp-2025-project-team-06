@@ -6,7 +6,7 @@ from qdrant_client import models
 
 from .vision_service import get_image_embedding
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME, REFVEC_COLLECTION_NAME
-from .models import Tag, User, Photo_Tag
+from .models import Photo_Tag
 
 import time
 
