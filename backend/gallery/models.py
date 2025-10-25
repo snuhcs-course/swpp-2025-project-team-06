@@ -17,5 +17,23 @@ class Photo_Tag(models.Model):
     photo_id = models.UUIDField(max_length=255, unique=True)
 
     def __str__(self):
-        return f"{self.photo_id} tagged with {self.tag.tag}"
+        return f"{self.photo_id} tagged with {self.tag_id}"
     
+class Caption(models.Model):
+    caption_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    caption= models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.caption
+    
+class Photo_Caption(models.Model):
+    pc_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    photo_id = models.UUIDField(max_length=255)
+    caption_id = models.ForeignKey(Caption, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.photo_id} captioned with {self.caption_id}"
