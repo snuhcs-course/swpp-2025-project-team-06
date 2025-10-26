@@ -10,7 +10,7 @@ from qdrant_client import models
 from .reponse_serializers import ResPhotoSerializer, ResPhotoTagListSerializer, ResPhotoIdSerializer, ResTagIdSerializer, ResTagVectorSerializer
 from .request_serializers import ReqPhotoDetailSerializer, ReqPhotoIdSerializer, ReqTagNameSerializer, ReqTagIdSerializer
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag
+from .models import Photo_Tag, Tag, User
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -426,6 +426,11 @@ class PostPhotoTagsView(APIView):
 
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                current_user_obj = User.objects.get(pk=request.user.pk)
+            except User.DoesNotExist:
+                 return Response({"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED)
 
             tag_ids = [data['tag_id'] for data in serializer.validated_data]
 
@@ -451,7 +456,7 @@ class PostPhotoTagsView(APIView):
                             pt_id=pt_id, 
                             photo_id=str(photo_id), 
                             tag=tag_object,
-                            user=request.user
+                            user=current_user_obj
                         )
                     )
 
