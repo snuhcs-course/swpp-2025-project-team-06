@@ -440,7 +440,7 @@ class PostPhotoTagsView(APIView):
                 pt_id = uuid.uuid4()
 
                 tag = Tag.objects.get(tag_id=tag_id, user=request.user)
-                Photo_Tag.create(
+                Photo_Tag.objects.create(
                     pt_id=pt_id, 
                     photo_id=photo_id, 
                     tag=tag, 
