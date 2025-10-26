@@ -19,8 +19,6 @@ from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 from .tasks import process_and_embed_photo, tag_recommendation, is_valid_uuid, recommend_photo_from_tag
 
-from .tasks import process_and_embed_photo, create_or_update_tag_embedding, tag_recommendation, is_valid_uuid
-
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [JWTAuthentication]
