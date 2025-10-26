@@ -440,7 +440,7 @@ class PostPhotoTagsView(APIView):
             for tag_id in tag_ids:
                 pt_id = uuid.uuid4()
                 created_photo_tags.append(
-                    Photo_Tag(id=pt_id, photo_id=photo_id, tag_id=tag_id, user=request.user))
+                    Photo_Tag(pt_id=pt_id, photo_id=photo_id, tag_id=tag_id, user=request.user))
 
             Photo_Tag.objects.bulk_create(created_photo_tags)
 
