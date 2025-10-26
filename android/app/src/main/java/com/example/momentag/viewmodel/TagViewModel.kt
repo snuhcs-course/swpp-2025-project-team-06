@@ -31,23 +31,23 @@ class TagViewModel(
             when (val tagsResult = remoteRepository.getAllTags()) {
                 is RemoteRepository.Result.Success -> {
                     try {
-                        val tags = tagsResult.data.tags
+                        val tags = tagsResult.data
 
                         val tagItems: List<TagItem> =
                             tags
                                 .map { tag ->
                                     async(ioDispatcher) {
-                                        when (val photosResult = remoteRepository.getPhotosByTag(tag.tagName)) {
+                                        when (val photosResult = remoteRepository.getPhotosByTag(tag.tagId)) {
                                             is RemoteRepository.Result.Success -> {
                                                 val coverId =
-                                                    photosResult.data.photos
+                                                    photosResult.data
                                                         .firstOrNull()
-                                                        ?.photoId
+                                                        ?.photoPathId
 
-                                                TagItem(tagName = tag.tagName, coverImageId = coverId)
+                                                TagItem(tagName = tag.tagName, coverImageId = coverId, tagId = tag.tagId)
                                             }
                                             else -> {
-                                                TagItem(tagName = tag.tagName, coverImageId = null)
+                                                TagItem(tagName = tag.tagName, coverImageId = null, tagId = tag.tagId)
                                             }
                                         }
                                     }
@@ -78,11 +78,11 @@ class TagViewModel(
         }
     }
 
-    fun loadImagesOfTag(tagName: String) {
+    fun loadImagesOfTag(tagId: String) {
         viewModelScope.launch {
             _imageOfTagLoadState.value = ImageOfTagLoadState.Loading
 
-            when (val result = remoteRepository.getPhotosByTag(tagName)) {
+            when (val result = remoteRepository.getPhotosByTag(tagId)) {
                 is RemoteRepository.Result.Success -> {
                     _imageOfTagLoadState.value =
                         ImageOfTagLoadState.Success(

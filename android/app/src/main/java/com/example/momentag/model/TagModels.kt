@@ -24,7 +24,7 @@ sealed interface ImageOfTagLoadState {
     object Loading : ImageOfTagLoadState
 
     data class Success(
-        val photos: Photos,
+        val photos: List<Photo>,
     ) : ImageOfTagLoadState
 
     data class Error(

@@ -2,6 +2,7 @@ package com.example.momentag.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.momentag.model.Photo
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,7 +15,7 @@ class PhotoTagViewModel(
     private val _tagName = MutableStateFlow("")
     val tagName = _tagName.asStateFlow()
 
-    private val _selectedPhotos = MutableStateFlow<List<Long>>(emptyList())
+    private val _selectedPhotos = MutableStateFlow<List<Photo>>(emptyList())
     val selectedPhotos = _selectedPhotos.asStateFlow()
 
     sealed class SaveState {
@@ -34,7 +35,7 @@ class PhotoTagViewModel(
 
     fun setInitialData(
         initialTagName: String?,
-        initialSelectedPhotos: List<Long>,
+        initialSelectedPhotos: List<Photo>,
     ) {
         _tagName.value = initialTagName ?: ""
         _selectedPhotos.value = initialSelectedPhotos
@@ -44,11 +45,11 @@ class PhotoTagViewModel(
         _tagName.value = newTagName
     }
 
-    fun addPhoto(photoId: Long) {
+    fun addPhoto(photoId: Photo) {
         _selectedPhotos.update { currentList -> currentList + photoId }
     }
 
-    fun removePhoto(photoId: Long) {
+    fun removePhoto(photoId: Photo) {
         _selectedPhotos.update { currentList -> currentList - photoId }
     }
 
@@ -62,11 +63,11 @@ class PhotoTagViewModel(
             _saveState.value = SaveState.Loading
 
             val tagResult = remoteRepository.postTags(_tagName.value)
-            val tagId: Long
+            val tagId: String
 
             when (tagResult) {
                 is RemoteRepository.Result.Success -> {
-                    tagId = tagResult.data
+                    tagId = tagResult.data.tagId
                 }
                 else -> {
                     _saveState.value = SaveState.Error("Error creating tag")
@@ -75,8 +76,8 @@ class PhotoTagViewModel(
             }
 
             var allSucceeded = true
-            for (photoId in _selectedPhotos.value) {
-                when (val result = remoteRepository.postTagsToPhoto(photoId, tagId)) {
+            for (photo in _selectedPhotos.value) {
+                when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
                     is RemoteRepository.Result.Success -> {
                     }
                     else -> {

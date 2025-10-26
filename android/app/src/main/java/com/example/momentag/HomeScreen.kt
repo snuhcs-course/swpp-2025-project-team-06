@@ -333,6 +333,7 @@ private fun MainContent(
         ) {
             items(tagItems) { item ->
                 TagGridItem(
+                    tagId = item.tagId,
                     tagName = item.tagName,
                     imageId = item.coverImageId,
                     navController = navController,
@@ -369,6 +370,7 @@ private fun requiredImagePermission(): String =
 @Suppress("ktlint:standard:function-naming")
 @Composable
 fun TagGridItem(
+    tagId: String,
     tagName: String,
     imageId: Long?,
     navController: NavController,
@@ -395,7 +397,7 @@ fun TagGridItem(
                         .clip(RoundedCornerShape(16.dp))
                         .align(Alignment.BottomCenter)
                         .clickable {
-                            navController.navigate(Screen.Album.createRoute(tagName))
+                            navController.navigate(Screen.Album.createRoute(tagId, tagName))
                         },
                 contentScale = ContentScale.Crop,
             )
@@ -410,7 +412,7 @@ fun TagGridItem(
                             shape = RoundedCornerShape(16.dp),
                         ).align(Alignment.BottomCenter)
                         .clickable {
-                            navController.navigate(Screen.Album.createRoute(tagName))
+                            navController.navigate(Screen.Album.createRoute(tagId, tagName))
                         },
             )
         }

@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
 import com.example.momentag.model.TagAlbum
 import com.example.momentag.ui.components.BackTopBar
@@ -73,6 +74,7 @@ import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.RecommendViewModel
+import com.example.momentag.viewmodel.ServerViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,10 +90,13 @@ fun AddTagScreen(
     val tagName by viewModel.tagName.collectAsState()
     val selectedPhotos by viewModel.selectedPhotos.collectAsState()
 
+    val serverViewModel: ServerViewModel = viewModel(factory = ViewModelFactory(context))
+    val allServerPhotos by serverViewModel.allPhotos.collectAsState()
+
     val recommendViewModel: RecommendViewModel = viewModel(factory = ViewModelFactory(context))
     val recommendState by recommendViewModel.recommendState.collectAsState()
 
-    val recommendedPhotos = remember { mutableStateListOf<Long>() }
+    val recommendedPhotos = remember { mutableStateListOf<Photo>() }
 
     val saveState by viewModel.saveState.collectAsState()
 
@@ -113,14 +118,19 @@ fun AddTagScreen(
                 Manifest.permission.READ_EXTERNAL_STORAGE
             }
         permissionLauncher.launch(permission)
+        serverViewModel.getAllPhotos()
     }
 
     LaunchedEffect(recommendState) {
         if (recommendState is RecommendState.Success) {
             val successState = recommendState as RecommendState.Success
             recommendedPhotos.clear()
-            val newRecommended = successState.photos.filter { it !in selectedPhotos }
-            recommendedPhotos.addAll(newRecommended)
+            val selectedPhotoIds = selectedPhotos.map { it.photoId }
+            val newRecommendedPhotos = allServerPhotos.filter { photo ->
+                photo.photoId in successState.photos &&
+                        photo.photoId !in selectedPhotoIds
+            }
+            recommendedPhotos.addAll(newRecommendedPhotos)
         }
     }
 
@@ -140,17 +150,20 @@ fun AddTagScreen(
         }
     }
 
-    val onDeselectPhoto: (Long) -> Unit = { photoId ->
+    val onDeselectPhoto: (Photo) -> Unit = { photo ->
         isChanged = true
-        viewModel.removePhoto(photoId)
-        recommendedPhotos.add(photoId)
+        viewModel.removePhoto(photo)
+        recommendedPhotos.add(photo)
     }
 
-    val onSelectPhoto: (Long) -> Unit = { photoId ->
+    val onSelectPhoto: (Photo) -> Unit = { photo ->
         isChanged = true
-        viewModel.addPhoto(photoId)
-        recommendedPhotos.remove(photoId)
-        val tagAlbum = TagAlbum(tagName, selectedPhotos + photoId)
+        viewModel.addPhoto(photo)
+        recommendedPhotos.remove(photo)
+
+        val currentPhotoIds = (selectedPhotos + photo).map { it.photoId }
+        val tagAlbum = TagAlbum(tagName, currentPhotoIds)
+
         recommendViewModel.recommend(tagAlbum)
     }
 
@@ -224,7 +237,6 @@ fun AddTagScreen(
                         onClick = {
                             viewModel.updateTagName(tagName)
                             viewModel.saveTagAndPhotos()
-                            navController.popBackStack()
                         },
                         shape = RoundedCornerShape(15.dp),
                         colors =
@@ -314,8 +326,8 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
 
 @Composable
 private fun SelectedPhotosSection(
-    photos: List<Long>,
-    onPhotoClick: (Long) -> Unit,
+    photos: List<Photo>,
+    onPhotoClick: (Photo) -> Unit,
 ) {
     LazyRow(
         modifier =
@@ -326,11 +338,11 @@ private fun SelectedPhotosSection(
         horizontalArrangement = Arrangement.spacedBy(21.dp),
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
-        items(photos) { photoId ->
+        items(photos) { photo ->
             PhotoCheckedItem(
-                photoId = photoId,
+                photoId = photo.photoPathId,
                 isSelected = true,
-                onClick = { onPhotoClick(photoId) },
+                onClick = { onPhotoClick(photo) },
                 modifier = Modifier.aspectRatio(1f),
             )
         }
@@ -339,8 +351,8 @@ private fun SelectedPhotosSection(
 
 @Composable
 private fun RecommendedPicturesSection(
-    photos: List<Long>,
-    onPhotoClick: (Long) -> Unit,
+    photos: List<Photo>,
+    onPhotoClick: (Photo) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -357,11 +369,11 @@ private fun RecommendedPicturesSection(
             horizontalArrangement = Arrangement.spacedBy(21.dp),
             modifier = Modifier.height(193.dp),
         ) {
-            items(photos) { photoId ->
+            items(photos) { photo ->
                 PhotoCheckedItem(
-                    photoId = photoId,
+                    photoId = photo.photoPathId,
                     isSelected = false,
-                    onClick = { onPhotoClick(photoId) },
+                    onClick = { onPhotoClick(photo) },
                     modifier = Modifier.aspectRatio(1f),
                 )
             }

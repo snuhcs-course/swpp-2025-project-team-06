@@ -1,8 +1,12 @@
 package com.example.momentag.repository
 
+import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.model.Photos
+import com.example.momentag.model.Tag
 import com.example.momentag.model.TagCreateRequest
+import com.example.momentag.model.TagCreateResponse
+import com.example.momentag.model.TagIdRequest
 import com.example.momentag.model.Tags
 import com.example.momentag.network.ApiService
 import retrofit2.HttpException
@@ -38,7 +42,7 @@ class RemoteRepository(
         ) : Result<T>()
     }
 
-    suspend fun getAllTags(): Result<Tags> =
+    suspend fun getAllTags(): Result<List<Tag>> =
         try {
             val response = apiService.getAllTags()
 
@@ -61,9 +65,9 @@ class RemoteRepository(
             Result.Exception(e)
         }
 
-    suspend fun getPhotosByTag(tagName: String): Result<Photos> =
+    suspend fun getAllPhotos(): Result<List<Photo>> =
         try {
-            val response = apiService.getPhotosByTag(tagName)
+            val response = apiService.getAllPhotos()
 
             if (response.isSuccessful) {
                 response.body()?.let { photos ->
@@ -84,14 +88,37 @@ class RemoteRepository(
             Result.Exception(e)
         }
 
-    suspend fun postTags(tagName: String): Result<Long> =
+    suspend fun getPhotosByTag(tagId: String): Result<List<Photo>> =
+        try {
+            val response = apiService.getPhotosByTag(tagId)
+
+            if (response.isSuccessful) {
+                response.body()?.let { photos ->
+                    Result.Success(photos)
+                } ?: Result.Error(response.code(), "Response body is null")
+            } else {
+                when (response.code()) {
+                    401 -> Result.Unauthorized("Authentication failed")
+                    400 -> Result.BadRequest("Bad request")
+                    else -> Result.Error(response.code(), "An unknown error occurred: ${response.message()}")
+                }
+            }
+        } catch (e: HttpException) {
+            Result.Error(e.code(), e.message())
+        } catch (e: IOException) {
+            Result.Exception(e)
+        } catch (e: Exception) {
+            Result.Exception(e)
+        }
+
+    suspend fun postTags(tagName: String): Result<TagCreateResponse> =
         try {
             val request = TagCreateRequest(name = tagName)
             val response = apiService.postTags(request)
 
             if (response.isSuccessful) {
-                response.body()?.let { tagId ->
-                    Result.Success(tagId)
+                response.body()?.let { tagCreateResponse ->
+                    Result.Success(tagCreateResponse)
                 } ?: Result.Error(response.code(), "Response body is null")
             } else {
                 when (response.code()) {
@@ -135,8 +162,8 @@ class RemoteRepository(
     }
 
     suspend fun removeTagFromPhoto(
-        photoId: Long,
-        tagId: Long,
+        photoId: String,
+        tagId: String,
     ): Result<Unit> =
         try {
             val response = apiService.removeTagFromPhoto(photoId, tagId)
@@ -158,11 +185,13 @@ class RemoteRepository(
         }
 
     suspend fun postTagsToPhoto(
-        photoId: Long,
-        tagId: Long,
+        photoId: String,
+        tagId: String,
     ): Result<Unit> =
         try {
-            val response = apiService.postTagsToPhoto(photoId, tagId)
+            val requestBody = listOf(TagIdRequest(tagId = tagId))
+
+            val response = apiService.postTagsToPhoto(photoId, requestBody)
 
             if (response.isSuccessful) {
                 Result.Success(Unit)

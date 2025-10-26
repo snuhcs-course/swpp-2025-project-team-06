@@ -53,6 +53,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumScreen(
+    tagId: String,
     tagName: String,
     navController: NavController,
     onNavigateBack: () -> Unit,
@@ -75,9 +76,9 @@ fun AlbumScreen(
             },
         )
 
-    LaunchedEffect(hasPermission, tagName) {
+    LaunchedEffect(hasPermission, tagId) {
         if (hasPermission) {
-            tagViewModel.loadImagesOfTag(tagName)
+            tagViewModel.loadImagesOfTag(tagId)
         }
     }
 
@@ -105,7 +106,7 @@ fun AlbumScreen(
             onRefresh = {
                 scope.launch {
                     if (hasPermission) {
-                        tagViewModel.loadImagesOfTag(tagName)
+                        tagViewModel.loadImagesOfTag(tagId)
                     }
                 }
             },
@@ -143,11 +144,11 @@ fun AlbumScreen(
                             }
                         }
                         is ImageOfTagLoadState.Success -> {
-                            val photosWrapper = (imageLoadState as ImageOfTagLoadState.Success).photos
+                            val photos = (imageLoadState as ImageOfTagLoadState.Success).photos
                             val imageUris: List<Uri> =
-                                remember(photosWrapper) {
-                                    photosWrapper.photos.mapNotNull { photo ->
-                                        photo.photoId?.let { id ->
+                                remember(photos) {
+                                    photos.mapNotNull { photo ->
+                                        photo.photoPathId.let { id ->
                                             ContentUris.withAppendedId(
                                                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                                                 id,

@@ -64,6 +64,7 @@ import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.SearchViewModel
+import com.example.momentag.viewmodel.ServerViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
 @Suppress("ktlint:standard:function-naming")
@@ -83,6 +84,10 @@ fun SearchResultScreen(
         viewModel(
             factory = ViewModelFactory(LocalContext.current),
         ),
+    serverViewModel: ServerViewModel =
+        viewModel(
+            factory = ViewModelFactory(LocalContext.current),
+        ),
     photoTagViewModel: PhotoTagViewModel,
 ) {
     var searchText by remember { mutableStateOf(initialQuery) }
@@ -90,11 +95,14 @@ fun SearchResultScreen(
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
+    val allServerPhotos by serverViewModel.allPhotos.collectAsState()
+
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
         if (initialQuery.isNotEmpty()) {
             searchViewModel.search(initialQuery)
         }
+        serverViewModel.getAllPhotos()
     }
 
     // SemanticSearchState를 SearchUiState로 변환
@@ -185,7 +193,10 @@ fun SearchResultScreen(
             for (uri in selectedImages) {
                 selectedImagesId.add(ContentUris.parseId(uri))
             }
-            photoTagViewModel.setInitialData(null, selectedImagesId)
+            val selectedPhotoObjects = allServerPhotos.filter { photo ->
+                photo.photoPathId in selectedImagesId
+            }
+            photoTagViewModel.setInitialData(null, selectedPhotoObjects)
             navController.navigate(Screen.AddTag.route)
             isSelectionMode = false
             selectedImages = emptyList()

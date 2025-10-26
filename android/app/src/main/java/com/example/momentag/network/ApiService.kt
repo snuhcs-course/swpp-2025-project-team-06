@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
+import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoTag
 import com.example.momentag.model.Photos
 import com.example.momentag.model.RecommendPhotosResponse
@@ -12,8 +13,11 @@ import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.SemanticSearchResponse
+import com.example.momentag.model.Tag
 import com.example.momentag.model.TagAlbum
 import com.example.momentag.model.TagCreateRequest
+import com.example.momentag.model.TagCreateResponse
+import com.example.momentag.model.TagIdRequest
 import com.example.momentag.model.Tags
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -33,30 +37,33 @@ import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
 interface ApiService {
-    @GET("api/tags")
-    suspend fun getAllTags(): Response<Tags>
+    @GET("api/tags/")
+    suspend fun getAllTags(): Response<List<Tag>>
+
+    @GET("api/photos/")
+    suspend fun getAllPhotos(): Response<List<Photo>>
 
     @POST("api/tags/")
     suspend fun postTags(
         @Body request: TagCreateRequest,
-    ): Response<Long>
+    ): Response<TagCreateResponse>
 
-    @GET("tags/{tagName}")
+    @GET("api/photos/albums/{tagId}/")
     suspend fun getPhotosByTag(
-        @Path("tagName") tagName: String,
-    ): Response<Photos>
+        @Path("tagId") tagId: String,
+    ): Response<List<Photo>>
 
     @DELETE("api/photos/{photo_id}/tags/{tag_id}/")
     suspend fun removeTagFromPhoto(
-        @Path("photo_id") photoId: Long,
-        @Path("tag_id") tagId: Long,
+        @Path("photo_id") photoId: String,
+        @Path("tag_id") tagId: String,
     ): Response<Unit>
 
     @POST("api/photos/{photo_id}/tags/")
     suspend fun postTagsToPhoto(
-        @Path("photo_id") photoId: Long,
-        @Body tag_id: Long,
-    ): Response<PhotoTag>
+        @Path("photo_id") photoId: String,
+        @Body tagIdList: List<TagIdRequest>,
+    ): Response<Unit>
 
     @POST("api/auth/signin/")
     suspend fun login(
@@ -115,7 +122,7 @@ interface ApiService {
  */
 object RetrofitInstance {
 //    private const val BASE_URL = "http://10.0.2.2:8000/"
-    private const val BASE_URL = "http://10.172.49.234:8000/"
+    private const val BASE_URL = "http://10.213.116.234:8000/"
 
     private var apiService: ApiService? = null
 

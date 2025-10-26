@@ -35,17 +35,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.PhotoTagViewModel
+import com.example.momentag.viewmodel.ServerViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +60,9 @@ fun SelectImageScreen(
 ) {
     var hasPermission by remember { mutableStateOf(false) }
     // TODO: GET /api/photos/
-    val allPhotos: List<Long> = remember { (1L..20L).toList() }
+    val context = LocalContext.current
+    val serverViewModel: ServerViewModel = viewModel(factory = ViewModelFactory(context))
+    val allPhotos by serverViewModel.allPhotos.collectAsState()
 
     val tagName by viewModel.tagName.collectAsState()
     val selectedPhotos by viewModel.selectedPhotos.collectAsState()
@@ -80,11 +87,17 @@ fun SelectImageScreen(
         permissionLauncher.launch(permission)
     }
 
-    val onPhotoClick: (Long) -> Unit = { photoId ->
-        if (selectedPhotos.contains(photoId)) {
-            viewModel.removePhoto(photoId)
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            serverViewModel.getAllPhotos()
+        }
+    }
+
+    val onPhotoClick: (Photo) -> Unit = { photo ->
+        if (selectedPhotos.contains(photo)) {
+            viewModel.removePhoto(photo)
         } else {
-            viewModel.addPhoto(photoId)
+            viewModel.addPhoto(photo)
         }
     }
 
@@ -138,12 +151,12 @@ fun SelectImageScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.height(453.dp),
                 ) {
-                    items(allPhotos) { photoId ->
-                        val isSelected = selectedPhotos.contains(photoId)
+                    items(allPhotos) { photo ->
+                        val isSelected = selectedPhotos.contains(photo)
                         PhotoCheckedItem(
-                            photoId = photoId,
+                            photoId = photo.photoPathId,
                             isSelected = isSelected,
-                            onClick = { onPhotoClick(photoId) },
+                            onClick = { onPhotoClick(photo) },
                             modifier = Modifier.aspectRatio(1f),
                         )
                     }

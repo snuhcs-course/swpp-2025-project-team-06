@@ -1,12 +1,16 @@
 package com.example.momentag.model
 
 import android.net.Uri
+import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 
 data class Tag(
+    @SerializedName("tag")
     val tagName: String,
-    val tagId: Long,
+
+    @SerializedName("tag_id")
+    val tagId: String,
 )
 
 data class Tags(
@@ -16,18 +20,34 @@ data class Tags(
 data class TagItem(
     val tagName: String,
     val coverImageId: Long?,
+    val tagId: String,
 )
 
 data class TagCreateRequest(
+    @SerializedName("tag")
     val name: String,
 )
 
 data class Photo(
-    val photoId: Long,
+    @SerializedName("photo_id")
+    val photoId: String,
+
+    @SerializedName("photo_path_id")
+    val photoPathId: Long
 )
 
 data class Photos(
     val photos: List<Photo>,
+)
+
+data class TagIdRequest(
+    @SerializedName("tag_id")
+    val tagId: String
+)
+
+data class TagCreateResponse(
+    @SerializedName("tag_id")
+    val tagId: String
 )
 
 data class PhotoTag(
@@ -81,7 +101,7 @@ data class SemanticSearchResponse(
 
 // TODO : photo name까지 받아오기
 data class RecommendPhotosResponse(
-    val photos: List<Long>,
+    val photos: List<String>,
 )
 
 // ========== Upload Models ==========

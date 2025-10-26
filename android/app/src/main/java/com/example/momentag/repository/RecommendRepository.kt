@@ -9,7 +9,7 @@ class RecommendRepository(
 ) {
     sealed class RecommendResult {
         data class Success(
-            val photos: List<Long>,
+            val photos: List<String>,
         ) : RecommendResult()
 
         data class Empty(
