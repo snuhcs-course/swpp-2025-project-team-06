@@ -33,25 +33,36 @@ def process_and_embed_photo(
     image_path, user_id, filename, photo_path_id, created_at, lat, lng
 ):
     try:
+
+        print("debugging 11", flush=True)
+
         # 파일이 실제로 생길 때까지 잠시 대기
         waited = 0
         while not os.path.exists(image_path) and waited < MAX_WAIT:
             time.sleep(WAIT_INTERVAL)
             waited += WAIT_INTERVAL
 
+        print("debugging 22", flush=True)
+
         if not os.path.exists(image_path):
             print(
                 f"[Celery Task Error] File not found even after waiting: {image_path}"
             )
             return
+        
+        print("debugging 33", flush=True)
 
         embedding = get_image_embedding(image_path)
+
+        print("debugging 44", flush=True)
 
         if embedding is None:
             print(f"[Celery Task Error] Failed to create embedding for {filename}")
             if os.path.exists(image_path):
                 os.remove(image_path)
             return
+        
+        print("debugging 55", flush=True)
 
         photo_id = uuid.uuid4()
         point_to_upsert = models.PointStruct(
@@ -64,8 +75,11 @@ def process_and_embed_photo(
                 "created_at": created_at,
                 "lat": lat,
                 "lng": lng,
+                "isTagged": False,
             },
         )
+
+        print("debugging 66")
 
         client.upsert(
             collection_name=IMAGE_COLLECTION_NAME, points=[point_to_upsert], wait=True

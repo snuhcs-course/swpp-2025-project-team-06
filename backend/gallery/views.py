@@ -7,7 +7,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from qdrant_client import models
 
-from .reponse_serializers import ResPhotoSerializer, ResPhotoTagListSerializer, ResPhotoIdSerializer, ResTagIdSerializer, ResTagVectorSerializer
+from .reponse_serializers import ResPhotoSerializer, ResPhotoTagListSerializer, ResPhotoIdSerializer, ResTagIdSerializer, ResTagVectorSerializer, ResStorySerializer
 from .request_serializers import ReqPhotoDetailSerializer, ReqPhotoIdSerializer, ReqTagNameSerializer, ReqTagIdSerializer
 from .serializers import TagSerializer
 from .models import Photo_Tag, Tag
@@ -97,6 +97,8 @@ class PhotoView(APIView):
                     'lng': metadata.get('lng')
                 })
 
+            print("debugging 1", flush=True)
+
             serializer = ReqPhotoDetailSerializer(data=photos_data, many=True)
 
             if not serializer.is_valid():
@@ -106,12 +108,15 @@ class PhotoView(APIView):
 
             fs = FileSystemStorage(location=settings.MEDIA_ROOT)
 
+            print("debugging 2", flush=True)
+
             for data in photos_data:
                 image_file = data['photo']
-
                 temp_filename = f"{uuid.uuid4()}_{image_file.name}"
                 saved_path = fs.save(temp_filename, image_file)
                 full_path = fs.path(saved_path)
+
+                print("debugging 111", flush=True)
 
                 process_and_embed_photo.delay(
                     image_path=full_path,
@@ -122,6 +127,8 @@ class PhotoView(APIView):
                     lat=data['lat'],
                     lng=data['lng']
                 )
+
+            print("debugging 3", flush=True)
 
             return Response({"message": "Photos are being processed."}, status=status.HTTP_202_ACCEPTED)
         except Exception as e:
@@ -790,5 +797,96 @@ class TagDetailView(APIView):
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
             return Response({"error": "No tag with tag_id as its id"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class StoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Stories",
+        operation_description="Get stories generated from user's photos with pagination",
+        request_body=None,
+        responses={
+            200: openapi.Response(
+                description="Success",
+                schema=ResStorySerializer()
+            ),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING
+            ),
+            openapi.Parameter(
+                "page", openapi.IN_QUERY, description="Page number (default: 1)", type=openapi.TYPE_INTEGER
+            ),
+            openapi.Parameter(
+                "page_size", openapi.IN_QUERY, description="Number of items per page (default: 50, max: 200)", type=openapi.TYPE_INTEGER
+            )
+        ]
+    )
+    def get(self, request):
+        try:
+            # 페이지네이션 파라미터 가져오기
+            page = int(request.GET.get('page', 1))
+            page_size = min(int(request.GET.get('pagesize', 20)), 200)  # 최대 200개 제한
+            
+            if page < 1:
+                page = 1
+            if page_size < 1:
+                page_size = 20
+
+            # isTagged=False인 사용자의 사진들만 필터링
+            user_filter = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="user_id",
+                        match=models.MatchValue(value=request.user.id),
+                    ),
+                    models.FieldCondition(
+                        key="isTagged",
+                        match=models.MatchValue(value=False),
+                    )
+                ]
+            )
+
+            # 페이지네이션을 위한 offset 계산
+            offset = (page - 1) * page_size
+
+            # 요청된 페이지의 데이터만 가져오기
+            points, next_offset = client.scroll(
+                collection_name=IMAGE_COLLECTION_NAME,
+                scroll_filter=user_filter,
+                limit=page_size,
+                offset=offset,
+                with_payload=True
+            )
+
+            # 태그되지 않은 사진이 없는 경우
+            if len(points) == 0:
+                return Response({
+                    "recs": [],
+                }, status=status.HTTP_200_OK)
+
+            # ResPhotoSerializer 형태로 데이터 변환
+            photos_data = []
+            for point in points:
+                photos_data.append({
+                    "photo_id": point.id,
+                    "photo_path_id": point.payload.get("photo_path_id")
+                })
+
+            # ResStorySerializer에 맞는 형태로 응답 데이터 구성
+            story_response = {
+                "recs": photos_data,
+            }
+
+            serializer = ResStorySerializer(story_response)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

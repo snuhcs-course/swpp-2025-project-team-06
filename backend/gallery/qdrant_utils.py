@@ -43,6 +43,7 @@ def ensure_image_indexes():
         "created_at": models.PayloadSchemaType.DATETIME,
         "lat": models.PayloadSchemaType.FLOAT,
         "lng": models.PayloadSchemaType.FLOAT,
+        "isTagged": models.PayloadSchemaType.BOOL,   
     }
 
     for field, schema in indexes.items():
