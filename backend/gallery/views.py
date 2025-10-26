@@ -435,14 +435,17 @@ class PostPhotoTagsView(APIView):
             if not points:
                 return Response({"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND)
 
-            created_photo_tags = []
 
             for tag_id in tag_ids:
                 pt_id = uuid.uuid4()
-                created_photo_tags.append(
-                    Photo_Tag(pt_id=pt_id, photo_id=photo_id, tag_id=tag_id, user=request.user))
 
-            Photo_Tag.objects.bulk_create(created_photo_tags)
+                tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+                Photo_Tag.create(
+                    pt_id=pt_id, 
+                    photo_id=photo_id, 
+                    tag=tag, 
+                    user=request.user
+                )
 
             # now update the metadata isTagged in Qdrant
             client.set_payload(
