@@ -19,6 +19,8 @@ from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 from .tasks import process_and_embed_photo, tag_recommendation, is_valid_uuid, recommend_photo_from_tag
 
+from django.db import transaction
+
 
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -436,10 +438,22 @@ class PostPhotoTagsView(APIView):
 
             created_photo_tags = []
 
-            for tag_id in tag_ids:
-                pt_id = uuid.uuid4()
-                created_photo_tags.append(
-                    Photo_Tag(pt_id=pt_id, photo_id=photo_id, tag_id=tag_id, user=request.user))
+            with transaction.atomic():
+                for tag_id in tag_ids:
+                    try:
+                        tag_object = Tag.objects.get(tag_id=tag_id)
+                    except Tag.DoesNotExist:
+                        return Response({"error": "No such tag"}, status=status.HTTP_404_NOT_FOUND)
+
+                    pt_id = uuid.uuid4()
+                    created_photo_tags.append(
+                        Photo_Tag(
+                            pt_id=pt_id, 
+                            photo_id=photo_id, 
+                            tag=tag_object,
+                            user=request.user
+                        )
+                    )
 
             Photo_Tag.objects.bulk_create(created_photo_tags)
 
