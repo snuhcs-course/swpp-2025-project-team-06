@@ -2,23 +2,34 @@ package com.example.momentag.viewmodel
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.ImageContext
 import com.example.momentag.model.Photo
+import com.example.momentag.model.PhotoTagState
 import com.example.momentag.repository.ImageBrowserRepository
+import com.example.momentag.repository.RecommendRepository
+import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * ImageDetailViewModel
  *
  * 이미지 상세보기에서 사용할 ViewModel
  * ImageBrowserRepository로부터 이미지 컨텍스트를 조회
+ * RemoteRepository와 RecommendRepository를 통해 태그 정보 및 추천 태그 조회
  */
 class ImageDetailViewModel(
     private val imageBrowserRepository: ImageBrowserRepository,
+    private val remoteRepository: RemoteRepository,
+    private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
     val imageContext = _imageContext.asStateFlow()
+
+    private val _photoTagState = MutableStateFlow<PhotoTagState>(PhotoTagState.Idle)
+    val photoTagState = _photoTagState.asStateFlow()
 
     /**
      * photoId를 기반으로 ImageContext를 Repository에서 조회하여 설정
@@ -57,9 +68,87 @@ class ImageDetailViewModel(
     }
 
     /**
+     * photoId를 기반으로 사진의 태그와 추천 태그를 로드
+     * @param photoId 사진 ID
+     */
+    fun loadPhotoTags(photoId: String) {
+        if (photoId.isEmpty()) {
+            _photoTagState.value = PhotoTagState.Idle
+            return
+        }
+
+        viewModelScope.launch {
+            _photoTagState.value = PhotoTagState.Loading
+
+            // Load existing tags from photo detail
+            val photoDetailResult = remoteRepository.getPhotoDetail(photoId)
+
+            when (photoDetailResult) {
+                is RemoteRepository.PhotoDetailResult.Success -> {
+                    val existingTags = photoDetailResult.detail.tags.map { it.tag }
+
+                    // Load recommended tags
+                    val recommendResult = recommendRepository.recommendTagFromPhoto(photoId)
+
+                    when (recommendResult) {
+                        is RecommendRepository.RecommendResult.Success -> {
+                            val recommendedTag = recommendResult.data.tag
+                            // Only include recommendation if not already in existing tags
+                            val recommendedTags =
+                                if (recommendedTag !in existingTags) {
+                                    listOf(recommendedTag)
+                                } else {
+                                    emptyList()
+                                }
+
+                            _photoTagState.value =
+                                PhotoTagState.Success(
+                                    existingTags = existingTags,
+                                    recommendedTags = recommendedTags,
+                                )
+                        }
+                        is RecommendRepository.RecommendResult.Error -> {
+                            // If recommendation fails, still show existing tags
+                            _photoTagState.value =
+                                PhotoTagState.Success(
+                                    existingTags = existingTags,
+                                    recommendedTags = emptyList(),
+                                )
+                        }
+                        is RecommendRepository.RecommendResult.BadRequest,
+                        is RecommendRepository.RecommendResult.Unauthorized,
+                        is RecommendRepository.RecommendResult.NetworkError,
+                        -> {
+                            // If recommendation fails, still show existing tags
+                            _photoTagState.value =
+                                PhotoTagState.Success(
+                                    existingTags = existingTags,
+                                    recommendedTags = emptyList(),
+                                )
+                        }
+                    }
+                }
+                is RemoteRepository.PhotoDetailResult.Error -> {
+                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                }
+                is RemoteRepository.PhotoDetailResult.BadRequest -> {
+                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                }
+                is RemoteRepository.PhotoDetailResult.Unauthorized -> {
+                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                }
+                is RemoteRepository.PhotoDetailResult.NetworkError -> {
+                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                }
+            }
+        }
+    }
+
+    /**
      * 이미지 컨텍스트 초기화
      */
     fun clearImageContext() {
         _imageContext.value = null
+        _photoTagState.value = PhotoTagState.Idle
     }
 }

@@ -10,6 +10,16 @@ data class Tag(
     val thumbnailId: Long,
 )
 
+data class PhotoDetailResponse(
+    @SerializedName("photo_path_id") val photoPathId: Long,
+    val tags: List<TagResponse>,
+)
+
+data class TagResponse(
+    @SerializedName("tag_id") val tagId: String,
+    val tag: String,
+)
+
 data class PhotoResponse(
     @SerializedName("photo_id") val photoId: String,
     @SerializedName("photo_path_id") val photoPathId: Long,

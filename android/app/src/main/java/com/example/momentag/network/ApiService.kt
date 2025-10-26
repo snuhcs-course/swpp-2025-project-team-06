@@ -4,12 +4,14 @@ import android.content.Context
 import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
+import com.example.momentag.model.PhotoDetailResponse
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.Tag
+import com.example.momentag.model.TagResponse
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -62,6 +64,11 @@ interface ApiService {
         @Part("metadata") metadata: RequestBody,
     ): Response<Unit>
 
+    @GET("/api/photos/{photo_id}/")
+    suspend fun getPhotoDetail(
+        @Path("photo_id") photoId: String,
+    ): Response<PhotoDetailResponse>
+
     /**
      * Semantic Search API
      * GET 방식으로 텍스트 쿼리로 유사한 이미지 검색
@@ -76,9 +83,13 @@ interface ApiService {
         @Query("offset") offset: Int = 0,
     ): Response<List<PhotoResponse>>
 
-    // TODO : api 주소 변경
+    @GET("api/photos/{photo_id}/recommendation/")
+    suspend fun recommendTagFromPhoto(
+        @Path("photo_id") photoId: String,
+    ): Response<TagResponse>
+
     @GET("api/tags/{tag_id}/recommendation/")
-    suspend fun recommendPhotos(
+    suspend fun recommendPhotosFromTag(
         @Path("tag_id") tagId: String,
     ): Response<List<PhotoResponse>>
 }

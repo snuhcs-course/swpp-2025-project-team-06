@@ -1,9 +1,11 @@
 package com.example.momentag.repository
 
 import com.example.momentag.model.Photo
+import com.example.momentag.model.PhotoDetailResponse
 import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.model.Tag
 import com.example.momentag.network.ApiService
+import java.io.IOException
 
 /**
  * RemoteRepository (Feature Repository)
@@ -16,6 +18,28 @@ import com.example.momentag.network.ApiService
 class RemoteRepository(
     private val apiService: ApiService,
 ) {
+    sealed class PhotoDetailResult {
+        data class Success(
+            val detail: PhotoDetailResponse,
+        ) : PhotoDetailResult()
+
+        data class BadRequest(
+            val message: String,
+        ) : PhotoDetailResult()
+
+        data class Unauthorized(
+            val message: String,
+        ) : PhotoDetailResult()
+
+        data class NetworkError(
+            val message: String,
+        ) : PhotoDetailResult()
+
+        data class Error(
+            val message: String,
+        ) : PhotoDetailResult()
+    }
+
     /**
      * 모든 태그 조회
      * (인증 헤더는 AuthInterceptor가 자동 추가)
@@ -29,6 +53,26 @@ class RemoteRepository(
      * (인증 헤더는 AuthInterceptor가 자동 추가)
      */
     suspend fun getPhotosByTag(tagName: String): List<Photo> = emptyList()
+
+    suspend fun getPhotoDetail(photoId: String): PhotoDetailResult =
+        try {
+            val response = apiService.getPhotoDetail(photoId)
+
+            if (response.isSuccessful) {
+                val detail = response.body()!!
+                PhotoDetailResult.Success(detail)
+            } else {
+                when (response.code()) {
+                    401 -> PhotoDetailResult.Unauthorized("Authentication failed")
+                    400 -> PhotoDetailResult.BadRequest("Bad request")
+                    else -> PhotoDetailResult.Error("An unknown error occurred: ${response.message()}")
+                }
+            }
+        } catch (e: IOException) {
+            PhotoDetailResult.NetworkError("Network error: ${e.message}")
+        } catch (e: Exception) {
+            PhotoDetailResult.Error("An unexpected error occurred: ${e.message}")
+        }
 
     suspend fun uploadPhotos(photoUploadData: PhotoUploadData) =
         apiService.uploadPhotos(
