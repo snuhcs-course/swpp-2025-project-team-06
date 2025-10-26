@@ -444,6 +444,13 @@ class PostPhotoTagsView(APIView):
 
             Photo_Tag.objects.bulk_create(created_photo_tags)
 
+            # now update the metadata isTagged in Qdrant
+            client.set_payload(
+                collection_name="my_images",
+                payload={"isTagged": True},
+                points=[str(photo_id)]
+            )
+
             return Response(status=status.HTTP_201_OK)
         except Tag.DoesNotExist:
             return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
@@ -799,6 +806,8 @@ class TagDetailView(APIView):
             return Response({"error": "No tag with tag_id as its id"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 class StoryView(APIView):
     authentication_classes = [JWTAuthentication]
