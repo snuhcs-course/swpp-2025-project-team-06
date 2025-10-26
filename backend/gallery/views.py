@@ -455,7 +455,7 @@ class PostPhotoTagsView(APIView):
                         )
                     )
 
-            Photo_Tag.objects.bulk_create(created_photo_tags)
+                Photo_Tag.objects.bulk_create(created_photo_tags)
 
             return Response(status=status.HTTP_201_OK)
         except Tag.DoesNotExist:
