@@ -1,10 +1,8 @@
 package com.example.momentag
 
 import android.Manifest
-import android.content.ContentUris
-import android.net.Uri
 import android.os.Build
-import android.provider.MediaStore
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -61,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
 import com.example.momentag.model.TagAlbum
 import com.example.momentag.ui.components.BackTopBar
@@ -69,27 +68,26 @@ import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
-import com.example.momentag.viewmodel.PhotoTagViewModel
+import com.example.momentag.viewmodel.AddTagViewModel
 import com.example.momentag.viewmodel.RecommendViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTagScreen(
-    viewModel: PhotoTagViewModel,
-    navController: NavController,
-) {
+fun AddTagScreen(navController: NavController) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
 
-    val tagName by viewModel.tagName.collectAsState()
-    val selectedPhotos by viewModel.selectedPhotos.collectAsState()
+    // Screen-scoped ViewModels using DraftTagRepository
+    val addTagViewModel: AddTagViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val recommendViewModel: RecommendViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
-    val recommendViewModel: RecommendViewModel = viewModel(factory = ViewModelFactory(context))
+    val tagName by addTagViewModel.tagName.collectAsState()
+    val selectedPhotos by addTagViewModel.selectedPhotos.collectAsState()
     val recommendState by recommendViewModel.recommendState.collectAsState()
 
-    val recommendedPhotos = remember { mutableStateListOf<Long>() }
+    val recommendedPhotos = remember { mutableStateListOf<Photo>() }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -111,26 +109,36 @@ fun AddTagScreen(
         permissionLauncher.launch(permission)
     }
 
+    // Handle back button - clear draft when leaving workflow
+    BackHandler {
+        addTagViewModel.clearDraft()
+        navController.popBackStack()
+    }
+
     LaunchedEffect(recommendState) {
         if (recommendState is RecommendState.Success) {
             val successState = recommendState as RecommendState.Success
             recommendedPhotos.clear()
-            val newRecommended = successState.photos.filter { it !in selectedPhotos }
+            // Filter out photos that are already selected
+            val selectedPhotoIds = selectedPhotos.map { it.photoId }.toSet()
+            val newRecommended = successState.photos.filter { it.photoId !in selectedPhotoIds }
             recommendedPhotos.addAll(newRecommended)
         }
     }
 
-    val onDeselectPhoto: (Long) -> Unit = { photoId ->
+    val onDeselectPhoto: (Photo) -> Unit = { photo ->
         isChanged = true
-        viewModel.removePhoto(photoId)
-        recommendedPhotos.add(photoId)
+        addTagViewModel.removePhoto(photo)
+        recommendedPhotos.add(photo)
     }
 
-    val onSelectPhoto: (Long) -> Unit = { photoId ->
+    val onSelectPhoto: (Photo) -> Unit = { photo ->
         isChanged = true
-        viewModel.addPhoto(photoId)
-        recommendedPhotos.remove(photoId)
-        val tagAlbum = TagAlbum(tagName, selectedPhotos + photoId)
+        addTagViewModel.addPhoto(photo)
+        recommendedPhotos.remove(photo)
+        // Extract photoIds for TagAlbum
+        val photoIds = (selectedPhotos + photo).map { it.photoId }
+        val tagAlbum = TagAlbum(tagName, photoIds)
         recommendViewModel.recommend(tagAlbum)
     }
 
@@ -138,7 +146,10 @@ fun AddTagScreen(
         topBar = {
             BackTopBar(
                 title = "MomenTag",
-                onBackClick = { navController.popBackStack() },
+                onBackClick = {
+                    addTagViewModel.clearDraft()
+                    navController.popBackStack()
+                },
                 modifier = Modifier.background(Background),
             )
         },
@@ -156,10 +167,7 @@ fun AddTagScreen(
             ) {
                 TagNameSection(
                     tagName = tagName,
-                    onTagNameChange = {
-                        viewModel.updateTagName(it)
-                        viewModel.updateTagName(it)
-                    },
+                    onTagNameChange = { addTagViewModel.updateTagName(it) },
                 )
 
                 Spacer(modifier = Modifier.height(41.dp))
@@ -202,7 +210,9 @@ fun AddTagScreen(
                 ) {
                     Button(
                         onClick = {
-                            viewModel.updateTagName(tagName)
+                            // TODO: Save tag to backend
+                            // Clear draft when workflow completes
+                            addTagViewModel.clearDraft()
                             navController.popBackStack()
                         },
                         shape = RoundedCornerShape(15.dp),
@@ -288,8 +298,8 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
 
 @Composable
 private fun SelectedPhotosSection(
-    photos: List<Long>,
-    onPhotoClick: (Long) -> Unit,
+    photos: List<com.example.momentag.model.Photo>,
+    onPhotoClick: (com.example.momentag.model.Photo) -> Unit,
 ) {
     LazyRow(
         modifier =
@@ -300,11 +310,11 @@ private fun SelectedPhotosSection(
         horizontalArrangement = Arrangement.spacedBy(21.dp),
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
-        items(photos) { photoId ->
+        items(photos) { photo ->
             PhotoCheckedItem(
-                photoId = photoId,
+                photo = photo,
                 isSelected = true,
-                onClick = { onPhotoClick(photoId) },
+                onClick = { onPhotoClick(photo) },
                 modifier = Modifier.aspectRatio(1f),
             )
         }
@@ -313,8 +323,8 @@ private fun SelectedPhotosSection(
 
 @Composable
 private fun RecommendedPicturesSection(
-    photos: List<Long>,
-    onPhotoClick: (Long) -> Unit,
+    photos: List<com.example.momentag.model.Photo>,
+    onPhotoClick: (com.example.momentag.model.Photo) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -331,11 +341,11 @@ private fun RecommendedPicturesSection(
             horizontalArrangement = Arrangement.spacedBy(21.dp),
             modifier = Modifier.height(193.dp),
         ) {
-            items(photos) { photoId ->
+            items(photos) { photo ->
                 PhotoCheckedItem(
-                    photoId = photoId,
+                    photo = photo,
                     isSelected = false,
-                    onClick = { onPhotoClick(photoId) },
+                    onClick = { onPhotoClick(photo) },
                     modifier = Modifier.aspectRatio(1f),
                 )
             }
@@ -345,13 +355,11 @@ private fun RecommendedPicturesSection(
 
 @Composable
 fun PhotoCheckedItem(
-    photoId: Long,
+    photo: com.example.momentag.model.Photo,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val imageUri = getUriFromPhotoId(photoId)
-
     Box(
         modifier =
             modifier
@@ -360,8 +368,8 @@ fun PhotoCheckedItem(
                 .clickable(onClick = onClick),
     ) {
         AsyncImage(
-            model = imageUri,
-            contentDescription = "사진 $photoId",
+            model = photo.contentUri,
+            contentDescription = "사진 ${photo.photoId}",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -396,10 +404,3 @@ private fun CheckboxOverlay(
         }
     }
 }
-
-@Composable
-private fun getUriFromPhotoId(photoId: Long): Uri =
-    ContentUris.withAppendedId(
-        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-        photoId,
-    )
