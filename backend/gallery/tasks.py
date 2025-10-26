@@ -134,7 +134,11 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
         reverse=True,
     )
 
-    tagged_photo_ids = Photo_Tag.objects.filter(user__id=user_id).filter(tag_id=tag_id).values_list("photo_id", flat=True)
+    tagged_photo_ids = (
+        Photo_Tag.objects.filter(user__id=user_id)
+        .filter(tag_id=tag_id)
+        .values_list("photo_id", flat=True)
+    )
 
     recommendations = [
         {"photo_id": photo_id, "photo_path_id": photo_id_to_path_id[photo_id]}
@@ -144,18 +148,19 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
 
     return recommendations
 
+
 def tag_recommendation(user_id, photo_id):
     retrieved_points = client.retrieve(
         collection_name=IMAGE_COLLECTION_NAME,
         ids=[photo_id],
         with_vectors=True,
     )
-    
+
     if not retrieved_points:
         raise ValueError(f"Image with id {photo_id} not found in collection.")
-    
+
     image_vector = retrieved_points[0].vector
-    
+
     user_filter = models.Filter(
         must=[
             models.FieldCondition(
@@ -164,7 +169,7 @@ def tag_recommendation(user_id, photo_id):
             )
         ]
     )
-    
+
     search_result = client.search(
         collection_name=REPVEC_COLLECTION_NAME,
         query_vector=image_vector,
@@ -172,20 +177,21 @@ def tag_recommendation(user_id, photo_id):
         limit=1,
         with_payload=True,
     )
-    
+
     if not search_result:
         return None, None
-        
+
     most_similar_point = search_result[0]
-    recommended_tag_id = most_similar_point.payload['tag_id']
-    
+    recommended_tag_id = most_similar_point.payload["tag_id"]
+
     try:
         tag = Tag.objects.get(tag_id=recommended_tag_id)
         recommended_tag_name = tag.tag
     except Tag.DoesNotExist:
         return None, None
-        
+
     return recommended_tag_name, recommended_tag_id
+
 
 def retrieve_all_rep_vectors_of_tag(user_id: int, tag_id: uuid.UUID):
     LIMIT = 32  # assert max num of rep vectors <= 32
@@ -212,10 +218,10 @@ def retrieve_all_rep_vectors_of_tag(user_id: int, tag_id: uuid.UUID):
 
     return rep_vectors
 
+
 def is_valid_uuid(uuid_to_test):
     try:
         uuid.UUID(str(uuid_to_test))
     except ValueError:
         return False
     return True
-    
