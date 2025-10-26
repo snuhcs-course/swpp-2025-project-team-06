@@ -33,8 +33,6 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.VerticalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -102,13 +100,14 @@ fun StoryTagSelectionScreen(
     onDone: (storyId: String) -> Unit,
     onComplete: () -> Unit,
     onBack: () -> Unit,
-    onLoadMore: () -> Unit = {}, //더 많은 스토리 로드 (기본값: no-op)
+    onLoadMore: () -> Unit = {}, // 더 많은 스토리 로드 (기본값: no-op)
     isLoading: Boolean = false, // 로딩 상태
-    hasMore: Boolean = true, //더 로드할 스토리 있는지 확인용
+    hasMore: Boolean = true, // 더 로드할 스토리 있는지 확인용
     modifier: Modifier = Modifier,
     navController: NavController,
 ) {
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
     // 스크롤이 끝에 가까워지면 감지!! (뒤에서 2번째가 보일 때)
@@ -187,8 +186,17 @@ fun StoryTagSelectionScreen(
                             },
                             onDone = {
                                 onDone(story.id)
-                                // 마지막 스토리가 아니면 다음으로 자동 스크롤 가능
-                                // (선택사항: 자동 스크롤을 원하지 않으면 제거)
+
+                                // Done 누르면 다음 스토리로 자동 스크롤
+                                coroutineScope.launch {
+                                    if (index < stories.lastIndex) {
+                                        // 다음 아이템으로 부드럽게 스크롤
+                                        listState.animateScrollToItem(index + 1)
+                                    } else if (!hasMore) {
+                                        // 마지막 스토리이고 더 이상 로드할 것이 없으면 완료
+                                        onComplete()
+                                    }
+                                }
                             },
                             modifier =
                                 Modifier
