@@ -449,7 +449,7 @@ class PostPhotoTagsView(APIView):
                     created_photo_tags.append(
                         Photo_Tag(
                             pt_id=pt_id, 
-                            photo_id=photo_id, 
+                            photo_id=str(photo_id), 
                             tag=tag_object,
                             user=request.user
                         )
