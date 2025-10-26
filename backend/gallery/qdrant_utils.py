@@ -20,7 +20,8 @@ def initialize_qdrant():
     except (UnexpectedResponse, ValueError):
         client.create_collection(
             collection_name=IMAGE_COLLECTION_NAME,
-            vectors_config=models.VectorParams(size=512, distance=models.Distance.COSINE),
+            vectors_config=models.VectorParams(
+                size=512, distance=models.Distance.COSINE),
         )
         print(f"Collection '{IMAGE_COLLECTION_NAME}' created.")
 
