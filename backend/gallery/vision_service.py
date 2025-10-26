@@ -42,7 +42,7 @@ def get_caption_model():
         _caption_model = BlipForConditionalGeneration.from_pretrained(
             "Salesforce/blip-image-captioning-base",
             dtype=torch.float16,
-        ).to(_DEVICE)
+        )
     return _caption_model
 
 
