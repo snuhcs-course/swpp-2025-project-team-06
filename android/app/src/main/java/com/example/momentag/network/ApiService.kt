@@ -4,15 +4,12 @@ import android.content.Context
 import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
-import com.example.momentag.model.Photo
-import com.example.momentag.model.RecommendPhotosResponse
+import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
-import com.example.momentag.model.SemanticSearchResponse
 import com.example.momentag.model.Tag
-import com.example.momentag.model.TagAlbum
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -31,12 +28,12 @@ import kotlin.uuid.ExperimentalUuidApi
 @OptIn(ExperimentalUuidApi::class)
 interface ApiService {
     @GET("home/tags")
-    suspend fun getHomeTags(): List<Tag>
+    suspend fun getHomeTags(): Response<List<Tag>>
 
     @GET("tags/{tagName}")
     suspend fun getPhotosByTag(
         @Path("tagName") tagName: String,
-    ): List<Photo>
+    ): Response<List<PhotoResponse>>
 
     @POST("api/auth/signin/")
     suspend fun login(
@@ -71,19 +68,19 @@ interface ApiService {
      *
      * @param query 검색 쿼리 텍스트
      * @param offset 페이지네이션을 위한 오프셋 (기본값: 0)
-     * @return Response<SemanticSearchResponse> - photos: List<Int>
+     * @return Response<List<PhotoResponse>
      */
     @GET("api/search/semantic/")
     suspend fun semanticSearch(
         @Query("query") query: String,
         @Query("offset") offset: Int = 0,
-    ): Response<SemanticSearchResponse>
+    ): Response<List<PhotoResponse>>
 
     // TODO : api 주소 변경
-    @POST("api/recommend/")
+    @GET("api/tags/{tag_id}/recommendation/")
     suspend fun recommendPhotos(
-        @Body tagAlbum: TagAlbum,
-    ): Response<RecommendPhotosResponse>
+        @Path("tag_id") tagId: String,
+    ): Response<List<PhotoResponse>>
 }
 
 /**

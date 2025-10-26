@@ -60,7 +60,6 @@ fun appNavigation() {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                imageDetailViewModel = imageDetailViewModel,
             )
         }
 
@@ -69,21 +68,11 @@ fun appNavigation() {
             arguments = listOf(navArgument("imageUri") { type = NavType.StringType }),
         ) { backStackEntry ->
             val encodedUriString = backStackEntry.arguments?.getString("imageUri")
+            val decodedUri = encodedUriString?.let { Uri.decode(it).toUri() }
 
-            val decodedUri =
-                encodedUriString?.let {
-                    Uri.decode(it).toUri()
-                }
-
-            val imageContext by imageDetailViewModel.imageContext.collectAsState()
-
-            ImageScreen(
+            ImageDetailScreen(
                 imageUri = decodedUri,
-                imageUris = imageContext?.images,
-                initialIndex = imageContext?.currentIndex ?: 0,
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
+                onNavigateBack = { navController.popBackStack() },
             )
         }
 
