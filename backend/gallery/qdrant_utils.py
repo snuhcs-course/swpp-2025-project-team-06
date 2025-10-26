@@ -4,15 +4,22 @@ from qdrant_client import QdrantClient, models
 QDRANT_URL = settings.QDRANT_CLUSTER_URL
 QDRANT_API_KEY = settings.QDRANT_API_KEY
 
-client = QdrantClient(
-    url=QDRANT_URL,
-    api_key=QDRANT_API_KEY,
-)
+# client = QdrantClient(
+#     url=QDRANT_URL,
+#     api_key=QDRANT_API_KEY,
+# )
 
+def get_qdrant_client():
+    return QdrantClient(
+        url=QDRANT_URL,
+        api_key=QDRANT_API_KEY,
+    )
+    
 IMAGE_COLLECTION_NAME = "my_image_collection"
 REFVEC_COLLECTION_NAME = "my_refvec_collection"
 
 def create_image_collection():
+    client = get_qdrant_client()
     try:
         client.get_collection(collection_name=IMAGE_COLLECTION_NAME)
         print(f"Collection '{IMAGE_COLLECTION_NAME}' already exists.")
@@ -25,6 +32,7 @@ def create_image_collection():
         print(f"Collection '{IMAGE_COLLECTION_NAME}' created.")
         
 def create_refvec_collection():
+    client = get_qdrant_client()
     try:
         client.get_collection(collection_name=REFVEC_COLLECTION_NAME)
         print(f"Collection '{REFVEC_COLLECTION_NAME}' already exists.")
@@ -36,6 +44,7 @@ def create_refvec_collection():
         print(f"Collection '{REFVEC_COLLECTION_NAME}' created.")
 
 def ensure_image_indexes():
+    client = get_qdrant_client()
     indexes = {
         "user_id": models.PayloadSchemaType.INTEGER,
         "filename": models.PayloadSchemaType.KEYWORD,
@@ -57,6 +66,7 @@ def ensure_image_indexes():
             print(f"(Info) Index for '{field}' may already exist: {e}")
             
 def ensure_refvec_indexes():
+    client = get_qdrant_client()
     indexes = {
         "user_id": models.PayloadSchemaType.INTEGER,
         "tag_id": models.PayloadSchemaType.INTEGER,

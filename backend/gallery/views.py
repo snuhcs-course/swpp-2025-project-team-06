@@ -11,7 +11,7 @@ from .reponse_serializers import ResPhotoSerializer, ResPhotoTagListSerializer, 
 from .request_serializers import ReqPhotoDetailSerializer, ReqPhotoIdSerializer, ReqTagNameSerializer, ReqTagIdSerializer
 from .serializers import TagSerializer
 from .models import Photo_Tag, Tag
-from .qdrant_utils import client, IMAGE_COLLECTION_NAME
+from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
@@ -144,6 +144,7 @@ class PhotoView(APIView):
             "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def get(self, request):
+        client = get_qdrant_client()
         try:
             user_filter = models.Filter(
                 must=[
@@ -208,6 +209,7 @@ class PhotoDetailView(APIView):
     )
     def get(self, request, photo_id):
         try:
+            client = get_qdrant_client()
             user_filter = models.Filter(
                 must=[
                     models.FieldCondition(
@@ -273,6 +275,7 @@ class PhotoDetailView(APIView):
     )
     def delete(self, request, photo_id):
         try:
+            client = get_qdrant_client()
             photo_tag = Photo_Tag.objects.get(photo_id=photo_id, user=request.user)
             photo_tag.delete()
 
@@ -312,6 +315,7 @@ class BulkDeletePhotoView(APIView):
     )
     def delete(self, request):
         try:
+            client = get_qdrant_client()
             serializer = ReqPhotoDetailSerializer(data=request.data, many=True)
 
             if not serializer.is_valid():
@@ -361,6 +365,7 @@ class GetPhotosByTagView(APIView):
     )
     def get(self, request, tag_id):
         try:
+            client = get_qdrant_client()
             photo_tags = Photo_Tag.objects.filter(tag_id=tag_id)
 
             photo_ids = [str(pt.photo_id) for pt in photo_tags]
@@ -414,6 +419,7 @@ class PostPhotoTagsView(APIView):
     )
     def post(self, request, photo_id):
         try:
+            client = get_qdrant_client()
             serializer = ReqTagIdSerializer(data=request.data, many=True)
 
             if not serializer.is_valid():
@@ -468,6 +474,7 @@ class DeletePhotoTagsView(APIView):
     )
     def delete(self, request, photo_id, tag_id):
         try:
+            client = get_qdrant_client()
             Tag.objects.get(tag_id=tag_id, user=request.user)
             if not client.exists(collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)):
                 return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
@@ -515,6 +522,7 @@ class GetRecommendTagView(APIView):
     )
     def get(self, request, photo_id, *args, **kwargs):
         try:
+            client = get_qdrant_client()
             if not is_valid_uuid(photo_id):
                 return Response({"error": "Request form mismatch."}, status=status.HTTP_400_NOT_FOUND)
 
