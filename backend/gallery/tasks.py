@@ -126,6 +126,10 @@ def tag_recommendation(user_id, photo_id):
         
     return recommended_tag_name, recommended_tag_id
 
+def recommend_photo_from_tag(user_id, tag_id):
+    # TODO
+    return 
+
 def is_valid_uuid(uuid_to_test):
     try:
         uuid.UUID(str(uuid_to_test))
