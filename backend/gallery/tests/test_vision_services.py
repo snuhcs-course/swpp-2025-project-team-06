@@ -55,7 +55,7 @@ class VisionServicesTest(TestCase):
         mock_processor = MagicMock()
         mock_get_processor.return_value = mock_processor
 
-        mock_processor.return_value.to.return_value = {"inputs_tensor": "dummy_tensor"}
+        mock_processor.return_value = {"inputs_tensor": "dummy_tensor"}
 
         fake_decoded_phrases = [
             "A photo of a brown dog",
@@ -131,7 +131,7 @@ class VisionServicesTest(TestCase):
         mock_processor = MagicMock()
         mock_get_processor.return_value = mock_processor
 
-        mock_processor.return_value.to.return_value = {"inputs": "dummy"}
+        mock_processor.return_value = {"inputs": "dummy"}
         mock_model = MagicMock()
 
         mock_get_model.return_value = mock_model
