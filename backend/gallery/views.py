@@ -97,8 +97,6 @@ class PhotoView(APIView):
                     'lng': metadata.get('lng')
                 })
 
-            print("debugging 1", flush=True)
-
             serializer = ReqPhotoDetailSerializer(data=photos_data, many=True)
 
             if not serializer.is_valid():
@@ -108,15 +106,11 @@ class PhotoView(APIView):
 
             fs = FileSystemStorage(location=settings.MEDIA_ROOT)
 
-            print("debugging 2", flush=True)
-
             for data in photos_data:
                 image_file = data['photo']
                 temp_filename = f"{uuid.uuid4()}_{image_file.name}"
                 saved_path = fs.save(temp_filename, image_file)
                 full_path = fs.path(saved_path)
-
-                print("debugging 111", flush=True)
 
                 process_and_embed_photo.delay(
                     image_path=full_path,
@@ -127,8 +121,6 @@ class PhotoView(APIView):
                     lat=data['lat'],
                     lng=data['lng']
                 )
-
-            print("debugging 3", flush=True)
 
             return Response({"message": "Photos are being processed."}, status=status.HTTP_202_ACCEPTED)
         except Exception as e:
