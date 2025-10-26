@@ -449,7 +449,7 @@ class PostPhotoTagsView(APIView):
 
             # now update the metadata isTagged in Qdrant
             client.set_payload(
-                collection_name="my_images",
+                collection_name=IMAGE_COLLECTION_NAME,
                 payload={"isTagged": True},
                 points=[str(photo_id)]
             )
