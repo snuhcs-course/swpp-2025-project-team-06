@@ -68,7 +68,6 @@ import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.LocalViewModel
-import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -76,20 +75,17 @@ import kotlinx.coroutines.launch
 @Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun HomeScreen(
-    navController: NavController,
-    photoTagViewModel: PhotoTagViewModel,
-) {
+fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
-    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory(context))
+    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val logoutState by authViewModel.logoutState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
-    val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory(context))
+    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val imageUris by localViewModel.image.collectAsState()
 
     var isRefreshing by remember { mutableStateOf(false) }
@@ -188,7 +184,6 @@ fun HomeScreen(
                 modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
                 text = "Create Tag",
                 onClick = {
-                    photoTagViewModel.setInitialData(null, emptyList())
                     navController.navigate(Screen.AddTag.route)
                 },
             )

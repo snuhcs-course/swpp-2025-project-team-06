@@ -61,7 +61,7 @@ fun LocalGalleryScreen(
     onNavigateBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
+    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     var hasPermission by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
