@@ -19,7 +19,6 @@ from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 from .tasks import process_and_embed_photo, tag_recommendation, is_valid_uuid, recommend_photo_from_tag
 
-
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [JWTAuthentication]
@@ -420,7 +419,7 @@ class PostPhotoTagsView(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             tag_ids = [data['tag_id'] for data in serializer.validated_data]
-
+            
             points = client.retrieve(
                 collection_name=IMAGE_COLLECTION_NAME,
                 ids=[str(photo_id)]
@@ -485,7 +484,7 @@ class DeletePhotoTagsView(APIView):
             return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+      
 
 class GetRecommendTagView(APIView):
     authentication_classes = [JWTAuthentication]
