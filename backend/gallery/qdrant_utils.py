@@ -9,11 +9,23 @@ QDRANT_API_KEY = settings.QDRANT_API_KEY
 #     api_key=QDRANT_API_KEY,
 # )
 
+_qdrant_client = None
+
+# def get_qdrant_client():
+#     return QdrantClient(
+#         url=QDRANT_URL,
+#         api_key=QDRANT_API_KEY,
+#     )
+
 def get_qdrant_client():
-    return QdrantClient(
-        url=QDRANT_URL,
-        api_key=QDRANT_API_KEY,
-    )
+    global _qdrant_client
+    if _qdrant_client is None:
+        print("Initializing Qdrant Client...")
+        _qdrant_client = QdrantClient(
+            url=QDRANT_URL,
+            api_key=QDRANT_API_KEY,
+        )
+    return _qdrant_client
     
 IMAGE_COLLECTION_NAME = "my_image_collection"
 REFVEC_COLLECTION_NAME = "my_refvec_collection"
