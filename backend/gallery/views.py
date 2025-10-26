@@ -454,7 +454,7 @@ class PostPhotoTagsView(APIView):
                 points=[str(photo_id)]
             )
 
-            return Response(status=status.HTTP_201_OK)
+            return Response(status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
             return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
