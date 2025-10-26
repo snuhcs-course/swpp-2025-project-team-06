@@ -27,13 +27,13 @@ class ViewModelFactory private constructor(
 ) : ViewModelProvider.Factory {
     companion object {
         @Volatile
-        private var INSTANCE: ViewModelFactory? = null
+        private var instance: ViewModelFactory? = null
 
         fun getInstance(context: Context): ViewModelFactory =
-            INSTANCE ?: synchronized(this) {
-                INSTANCE ?: ViewModelFactory(context.applicationContext).also {
+            instance ?: synchronized(this) {
+                instance ?: ViewModelFactory(context.applicationContext).also {
                     android.util.Log.d("ViewModelFactory", "Creating singleton ViewModelFactory instance")
-                    INSTANCE = it
+                    instance = it
                 }
             }
     }

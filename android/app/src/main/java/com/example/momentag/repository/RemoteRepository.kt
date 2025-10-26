@@ -20,8 +20,7 @@ class RemoteRepository(
      * 모든 태그 조회
      * (인증 헤더는 AuthInterceptor가 자동 추가)
      */
-    // TODO: receive tag_id, tag, thumbnail_path_id
-    suspend fun getAllTags(): List<Tag> = emptyList()
+    suspend fun getAllTags(): List<Tag> = emptyList() // TODO: receive tag_id, tag, thumbnail_path_id
 
     /**
      * 특정 태그의 사진 조회
