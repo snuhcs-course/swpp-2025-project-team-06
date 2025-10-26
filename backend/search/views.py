@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from gallery.tasks import create_query_embedding 
-from gallery.qdrant_utils import client, IMAGE_COLLECTION_NAME
+from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from .response_serializers import SemanticSearchResponseSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -50,6 +50,7 @@ class SemanticSearchView(APIView):
     },
 )
     def get(self, request):
+        client = get_qdrant_client()
         query = request.GET.get('query', '')
         offset = int(request.GET.get('offset', 0))
         

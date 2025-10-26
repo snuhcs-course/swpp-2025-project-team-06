@@ -5,7 +5,7 @@ from celery import shared_task
 from qdrant_client import models
 
 from .vision_service import get_image_embedding
-from .qdrant_utils import client, IMAGE_COLLECTION_NAME, REFVEC_COLLECTION_NAME
+from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME, REFVEC_COLLECTION_NAME
 from .models import Photo_Tag
 
 import time
@@ -33,6 +33,7 @@ def process_and_embed_photo(
     image_path, user_id, filename, photo_path_id, created_at, lat, lng
 ):
     try:
+        client = get_qdrant_client()
         # 파일이 실제로 생길 때까지 잠시 대기
         waited = 0
         while not os.path.exists(image_path) and waited < MAX_WAIT:
@@ -94,6 +95,7 @@ def tag_recommendation(photo_id):
 
 # aggregates N similarity queries with Reciprocal Rank Fusion
 def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
+    client = get_qdrant_client()
     LIMIT = 40
     RRF_CONSTANT = 40
 
@@ -147,6 +149,7 @@ def is_valid_uuid(uuid_to_test):
 
 
 def retrieve_all_rep_vectors_of_tag(user_id: int, tag_id: uuid.UUID):
+    client = get_qdrant_client()
     LIMIT = 32  # assert max num of rep vectors <= 32
 
     filters = models.Filter(
