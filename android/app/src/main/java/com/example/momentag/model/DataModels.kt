@@ -8,7 +8,6 @@ import okhttp3.RequestBody
 data class Tag(
     @SerializedName("tag")
     val tagName: String,
-
     @SerializedName("tag_id")
     val tagId: String,
 )
@@ -31,9 +30,8 @@ data class TagCreateRequest(
 data class Photo(
     @SerializedName("photo_id")
     val photoId: String,
-
     @SerializedName("photo_path_id")
-    val photoPathId: Long
+    val photoPathId: Long,
 )
 
 data class Photos(
@@ -42,12 +40,12 @@ data class Photos(
 
 data class TagIdRequest(
     @SerializedName("tag_id")
-    val tagId: String
+    val tagId: String,
 )
 
 data class TagCreateResponse(
     @SerializedName("tag_id")
-    val tagId: String
+    val tagId: String,
 )
 
 data class PhotoTag(

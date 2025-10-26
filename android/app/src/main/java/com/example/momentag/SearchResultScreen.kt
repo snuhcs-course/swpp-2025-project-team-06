@@ -193,9 +193,10 @@ fun SearchResultScreen(
             for (uri in selectedImages) {
                 selectedImagesId.add(ContentUris.parseId(uri))
             }
-            val selectedPhotoObjects = allServerPhotos.filter { photo ->
-                photo.photoPathId in selectedImagesId
-            }
+            val selectedPhotoObjects =
+                allServerPhotos.filter { photo ->
+                    photo.photoPathId in selectedImagesId
+                }
             photoTagViewModel.setInitialData(null, selectedPhotoObjects)
             navController.navigate(Screen.AddTag.route)
             isSelectionMode = false

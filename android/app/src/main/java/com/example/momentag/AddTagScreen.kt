@@ -126,10 +126,11 @@ fun AddTagScreen(
             val successState = recommendState as RecommendState.Success
             recommendedPhotos.clear()
             val selectedPhotoIds = selectedPhotos.map { it.photoId }
-            val newRecommendedPhotos = allServerPhotos.filter { photo ->
-                photo.photoId in successState.photos &&
+            val newRecommendedPhotos =
+                allServerPhotos.filter { photo ->
+                    photo.photoId in successState.photos &&
                         photo.photoId !in selectedPhotoIds
-            }
+                }
             recommendedPhotos.addAll(newRecommendedPhotos)
         }
     }

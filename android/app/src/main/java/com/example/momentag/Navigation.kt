@@ -49,9 +49,10 @@ fun appNavigation() {
 
         composable(
             route = Screen.Album.route,
-            arguments = listOf(
-                navArgument("tagId") { type = NavType.StringType },
-                navArgument("tagName") { type = NavType.StringType },
+            arguments =
+                listOf(
+                    navArgument("tagId") { type = NavType.StringType },
+                    navArgument("tagName") { type = NavType.StringType },
                 ),
         ) { backStackEntry ->
             val encodedTagId = backStackEntry.arguments?.getString("tagId") ?: ""

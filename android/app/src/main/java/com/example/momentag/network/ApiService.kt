@@ -5,8 +5,6 @@ import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
 import com.example.momentag.model.Photo
-import com.example.momentag.model.PhotoTag
-import com.example.momentag.model.Photos
 import com.example.momentag.model.RecommendPhotosResponse
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
@@ -18,7 +16,6 @@ import com.example.momentag.model.TagAlbum
 import com.example.momentag.model.TagCreateRequest
 import com.example.momentag.model.TagCreateResponse
 import com.example.momentag.model.TagIdRequest
-import com.example.momentag.model.Tags
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
