@@ -4,9 +4,9 @@ from collections import defaultdict
 from celery import shared_task
 from qdrant_client import models
 
-from .vision_service import get_image_embedding
-from .qdrant_utils import client, IMAGE_COLLECTION_NAME, REFVEC_COLLECTION_NAME
-from .models import Photo_Tag
+from .vision_service import get_image_embedding, get_image_captions
+from .qdrant_utils import client, IMAGE_COLLECTION_NAME, REPVEC_COLLECTION_NAME
+from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
 
 import time
 
@@ -73,6 +73,24 @@ def process_and_embed_photo(
         )
         print(f"[Celery Task Success] Processed and upserted photo {filename}")
 
+        captions = get_image_captions(image_path)
+
+        # asserts that user id has checked
+        user = User.objects.get(id=user_id)
+
+        for word, count in captions.items():
+            caption, _ = Caption.objects.get_or_create(
+                user=user,
+                caption=word,
+            )
+
+            _ = Photo_Caption.objects.create(
+                user=user,
+                photo_id=photo_id,
+                caption=caption,
+                weight=count,
+            )
+
     except Exception as e:
         print(f"[Celery Task Exception] Error processing {filename}: {str(e)}")
     finally:
@@ -84,13 +102,6 @@ def process_and_embed_photo(
 def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
-
-
-def tag_recommendation(photo_id):
-    tag = "test"
-    tag_id = uuid.uuid4()
-
-    return tag, tag_id
 
 
 # aggregates N similarity queries with Reciprocal Rank Fusion
@@ -139,12 +150,48 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
     return recommendations
 
 
-def is_valid_uuid(uuid_to_test):
+def tag_recommendation(user_id, photo_id):
+    retrieved_points = client.retrieve(
+        collection_name=IMAGE_COLLECTION_NAME,
+        ids=[photo_id],
+        with_vectors=True,
+    )
+
+    if not retrieved_points:
+        raise ValueError(f"Image with id {photo_id} not found in collection.")
+
+    image_vector = retrieved_points[0].vector
+
+    user_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="user_id",
+                match=models.MatchValue(value=user_id),
+            )
+        ]
+    )
+
+    search_result = client.search(
+        collection_name=REPVEC_COLLECTION_NAME,
+        query_vector=image_vector,
+        query_filter=user_filter,
+        limit=1,
+        with_payload=True,
+    )
+
+    if not search_result:
+        return None, None
+
+    most_similar_point = search_result[0]
+    recommended_tag_id = most_similar_point.payload["tag_id"]
+
     try:
-        uuid.UUID(str(uuid_to_test))
-    except ValueError:
-        return False
-    return True
+        tag = Tag.objects.get(tag_id=recommended_tag_id)
+        recommended_tag_name = tag.tag
+    except Tag.DoesNotExist:
+        return None, None
+
+    return recommended_tag_name, recommended_tag_id
 
 
 def retrieve_all_rep_vectors_of_tag(user_id: int, tag_id: uuid.UUID):
@@ -162,7 +209,7 @@ def retrieve_all_rep_vectors_of_tag(user_id: int, tag_id: uuid.UUID):
     )
 
     rep_points, _ = client.scroll(
-        REFVEC_COLLECTION_NAME,
+        REPVEC_COLLECTION_NAME,
         scroll_filter=filters,
         limit=LIMIT,
         with_vectors=True,
@@ -171,3 +218,11 @@ def retrieve_all_rep_vectors_of_tag(user_id: int, tag_id: uuid.UUID):
     rep_vectors: list[list[float]] = [point.vector for point in rep_points]
 
     return rep_vectors
+
+
+def is_valid_uuid(uuid_to_test):
+    try:
+        uuid.UUID(str(uuid_to_test))
+    except ValueError:
+        return False
+    return True
