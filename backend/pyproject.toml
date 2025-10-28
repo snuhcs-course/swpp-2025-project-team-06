@@ -12,6 +12,7 @@ dependencies = [
     "djangorestframework==3.16.1",
     "djangorestframework-simplejwt==5.5.1",
     "drf-yasg==1.21.11",
+    "faiss-cpu>=1.12.0",
     "numpy==2.3.3",
     "pillow==11.3.0",
     "python-dotenv==1.1.1",
@@ -22,4 +23,5 @@ dependencies = [
     "torch==2.8.0",
     "torchvision==0.23.0",
     "transformers==4.57.0",
+    "faiss-cpu",
 ]

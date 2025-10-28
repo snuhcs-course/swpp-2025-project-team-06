@@ -59,6 +59,13 @@ data class SemanticSearchResponse(
     val photos: List<Int>,
 )
 
+// TODO : photo name까지 받아오기
+data class RecommendPhotosResponse(
+    val photos: List<Long>,
+)
+
+// ========== Upload Models ==========
+
 data class PhotoMeta(
     val filename: String,
     val photo_path_id: Int,

@@ -19,6 +19,7 @@ import com.example.momentag.data.SessionManager
 import com.example.momentag.model.StoryModel
 import com.example.momentag.ui.storytag.StoryTagSelectionScreen
 import com.example.momentag.viewmodel.ImageDetailViewModel
+import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -31,6 +32,7 @@ fun appNavigation() {
 
     // ImageDetailViewModel을 Navigation 레벨에서 공유
     val imageDetailViewModel: ImageDetailViewModel = viewModel(factory = ViewModelFactory(context))
+    val photoTagViewModel: PhotoTagViewModel = viewModel(factory = ViewModelFactory(context))
 
     val isLoaded by sessionManager.isLoaded.collectAsState()
     val accessToken by sessionManager.accessTokenFlow.collectAsState()
@@ -43,9 +45,10 @@ fun appNavigation() {
     NavHost(
         navController = navController,
         startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route,
+//        startDestination = Screen.Home.route,
     ) {
         composable(route = Screen.Home.route) {
-            HomeScreen(navController = navController)
+            HomeScreen(navController = navController, photoTagViewModel = photoTagViewModel)
         }
 
         composable(
@@ -148,6 +151,21 @@ fun appNavigation() {
                 navController = navController,
                 onNavigateBack = { navController.popBackStack() },
                 imageDetailViewModel = imageDetailViewModel,
+                photoTagViewModel = photoTagViewModel,
+            )
+        }
+
+        composable(route = Screen.AddTag.route) {
+            AddTagScreen(
+                navController = navController,
+                viewModel = photoTagViewModel,
+            )
+        }
+
+        composable(route = Screen.SelectImage.route) {
+            SelectImageScreen(
+                navController = navController,
+                viewModel = photoTagViewModel,
             )
         }
         // 🔥 여기 수정된 Story 라우트
