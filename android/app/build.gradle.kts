@@ -63,7 +63,6 @@ dependencies {
     implementation(libs.retrofit.converter.gson)
     implementation(libs.datastore.preferences)
     implementation(libs.androidx.exifinterface)
-    
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockito.kotlin)
