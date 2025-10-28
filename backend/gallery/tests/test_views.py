@@ -81,7 +81,8 @@ class PhotoRecommendationViewTest(APITestCase):
     def test_get_recommendations_tag_belongs_to_other_user(self):
         """Test that user cannot access another user's tags"""
         url = reverse(
-            "gallery:photo_recommendation", kwargs={"tag_id": self.other_user_tag.tag_id}
+            "gallery:photo_recommendation",
+            kwargs={"tag_id": self.other_user_tag.tag_id},
         )
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
@@ -522,3 +523,61 @@ class TagIntegrationTest(APITestCase):
         self.assertNotEqual(
             create_response.data["tag_id"], other_create_response.data["tag_id"]
         )
+
+
+class GetRecommendTagViewTest(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", password="password123"
+        )
+        self.user_id = self.user.id
+        self.tag = Tag.objects.create(user=self.user, tag_id=1, tag="test_tag")
+        self.photo_id = uuid.uuid4()
+        self.url = reverse(
+            "gallery:tag_recommendation", kwargs={"photo_id": self.photo_id}
+        )
+
+    @patch("gallery.views.tag_recommendation")
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_recommend_tag_success(
+        self, mock_get_client, mock_tag_recommendation
+    ):
+        mock_get_client.return_value.retrieve.return_value = ["some_point_data"]
+        mock_tag_recommendation.return_value = ("recommended_tag", self.tag.tag_id)
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        expected_data = {"tag_id": self.tag.tag_id, "tag": "recommended_tag"}
+
+        self.assertEqual(int(response.data["tag_id"]), expected_data["tag_id"])
+        self.assertEqual(response.data["tag"], expected_data["tag"])
+        mock_tag_recommendation.assert_called_once_with(self.user.id, self.photo_id)
+
+    def test_get_recommend_tag_unauthorized(self):
+        url = f"/api/photos/{self.photo_id}/recommendation/"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_recommend_tag_photo_not_found(self, mock_get_client):
+        mock_get_client.return_value.retrieve.return_value = []
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data, {"error": "No such photo"})
+
+    def test_get_recommend_tag_invalid_uuid(self):
+        self.client.force_authenticate(user=self.user)
+        invalid_photo_id = "this-is-not-a-uuid"
+        url = f"/api/photos/{invalid_photo_id}/recommendation/"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

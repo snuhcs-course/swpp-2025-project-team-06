@@ -1,10 +1,7 @@
 package com.example.momentag
 
 import android.net.Uri
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
 import androidx.navigation.NavType
@@ -13,6 +10,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.momentag.data.SessionManager
+import com.example.momentag.model.StoryModel
+import com.example.momentag.ui.storytag.StoryTagSelectionScreen
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -145,6 +144,56 @@ fun appNavigation() {
 
         composable(route = Screen.SelectImage.route) {
             SelectImageScreen(
+                navController = navController,
+            )
+        }
+        // 🔥 여기 수정된 Story 라우트
+        composable(
+            route = Screen.Story.route,
+        ) {
+            // TODO : 샘플/임시 상태. 실제로는 ViewModel 주입.
+            val mockStories =
+                listOf(
+                    StoryModel(
+                        id = "1",
+                        images = listOf("https://images.unsplash.com/photo-1504674900247-0877df9cc836"),
+                        date = "2024.10.15",
+                        location = "강남 맛집",
+                        suggestedTags = listOf("#food", "#맛집", "#행복", "+"),
+                    ),
+                    StoryModel(
+                        id = "2",
+                        images = listOf("https://images.unsplash.com/photo-1501594907352-04cda38ebc29"),
+                        date = "2024.09.22",
+                        location = "제주도 여행",
+                        suggestedTags = listOf("#여행", "#바다", "#힐링", "+"),
+                    ),
+                )
+
+            var selectedTags by remember {
+                mutableStateOf<Map<String, Set<String>>>(emptyMap())
+            }
+
+            StoryTagSelectionScreen(
+                stories = mockStories,
+                selectedTags = selectedTags,
+                onTagToggle = { storyId, tag ->
+                    selectedTags =
+                        selectedTags.toMutableMap().apply {
+                            val current = this[storyId] ?: emptySet()
+                            this[storyId] =
+                                if (tag in current) current - tag else current + tag
+                        }
+                },
+                onDone = { storyId ->
+                    // ex: 서버 업로드 등
+                },
+                onComplete = {
+                    navController.popBackStack() // or go somewhere else
+                },
+                onBack = {
+                    navController.popBackStack()
+                },
                 navController = navController,
             )
         }

@@ -4,9 +4,9 @@ from collections import defaultdict
 from celery import shared_task
 from qdrant_client import models
 
-from .vision_service import get_image_embedding
+from .vision_service import get_image_embedding, get_image_captions
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME, REPVEC_COLLECTION_NAME
-from .models import Tag, Photo_Tag
+from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
 
 import time
 
@@ -65,6 +65,7 @@ def process_and_embed_photo(
                 "created_at": created_at,
                 "lat": lat,
                 "lng": lng,
+                "isTagged": False,
             },
         )
 
@@ -72,6 +73,24 @@ def process_and_embed_photo(
             collection_name=IMAGE_COLLECTION_NAME, points=[point_to_upsert], wait=True
         )
         print(f"[Celery Task Success] Processed and upserted photo {filename}")
+
+        captions = get_image_captions(image_path)
+
+        # asserts that user id has checked
+        user = User.objects.get(id=user_id)
+
+        for word, count in captions.items():
+            caption, _ = Caption.objects.get_or_create(
+                user=user,
+                caption=word,
+            )
+
+            _ = Photo_Caption.objects.create(
+                user=user,
+                photo_id=photo_id,
+                caption=caption,
+                weight=count,
+            )
 
     except Exception as e:
         print(f"[Celery Task Exception] Error processing {filename}: {str(e)}")
@@ -85,6 +104,7 @@ def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
 
+
 def tag_recommendation(user_id, photo_id):
     client = get_qdrant_client()
 
@@ -93,12 +113,12 @@ def tag_recommendation(user_id, photo_id):
         ids=[photo_id],
         with_vectors=True,
     )
-    
+
     if not retrieved_points:
         raise ValueError(f"Image with id {photo_id} not found in collection.")
-    
+
     image_vector = retrieved_points[0].vector
-    
+
     user_filter = models.Filter(
         must=[
             models.FieldCondition(
@@ -107,7 +127,7 @@ def tag_recommendation(user_id, photo_id):
             )
         ]
     )
-    
+
     search_result = client.search(
         collection_name=REPVEC_COLLECTION_NAME,
         query_vector=image_vector,
@@ -115,19 +135,19 @@ def tag_recommendation(user_id, photo_id):
         limit=1,
         with_payload=True,
     )
-    
+
     if not search_result:
         return None, None
-        
+
     most_similar_point = search_result[0]
-    recommended_tag_id = most_similar_point.payload['tag_id']
-    
+    recommended_tag_id = most_similar_point.payload["tag_id"]
+
     try:
         tag = Tag.objects.get(tag_id=recommended_tag_id)
         recommended_tag_name = tag.tag
     except Tag.DoesNotExist:
         return None, None
-        
+
     return recommended_tag_name, recommended_tag_id
 
 # aggregates N similarity queries with Reciprocal Rank Fusion

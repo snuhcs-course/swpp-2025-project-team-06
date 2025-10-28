@@ -28,7 +28,9 @@ urlpatterns = [
         name="delete_photo_tag",
     ),  # delete
     path(
-        "photos/<uuid:photo_id>/recommendation", views.GetRecommendTagView.as_view()
+        "photos/<uuid:photo_id>/recommendation/",
+        views.GetRecommendTagView.as_view(),
+        name="tag_recommendation",
     ),  # get
     path("tags/", views.TagView.as_view(), name="tags"),  # get, post
     path(
@@ -41,4 +43,10 @@ urlpatterns = [
         views.PhotoRecommendationView.as_view(),
         name="photo_recommendation",
     ),  # get
+    path(
+        "stories/",
+        views.StoryView.as_view(),
+        name="stories",
+        # get
+    )
 ]
