@@ -2,6 +2,7 @@ package com.example.momentag
 
 import android.Manifest
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -127,6 +128,26 @@ fun AddTagScreen(navController: NavController) {
         }
     }
 
+    // Handle save completion
+    LaunchedEffect(saveState) {
+        when (saveState) {
+            is AddTagViewModel.SaveState.Success -> {
+                addTagViewModel.clearDraft()
+                navController.popBackStack()
+            }
+            is AddTagViewModel.SaveState.Error -> {
+                Toast
+                    .makeText(
+                        context,
+                        "Save failed: ${(saveState as AddTagViewModel.SaveState.Error).message}",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                addTagViewModel.resetSaveState()
+            }
+            else -> { /* Idle or Loading */ }
+        }
+    }
+
     val onDeselectPhoto: (Photo) -> Unit = { photo ->
         isChanged = true
         addTagViewModel.removePhoto(photo)
@@ -212,11 +233,7 @@ fun AddTagScreen(navController: NavController) {
                 ) {
                     Button(
                         onClick = {
-                            // Clear draft when workflow completes
-                            addTagViewModel.updateTagName(tagName)
                             addTagViewModel.saveTagAndPhotos()
-                            addTagViewModel.clearDraft()
-                            navController.popBackStack()
                         },
                         shape = RoundedCornerShape(15.dp),
                         colors =

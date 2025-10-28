@@ -170,6 +170,13 @@ class AddTagViewModel(
      */
     fun hasChanges(): Boolean = draftTagRepository.hasChanges()
 
+    /**
+     * Reset save state (e.g., after showing error to user)
+     */
+    fun resetSaveState() {
+        _saveState.value = SaveState.Idle
+    }
+
     private fun getErrorMessage(result: RemoteRepository.Result<*>): String =
         when (result) {
             is RemoteRepository.Result.BadRequest -> "Bad Request: ${result.message}"
