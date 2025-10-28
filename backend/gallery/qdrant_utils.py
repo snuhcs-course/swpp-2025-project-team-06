@@ -1,6 +1,8 @@
 from django.conf import settings
 from qdrant_client import QdrantClient, models
+from qdrant_client.http.exceptions import UnexpectedResponse
 
+# --- 기본 설정 (변경 없음) ---
 QDRANT_URL = settings.QDRANT_CLUSTER_URL
 QDRANT_API_KEY = settings.QDRANT_API_KEY
 
@@ -10,20 +12,33 @@ client = QdrantClient(
 )
 
 IMAGE_COLLECTION_NAME = "my_image_collection"
+REPVEC_COLLECTION_NAME = "my_repvec_collection"
 
-def create_image_collection():
+
+def initialize_qdrant():
     try:
         client.get_collection(collection_name=IMAGE_COLLECTION_NAME)
-        print(f"Collection '{IMAGE_COLLECTION_NAME}' already exists.")
-    except Exception:
+    except (UnexpectedResponse, ValueError):
         client.create_collection(
             collection_name=IMAGE_COLLECTION_NAME,
-            vectors_config=models.VectorParams(size=512, distance=models.Distance.COSINE),
+            vectors_config=models.VectorParams(
+                size=512, distance=models.Distance.COSINE
+            ),
         )
         print(f"Collection '{IMAGE_COLLECTION_NAME}' created.")
 
-def ensure_indexes():
-    indexes = {
+    try:
+        client.get_collection(collection_name=REPVEC_COLLECTION_NAME)
+    except (UnexpectedResponse, ValueError):
+        client.create_collection(
+            collection_name=REPVEC_COLLECTION_NAME,
+            vectors_config=models.VectorParams(
+                size=512, distance=models.Distance.COSINE
+            ),
+        )
+        print(f"Collection '{REPVEC_COLLECTION_NAME}' created.")
+
+    image_indexes = {
         "user_id": models.PayloadSchemaType.INTEGER,
         "filename": models.PayloadSchemaType.KEYWORD,
         "photo_path_id": models.PayloadSchemaType.INTEGER,
@@ -31,18 +46,31 @@ def ensure_indexes():
         "lat": models.PayloadSchemaType.FLOAT,
         "lng": models.PayloadSchemaType.FLOAT,
     }
-
-    for field, schema in indexes.items():
+    for field, schema in image_indexes.items():
         try:
             client.create_payload_index(
                 collection_name=IMAGE_COLLECTION_NAME,
                 field_name=field,
                 field_schema=schema,
             )
-            print(f"Index created for '{field}' ({schema}).")
-        except Exception as e:
-            print(f"(Info) Index for '{field}' may already exist: {e}")
+        except UnexpectedResponse:
+            pass
 
-create_image_collection()
+    refvec_indexes = {
+        "user_id": models.PayloadSchemaType.INTEGER,
+        "tag_id": models.PayloadSchemaType.INTEGER,
+    }
+    for field, schema in refvec_indexes.items():
+        try:
+            client.create_payload_index(
+                collection_name=REPVEC_COLLECTION_NAME,
+                field_name=field,
+                field_schema=schema,
+            )
+        except UnexpectedResponse:
+            pass
 
-ensure_indexes()
+
+initialize_qdrant()
+
+print("Qdrant initialization process completed.")

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.momentag.data.SessionManager
 import com.example.momentag.network.RetrofitInstance
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.repository.TokenRepository
 import kotlin.uuid.ExperimentalUuidApi
@@ -70,6 +71,14 @@ class ViewModelFactory(
                     RemoteRepository(RetrofitInstance.getApiService(context.applicationContext)),
                     LocalRepository(context.applicationContext),
                 ) as T
+            }
+            modelClass.isAssignableFrom(RecommendViewModel::class.java) -> {
+                RecommendViewModel(
+                    RecommendRepository(RetrofitInstance.getApiService(context.applicationContext)),
+                ) as T
+            }
+            modelClass.isAssignableFrom(PhotoTagViewModel::class.java) -> {
+                PhotoTagViewModel() as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
