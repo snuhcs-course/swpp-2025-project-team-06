@@ -43,4 +43,10 @@ urlpatterns = [
         views.PhotoRecommendationView.as_view(),
         name="photo_recommendation",
     ),  # get
+    path(
+        "stories/",
+        views.StoryView.as_view(),
+        name="stories",
+        # get
+    )
 ]

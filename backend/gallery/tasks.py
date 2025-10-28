@@ -64,6 +64,7 @@ def process_and_embed_photo(
                 "created_at": created_at,
                 "lat": lat,
                 "lng": lng,
+                "isTagged": False,
             },
         )
 

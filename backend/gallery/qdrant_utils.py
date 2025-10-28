@@ -45,6 +45,7 @@ def initialize_qdrant():
         "created_at": models.PayloadSchemaType.DATETIME,
         "lat": models.PayloadSchemaType.FLOAT,
         "lng": models.PayloadSchemaType.FLOAT,
+        "isTagged": models.PayloadSchemaType.BOOL,   
     }
     for field, schema in image_indexes.items():
         try:
