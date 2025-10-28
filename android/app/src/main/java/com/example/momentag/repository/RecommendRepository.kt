@@ -1,7 +1,7 @@
 package com.example.momentag.repository
 
 import com.example.momentag.model.PhotoResponse
-import com.example.momentag.model.TagResponse
+import com.example.momentag.model.Tag
 import com.example.momentag.network.ApiService
 import java.io.IOException
 
@@ -50,7 +50,7 @@ class RecommendRepository(
             RecommendResult.Error("An unexpected error occurred: ${e.message}")
         }
 
-    suspend fun recommendTagFromPhoto(photoId: String): RecommendResult<TagResponse> =
+    suspend fun recommendTagFromPhoto(photoId: String): RecommendResult<Tag> =
         try {
             val response = apiService.recommendTagFromPhoto(photoId)
 

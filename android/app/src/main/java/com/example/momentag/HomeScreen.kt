@@ -1,9 +1,11 @@
 package com.example.momentag
 
 import android.Manifest
+import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -58,6 +61,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.LogoutState
+import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.HomeTopBar
 import com.example.momentag.ui.components.SearchBar
@@ -67,12 +71,11 @@ import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
-import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.HomeViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -84,33 +87,11 @@ fun HomeScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val imageUris by localViewModel.image.collectAsState()
+    val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
-    var isRefreshing by remember { mutableStateOf(false) }
+    val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
     val uiState by photoViewModel.uiState.collectAsState()
-
-    var tags by remember {
-        mutableStateOf(
-            listOf(
-                "#home",
-                "#cozy",
-                "#hobby",
-                "#study",
-                "#tool",
-                "#food",
-                "#dream",
-                "#travel",
-                "#nature",
-                "#animal",
-                "#fashion",
-                "#sport",
-                "#work",
-            ),
-        )
-    }
-    var imageTagPairs = imageUris.take(13).zip(tags) // NOTE: 기존 로직 그대로 유지
 
     var onlyTag by remember { mutableStateOf(false) }
 
@@ -125,11 +106,7 @@ fun HomeScreen(navController: NavController) {
         val permission = requiredImagePermission()
         permissionLauncher.launch(permission)
     }
-    if (hasPermission) {
-        LaunchedEffect(Unit) {
-            localViewModel.getImages()
-        }
-    }
+
     // 성공 시 로그인 화면으로 이동(백스택 초기화)
     LaunchedEffect(logoutState) {
         when (logoutState) {
@@ -151,6 +128,8 @@ fun HomeScreen(navController: NavController) {
     // done once when got permission
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
+            homeViewModel.loadServerTags()
+
             val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED", false)
             if (!hasAlreadyUploaded) {
                 photoViewModel.uploadPhotos()
@@ -163,6 +142,17 @@ fun HomeScreen(navController: NavController) {
         uiState.userMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             photoViewModel.userMessageShown()
+        }
+    }
+
+    LaunchedEffect(homeLoadingState) {
+        val message =
+            when (homeLoadingState) {
+                is HomeViewModel.HomeLoadingState.Error -> (homeLoadingState as HomeViewModel.HomeLoadingState.Error).message
+                else -> null
+            }
+        message?.let {
+            scope.launch { snackbarHostState.showSnackbar(it) }
         }
     }
 
@@ -190,19 +180,10 @@ fun HomeScreen(navController: NavController) {
         },
     ) { paddingValues ->
         PullToRefreshBox(
-            isRefreshing = isRefreshing,
+            isRefreshing = homeLoadingState is HomeViewModel.HomeLoadingState.Loading,
             onRefresh = {
-                scope.launch {
-                    isRefreshing = true
-                    try {
-                        if (hasPermission) {
-                            localViewModel.getImages()
-                        }
-                        // TODO: 서버 태그 목록도 새로고침 필요 시 추가
-                        // serverViewModel.getAllTags()
-                    } finally {
-                        isRefreshing = false
-                    }
+                if (hasPermission) {
+                    homeViewModel.loadServerTags()
                 }
             },
             modifier =
@@ -236,14 +217,41 @@ fun HomeScreen(navController: NavController) {
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
-                MainContent(
-                    hasPermission = hasPermission,
-                    onlyTag = onlyTag,
-                    imageTagPairs = imageTagPairs,
-                    onRemoveTagPair = { pair -> imageTagPairs = imageTagPairs - pair },
-                    navController = navController,
-                    modifier = Modifier.weight(1f),
-                )
+                if (!hasPermission) {
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
+                    }
+                } else {
+                    when (homeLoadingState) {
+                        is HomeViewModel.HomeLoadingState.Success -> {
+                            val tagItems = (homeLoadingState as HomeViewModel.HomeLoadingState.Success).tags
+                            MainContent(
+                                onlyTag = onlyTag,
+                                tagItems = tagItems,
+                                navController = navController,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+
+                        is HomeViewModel.HomeLoadingState.Loading -> {
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+
+                        else -> { // Error, NetworkError, Idle
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text("태그를 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.")
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -264,7 +272,6 @@ private fun SearchHeader() {
 
 // SearchBar는 이제 ui.components.SearchBar로 이동됨
 
-@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun ViewToggle(
     onlyTag: Boolean,
@@ -298,39 +305,28 @@ private fun ViewToggle(
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MainContent(
-    hasPermission: Boolean,
     onlyTag: Boolean,
-    imageTagPairs: List<Pair<Uri, String>>,
-    onRemoveTagPair: (Pair<Uri, String>) -> Unit,
+    tagItems: List<TagItem>,
     navController: NavController,
     modifier: Modifier = Modifier,
 ) {
     if (!onlyTag) {
-        if (hasPermission) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                items(imageTagPairs) { (uri, tag) ->
-                    TagGridItem(tag, uri, navController)
-                }
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                items(imageTagPairs) { (_, tag) ->
-                    TagGridItem(tag)
-                }
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            items(tagItems) { item ->
+                TagGridItem(
+                    tagId = item.tagId,
+                    tagName = item.tagName,
+                    imageId = item.coverImageId,
+                    navController = navController,
+                )
             }
         }
     } else {
@@ -339,22 +335,16 @@ private fun MainContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            imageTagPairs.forEach { pair ->
-                val (_, tag) = pair
+            tagItems.forEach { item ->
                 tagX(
-                    text = tag,
-                    onDismiss = { onRemoveTagPair(pair) },
+                    text = item.tagName,
+                    onDismiss = { /* TODO */ },
                 )
             }
         }
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
-@Composable
-private fun Deprecated_CreateTagRow() { /* replaced by CreateTagButton component */ }
-
-// 권한 헬퍼: 기존 분기 로직 그대로 함수로만 분리
 private fun requiredImagePermission(): String =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
@@ -362,16 +352,23 @@ private fun requiredImagePermission(): String =
         Manifest.permission.READ_EXTERNAL_STORAGE
     }
 
-/*
-* TODO : change code with imageUrl
- */
-@Suppress("ktlint:standard:function-naming")
 @Composable
 fun TagGridItem(
+    tagId: String,
     tagName: String,
-    imageUri: Uri?,
+    imageId: Long?,
     navController: NavController,
 ) {
+    val imageUri: Uri? =
+        remember(imageId) {
+            imageId?.let { id ->
+                ContentUris.withAppendedId(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    id,
+                )
+            }
+        }
+
     Box(modifier = Modifier) {
         if (imageUri != null) {
             AsyncImage(
@@ -384,7 +381,7 @@ fun TagGridItem(
                         .clip(RoundedCornerShape(16.dp))
                         .align(Alignment.BottomCenter)
                         .clickable {
-                            navController.navigate(Screen.Album.createRoute(tagName))
+                            navController.navigate(Screen.Album.createRoute(tagId, tagName))
                         },
                 contentScale = ContentScale.Crop,
             )
@@ -398,42 +395,11 @@ fun TagGridItem(
                             color = Picture,
                             shape = RoundedCornerShape(16.dp),
                         ).align(Alignment.BottomCenter)
-                        .clickable { /* TODO */ },
+                        .clickable {
+                            navController.navigate(Screen.Album.createRoute(tagId, tagName))
+                        },
             )
         }
-
-        Text(
-            text = tagName,
-            color = Word,
-            fontSize = 12.sp,
-            modifier =
-                Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 8.dp)
-                    .background(
-                        color = TagColor,
-                        shape = RoundedCornerShape(8.dp),
-                    ).padding(horizontal = 8.dp, vertical = 4.dp),
-        )
-    }
-}
-
-@Suppress("ktlint:standard:function-naming")
-@Composable
-fun TagGridItem(tagName: String) {
-    Box(modifier = Modifier) {
-        Spacer(
-            modifier =
-                Modifier
-                    .padding(top = 12.dp)
-                    .aspectRatio(1f)
-                    .background(
-                        color = Picture,
-                        shape = RoundedCornerShape(16.dp),
-                    ).align(Alignment.BottomCenter)
-                    .clickable { /* TODO */ },
-        )
-
         Text(
             text = tagName,
             color = Word,

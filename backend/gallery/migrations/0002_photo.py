@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             name='Photo',
             fields=[
                 ('photo_id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('filename', models.CharField()),
+                ('filename', models.CharField(max_length=255)),
                 ('photo_path_id', models.IntegerField()),
                 ('created_at', models.DateTimeField()),
                 ('location_lat', models.FloatField()),

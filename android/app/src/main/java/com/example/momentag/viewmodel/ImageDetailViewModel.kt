@@ -84,15 +84,15 @@ class ImageDetailViewModel(
             val photoDetailResult = remoteRepository.getPhotoDetail(photoId)
 
             when (photoDetailResult) {
-                is RemoteRepository.PhotoDetailResult.Success -> {
-                    val existingTags = photoDetailResult.detail.tags.map { it.tag }
+                is RemoteRepository.Result.Success -> {
+                    val existingTags = photoDetailResult.data.tags.map { it.tagName }
 
                     // Load recommended tags
                     val recommendResult = recommendRepository.recommendTagFromPhoto(photoId)
 
                     when (recommendResult) {
                         is RecommendRepository.RecommendResult.Success -> {
-                            val recommendedTag = recommendResult.data.tag
+                            val recommendedTag = recommendResult.data.tagName
                             // Only include recommendation if not already in existing tags
                             val recommendedTags =
                                 if (recommendedTag !in existingTags) {
@@ -128,17 +128,20 @@ class ImageDetailViewModel(
                         }
                     }
                 }
-                is RemoteRepository.PhotoDetailResult.Error -> {
+                is RemoteRepository.Result.Error -> {
                     _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
                 }
-                is RemoteRepository.PhotoDetailResult.BadRequest -> {
+                is RemoteRepository.Result.BadRequest -> {
                     _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
                 }
-                is RemoteRepository.PhotoDetailResult.Unauthorized -> {
+                is RemoteRepository.Result.Unauthorized -> {
                     _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
                 }
-                is RemoteRepository.PhotoDetailResult.NetworkError -> {
+                is RemoteRepository.Result.NetworkError -> {
                     _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                }
+                is RemoteRepository.Result.Exception -> {
+                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.e.message ?: "Unknown error")
                 }
             }
         }

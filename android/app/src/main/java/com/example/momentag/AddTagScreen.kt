@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -69,7 +70,6 @@ import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AddTagViewModel
-import com.example.momentag.viewmodel.RecommendViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,11 +81,11 @@ fun AddTagScreen(navController: NavController) {
 
     // Screen-scoped ViewModels using DraftTagRepository
     val addTagViewModel: AddTagViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val recommendViewModel: RecommendViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
     val tagName by addTagViewModel.tagName.collectAsState()
     val selectedPhotos by addTagViewModel.selectedPhotos.collectAsState()
-    val recommendState by recommendViewModel.recommendState.collectAsState()
+    val recommendState by addTagViewModel.recommendState.collectAsState()
+    val saveState by addTagViewModel.saveState.collectAsState()
 
     val recommendedPhotos = remember { mutableStateListOf<Photo>() }
 
@@ -119,6 +119,7 @@ fun AddTagScreen(navController: NavController) {
         if (recommendState is RecommendState.Success) {
             val successState = recommendState as RecommendState.Success
             recommendedPhotos.clear()
+
             // Filter out photos that are already selected
             val selectedPhotoIds = selectedPhotos.map { it.photoId }.toSet()
             val newRecommended = successState.photos.filter { it.photoId !in selectedPhotoIds }
@@ -136,10 +137,11 @@ fun AddTagScreen(navController: NavController) {
         isChanged = true
         addTagViewModel.addPhoto(photo)
         recommendedPhotos.remove(photo)
+
         // Extract photoIds for TagAlbum
         val photoIds = (selectedPhotos + photo).map { it.photoId }
         val tagAlbum = TagAlbum(tagName, photoIds)
-        recommendViewModel.recommend(tagAlbum)
+        addTagViewModel.recommendPhoto(tagAlbum)
     }
 
     Scaffold(
@@ -210,8 +212,9 @@ fun AddTagScreen(navController: NavController) {
                 ) {
                     Button(
                         onClick = {
-                            // TODO: Save tag to backend
                             // Clear draft when workflow completes
+                            addTagViewModel.updateTagName(tagName)
+                            addTagViewModel.saveTagAndPhotos()
                             addTagViewModel.clearDraft()
                             navController.popBackStack()
                         },
@@ -223,8 +226,13 @@ fun AddTagScreen(navController: NavController) {
                             ),
                         modifier = Modifier.align(Alignment.End),
                         contentPadding = PaddingValues(horizontal = 32.dp),
+                        enabled = saveState != AddTagViewModel.SaveState.Loading,
                     ) {
-                        Text(text = "Done")
+                        if (saveState == AddTagViewModel.SaveState.Loading) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            Text("Done")
+                        }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -298,8 +306,8 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
 
 @Composable
 private fun SelectedPhotosSection(
-    photos: List<com.example.momentag.model.Photo>,
-    onPhotoClick: (com.example.momentag.model.Photo) -> Unit,
+    photos: List<Photo>,
+    onPhotoClick: (Photo) -> Unit,
 ) {
     LazyRow(
         modifier =
@@ -323,8 +331,8 @@ private fun SelectedPhotosSection(
 
 @Composable
 private fun RecommendedPicturesSection(
-    photos: List<com.example.momentag.model.Photo>,
-    onPhotoClick: (com.example.momentag.model.Photo) -> Unit,
+    photos: List<Photo>,
+    onPhotoClick: (Photo) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {

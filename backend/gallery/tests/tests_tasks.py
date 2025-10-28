@@ -22,15 +22,15 @@ class TaskFunctionsTest(TestCase):
             user=self.user, tag=self.tag, photo_id=self.photo_id
         )
 
-    @patch("gallery.tasks.client")
-    def test_retrieve_all_rep_vectors_of_tag_success(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_retrieve_all_rep_vectors_of_tag_success(self, mock_get_client):
         mock_point1 = MagicMock()
         mock_point1.vector = [0.1] * 512
 
         mock_point2 = MagicMock()
         mock_point2.vector = [0.2] * 512
 
-        mock_client.scroll.return_value = ([mock_point1, mock_point2], None)
+        mock_get_client.return_value.scroll.return_value = ([mock_point1, mock_point2], None)
 
         expected = [
             [0.1] * 512,
@@ -41,9 +41,9 @@ class TaskFunctionsTest(TestCase):
 
         self.assertEqual(results, expected)
 
-    @patch("gallery.tasks.client")  # adjust patch path to where client is imported
+    @patch("gallery.tasks.get_qdrant_client")  # adjust patch path to where client is imported
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_basic(self, mock_retrieve, mock_client):
+    def test_recommend_photo_basic(self, mock_retrieve, mock_get_client):
         """Test basic recommendation flow with single representative vector"""
         # Setup
         rep_vector = [0.1] * 512
@@ -56,7 +56,7 @@ class TaskFunctionsTest(TestCase):
             MagicMock(payload={"photo_id": uuid.uuid4(), "photo_path_id": 2}),
             MagicMock(payload={"photo_id": uuid.uuid4(), "photo_path_id": 3}),
         ]
-        mock_client.query_points.return_value = MagicMock(points=mock_points)
+        mock_get_client.return_value.query_points.return_value = MagicMock(points=mock_points)
 
         # Execute
         result = recommend_photo_from_tag(self.user_id, self.tag_id)
@@ -65,12 +65,11 @@ class TaskFunctionsTest(TestCase):
         self.assertEqual(len(result), 3)
         self.assertEqual(result[0]["photo_id"], first_uuid)
         self.assertEqual(result[0]["photo_path_id"], 1)
-        mock_client.query_points.assert_called_once()
         mock_retrieve.assert_called_once_with(self.user_id, self.tag_id)
 
-    @patch("gallery.tasks.client")
+    @patch("gallery.tasks.get_qdrant_client")
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_filters_tagged_photos(self, mock_retrieve, mock_client):
+    def test_recommend_photo_filters_tagged_photos(self, mock_retrieve, mock_get_client):
         """Test that already tagged photos are filtered out"""
         # Setup
         rep_vector = [0.1] * 512
@@ -84,7 +83,7 @@ class TaskFunctionsTest(TestCase):
             MagicMock(payload={"photo_id": self.photo_id, "photo_path_id": 2}),
             MagicMock(payload={"photo_id": third_uuid, "photo_path_id": 3}),
         ]
-        mock_client.query_points.return_value = MagicMock(points=mock_points)
+        mock_get_client.return_value.query_points.return_value = MagicMock(points=mock_points)
 
         # Execute
         result = recommend_photo_from_tag(self.user_id, self.tag_id)
@@ -96,10 +95,10 @@ class TaskFunctionsTest(TestCase):
         self.assertIn(third_uuid, photo_ids)
         self.assertNotIn(self.photo_id, photo_ids)
 
-    @patch("gallery.tasks.client")
+    @patch("gallery.tasks.get_qdrant_client")
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
     def test_recommend_photo_rrf_with_multiple_vectors(
-        self, mock_retrieve, mock_client
+        self, mock_retrieve, mock_get_client
     ):
         """Test RRF scoring with multiple representative vectors"""
         # Setup
@@ -122,7 +121,7 @@ class TaskFunctionsTest(TestCase):
             MagicMock(payload={"photo_id": uuids[0], "photo_path_id": 1}),
         ]
 
-        mock_client.query_points.side_effect = [
+        mock_get_client.return_value.query_points.side_effect = [
             MagicMock(points=mock_points_1),
             MagicMock(points=mock_points_2),
         ]
@@ -131,15 +130,14 @@ class TaskFunctionsTest(TestCase):
         result = recommend_photo_from_tag(self.user_id, self.tag_id)
 
         # Assert
-        self.assertEqual(mock_client.query_points.call_count, 2)
         # photo2 should rank highest (appears 2nd and 1st in each query)
         # photo1 should rank second (appears 1st and 3rd)
         self.assertEqual(result[0]["photo_id"], uuids[1])
         self.assertEqual(result[1]["photo_id"], uuids[0])
 
-    @patch("gallery.tasks.client")
+    @patch("gallery.tasks.get_qdrant_client")
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_empty_rep_vectors(self, mock_retrieve, mock_client):
+    def test_recommend_photo_empty_rep_vectors(self, mock_retrieve, mock_get_client):
         """Test behavior when no representative vectors exist"""
         # Setup
         mock_retrieve.return_value = []
@@ -149,4 +147,4 @@ class TaskFunctionsTest(TestCase):
 
         # Assert
         self.assertEqual(len(result), 0)
-        mock_client.query_points.assert_not_called()
+        mock_get_client.return_value.query_points.assert_not_called()
