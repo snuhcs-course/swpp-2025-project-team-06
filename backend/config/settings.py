@@ -38,7 +38,8 @@ DEBUG = env.bool('DEBUG', default=True)
 QDRANT_CLUSTER_URL = env('QDRANT_CLUSTER_URL')
 QDRANT_API_KEY = env('QDRANT_API_KEY')
 
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=[])
+# ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = ["192.168.122.101", "localhost"]
 CSRF_TRUSTED_ORIGINS = env.list('DJANGO_CSRF_TRUSTED_ORIGINS', default=[])
 
 # Application definition
@@ -101,7 +102,7 @@ DATABASES = {
         'PASSWORD': env('DB_PASSWORD'),
         'HOST': env('DB_HOST'),
         'PORT': env('DB_PORT', default='3306'),
-        'CONN_HEALTH_CHECKS': True,
+        'CONN_HEALTH_CHECKS': True, # MySQL 안정성 옵션 (강력 권장)
     }
 }
 
