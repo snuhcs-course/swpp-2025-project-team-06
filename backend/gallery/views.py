@@ -21,6 +21,7 @@ from .request_serializers import (
     ReqPhotoIdSerializer,
     ReqTagNameSerializer,
     ReqTagIdSerializer,
+    ReqPhotoListSerializer,
 )
 
 from .serializers import TagSerializer
@@ -36,6 +37,7 @@ from .tasks import (
     tag_recommendation,
     is_valid_uuid,
     recommend_photo_from_tag,
+    recommend_photo_from_photo,
 )
 
 
@@ -680,6 +682,51 @@ class PhotoRecommendationView(APIView):
                 )
 
             photos = recommend_photo_from_tag(request.user.id, tag_id)
+
+            return Response(photos, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class PhotoToPhotoRecommendationView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Recommended Photos of Given Photos",
+        operation_description="Get recommended photos based on a list of input photos using bipartite graph analysis.",
+        request_body=ReqPhotoListSerializer,
+        responses={
+            200: openapi.Response(
+                description="Success",
+                schema=ResPhotoSerializer(many=True),
+            ),
+            400: openapi.Response(description="Bad Request - Request form mismatch"),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
+    )
+    def post(self, request):
+        try:
+            serializer = ReqPhotoListSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            photo_ids = serializer.validated_data['photos']
+            user = request.user
+
+            photos = recommend_photo_from_photo(user, photo_ids)
 
             return Response(photos, status=status.HTTP_200_OK)
 

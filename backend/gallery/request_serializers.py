@@ -20,3 +20,10 @@ class ReqTagNameSerializer(serializers.Serializer):
 
 class ReqTagIdSerializer(serializers.Serializer):
     tag_id = serializers.UUIDField(help_text="태그의 고유 ID")
+
+
+class ReqPhotoListSerializer(serializers.Serializer):
+    photos = serializers.ListField(
+        child=serializers.UUIDField(),
+        help_text="추천을 받기 위한 사진들의 고유 ID 리스트"
+    )
