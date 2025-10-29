@@ -6,6 +6,7 @@ import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
 import com.example.momentag.model.PhotoDetailResponse
 import com.example.momentag.model.PhotoResponse
+import com.example.momentag.model.PhotoToPhotoRequest
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
@@ -114,6 +115,11 @@ interface ApiService {
     @GET("api/tags/{tag_id}/recommendation/")
     suspend fun recommendPhotosFromTag(
         @Path("tag_id") tagId: String,
+    ): Response<List<PhotoResponse>>
+
+    @POST("api/photos/recommendation/")
+    suspend fun recommendPhotosFromPhotos(
+        @Body photoIds: PhotoToPhotoRequest,
     ): Response<List<PhotoResponse>>
 }
 

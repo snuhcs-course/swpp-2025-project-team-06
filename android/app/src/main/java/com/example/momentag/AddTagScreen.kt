@@ -63,7 +63,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
-import com.example.momentag.model.TagAlbum
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
@@ -108,6 +107,11 @@ fun AddTagScreen(navController: NavController) {
                 Manifest.permission.READ_EXTERNAL_STORAGE
             }
         permissionLauncher.launch(permission)
+    }
+
+    // Call recommendPhoto once when screen is entered
+    LaunchedEffect(Unit) {
+        addTagViewModel.recommendPhoto()
     }
 
     // Handle back button - clear draft when leaving workflow
@@ -158,11 +162,6 @@ fun AddTagScreen(navController: NavController) {
         isChanged = true
         addTagViewModel.addPhoto(photo)
         recommendedPhotos.remove(photo)
-
-        // Extract photoIds for TagAlbum
-        val photoIds = (selectedPhotos + photo).map { it.photoId }
-        val tagAlbum = TagAlbum(tagName, photoIds)
-        addTagViewModel.recommendPhoto(tagAlbum)
     }
 
     Scaffold(
@@ -380,7 +379,7 @@ private fun RecommendedPicturesSection(
 
 @Composable
 fun PhotoCheckedItem(
-    photo: com.example.momentag.model.Photo,
+    photo: Photo,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
