@@ -3,7 +3,6 @@ import uuid
 import networkx as nx
 from collections import defaultdict
 from celery import shared_task
-from itertools import product
 from qdrant_client import models
 
 from .vision_service import get_image_embedding, get_image_captions
@@ -73,8 +72,6 @@ def process_and_embed_photo(
         client.upsert(
             collection_name=IMAGE_COLLECTION_NAME, points=[point_to_upsert], wait=True
         )
-        print(f"[Celery Task Success] Processed and upserted photo {filename}")
-
         captions = get_image_captions(image_path)
 
         # asserts that user id has checked
@@ -92,6 +89,8 @@ def process_and_embed_photo(
                 caption=caption,
                 weight=count,
             )
+
+        print(f"[Celery Task Success] Processed and upserted photo {filename}")
 
     except Exception as e:
         print(f"[Celery Task Exception] Error processing {filename}: {str(e)}")
@@ -167,8 +166,9 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
 
     # evaluate Adamic/Adar score
     aa_scores = defaultdict(float)
-    for candidate, photo in product(candidates, target_set):
-        aa_scores[candidate] += nx.adamic_adar_index(graph, (candidate, photo))
+
+    for u, _, score in nx.adamic_adar_index(graph, [(c, t) for c in candidates for t in target_set]):
+        aa_scores[u] += score
 
     def normalize(minv, maxv, v):
         if maxv == minv:
@@ -176,11 +176,11 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
         else:
             return (v - minv) / (maxv - minv)
 
-    max_rwr = max(rwr_scores.values())
-    min_rwr = min(rwr_scores.values())
+    max_rwr = max(rwr_scores.values()) if rwr_scores else 0
+    min_rwr = min(rwr_scores.values()) if rwr_scores else 0
 
-    max_aa = max(aa_scores.values())
-    min_aa = min(aa_scores.values())
+    max_aa = max(aa_scores.values()) if aa_scores else 0
+    min_aa = min(aa_scores.values()) if aa_scores else 0
 
     scores= {
         candidate: ALPHA * normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0)) + (1 - ALPHA) * normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
@@ -280,11 +280,11 @@ def retrieve_photo_caption_graph(user: User):
 
     for photo_caption in Photo_Caption.objects.filter(user=user):
         if photo_caption.photo_id not in photo_set:
-            photo_set.add(photo_id)
+            photo_set.add(photo_caption.photo_id)
             graph.add_node(photo_caption.photo_id, bipartite=0)
 
         if photo_caption.caption.caption_id not in caption_set:
-            caption_set.add(caption.caption_id)
+            caption_set.add(photo_caption.caption.caption_id)
             graph.add_node(photo_caption.caption, bipartite=1)
 
         graph.add_edge(photo_caption.photo_id, photo_caption.caption, weight=photo_caption.weight)

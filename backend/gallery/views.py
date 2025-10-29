@@ -718,22 +718,17 @@ class PhotoToPhotoRecommendationView(APIView):
         ],
     )
     def post(self, request):
-        try:
-            serializer = ReqPhotoListSerializer(data=request.data)
-            if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = ReqPhotoListSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            photo_ids = serializer.validated_data['photos']
-            user = request.user
+        photo_ids = serializer.validated_data['photos']
+        user = request.user
 
-            photos = recommend_photo_from_photo(user, photo_ids)
+        photos = recommend_photo_from_photo(user, photo_ids)
 
-            return Response(photos, status=status.HTTP_200_OK)
+        return Response(photos, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
 
 
 class TagView(APIView):

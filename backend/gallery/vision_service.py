@@ -58,7 +58,7 @@ def get_image_embedding(image_path):
         with torch.no_grad():
             embedding = model.encode(image)
 
-        print(f"[DONE] Finished: {image_path}\n", flush=True)  # Debug print statement
+        print(f"[DONE] Finished image embedding: {image_path}\n", flush=True)  # Debug print statement
 
         return embedding
 
@@ -93,7 +93,7 @@ def get_image_captions(image_path: str) -> dict[str, int]:
         list(chain.from_iterable((phrase_to_words(phrase) for phrase in phrases)))
     )
 
-    print(f"[DONE] Finished: {image_path}\n", flush=True)
+    print(f"[DONE] Finished caption generation: {image_path}\n", flush=True)
 
     return dict(counter)
 
