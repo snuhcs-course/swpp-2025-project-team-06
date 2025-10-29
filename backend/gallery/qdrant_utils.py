@@ -14,6 +14,7 @@ client = QdrantClient(
 IMAGE_COLLECTION_NAME = "my_image_collection"
 REPVEC_COLLECTION_NAME = "my_repvec_collection"
 
+
 def initialize_qdrant():
     try:
         client.get_collection(collection_name=IMAGE_COLLECTION_NAME)
@@ -21,7 +22,8 @@ def initialize_qdrant():
         client.create_collection(
             collection_name=IMAGE_COLLECTION_NAME,
             vectors_config=models.VectorParams(
-                size=512, distance=models.Distance.COSINE),
+                size=512, distance=models.Distance.COSINE
+            ),
         )
         print(f"Collection '{IMAGE_COLLECTION_NAME}' created.")
 
@@ -30,7 +32,9 @@ def initialize_qdrant():
     except (UnexpectedResponse, ValueError):
         client.create_collection(
             collection_name=REPVEC_COLLECTION_NAME,
-            vectors_config=models.VectorParams(size=512, distance=models.Distance.COSINE),
+            vectors_config=models.VectorParams(
+                size=512, distance=models.Distance.COSINE
+            ),
         )
         print(f"Collection '{REPVEC_COLLECTION_NAME}' created.")
 
@@ -41,6 +45,7 @@ def initialize_qdrant():
         "created_at": models.PayloadSchemaType.DATETIME,
         "lat": models.PayloadSchemaType.FLOAT,
         "lng": models.PayloadSchemaType.FLOAT,
+        "isTagged": models.PayloadSchemaType.BOOL,   
     }
     for field, schema in image_indexes.items():
         try:
@@ -65,6 +70,7 @@ def initialize_qdrant():
             )
         except UnexpectedResponse:
             pass
+
 
 initialize_qdrant()
 

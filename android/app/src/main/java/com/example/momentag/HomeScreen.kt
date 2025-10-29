@@ -16,10 +16,15 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -58,6 +63,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.LogoutState
+import com.example.momentag.ui.components.BottomNavBar
+import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.HomeTopBar
 import com.example.momentag.ui.components.SearchBar
@@ -90,6 +97,7 @@ fun HomeScreen(navController: NavController) {
 
     var isRefreshing by remember { mutableStateOf(false) }
     val uiState by photoViewModel.uiState.collectAsState()
+    var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
     var tags by remember {
         mutableStateOf(
@@ -177,7 +185,41 @@ fun HomeScreen(navController: NavController) {
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = { },
+        bottomBar = {
+            BottomNavBar(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            WindowInsets.navigationBars
+                                .only(WindowInsetsSides.Bottom)
+                                .asPaddingValues(),
+                        ),
+                currentTab = currentTab,
+                onTabSelected = { tab ->
+                    currentTab = tab
+
+                    when (tab) {
+                        BottomTab.HomeScreen -> {
+                            // 이미 홈이면 유지. 필요하면 navController.navigate(Screen.Home.route)
+                        }
+                        BottomTab.SearchScreen -> {
+                            // 예: 검색 화면으로 이동
+                            navController.navigate(Screen.SearchResult.route)
+                        }
+                        BottomTab.TagScreen -> {
+                            // 예: 태그 생성 / 업로드 등
+                            navController.navigate(Screen.Album.route)
+                            // TODO : 여기도 Tag 화면으로 이동
+                        }
+                        BottomTab.StoryScreen -> {
+                            // ✅ 여기서 스토리 화면으로 이동하면 돼
+                            navController.navigate(Screen.Story.route)
+                        }
+                    }
+                },
+            )
+        },
         containerColor = Background,
         floatingActionButton = {
             CreateTagButton(
