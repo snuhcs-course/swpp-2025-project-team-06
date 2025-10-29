@@ -9,6 +9,7 @@ import com.example.momentag.model.PhotoTagState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
+import com.example.momentag.viewmodel.HomeViewModel.HomeDeleteState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -25,11 +26,25 @@ class ImageDetailViewModel(
     private val remoteRepository: RemoteRepository,
     private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
+    sealed class TagDeleteState{
+        object Idle : TagDeleteState()
+
+        object Loading : TagDeleteState()
+
+        object Success : TagDeleteState()
+
+        data class Error(
+            val message: String,
+        ) : TagDeleteState()
+    }
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
     val imageContext = _imageContext.asStateFlow()
 
     private val _photoTagState = MutableStateFlow<PhotoTagState>(PhotoTagState.Idle)
     val photoTagState = _photoTagState.asStateFlow()
+
+    private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
+    val tagDeleteState = _tagDeleteState.asStateFlow()
 
     /**
      * photoId를 기반으로 ImageContext를 Repository에서 조회하여 설정
@@ -85,7 +100,9 @@ class ImageDetailViewModel(
 
             when (photoDetailResult) {
                 is RemoteRepository.Result.Success -> {
-                    val existingTags = photoDetailResult.data.tags.map { it.tagName }
+                    val existingTags = photoDetailResult.data.tags
+
+                    val existingTagNames = existingTags.map { it.tagName }
 
                     // Load recommended tags
                     val recommendResult = recommendRepository.recommendTagFromPhoto(photoId)
@@ -95,7 +112,7 @@ class ImageDetailViewModel(
                             val recommendedTag = recommendResult.data.tagName
                             // Only include recommendation if not already in existing tags
                             val recommendedTags =
-                                if (recommendedTag !in existingTags) {
+                                if (recommendedTag !in existingTagNames) {
                                     listOf(recommendedTag)
                                 } else {
                                     emptyList()
@@ -145,6 +162,43 @@ class ImageDetailViewModel(
                 }
             }
         }
+    }
+
+    fun deleteTagFromPhoto(photoId: String, tagId: String) {
+        viewModelScope.launch {
+            _tagDeleteState.value = TagDeleteState.Loading
+
+            when (val result = remoteRepository.removeTagFromPhoto(photoId, tagId)) {
+                is RemoteRepository.Result.Success -> {
+                    _tagDeleteState.value = TagDeleteState.Success
+                }
+
+                is RemoteRepository.Result.Error -> {
+                    _tagDeleteState.value = TagDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.Unauthorized -> {
+                    _tagDeleteState.value = TagDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.BadRequest -> {
+                    _tagDeleteState.value = TagDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.NetworkError -> {
+                    _tagDeleteState.value = TagDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.Exception -> {
+                    _tagDeleteState.value =
+                        TagDeleteState.Error(result.e.message ?: "Unknown error")
+                }
+            }
+        }
+    }
+
+    fun resetDeleteState() {
+        _tagDeleteState.value = TagDeleteState.Idle
     }
 
     /**

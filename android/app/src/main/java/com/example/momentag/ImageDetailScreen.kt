@@ -3,6 +3,8 @@ package com.example.momentag
 import android.Manifest
 import android.net.Uri
 import android.os.Build
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +47,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +63,7 @@ import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
+import com.example.momentag.model.Tag
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -69,9 +73,11 @@ import java.io.IOException
 @Composable
 fun ImageDetailScreen(
     imageUri: Uri?,
+    imageId: String,
     onNavigateBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // Screen-scoped ViewModel - fresh instance per screen
     val imageDetailViewModel: ImageDetailViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
@@ -81,6 +87,7 @@ fun ImageDetailScreen(
 
     // Observe PhotoTagState from ViewModel
     val photoTagState by imageDetailViewModel.photoTagState.collectAsState()
+    val tagDeleteState by imageDetailViewModel.tagDeleteState.collectAsState()
 
     // Load ImageContext from Repository when screen opens
     LaunchedEffect(imageUri) {
@@ -178,6 +185,27 @@ fun ImageDetailScreen(
         }
     }
 
+    LaunchedEffect(tagDeleteState) {
+        when (val state = tagDeleteState) {
+            is ImageDetailViewModel.TagDeleteState.Success -> {
+                Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
+                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                if (currentPhotoId.isNotEmpty()) {
+                    imageDetailViewModel.loadPhotoTags(currentPhotoId)
+                }
+
+                isDeleteMode = false
+                imageDetailViewModel.resetDeleteState()
+            }
+            is ImageDetailViewModel.TagDeleteState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                isDeleteMode = false
+                imageDetailViewModel.resetDeleteState()
+            }
+            else -> Unit
+        }
+    }
+
     // 현재 페이지의 이미지 Uri
     val currentImageUri = currentPhoto?.contentUri
 
@@ -185,7 +213,7 @@ fun ImageDetailScreen(
     var latLong: DoubleArray? by remember { mutableStateOf(null) }
 
     // 페이지가 변경될 때마다 EXIF 데이터 및 태그 업데이트
-    LaunchedEffect(pagerState.currentPage, hasPermission) {
+    LaunchedEffect(pagerState.currentPage, hasPermission, imageContext) {
         val photo = photos.getOrNull(pagerState.currentPage)
 
         // Load EXIF data
@@ -205,7 +233,11 @@ fun ImageDetailScreen(
 
         // Load tags from backend using photo.photoId
         if (photo != null && photo.photoId.isNotEmpty()) {
-            imageDetailViewModel.loadPhotoTags(photo.photoId)
+            if (photo.photoId.isNotEmpty()) {
+                imageDetailViewModel.loadPhotoTags(photo.photoId)
+            } else if (imageContext == null && pagerState.currentPage == 0) {
+                imageDetailViewModel.loadPhotoTags(imageId)
+            }
         }
     }
 
@@ -299,23 +331,33 @@ fun ImageDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Display existing tags with delete mode
-                    existingTags.forEach { tagName ->
+                    existingTags.forEach { tagItem ->
                         Box(
                             modifier =
                                 Modifier.combinedClickable(
                                     onLongClick = { isDeleteMode = true },
-                                    onClick = { /* TODO */ },
+                                    onClick = {
+                                        if (isDeleteMode) isDeleteMode = false
+                                    }
                                 ),
                         ) {
                             tagXMode(
-                                text = tagName,
+                                text = tagItem.tagName,
                                 isDeleteMode = isDeleteMode,
                                 onDismiss = {
-                                    // TODO: Implement tag deletion
+                                    val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+
+                                    if (currentPhotoId.isNotEmpty()) {
+                                        imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagItem.tagId)
+                                        Log.e("tag",tagItem.tagId)
+                                    } else {
+                                        Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
+                                    }
                                 },
                             )
                         }
                     }
+
 
                     // Display recommended tags with transparency
                     recommendedTags.forEach { tagName ->
@@ -341,7 +383,7 @@ fun ImageDetailScreen(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagsSection(
-    existingTags: List<String>,
+    existingTags: List<Tag>,
     recommendedTags: List<String>,
     modifier: Modifier = Modifier,
 ) {
@@ -352,10 +394,10 @@ fun TagsSection(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Display existing tags
-        existingTags.forEach { tagName ->
+        existingTags.forEach { tagItem ->
             Box {
                 tag(
-                    text = tagName,
+                    text = tagItem.tagName,
                 )
             }
         }
