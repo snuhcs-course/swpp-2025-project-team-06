@@ -565,6 +565,9 @@ class DeletePhotoTagsView(APIView):
 
             photo_tag.delete()
 
+            if not Photo_Tag.objects.filter(tag=tag).exists():
+                tag.delete()
+
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Tag.DoesNotExist:
             return Response(
@@ -766,10 +769,9 @@ class TagView(APIView):
                 )
 
             if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
-                return Response(
-                    {"detail": f"Tag '{data['tag']}' already exists."},
-                    status=status.HTTP_409_CONFLICT,
-                )
+                tag = Tag.objects.get(tag=data["tag"], user=request.user)
+                response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
 
             new_tag = Tag.objects.create(tag=data["tag"], user=request.user)
 
