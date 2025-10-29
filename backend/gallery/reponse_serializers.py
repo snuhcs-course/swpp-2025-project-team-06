@@ -26,3 +26,5 @@ class ResTagVectorSerializer(serializers.Serializer):
 class ResStorySerializer(serializers.Serializer):
     recs = ResPhotoSerializer(many=True)
 
+class ResTagAlbumSerializer(serializers.Serializer):
+    photos = ResPhotoSerializer(many=True)

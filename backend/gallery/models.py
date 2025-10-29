@@ -19,7 +19,7 @@ class Photo_Tag(models.Model):
     photo_id = models.UUIDField(max_length=255)
 
     def __str__(self):
-        return f"{self.photo_id} tagged with {self.tag_id}"
+        return f"{self.photo_id} tagged with {self.tag.tag_id}"
 
 
 class Caption(models.Model):
