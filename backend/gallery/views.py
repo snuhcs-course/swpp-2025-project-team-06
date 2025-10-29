@@ -504,6 +504,12 @@ class PostPhotoTagsView(APIView):
                 pt_id = uuid.uuid4()
 
                 tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+
+                if Photo_Tag.objects.filter(
+                    photo_id=photo_id, tag=tag, user=request.user
+                ).exists():
+                    continue  # Skip if the relationship already exists
+
                 Photo_Tag.objects.create(
                     pt_id=pt_id, 
                     photo_id=photo_id, 
