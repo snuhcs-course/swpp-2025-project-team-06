@@ -281,6 +281,17 @@ fun ImageDetailScreen(
                 TagsSection(
                     existingTags = existingTags,
                     recommendedTags = recommendedTags,
+                    isDeleteMode = isDeleteMode,
+                    onEnterDeleteMode = { isDeleteMode = true },
+                    onExitDeleteMode = { isDeleteMode = false },
+                    onDeleteClick = { tagId ->
+                        val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                        if (currentPhotoId.isNotEmpty()) {
+                            imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
+                        } else {
+                            Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
+                        }
+                    },
                 )
                 Spacer(modifier = Modifier.height(200.dp))
             }
@@ -349,7 +360,6 @@ fun ImageDetailScreen(
 
                                     if (currentPhotoId.isNotEmpty()) {
                                         imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagItem.tagId)
-                                        Log.e("tag",tagItem.tagId)
                                     } else {
                                         Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
                                     }
@@ -386,6 +396,10 @@ fun TagsSection(
     existingTags: List<Tag>,
     recommendedTags: List<String>,
     modifier: Modifier = Modifier,
+    isDeleteMode: Boolean,
+    onDeleteClick: (String) -> Unit,
+    onEnterDeleteMode: () -> Unit,
+    onExitDeleteMode: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
     Row(
@@ -395,9 +409,19 @@ fun TagsSection(
     ) {
         // Display existing tags
         existingTags.forEach { tagItem ->
-            Box {
-                tag(
+            Box(
+                modifier =
+                    Modifier.combinedClickable(
+                        onLongClick = onEnterDeleteMode,
+                        onClick = {
+                            if (isDeleteMode) onExitDeleteMode()
+                        },
+                    ),
+            ) {
+                tagXMode(
                     text = tagItem.tagName,
+                    isDeleteMode = isDeleteMode,
+                    onDismiss = { onDeleteClick(tagItem.tagId) },
                 )
             }
         }
