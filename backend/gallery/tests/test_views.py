@@ -6,7 +6,7 @@ from rest_framework.test import APIClient, APITestCase
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch
-from gallery.models import Tag, Photo_Tag, Caption, Photo_Caption
+from gallery.models import Tag, Photo_Tag
 
 
 class PhotoRecommendationViewTest(APITestCase):
@@ -756,8 +756,7 @@ class PhotoToPhotoRecommendationViewTest(APITestCase):
         """Test recommendation with large list of photo IDs"""
         photo_ids = [uuid.uuid4() for _ in range(50)]
         mock_recommendations = [
-            {"photo_id": str(uuid.uuid4()), "photo_path_id": i}
-            for i in range(20)
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": i} for i in range(20)
         ]
         mock_recommend.return_value = mock_recommendations
 
@@ -871,9 +870,7 @@ class PhotoToPhotoRecommendationViewTest(APITestCase):
 
         # Send invalid JSON (not using format="json" to bypass DRF's parser)
         response = self.client.post(
-            self.url,
-            data="invalid-json",
-            content_type="application/json"
+            self.url, data="invalid-json", content_type="application/json"
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -889,7 +886,7 @@ class PhotoToPhotoRecommendationViewTest(APITestCase):
         payload = {
             "photos": [str(photo_id)],
             "extra_field": "should be ignored",
-            "another_field": 123
+            "another_field": 123,
         }
         response = self.client.post(self.url, payload, format="json")
 

@@ -58,7 +58,9 @@ def get_image_embedding(image_path):
         with torch.no_grad():
             embedding = model.encode(image)
 
-        print(f"[DONE] Finished image embedding: {image_path}\n", flush=True)  # Debug print statement
+        print(
+            f"[DONE] Finished image embedding: {image_path}\n", flush=True
+        )  # Debug print statement
 
         return embedding
 

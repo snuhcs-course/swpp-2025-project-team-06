@@ -235,14 +235,9 @@ class RetrievePhotoCaptionGraphTest(TestCase):
     def test_single_photo_single_caption(self):
         """Test graph with one photo and one caption"""
         photo_id = uuid.uuid4()
-        caption = Caption.objects.create(
-            user=self.user1, caption="beach"
-        )
+        caption = Caption.objects.create(user=self.user1, caption="beach")
         Photo_Caption.objects.create(
-            user=self.user1,
-            photo_id=photo_id,
-            caption=caption,
-            weight=5
+            user=self.user1, photo_id=photo_id, caption=caption, weight=5
         )
 
         photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
@@ -271,12 +266,8 @@ class RetrievePhotoCaptionGraphTest(TestCase):
         photo_id2 = uuid.uuid4()
         photo_id3 = uuid.uuid4()
 
-        caption_beach = Caption.objects.create(
-            user=self.user1, caption="beach"
-        )
-        caption_sunset = Caption.objects.create(
-            user=self.user1, caption="sunset"
-        )
+        caption_beach = Caption.objects.create(user=self.user1, caption="beach")
+        caption_sunset = Caption.objects.create(user=self.user1, caption="sunset")
 
         # Photo 1: beach (weight=3), sunset (weight=2)
         Photo_Caption.objects.create(
@@ -851,8 +842,7 @@ class RecommendPhotoFromPhotoTest(TestCase):
 
         expected_photo_path_id = 999
         mock_point = MagicMock(
-            id=str(photo_id2),
-            payload={"photo_path_id": expected_photo_path_id}
+            id=str(photo_id2), payload={"photo_path_id": expected_photo_path_id}
         )
         mock_client.retrieve.return_value = [mock_point]
 
