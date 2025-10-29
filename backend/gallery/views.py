@@ -263,55 +263,32 @@ class PhotoDetailView(APIView):
     def get(self, request, photo_id):
         try:
             client = get_qdrant_client()
-            user_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="user_id",
-                        match=models.MatchValue(value=request.user.id),
-                    ),
-                    models.FieldCondition(
-                        key="photo_id",
-                        match=models.MatchValue(value=str(photo_id)),
-                    ),
-                ]
+            all_photo_points = client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME, ids=[str(photo_id)], with_payload=True
             )
 
-            all_photo_points = []
-            next_offset = None
-
-            while True:
-                points, next_offset = client.scroll(
-                    collection_name=IMAGE_COLLECTION_NAME,
-                    scroll_filter=user_filter,
-                    limit=200,
-                    offset=next_offset,
-                    with_payload=True,
-                )
-
-                all_photo_points.extend(points)
-
-                if next_offset is None:
-                    break
-
-            if all_photo_points.size == 0:
+            if len(all_photo_points) == 0:
                 return Response(
                     {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
                 )
 
-            photos = []
+            photo = all_photo_points[0]
 
-            for point in all_photo_points:
-                photo_tags = Photo_Tag.objects.filter(photo_id=point.id)
-                for pt in photo_tags:
-                    tag = Tag.objects.get(tag_id=pt.tag_id)
-                    photos.append(
-                        {
-                            "photo_path_id": point.payload.get("photo_path_id"),
-                            "tags": [{"tag_id": tag.tag_id, "tag": tag.tag}],
-                        }
-                    )
+            photo_tags = Photo_Tag.objects.filter(photo_id=photo_id, user=request.user)
 
-            return Response(photos, status=status.HTTP_200_OK)
+            tag_ids = [pt.tag_id for pt in photo_tags]
+            tags_from_db = Tag.objects.filter(tag_id__in=tag_ids)
+            tag_map = {tag.tag_id: tag.tag for tag in tags_from_db}
+            tags = [
+                {"tag_id": tag_id, "tag": tag_map.get(tag_id)} for tag_id in tag_ids
+            ]
+                
+            photo_res = {
+                "photo_path_id": photo.payload.get("photo_path_id"),
+                "tags": tags,
+            }
+
+            return Response(photo_res, status=status.HTTP_200_OK)
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -571,20 +548,22 @@ class DeletePhotoTagsView(APIView):
     def delete(self, request, photo_id, tag_id):
         try:
             client = get_qdrant_client()
-            Tag.objects.get(tag_id=tag_id, user=request.user)
-            if not client.exists(
-                collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)
-            ):
+            tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+            points = client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME,
+                ids=[str(photo_id)]
+            )
+            
+            if not points:
                 return Response(
                     {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
                 )
 
             photo_tag = Photo_Tag.objects.get(
-                photo_id=photo_id, tag_id=tag_id, user=request.user
+                photo_id=photo_id, tag=tag, user=request.user
             )
 
-            if photo_tag.exists():
-                photo_tag.delete()
+            photo_tag.delete()
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Tag.DoesNotExist:

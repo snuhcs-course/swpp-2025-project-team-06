@@ -39,7 +39,7 @@ QDRANT_CLUSTER_URL = env('QDRANT_CLUSTER_URL')
 QDRANT_API_KEY = env('QDRANT_API_KEY')
 
 # ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=[])
-ALLOWED_HOSTS = ["192.168.122.101", "localhost"]
+ALLOWED_HOSTS = ["192.168.58.234", "localhost"]
 CSRF_TRUSTED_ORIGINS = env.list('DJANGO_CSRF_TRUSTED_ORIGINS', default=[])
 
 # Application definition
