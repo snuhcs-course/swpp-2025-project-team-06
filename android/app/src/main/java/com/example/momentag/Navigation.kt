@@ -17,9 +17,6 @@ import androidx.navigation.navArgument
 import com.example.momentag.data.SessionManager
 import com.example.momentag.model.StoryModel
 import com.example.momentag.ui.storytag.StoryTagSelectionScreen
-import com.example.momentag.viewmodel.ImageDetailViewModel
-import com.example.momentag.viewmodel.PhotoTagViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
