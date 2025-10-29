@@ -1495,7 +1495,7 @@ class StoryViewTest(APITestCase):
         
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:stories")
-        response = self.client.get(url)
+        self.client.get(url)
         
         # Verify the filter conditions
         call_args = mock_client.scroll.call_args
