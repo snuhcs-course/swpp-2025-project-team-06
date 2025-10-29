@@ -27,8 +27,24 @@ class HomeViewModel(
         ) : HomeLoadingState()
     }
 
+    sealed class HomeDeleteState{
+        object Idle : HomeDeleteState()
+
+        object Loading : HomeDeleteState()
+
+        object Success : HomeDeleteState()
+
+        data class Error(
+            val message: String,
+        ) : HomeDeleteState()
+    }
+
     private val _homeLoadingState = MutableStateFlow<HomeLoadingState>(HomeLoadingState.Idle)
     val homeLoadingState = _homeLoadingState.asStateFlow()
+
+    private val _homeDeleteState = MutableStateFlow<HomeDeleteState>(HomeDeleteState.Idle)
+    val homeDeleteState = _homeDeleteState.asStateFlow()
+
 
     fun loadServerTags() {
         viewModelScope.launch {
@@ -64,5 +80,42 @@ class HomeViewModel(
                 }
             }
         }
+    }
+
+    fun deleteTag(tagId: String) {
+        viewModelScope.launch {
+            _homeDeleteState.value = HomeDeleteState.Loading
+
+            when (val result = remoteRepository.removeTag(tagId)) {
+                is RemoteRepository.Result.Success -> {
+                    _homeDeleteState.value = HomeDeleteState.Success
+                }
+
+                is RemoteRepository.Result.Error -> {
+                    _homeDeleteState.value = HomeDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.Unauthorized -> {
+                    _homeDeleteState.value = HomeDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.BadRequest -> {
+                    _homeDeleteState.value = HomeDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.NetworkError -> {
+                    _homeDeleteState.value = HomeDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.Exception -> {
+                    _homeDeleteState.value =
+                        HomeDeleteState.Error(result.e.message ?: "Unknown error")
+                }
+            }
+        }
+    }
+
+    fun resetDeleteState() {
+        _homeDeleteState.value = HomeDeleteState.Idle
     }
 }

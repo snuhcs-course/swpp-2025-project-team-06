@@ -229,4 +229,26 @@ class RemoteRepository(
         } catch (e: Exception) {
             Result.Exception(e)
         }
+
+    suspend fun removeTag(
+        tagId: String,
+    ): Result<Unit> =
+        try {
+            val response = apiService.removeTag(tagId)
+
+            if (response.isSuccessful) {
+                Result.Success(Unit)
+            } else {
+                when (response.code()) {
+                    401 -> Result.Unauthorized("Authentication failed")
+                    400 -> Result.BadRequest("Bad request")
+                    404 -> Result.Error(response.code(), "Photo or tag not found")
+                    else -> Result.Error(response.code(), "An unknown error occurred: ${response.message()}")
+                }
+            }
+        } catch (e: IOException) {
+            Result.Exception(e)
+        } catch (e: Exception) {
+            Result.Exception(e)
+        }
 }
