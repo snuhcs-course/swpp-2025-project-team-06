@@ -497,11 +497,6 @@ class PostPhotoTagsView(APIView):
 
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
-            try:
-                current_user_obj = User.objects.get(pk=request.user.pk)
-            except User.DoesNotExist:
-                 return Response({"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED)
 
             tag_ids = [data["tag_id"] for data in serializer.validated_data]
 
