@@ -363,7 +363,7 @@ class BulkDeletePhotoView(APIView):
             )
         ],
     )
-    def delete(self, request):
+    def post(self, request):
         try:
             serializer = ReqPhotoBulkDeleteSerializer(data=request.data)
 

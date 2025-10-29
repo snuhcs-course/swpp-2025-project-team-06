@@ -1128,7 +1128,7 @@ class BulkDeletePhotoViewTest(APITestCase):
         
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:photos_bulk_delete")
-        response = self.client.delete(url, payload, format="json")
+        response = self.client.post(url, payload, format="json")
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         # Verify all photo-tag relationships are deleted
@@ -1143,7 +1143,7 @@ class BulkDeletePhotoViewTest(APITestCase):
         
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:photos_bulk_delete")
-        response = self.client.delete(url, payload, format="json")
+        response = self.client.post(url, payload, format="json")
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         
@@ -1154,7 +1154,7 @@ class BulkDeletePhotoViewTest(APITestCase):
         }
         
         url = reverse("gallery:photos_bulk_delete")
-        response = self.client.delete(url, payload, format="json")
+        response = self.client.post(url, payload, format="json")
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
