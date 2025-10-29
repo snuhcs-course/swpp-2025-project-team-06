@@ -20,7 +20,7 @@ class RemoteRepository(
      * 모든 태그 조회
      * (인증 헤더는 AuthInterceptor가 자동 추가)
      */
-    suspend fun getAllTags(): List<Tag> = apiService.getHomeTags()
+    suspend fun getAllTags(): List<Tag> = emptyList() // TODO: receive tag_id, tag, thumbnail_path_id
 
     /**
      * 특정 태그의 사진 조회
@@ -28,7 +28,7 @@ class RemoteRepository(
      * @return 사진 리스트
      * (인증 헤더는 AuthInterceptor가 자동 추가)
      */
-    suspend fun getPhotosByTag(tagName: String): List<Photo> = apiService.getPhotosByTag(tagName)
+    suspend fun getPhotosByTag(tagName: String): List<Photo> = emptyList()
 
     suspend fun uploadPhotos(photoUploadData: PhotoUploadData) =
         apiService.uploadPhotos(

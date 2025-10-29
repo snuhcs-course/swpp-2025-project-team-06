@@ -34,10 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.momentag.model.ImageContext
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
-import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -50,10 +48,9 @@ fun LocalAlbumScreen(
     albumId: Long,
     albumName: String,
     onNavigateBack: () -> Unit,
-    imageDetailViewModel: ImageDetailViewModel? = null,
 ) {
     val context = LocalContext.current
-    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory(context))
+    val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     var hasPermission by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -73,6 +70,14 @@ fun LocalAlbumScreen(
             localViewModel.getImagesForAlbum(albumId)
         }
     }
+
+    // Set browsing session when album images are loaded
+    LaunchedEffect(imageUris, albumName) {
+        if (imageUris.isNotEmpty()) {
+            localViewModel.setLocalAlbumBrowsingSession(imageUris, albumName)
+        }
+    }
+
     LaunchedEffect(key1 = true) {
         val permission =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -127,18 +132,24 @@ fun LocalAlbumScreen(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
                     color = Color.Black.copy(alpha = 0.5f),
                 )
+                // Convert Uri list to Photo list (local images have empty photoId)
+                val photos =
+                    imageUris.map { uri ->
+                        com.example.momentag.model.Photo(
+                            photoId = "", // Local images don't have backend photoId
+                            contentUri = uri,
+                        )
+                    }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(imageUris) { imageUri ->
+                    items(photos) { photo ->
                         ImageGridUriItem(
-                            imageUri = imageUri,
+                            photo = photo,
                             navController = navController,
-                            imageDetailViewModel = imageDetailViewModel,
-                            allImages = imageUris,
-                            contextType = ImageContext.ContextType.ALBUM,
                         )
                     }
                 }

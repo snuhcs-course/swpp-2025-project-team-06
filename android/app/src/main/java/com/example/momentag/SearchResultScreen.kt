@@ -1,8 +1,6 @@
 package com.example.momentag
 
-import android.content.ContentUris
 import android.net.Uri
-import android.provider.MediaStore
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,7 +42,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.momentag.model.ImageContext
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
@@ -61,12 +58,9 @@ import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
-import com.example.momentag.viewmodel.ImageDetailViewModel
-import com.example.momentag.viewmodel.PhotoTagViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
-@Suppress("ktlint:standard:function-naming")
 /**
  *  * ========================================
  *  * SearchResultScreen - 검색 결과 화면
@@ -78,13 +72,15 @@ fun SearchResultScreen(
     initialQuery: String,
     navController: NavController,
     onNavigateBack: () -> Unit,
-    imageDetailViewModel: ImageDetailViewModel? = null,
     searchViewModel: SearchViewModel =
         viewModel(
-            factory = ViewModelFactory(LocalContext.current),
+            factory = ViewModelFactory.getInstance(LocalContext.current),
         ),
-    photoTagViewModel: PhotoTagViewModel,
 ) {
+    val context = LocalContext.current
+    val addTagViewModel: com.example.momentag.viewmodel.AddTagViewModel =
+        viewModel(factory = ViewModelFactory.getInstance(context))
+
     var searchText by remember { mutableStateOf(initialQuery) }
     val semanticSearchState by searchViewModel.searchState.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
@@ -104,22 +100,13 @@ fun SearchResultScreen(
                 is SemanticSearchState.Idle -> SearchUiState.Idle
                 is SemanticSearchState.Loading -> SearchUiState.Loading
                 is SemanticSearchState.Success -> {
-                    val photoIds = (semanticSearchState as SemanticSearchState.Success).photoIds
+                    val photos = (semanticSearchState as SemanticSearchState.Success).photos
                     val searchResults =
-                        photoIds.mapNotNull { photoId ->
-                            try {
-                                val uri =
-                                    ContentUris.withAppendedId(
-                                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                        photoId.toLong(),
-                                    )
-                                SearchResultItem(
-                                    query = (semanticSearchState as SemanticSearchState.Success).query,
-                                    imageUri = uri,
-                                )
-                            } catch (e: NumberFormatException) {
-                                null
-                            }
+                        photos.map { photo ->
+                            SearchResultItem(
+                                query = (semanticSearchState as SemanticSearchState.Success).query,
+                                photo = photo,
+                            )
                         }
                     SearchUiState.Success(searchResults, (semanticSearchState as SemanticSearchState.Success).query)
                 }
@@ -161,34 +148,26 @@ fun SearchResultScreen(
                     selectedImages + uri
                 }
         },
-        onImageClick = { uri ->
-            if (imageDetailViewModel != null && uiState is SearchUiState.Success) {
-                val allImages = uiState.results.mapNotNull { it.imageUri }
-                val index = allImages.indexOf(uri)
-                imageDetailViewModel.setImageContext(
-                    ImageContext(
-                        images = allImages,
-                        currentIndex = index.coerceAtLeast(0),
-                        contextType = ImageContext.ContextType.SEARCH_RESULT,
-                    ),
-                )
-            }
-            navController.navigate(Screen.Image.createRoute(uri))
-        },
         onImageLongPress = {
             if (!isSelectionMode) {
                 isSelectionMode = true
             }
         },
         onCreateTagClick = {
-            var selectedImagesId = mutableListOf<Long>()
-            for (uri in selectedImages) {
-                selectedImagesId.add(ContentUris.parseId(uri))
+            // Get the current search results
+            val currentState = uiState as? SearchUiState.Success
+            if (currentState != null) {
+                // Filter selected photos from search results
+                val selectedPhotos =
+                    currentState.results
+                        .map { it.photo }
+                        .filter { selectedImages.contains(it.contentUri) }
+                // Initialize DraftTagRepository with selected photos
+                addTagViewModel.initialize(null, selectedPhotos)
+                navController.navigate(Screen.AddTag.route)
+                isSelectionMode = false
+                selectedImages = emptyList()
             }
-            photoTagViewModel.setInitialData(null, selectedImagesId)
-            navController.navigate(Screen.AddTag.route)
-            isSelectionMode = false
-            selectedImages = emptyList()
         },
         onRetry = {
             if (searchText.isNotEmpty()) {
@@ -196,7 +175,6 @@ fun SearchResultScreen(
             }
         },
         navController = navController,
-        imageDetailViewModel = imageDetailViewModel,
     )
 }
 
@@ -216,12 +194,10 @@ fun SearchResultScreenUi(
     onBackClick: () -> Unit,
     onToggleSelectionMode: () -> Unit,
     onToggleImageSelection: (Uri) -> Unit,
-    onImageClick: (Uri) -> Unit,
     onImageLongPress: () -> Unit,
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
-    imageDetailViewModel: ImageDetailViewModel? = null,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -249,12 +225,10 @@ fun SearchResultScreenUi(
                 onBackClick = onBackClick,
                 onToggleSelectionMode = onToggleSelectionMode,
                 onToggleImageSelection = onToggleImageSelection,
-                onImageClick = onImageClick,
                 onImageLongPress = onImageLongPress,
                 onCreateTagClick = onCreateTagClick,
                 onRetry = onRetry,
                 navController = navController,
-                imageDetailViewModel = imageDetailViewModel,
             )
         }
         // TODO : 혹시 네트워크 에러일 때만 오버레이 띄울거면 NetworkError 상태로 바꾸기
@@ -274,7 +248,6 @@ fun SearchResultScreenUi(
 /**
  * 검색 결과 컨텐츠 (순수 UI)
  */
-@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun SearchResultContent(
     modifier: Modifier = Modifier,
@@ -287,12 +260,10 @@ private fun SearchResultContent(
     onBackClick: () -> Unit,
     onToggleSelectionMode: () -> Unit,
     onToggleImageSelection: (Uri) -> Unit,
-    onImageClick: (Uri) -> Unit,
     onImageLongPress: () -> Unit,
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
-    imageDetailViewModel: ImageDetailViewModel? = null,
 ) {
     Box(modifier = modifier) {
         Column(
@@ -372,11 +343,9 @@ private fun SearchResultContent(
                 isSelectionMode = isSelectionMode,
                 selectedImages = selectedImages,
                 onToggleImageSelection = onToggleImageSelection,
-                onImageClick = onImageClick,
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
                 navController = navController,
-                imageDetailViewModel = imageDetailViewModel,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -436,11 +405,9 @@ private fun SearchResultsFromState(
     isSelectionMode: Boolean,
     selectedImages: List<Uri>,
     onToggleImageSelection: (Uri) -> Unit,
-    onImageClick: (Uri) -> Unit,
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
-    imageDetailViewModel: ImageDetailViewModel? = null,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
@@ -463,8 +430,6 @@ private fun SearchResultsFromState(
             }
 
             is SearchUiState.Success -> {
-                val allImages = uiState.results.mapNotNull { it.imageUri }
-
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier.fillMaxSize(),
@@ -476,24 +441,20 @@ private fun SearchResultsFromState(
                         key = { index -> index },
                     ) { index ->
                         val result = uiState.results[index]
-                        result.imageUri?.let { uri ->
-                            ImageGridUriItem(
-                                imageUri = uri,
-                                navController = navController,
-                                imageDetailViewModel = imageDetailViewModel,
-                                allImages = allImages,
-                                contextType = ImageContext.ContextType.SEARCH_RESULT,
-                                isSelectionMode = isSelectionMode,
-                                isSelected = selectedImages.contains(uri),
-                                onToggleSelection = { onToggleImageSelection(uri) },
-                                onLongPress = {
-                                    onImageLongPress()
-                                    onToggleImageSelection(uri)
-                                },
-                                cornerRadius = 12.dp,
-                                topPadding = 0.dp,
-                            )
-                        }
+                        val photo = result.photo
+                        ImageGridUriItem(
+                            photo = photo,
+                            navController = navController,
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedImages.contains(photo.contentUri),
+                            onToggleSelection = { onToggleImageSelection(photo.contentUri) },
+                            onLongPress = {
+                                onImageLongPress()
+                                onToggleImageSelection(photo.contentUri)
+                            },
+                            cornerRadius = 12.dp,
+                            topPadding = 0.dp,
+                        )
                     }
                 }
             }
