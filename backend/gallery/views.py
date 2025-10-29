@@ -24,7 +24,7 @@ from .request_serializers import (
 )
 
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag, User
+from .models import Photo_Tag, Tag
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
