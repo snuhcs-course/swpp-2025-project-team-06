@@ -5,12 +5,14 @@ from unittest.mock import patch, MagicMock
 from django.test import TestCase
 from django.contrib.auth.models import User
 from qdrant_client.http import models
+import networkx as nx
 
-from gallery.models import Tag, Photo_Tag
+from gallery.models import Tag, Photo_Tag, Caption, Photo_Caption
 from gallery.tasks import (
     retrieve_all_rep_vectors_of_tag,
     recommend_photo_from_tag,
     tag_recommendation,
+    retrieve_photo_caption_graph,
 )
 
 
@@ -43,7 +45,7 @@ class TaskFunctionsTest(TestCase):
             [0.2] * 512,
         ]
 
-        results = retrieve_all_rep_vectors_of_tag(self.user_id, self.tag_id)
+        results = retrieve_all_rep_vectors_of_tag(self.user, self.tag_id)
 
         self.assertEqual(results, expected)
 
@@ -209,3 +211,305 @@ class TaskFunctionsTest(TestCase):
 
         self.assertIsNone(tag_name)
         self.assertIsNone(tag_id)
+
+
+class RetrievePhotoCaptionGraphTest(TestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(
+            username="testuser1", password="password123"
+        )
+        self.user2 = User.objects.create_user(
+            username="testuser2", password="password123"
+        )
+
+    def test_empty_graph_no_photo_captions(self):
+        """Test that empty graph is returned when user has no photo captions"""
+        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
+
+        self.assertEqual(len(photo_set), 0)
+        self.assertEqual(len(caption_set), 0)
+        self.assertEqual(graph.number_of_nodes(), 0)
+        self.assertEqual(graph.number_of_edges(), 0)
+
+    def test_single_photo_single_caption(self):
+        """Test graph with one photo and one caption"""
+        photo_id = uuid.uuid4()
+        caption = Caption.objects.create(
+            user=self.user1, caption="beach"
+        )
+        Photo_Caption.objects.create(
+            user=self.user1,
+            photo_id=photo_id,
+            caption=caption,
+            weight=5
+        )
+
+        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
+
+        # Verify sets
+        self.assertEqual(len(photo_set), 1)
+        self.assertEqual(len(caption_set), 1)
+        self.assertIn(photo_id, photo_set)
+        self.assertIn(caption.caption_id, caption_set)
+
+        # Verify graph structure
+        self.assertEqual(graph.number_of_nodes(), 2)
+        self.assertEqual(graph.number_of_edges(), 1)
+
+        # Verify bipartite attributes
+        self.assertEqual(graph.nodes[photo_id]["bipartite"], 0)
+        self.assertEqual(graph.nodes[caption]["bipartite"], 1)
+
+        # Verify edge weight
+        self.assertTrue(graph.has_edge(photo_id, caption))
+        self.assertEqual(graph[photo_id][caption]["weight"], 5)
+
+    def test_multiple_photos_shared_captions(self):
+        """Test graph where multiple photos share the same captions"""
+        photo_id1 = uuid.uuid4()
+        photo_id2 = uuid.uuid4()
+        photo_id3 = uuid.uuid4()
+
+        caption_beach = Caption.objects.create(
+            user=self.user1, caption="beach"
+        )
+        caption_sunset = Caption.objects.create(
+            user=self.user1, caption="sunset"
+        )
+
+        # Photo 1: beach (weight=3), sunset (weight=2)
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id1, caption=caption_beach, weight=3
+        )
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id1, caption=caption_sunset, weight=2
+        )
+
+        # Photo 2: beach (weight=5)
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id2, caption=caption_beach, weight=5
+        )
+
+        # Photo 3: sunset (weight=1)
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id3, caption=caption_sunset, weight=1
+        )
+
+        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
+
+        # Verify sets
+        self.assertEqual(len(photo_set), 3)
+        self.assertEqual(len(caption_set), 2)
+        self.assertIn(photo_id1, photo_set)
+        self.assertIn(photo_id2, photo_set)
+        self.assertIn(photo_id3, photo_set)
+
+        # Verify graph structure: 3 photos + 2 captions = 5 nodes, 4 edges
+        self.assertEqual(graph.number_of_nodes(), 5)
+        self.assertEqual(graph.number_of_edges(), 4)
+
+        # Verify bipartite structure
+        for photo_id in [photo_id1, photo_id2, photo_id3]:
+            self.assertEqual(graph.nodes[photo_id]["bipartite"], 0)
+        for caption in [caption_beach, caption_sunset]:
+            self.assertEqual(graph.nodes[caption]["bipartite"], 1)
+
+        # Verify specific edges and weights
+        self.assertEqual(graph[photo_id1][caption_beach]["weight"], 3)
+        self.assertEqual(graph[photo_id1][caption_sunset]["weight"], 2)
+        self.assertEqual(graph[photo_id2][caption_beach]["weight"], 5)
+        self.assertEqual(graph[photo_id3][caption_sunset]["weight"], 1)
+
+    def test_multiple_photos_unique_captions(self):
+        """Test graph where each photo has unique captions"""
+        photo_id1 = uuid.uuid4()
+        photo_id2 = uuid.uuid4()
+
+        caption1 = Caption.objects.create(user=self.user1, caption="mountain")
+        caption2 = Caption.objects.create(user=self.user1, caption="lake")
+
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id1, caption=caption1, weight=10
+        )
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id2, caption=caption2, weight=8
+        )
+
+        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
+
+        # Verify sets
+        self.assertEqual(len(photo_set), 2)
+        self.assertEqual(len(caption_set), 2)
+
+        # Verify graph structure
+        self.assertEqual(graph.number_of_nodes(), 4)
+        self.assertEqual(graph.number_of_edges(), 2)
+
+        # Verify no connection between photo1 and photo2 (they don't share captions)
+        self.assertFalse(graph.has_edge(photo_id1, photo_id2))
+
+    def test_user_isolation(self):
+        """Test that graph only includes data for the specified user"""
+        photo_id1 = uuid.uuid4()
+        photo_id2 = uuid.uuid4()
+
+        caption1 = Caption.objects.create(user=self.user1, caption="user1_caption")
+        caption2 = Caption.objects.create(user=self.user2, caption="user2_caption")
+
+        # Create photo caption for user1
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id1, caption=caption1, weight=5
+        )
+
+        # Create photo caption for user2
+        Photo_Caption.objects.create(
+            user=self.user2, photo_id=photo_id2, caption=caption2, weight=3
+        )
+
+        # Retrieve graph for user1
+        photo_set1, caption_set1, graph1 = retrieve_photo_caption_graph(self.user1)
+
+        # Verify only user1's data is present
+        self.assertEqual(len(photo_set1), 1)
+        self.assertEqual(len(caption_set1), 1)
+        self.assertIn(photo_id1, photo_set1)
+        self.assertNotIn(photo_id2, photo_set1)
+        self.assertIn(caption1.caption_id, caption_set1)
+        self.assertNotIn(caption2.caption_id, caption_set1)
+
+        # Retrieve graph for user2
+        photo_set2, caption_set2, graph2 = retrieve_photo_caption_graph(self.user2)
+
+        # Verify only user2's data is present
+        self.assertEqual(len(photo_set2), 1)
+        self.assertEqual(len(caption_set2), 1)
+        self.assertIn(photo_id2, photo_set2)
+        self.assertNotIn(photo_id1, photo_set2)
+
+    def test_complex_bipartite_graph_structure(self):
+        """Test complex graph with multiple photos and overlapping captions"""
+        photo_ids = [uuid.uuid4() for _ in range(5)]
+        captions = [
+            Caption.objects.create(user=self.user1, caption=f"caption{i}")
+            for i in range(3)
+        ]
+
+        # Create a complex bipartite structure
+        # Photo 0 -> caption 0, caption 1
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_ids[0], caption=captions[0], weight=1
+        )
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_ids[0], caption=captions[1], weight=2
+        )
+
+        # Photo 1 -> caption 1, caption 2
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_ids[1], caption=captions[1], weight=3
+        )
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_ids[1], caption=captions[2], weight=4
+        )
+
+        # Photo 2 -> caption 0, caption 2
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_ids[2], caption=captions[0], weight=5
+        )
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_ids[2], caption=captions[2], weight=6
+        )
+
+        # Photo 3 -> caption 1
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_ids[3], caption=captions[1], weight=7
+        )
+
+        # Photo 4 -> caption 0
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_ids[4], caption=captions[0], weight=8
+        )
+
+        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
+
+        # Verify basic structure
+        self.assertEqual(len(photo_set), 5)
+        self.assertEqual(len(caption_set), 3)
+        self.assertEqual(graph.number_of_nodes(), 8)
+        # 2 + 2 + 2 + 1 + 1 = 8 edges total
+        self.assertEqual(graph.number_of_edges(), 8)
+
+        # Verify bipartite property
+        self.assertTrue(nx.is_bipartite(graph))
+
+        # Verify all photos are in bipartite set 0
+        photo_nodes = {n for n, d in graph.nodes(data=True) if d["bipartite"] == 0}
+        self.assertEqual(photo_nodes, photo_set)
+
+        # Verify all captions are in bipartite set 1
+        caption_nodes = {n for n, d in graph.nodes(data=True) if d["bipartite"] == 1}
+        self.assertEqual(len(caption_nodes), 3)
+
+        # Verify no edges between photos (bipartite property)
+        for i in range(len(photo_ids)):
+            for j in range(i + 1, len(photo_ids)):
+                self.assertFalse(graph.has_edge(photo_ids[i], photo_ids[j]))
+
+        # Verify no edges between captions (bipartite property)
+        for i in range(len(captions)):
+            for j in range(i + 1, len(captions)):
+                self.assertFalse(graph.has_edge(captions[i], captions[j]))
+
+    def test_weight_preservation(self):
+        """Test that edge weights are correctly preserved"""
+        photo_id = uuid.uuid4()
+        caption = Caption.objects.create(user=self.user1, caption="test")
+
+        # Create with specific weight
+        weight_value = 42
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id, caption=caption, weight=weight_value
+        )
+
+        _, _, graph = retrieve_photo_caption_graph(self.user1)
+
+        # Verify weight is preserved
+        self.assertEqual(graph[photo_id][caption]["weight"], weight_value)
+
+    def test_zero_weight(self):
+        """Test that zero weight edges are handled correctly"""
+        photo_id = uuid.uuid4()
+        caption = Caption.objects.create(user=self.user1, caption="zero_weight")
+
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id, caption=caption, weight=0
+        )
+
+        _, _, graph = retrieve_photo_caption_graph(self.user1)
+
+        # Verify edge exists with zero weight
+        self.assertTrue(graph.has_edge(photo_id, caption))
+        self.assertEqual(graph[photo_id][caption]["weight"], 0)
+
+    def test_duplicate_photo_caption_pairs(self):
+        """Test that duplicate photo-caption pairs don't create duplicate nodes"""
+        photo_id = uuid.uuid4()
+        caption = Caption.objects.create(user=self.user1, caption="duplicate_test")
+
+        # Create first photo-caption relationship
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id, caption=caption, weight=5
+        )
+
+        # Create another photo-caption with same photo_id but different caption
+        caption2 = Caption.objects.create(user=self.user1, caption="another_caption")
+        Photo_Caption.objects.create(
+            user=self.user1, photo_id=photo_id, caption=caption2, weight=3
+        )
+
+        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
+
+        # Verify photo_id appears only once in photo_set
+        self.assertEqual(len(photo_set), 1)
+        self.assertEqual(len(caption_set), 2)
+        self.assertEqual(graph.number_of_nodes(), 3)  # 1 photo + 2 captions
+        self.assertEqual(graph.number_of_edges(), 2)

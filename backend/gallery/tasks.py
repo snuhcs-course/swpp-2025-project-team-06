@@ -162,12 +162,16 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     candidates: set[uuid.UUID] = all_photos - target_set
 
     # evaluate weighted root pagerank
-    rwr_scores = nx.pagerank(graph, personalization={node: 1 for node in photos}, weight="weight")
+    rwr_scores = nx.pagerank(
+        graph, personalization={node: 1 for node in photos}, weight="weight"
+    )
 
     # evaluate Adamic/Adar score
     aa_scores = defaultdict(float)
 
-    for u, _, score in nx.adamic_adar_index(graph, [(c, t) for c in candidates for t in target_set]):
+    for u, _, score in nx.adamic_adar_index(
+        graph, [(c, t) for c in candidates for t in target_set]
+    ):
         aa_scores[u] += score
 
     def normalize(minv, maxv, v):
@@ -182,12 +186,13 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     max_aa = max(aa_scores.values()) if aa_scores else 0
     min_aa = min(aa_scores.values()) if aa_scores else 0
 
-    scores= {
-        candidate: ALPHA * normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0)) + (1 - ALPHA) * normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
+    scores = {
+        candidate: ALPHA * normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0))
+        + (1 - ALPHA) * normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
         for candidate in candidates
     }
 
-    sorted_scores= sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
 
     recommend_photos = list(map(lambda t: str(t[0]), sorted_scores[:LIMIT]))
 
@@ -253,7 +258,7 @@ def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
     filters = models.Filter(
         must=[
             models.FieldCondition(
-                key="user_id", match=models.MatchValue(value=user_id)
+                key="user_id", match=models.MatchValue(value=user.id)
             ),
             models.FieldCondition(
                 key="tag_id", match=models.MatchValue(value=str(tag_id))
@@ -272,6 +277,7 @@ def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
 
     return rep_vectors
 
+
 def retrieve_photo_caption_graph(user: User):
     graph = nx.Graph()
 
@@ -287,7 +293,9 @@ def retrieve_photo_caption_graph(user: User):
             caption_set.add(photo_caption.caption.caption_id)
             graph.add_node(photo_caption.caption, bipartite=1)
 
-        graph.add_edge(photo_caption.photo_id, photo_caption.caption, weight=photo_caption.weight)
+        graph.add_edge(
+            photo_caption.photo_id, photo_caption.caption, weight=photo_caption.weight
+        )
 
     return photo_set, caption_set, graph
 

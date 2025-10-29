@@ -14,7 +14,7 @@ from .reponse_serializers import (
     ResPhotoIdSerializer,
     ResTagIdSerializer,
     ResTagVectorSerializer,
-    ResStorySerializer
+    ResStorySerializer,
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
@@ -140,7 +140,7 @@ class PhotoView(APIView):
             fs = FileSystemStorage(location=settings.MEDIA_ROOT)
 
             for data in photos_data:
-                image_file = data['photo']
+                image_file = data["photo"]
 
                 temp_filename = f"{uuid.uuid4()}_{image_file.name}"
                 saved_path = fs.save(temp_filename, image_file)
@@ -501,23 +501,19 @@ class PostPhotoTagsView(APIView):
                     {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-
             for tag_id in tag_ids:
                 pt_id = uuid.uuid4()
 
                 tag = Tag.objects.get(tag_id=tag_id, user=request.user)
                 Photo_Tag.objects.create(
-                    pt_id=pt_id, 
-                    photo_id=photo_id, 
-                    tag=tag, 
-                    user=request.user
+                    pt_id=pt_id, photo_id=photo_id, tag=tag, user=request.user
                 )
 
             # now update the metadata isTagged in Qdrant
             client.set_payload(
                 collection_name=IMAGE_COLLECTION_NAME,
                 payload={"isTagged": True},
-                points=[str(photo_id)]
+                points=[str(photo_id)],
             )
 
             return Response(status=status.HTTP_200_OK)
@@ -690,6 +686,7 @@ class PhotoRecommendationView(APIView):
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
 class PhotoToPhotoRecommendationView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -722,13 +719,12 @@ class PhotoToPhotoRecommendationView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        photo_ids = serializer.validated_data['photos']
+        photo_ids = serializer.validated_data["photos"]
         user = request.user
 
         photos = recommend_photo_from_photo(user, photo_ids)
 
         return Response(photos, status=status.HTTP_200_OK)
-
 
 
 class TagView(APIView):
@@ -980,8 +976,9 @@ class TagDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class StoryView(APIView):
@@ -993,32 +990,40 @@ class StoryView(APIView):
         operation_description="Get stories generated from user's photos with pagination",
         request_body=None,
         responses={
-            200: openapi.Response(
-                description="Success",
-                schema=ResStorySerializer()
-            ),
+            200: openapi.Response(description="Success", schema=ResStorySerializer()),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
         },
         manual_parameters=[
             openapi.Parameter(
-                "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
             ),
             openapi.Parameter(
-                "page", openapi.IN_QUERY, description="Page number (default: 1)", type=openapi.TYPE_INTEGER
+                "page",
+                openapi.IN_QUERY,
+                description="Page number (default: 1)",
+                type=openapi.TYPE_INTEGER,
             ),
             openapi.Parameter(
-                "page_size", openapi.IN_QUERY, description="Number of items per page (default: 50, max: 200)", type=openapi.TYPE_INTEGER
-            )
-        ]
+                "page_size",
+                openapi.IN_QUERY,
+                description="Number of items per page (default: 50, max: 200)",
+                type=openapi.TYPE_INTEGER,
+            ),
+        ],
     )
     def get(self, request):
         try:
             # 페이지네이션 파라미터 가져오기
-            page = int(request.GET.get('page', 1))
-            page_size = min(int(request.GET.get('pagesize', 20)), 200)  # 최대 200개 제한
-            
+            page = int(request.GET.get("page", 1))
+            page_size = min(
+                int(request.GET.get("pagesize", 20)), 200
+            )  # 최대 200개 제한
+
             if page < 1:
                 page = 1
             if page_size < 1:
@@ -1034,7 +1039,7 @@ class StoryView(APIView):
                     models.FieldCondition(
                         key="isTagged",
                         match=models.MatchValue(value=False),
-                    )
+                    ),
                 ]
             )
 
@@ -1047,22 +1052,27 @@ class StoryView(APIView):
                 scroll_filter=user_filter,
                 limit=page_size,
                 offset=offset,
-                with_payload=True
+                with_payload=True,
             )
 
             # 태그되지 않은 사진이 없는 경우
             if len(points) == 0:
-                return Response({
-                    "recs": [],
-                }, status=status.HTTP_200_OK)
+                return Response(
+                    {
+                        "recs": [],
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
             # ResPhotoSerializer 형태로 데이터 변환
             photos_data = []
             for point in points:
-                photos_data.append({
-                    "photo_id": point.id,
-                    "photo_path_id": point.payload.get("photo_path_id")
-                })
+                photos_data.append(
+                    {
+                        "photo_id": point.id,
+                        "photo_path_id": point.payload.get("photo_path_id"),
+                    }
+                )
 
             # ResStorySerializer에 맞는 형태로 응답 데이터 구성
             story_response = {
@@ -1073,5 +1083,6 @@ class StoryView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
