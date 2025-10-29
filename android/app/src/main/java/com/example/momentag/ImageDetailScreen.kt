@@ -41,6 +41,7 @@ import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,35 +57,77 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.exifinterface.media.ExifInterface
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.momentag.model.Photo
 import com.example.momentag.ui.theme.Background
+import com.example.momentag.viewmodel.ImageDetailViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
 import java.io.IOException
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
-fun ImageScreen(
+fun ImageDetailScreen(
     imageUri: Uri?,
-    imageUris: List<Uri>? = null, // 전체 이미지 목록
-    initialIndex: Int = 0, // 시작 인덱스
     onNavigateBack: () -> Unit,
 ) {
     val context = LocalContext.current
 
-    // 이미지 목록이 있으면 사용, 없으면 단일 이미지만
-    val images = imageUris ?: listOfNotNull(imageUri)
-    val startIndex = if (imageUris != null) initialIndex else 0
+    // Screen-scoped ViewModel - fresh instance per screen
+    val imageDetailViewModel: ImageDetailViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+
+    // Observe ImageContext from ViewModel
+    val imageContext by imageDetailViewModel.imageContext.collectAsState()
+
+    // Load ImageContext from Repository when screen opens
+    LaunchedEffect(imageUri) {
+        imageUri?.let { uri ->
+            imageDetailViewModel.loadImageContextByUri(uri)
+        }
+    }
+
+    // Cleanup on dispose
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            imageDetailViewModel.clearImageContext()
+        }
+    }
+
+    // Extract photos from ImageContext or create single photo from imageUri
+    val photos =
+        imageContext?.images ?: imageUri?.let {
+            listOf(
+                Photo(
+                    photoId = "", // No backend photoId for standalone images
+                    contentUri = it,
+                ),
+            )
+        } ?: emptyList()
+
+    val startIndex = imageContext?.currentIndex ?: 0
 
     val pagerState =
         rememberPagerState(
-            initialPage = startIndex,
-            pageCount = { images.size },
+            initialPage = startIndex.coerceIn(0, photos.size - 1),
+            pageCount = { photos.size },
         )
 
-    var tagSet by remember {
-        mutableStateOf(
-            listOf("#home", "#cozy", "#hobby", "#study", "#tool"),
-        )
+    // Scroll to correct page when imageContext loads
+    LaunchedEffect(imageContext?.currentIndex) {
+        imageContext?.currentIndex?.let { index ->
+            if (index in 0 until photos.size && pagerState.currentPage != index) {
+                pagerState.scrollToPage(index)
+            } else {
+            }
+        }
     }
+
+    // Current photo based on pager state
+    val currentPhoto = photos.getOrNull(pagerState.currentPage)
+
+    // Tags state - will be loaded from backend
+    var tagSet by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoadingTags by remember { mutableStateOf(false) }
     var isDeleteMode by remember { mutableStateOf(false) }
 
     val sheetState =
@@ -118,27 +161,39 @@ fun ImageScreen(
     }
 
     // 현재 페이지의 이미지 Uri
-    val currentImageUri = images.getOrNull(pagerState.currentPage)
+    val currentImageUri = currentPhoto?.contentUri
 
     var dateTime: String? by remember { mutableStateOf(null) }
     var latLong: DoubleArray? by remember { mutableStateOf(null) }
 
-    // 페이지가 변경될 때마다 EXIF 데이터 업데이트
+    // 페이지가 변경될 때마다 EXIF 데이터 및 태그 업데이트
     LaunchedEffect(pagerState.currentPage, hasPermission) {
-        if (hasPermission) {
+        val photo = photos.getOrNull(pagerState.currentPage)
+
+        // Load EXIF data
+        if (hasPermission && photo != null) {
             try {
-                currentImageUri?.let { uri ->
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val exifInterface = ExifInterface(inputStream)
-                        dateTime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
-                        latLong = exifInterface.latLong
-                    }
+                context.contentResolver.openInputStream(photo.contentUri)?.use { inputStream ->
+                    val exifInterface = ExifInterface(inputStream)
+                    dateTime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
+                    latLong = exifInterface.latLong
                 }
             } catch (e: IOException) {
                 e.printStackTrace()
                 dateTime = null
                 latLong = null
             }
+        }
+
+        // TODO: Load tags from backend using photo.photoId
+        // For now, show placeholder tags
+        if (photo != null && photo.photoId.isNotEmpty()) {
+            isLoadingTags = true
+            // Placeholder - will be replaced with actual backend call
+            tagSet = listOf("#todo", "#load", "#from", "#backend")
+            isLoadingTags = false
+        } else {
+            tagSet = emptyList()
         }
     }
 
@@ -203,8 +258,9 @@ fun ImageScreen(
                             .aspectRatio(0.7f)
                             .align(Alignment.BottomCenter),
                 ) { page ->
+                    val photo = photos.getOrNull(page)
                     AsyncImage(
-                        model = images[page],
+                        model = photo?.contentUri,
                         contentDescription = null,
                         modifier =
                             Modifier
