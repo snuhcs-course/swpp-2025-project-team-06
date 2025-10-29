@@ -6,7 +6,7 @@ from rest_framework.test import APIClient, APITestCase
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch
-from gallery.models import Tag, Photo_Tag
+from gallery.models import Tag, Photo_Tag, Caption, Photo_Caption
 
 
 class PhotoRecommendationViewTest(APITestCase):
@@ -581,3 +581,318 @@ class GetRecommendTagViewTest(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class PhotoToPhotoRecommendationViewTest(APITestCase):
+    def setUp(self):
+        """Set up test client and test data"""
+        self.client = APIClient()
+
+        # Create test user
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.other_user = User.objects.create_user(
+            username="otheruser", email="other@example.com", password="testpass123"
+        )
+
+        # Generate JWT token for authenticated user
+        refresh = RefreshToken.for_user(self.user)
+        self.access_token = str(refresh.access_token)
+
+        # URL for the view
+        self.url = reverse("gallery:photo_to_photo_recommendation")
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_success(self, mock_recommend):
+        """Test successful retrieval of photo-to-photo recommendations"""
+        # Setup mock data
+        photo_id1 = uuid.uuid4()
+        photo_id2 = uuid.uuid4()
+        photo_id3 = uuid.uuid4()
+
+        mock_recommendations = [
+            {"photo_id": str(photo_id2), "photo_path_id": 102},
+            {"photo_id": str(photo_id3), "photo_path_id": 103},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        # Make request
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(photo_id1)]}
+        response = self.client.post(self.url, payload, format="json")
+
+        # Assert
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data, mock_recommendations)
+        mock_recommend.assert_called_once()
+
+        # Verify the function was called with correct arguments
+        call_args = mock_recommend.call_args
+        self.assertEqual(call_args[0][0], self.user)
+        self.assertEqual(call_args[0][1], [photo_id1])
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_multiple_photos(self, mock_recommend):
+        """Test recommendations with multiple input photos"""
+        photo_ids = [uuid.uuid4() for _ in range(3)]
+
+        mock_recommendations = [
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": 201},
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": 202},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(pid) for pid in photo_ids]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+        # Verify the function was called with multiple photo IDs
+        call_args = mock_recommend.call_args
+        self.assertEqual(len(call_args[0][1]), 3)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_empty_results(self, mock_recommend):
+        """Test when recommendation function returns empty list"""
+        mock_recommend.return_value = []
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(uuid.uuid4())]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_post_recommendations_unauthorized_no_token(self):
+        """Test that request without authentication token fails"""
+        payload = {"photos": [str(uuid.uuid4())]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_post_recommendations_unauthorized_invalid_token(self):
+        """Test that request with invalid token fails"""
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer invalid_token")
+        payload = {"photos": [str(uuid.uuid4())]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_post_recommendations_missing_photos_field(self):
+        """Test request with missing 'photos' field"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("photos", response.data)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_empty_photos_list(self, mock_recommend):
+        """Test request with empty photos list returns empty recommendations"""
+        mock_recommend.return_value = []
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": []}
+        response = self.client.post(self.url, payload, format="json")
+
+        # Empty list is valid input, should return empty recommendations
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_post_recommendations_invalid_photo_id_format(self):
+        """Test request with invalid UUID format"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": ["not-a-uuid", "also-invalid"]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_recommendations_mixed_valid_invalid_uuids(self):
+        """Test request with mix of valid and invalid UUIDs"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        valid_uuid = str(uuid.uuid4())
+        payload = {"photos": [valid_uuid, "invalid-uuid"]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_recommendations_wrong_data_type(self):
+        """Test request with wrong data type for photos field"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+
+        # Test with string instead of list
+        payload = {"photos": "not-a-list"}
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Test with integer
+        payload = {"photos": 123}
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_single_photo(self, mock_recommend):
+        """Test recommendation with single photo ID"""
+        photo_id = uuid.uuid4()
+        mock_recommendations = [
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": 100},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(photo_id)]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_large_photo_list(self, mock_recommend):
+        """Test recommendation with large list of photo IDs"""
+        photo_ids = [uuid.uuid4() for _ in range(50)]
+        mock_recommendations = [
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": i}
+            for i in range(20)
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(pid) for pid in photo_ids]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 20)
+
+    def test_only_post_method_allowed(self):
+        """Test that only POST method is allowed"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+
+        # Test GET
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # Test PUT
+        response = self.client.put(self.url, {})
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # Test DELETE
+        response = self.client.delete(self.url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # Test PATCH
+        response = self.client.patch(self.url, {})
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_returns_correct_structure(self, mock_recommend):
+        """Test that response has correct structure with photo_id and photo_path_id"""
+        photo_id = uuid.uuid4()
+        expected_photo_id = str(uuid.uuid4())
+        expected_path_id = 999
+
+        mock_recommendations = [
+            {"photo_id": expected_photo_id, "photo_path_id": expected_path_id},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(photo_id)]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+        result = response.data[0]
+        self.assertIn("photo_id", result)
+        self.assertIn("photo_path_id", result)
+        self.assertEqual(result["photo_id"], expected_photo_id)
+        self.assertEqual(result["photo_path_id"], expected_path_id)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_user_isolation(self, mock_recommend):
+        """Test that recommendations use the authenticated user"""
+        mock_recommendations = []
+        mock_recommend.return_value = mock_recommendations
+
+        # Login as first user
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(uuid.uuid4())]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify the function was called with the correct user
+        call_args = mock_recommend.call_args
+        self.assertEqual(call_args[0][0], self.user)
+
+        # Now test with other user
+        other_refresh = RefreshToken.for_user(self.other_user)
+        other_access_token = str(other_refresh.access_token)
+
+        mock_recommend.reset_mock()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {other_access_token}")
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify the function was called with the other user
+        call_args = mock_recommend.call_args
+        self.assertEqual(call_args[0][0], self.other_user)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_with_duplicate_photo_ids(self, mock_recommend):
+        """Test request with duplicate photo IDs in the list"""
+        photo_id = uuid.uuid4()
+        mock_recommendations = [
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": 100},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        # Include the same photo ID multiple times
+        payload = {"photos": [str(photo_id), str(photo_id), str(photo_id)]}
+        response = self.client.post(self.url, payload, format="json")
+
+        # Should still succeed (duplicates are allowed in the request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify the function was called with the list (including duplicates)
+        call_args = mock_recommend.call_args
+        self.assertEqual(len(call_args[0][1]), 3)
+
+    def test_post_recommendations_malformed_json(self):
+        """Test request with malformed JSON"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+
+        # Send invalid JSON (not using format="json" to bypass DRF's parser)
+        response = self.client.post(
+            self.url,
+            data="invalid-json",
+            content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_extra_fields_ignored(self, mock_recommend):
+        """Test that extra fields in request are ignored"""
+        photo_id = uuid.uuid4()
+        mock_recommendations = []
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {
+            "photos": [str(photo_id)],
+            "extra_field": "should be ignored",
+            "another_field": 123
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        # Should succeed despite extra fields
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_recommend.assert_called_once()
