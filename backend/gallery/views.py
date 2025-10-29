@@ -7,8 +7,22 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from qdrant_client import models
 
-from .reponse_serializers import ResPhotoSerializer, ResPhotoTagListSerializer, ResPhotoIdSerializer, ResTagIdSerializer, ResTagVectorSerializer
-from .request_serializers import ReqPhotoDetailSerializer, ReqPhotoIdSerializer, ReqTagNameSerializer, ReqTagIdSerializer
+
+from .reponse_serializers import (
+    ResPhotoSerializer,
+    ResPhotoTagListSerializer,
+    ResPhotoIdSerializer,
+    ResTagIdSerializer,
+    ResTagVectorSerializer,
+    ResStorySerializer
+)
+from .request_serializers import (
+    ReqPhotoDetailSerializer,
+    ReqPhotoIdSerializer,
+    ReqTagNameSerializer,
+    ReqTagIdSerializer,
+)
+
 from .serializers import TagSerializer
 from .models import Photo_Tag, Tag
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME
@@ -17,7 +31,12 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
-from .tasks import process_and_embed_photo, tag_recommendation, is_valid_uuid, recommend_photo_from_tag
+from .tasks import (
+    process_and_embed_photo,
+    tag_recommendation,
+    is_valid_uuid,
+    recommend_photo_from_tag,
+)
 
 
 class PhotoView(APIView):
@@ -31,12 +50,9 @@ class PhotoView(APIView):
         request_body=ReqPhotoDetailSerializer(many=True),
         responses={
             201: openapi.Response(
-                description="Created",
-                schema=ResPhotoIdSerializer(many=True)
+                description="Created", schema=ResPhotoIdSerializer(many=True)
             ),
-            400: openapi.Response(
-                description="Bad Request - Request form mismatch"
-            ),
+            400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
@@ -46,7 +62,8 @@ class PhotoView(APIView):
                 "Authorization",
                 openapi.IN_HEADER,
                 description="access token",
-                type=openapi.TYPE_STRING),
+                type=openapi.TYPE_STRING,
+            ),
             openapi.Parameter(
                 name="photo",
                 in_=openapi.IN_FORM,
@@ -68,34 +85,48 @@ class PhotoView(APIView):
         try:
             import json
 
-            photos = request.FILES.getlist('photo')
-            metadata_json = request.POST.get('metadata')
+            photos = request.FILES.getlist("photo")
+            metadata_json = request.POST.get("metadata")
 
             if not metadata_json:
-                return Response({"error": "metadata field is required"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "metadata field is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             try:
                 metadata_list = json.loads(metadata_json)
             except json.JSONDecodeError:
-                return Response({"error": "Invalid JSON format in metadata field"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "Invalid JSON format in metadata field"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             if len(photos) != len(metadata_list):
-                return Response({"error": "Number of photos and metadata entries must match"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "Number of photos and metadata entries must match"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             photos_data = []
             for i, photo in enumerate(photos):
                 if i >= len(metadata_list):
-                    return Response({"error": "Insufficient metadata for all photos"}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response(
+                        {"error": "Insufficient metadata for all photos"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
                 metadata = metadata_list[i]
-                photos_data.append({
-                    'photo': photo,
-                    'filename': metadata.get('filename'),
-                    'photo_path_id': metadata.get('photo_path_id'),
-                    'created_at': metadata.get('created_at'),
-                    'lat': metadata.get('lat'),
-                    'lng': metadata.get('lng')
-                })
+                photos_data.append(
+                    {
+                        "photo": photo,
+                        "filename": metadata.get("filename"),
+                        "photo_path_id": metadata.get("photo_path_id"),
+                        "created_at": metadata.get("created_at"),
+                        "lat": metadata.get("lat"),
+                        "lng": metadata.get("lng"),
+                    }
+                )
 
             serializer = ReqPhotoDetailSerializer(data=photos_data, many=True)
 
@@ -116,16 +147,21 @@ class PhotoView(APIView):
                 process_and_embed_photo.delay(
                     image_path=full_path,
                     user_id=request.user.id,
-                    filename=data['filename'],
-                    photo_path_id=data['photo_path_id'],
-                    created_at=data['created_at'].isoformat(),
-                    lat=data['lat'],
-                    lng=data['lng']
+                    filename=data["filename"],
+                    photo_path_id=data["photo_path_id"],
+                    created_at=data["created_at"].isoformat(),
+                    lat=data["lat"],
+                    lng=data["lng"],
                 )
 
-            return Response({"message": "Photos are being processed."}, status=status.HTTP_202_ACCEPTED)
+            return Response(
+                {"message": "Photos are being processed."},
+                status=status.HTTP_202_ACCEPTED,
+            )
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @swagger_auto_schema(
         operation_summary="Photo All View",
@@ -133,15 +169,20 @@ class PhotoView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success",
-                schema=ResPhotoSerializer(many=True)
+                description="Success", schema=ResPhotoSerializer(many=True)
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def get(self, request):
         try:
@@ -163,7 +204,7 @@ class PhotoView(APIView):
                     scroll_filter=user_filter,
                     limit=200,
                     offset=next_offset,
-                    with_payload=True
+                    with_payload=True,
                 )
 
                 all_user_points.extend(points)
@@ -173,14 +214,18 @@ class PhotoView(APIView):
 
             photos = []
             for point in all_user_points:
-                photos.append({
-                    "photo_id": point.id,
-                    "photo_path_id": point.payload.get("photo_path_id")
-                })
+                photos.append(
+                    {
+                        "photo_id": point.id,
+                        "photo_path_id": point.payload.get("photo_path_id"),
+                    }
+                )
 
             return Response(photos, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class PhotoDetailView(APIView):
@@ -193,8 +238,7 @@ class PhotoDetailView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success",
-                schema=ResPhotoTagListSerializer()
+                description="Success", schema=ResPhotoTagListSerializer()
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -203,8 +247,14 @@ class PhotoDetailView(APIView):
                 description="Not Found - No photo with photo_id as its id"
             ),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def get(self, request, photo_id):
         try:
@@ -217,7 +267,7 @@ class PhotoDetailView(APIView):
                     models.FieldCondition(
                         key="photo_id",
                         match=models.MatchValue(value=str(photo_id)),
-                    )
+                    ),
                 ]
             )
 
@@ -230,7 +280,7 @@ class PhotoDetailView(APIView):
                     scroll_filter=user_filter,
                     limit=200,
                     offset=next_offset,
-                    with_payload=True
+                    with_payload=True,
                 )
 
                 all_photo_points.extend(points)
@@ -239,7 +289,9 @@ class PhotoDetailView(APIView):
                     break
 
             if all_photo_points.size == 0:
-                return Response({"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
+                )
 
             photos = []
 
@@ -247,29 +299,37 @@ class PhotoDetailView(APIView):
                 photo_tags = Photo_Tag.objects.filter(photo_id=point.id)
                 for pt in photo_tags:
                     tag = Tag.objects.get(tag_id=pt.tag_id)
-                    photos.append({
-                        "photo_path_id": point.payload.get("photo_path_id"),
-                        "tags": [{"tag_id": tag.tag_id, "tag": tag.tag}]
-                    })
+                    photos.append(
+                        {
+                            "photo_path_id": point.payload.get("photo_path_id"),
+                            "tags": [{"tag_id": tag.tag_id, "tag": tag.tag}],
+                        }
+                    )
 
             return Response(photos, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @swagger_auto_schema(
         operation_summary="Delete a Photo",
         operation_description="Delete a photo from the app",
         request_body=None,
         responses={
-            204: openapi.Response(
-                description="No Content"
-            ),
+            204: openapi.Response(description="No Content"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def delete(self, request, photo_id):
         try:
@@ -279,13 +339,14 @@ class PhotoDetailView(APIView):
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
                 points_selector=[str(photo_id)],
-                wait=True
+                wait=True,
             )
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class BulkDeletePhotoView(APIView):
@@ -297,18 +358,20 @@ class BulkDeletePhotoView(APIView):
         operation_description="Delete photos from the app",
         request_body=ReqPhotoIdSerializer(many=True),
         responses={
-            204: openapi.Response(
-                description="No Content"
-            ),
-            400: openapi.Response(
-                description="Bad Request - Request form mismatch"
-            ),
+            204: openapi.Response(description="No Content"),
+            400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def delete(self, request):
         try:
@@ -322,18 +385,19 @@ class BulkDeletePhotoView(APIView):
             photos = []
 
             for data in photos_data:
-                photos.append(data['photo_id'])
+                photos.append(data["photo_id"])
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
                 points_selector=[str(photo_id) for photo_id in photos],
-                wait=True
+                wait=True,
             )
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class GetPhotosByTagView(APIView):
@@ -346,18 +410,21 @@ class GetPhotosByTagView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success",
-                schema=ResPhotoSerializer(many=True)
+                description="Success", schema=ResPhotoSerializer(many=True)
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
-            404: openapi.Response(
-                description="Not Found - Photo not found"
-            ),
+            404: openapi.Response(description="Not Found - Photo not found"),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def get(self, request, tag_id):
         try:
@@ -366,25 +433,28 @@ class GetPhotosByTagView(APIView):
             photo_ids = [str(pt.photo_id) for pt in photo_tags]
 
             retrieved_points = client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME,
-                ids=photo_ids,
-                with_payload=True
+                collection_name=IMAGE_COLLECTION_NAME, ids=photo_ids, with_payload=True
             )
 
             photos = []
 
             for point in retrieved_points:
-                photos.append({
-                    "photo_id": point.id,
-                    "photo_path_id": point.payload.get("photo_path_id")
-                })
+                photos.append(
+                    {
+                        "photo_id": point.id,
+                        "photo_path_id": point.payload.get("photo_path_id"),
+                    }
+                )
 
             return Response(photos, status=status.HTTP_200_OK)
         except Photo_Tag.DoesNotExist:
-            return Response({"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class PostPhotoTagsView(APIView):
@@ -396,21 +466,21 @@ class PostPhotoTagsView(APIView):
         operation_description="Create new Tag-Photo relationships",
         request_body=ReqTagIdSerializer(many=True),
         responses={
-            201: openapi.Response(
-                description="Success"
-            ),
-            400: openapi.Response(
-                description="Bad Request - Request form mismatch"
-            ),
+            201: openapi.Response(description="Success"),
+            400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
-            404: openapi.Response(
-                description="Not Found - No such tag or photo"
-            ),
+            404: openapi.Response(description="Not Found - No such tag or photo"),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def post(self, request, photo_id):
         try:
@@ -419,29 +489,44 @@ class PostPhotoTagsView(APIView):
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            tag_ids = [data['tag_id'] for data in serializer.validated_data]
+            tag_ids = [data["tag_id"] for data in serializer.validated_data]
 
             points = client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME,
-                ids=[str(photo_id)]
+                collection_name=IMAGE_COLLECTION_NAME, ids=[str(photo_id)]
             )
             if not points:
-                return Response({"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
+                )
 
-            created_photo_tags = []
 
             for tag_id in tag_ids:
                 pt_id = uuid.uuid4()
-                created_photo_tags.append(
-                    Photo_Tag(id=pt_id, photo_id=photo_id, tag_id=tag_id, user=request.user))
 
-            Photo_Tag.objects.bulk_create(created_photo_tags)
+                tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+                Photo_Tag.objects.create(
+                    pt_id=pt_id, 
+                    photo_id=photo_id, 
+                    tag=tag, 
+                    user=request.user
+                )
 
-            return Response(status=status.HTTP_201_OK)
+            # now update the metadata isTagged in Qdrant
+            client.set_payload(
+                collection_name=IMAGE_COLLECTION_NAME,
+                payload={"isTagged": True},
+                points=[str(photo_id)]
+            )
+
+            return Response(status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
-            return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
+            )
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class DeletePhotoTagsView(APIView):
@@ -453,38 +538,51 @@ class DeletePhotoTagsView(APIView):
         operation_description="Delete a Tag-Photo relationship",
         request_body=None,
         responses={
-            204: openapi.Response(
-                description="No Content"
-            ),
+            204: openapi.Response(description="No Content"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
-            404: openapi.Response(
-                description="Not Found - No such tag or photo"
-            ),
+            404: openapi.Response(description="Not Found - No such tag or photo"),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def delete(self, request, photo_id, tag_id):
         try:
             Tag.objects.get(tag_id=tag_id, user=request.user)
-            if not client.exists(collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)):
-                return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
+            if not client.exists(
+                collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)
+            ):
+                return Response(
+                    {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
+                )
 
             photo_tag = Photo_Tag.objects.get(
-                photo_id=photo_id, tag_id=tag_id, user=request.user)
+                photo_id=photo_id, tag_id=tag_id, user=request.user
+            )
 
             if photo_tag.exists():
                 photo_tag.delete()
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Tag.DoesNotExist:
-            return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
+            )
         except Photo_Tag.DoesNotExist:
-            return Response({"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
+            )
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class GetRecommendTagView(APIView):
@@ -496,13 +594,8 @@ class GetRecommendTagView(APIView):
         operation_description="Get recommended tag about a photo.",
         request_body=None,
         responses={
-            200: openapi.Response(
-                description="Success",
-                schema=TagSerializer()
-            ),
-            400: openapi.Response(
-                description="Bad Request - Request form mismatch"
-            ),
+            200: openapi.Response(description="Success", schema=TagSerializer()),
+            400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
@@ -510,22 +603,32 @@ class GetRecommendTagView(APIView):
                 description="Not Found - : No photo with photo_id as its id"
             ),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def get(self, request, photo_id, *args, **kwargs):
         try:
             if not is_valid_uuid(photo_id):
-                return Response({"error": "Request form mismatch."}, status=status.HTTP_400_NOT_FOUND)
+                return Response(
+                    {"error": "Request form mismatch."},
+                    status=status.HTTP_400_NOT_FOUND,
+                )
 
             points = client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME,
-                ids=[str(photo_id)]
+                collection_name=IMAGE_COLLECTION_NAME, ids=[str(photo_id)]
             )
             if not points:
-                return Response({"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
+                )
 
-            tag, tag_id = tag_recommendation(photo_id)
+            tag, tag_id = tag_recommendation(request.user.id, photo_id)
 
             tag = {"tag_id": tag_id, "tag": tag}
             response_serializer = TagSerializer(tag)
@@ -533,7 +636,9 @@ class GetRecommendTagView(APIView):
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class PhotoRecommendationView(APIView):
@@ -549,9 +654,7 @@ class PhotoRecommendationView(APIView):
                 description="Success",
                 schema=ResPhotoSerializer(many=True),
             ),
-            400: openapi.Response(
-                description="Bad Request - Request form mismatch"
-            ),
+            400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
@@ -559,23 +662,31 @@ class PhotoRecommendationView(APIView):
                 description="Not Found - : No tag with tag_id as its id"
             ),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def get(self, request, tag_id, *args, **kwargs):
         try:
-            if not Tag.objects.filter(
-                tag_id=tag_id, user__id=request.user.id
-            ).exists():
-                return Response({"error": f"No tag with id {tag_id}"}, status=status.HTTP_404_NOT_FOUND)
+            if not Tag.objects.filter(tag_id=tag_id, user__id=request.user.id).exists():
+                return Response(
+                    {"error": f"No tag with id {tag_id}"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
             photos = recommend_photo_from_tag(request.user.id, tag_id)
 
             return Response(photos, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TagView(APIView):
@@ -588,8 +699,7 @@ class TagView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success",
-                schema=TagSerializer(many=True)
+                description="Success", schema=TagSerializer(many=True)
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -598,42 +708,51 @@ class TagView(APIView):
                 description="Not Found - No tag with tag_id as its id"
             ),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def get(self, request):
         try:
             tags = Tag.objects.filter(user=request.user)
-                   
+
             response_serializer = TagSerializer(tags, many=True)
 
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
-            return Response({"error": "The user has no tags"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "The user has no tags"}, status=status.HTTP_404_NOT_FOUND
+            )
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @swagger_auto_schema(
         operation_summary="Create a Tag",
         operation_description="Create a new tag",
         request_body=ReqTagNameSerializer(),
         responses={
-            201: openapi.Response(
-                description="Created",
-                schema=ResTagIdSerializer()
-            ),
-            400: openapi.Response(
-                description="Bad Request - Request form mismatch"
-            ),
+            201: openapi.Response(description="Created", schema=ResTagIdSerializer()),
+            400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
-            ), 
-            409: openapi.Response(
-                description="Conflict - Tag already exists"
             ),
+            409: openapi.Response(description="Conflict - Tag already exists"),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def post(self, request):
         try:
@@ -644,29 +763,27 @@ class TagView(APIView):
 
             data = serializer.validated_data
 
-            if len(data['tag']) > 50:
+            if len(data["tag"]) > 50:
                 return Response(
-                    {"error": "Tag name cannot exceed 50 characters."}, 
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"error": "Tag name cannot exceed 50 characters."},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-            
-            if Tag.objects.filter(tag=data['tag'], user=request.user).exists():
+
+            if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
                 return Response(
                     {"detail": f"Tag '{data['tag']}' already exists."},
-                    status=status.HTTP_409_CONFLICT
+                    status=status.HTTP_409_CONFLICT,
                 )
 
-            new_tag = Tag.objects.create(
-                tag=data['tag'],
-                user=request.user
-            )
+            new_tag = Tag.objects.create(tag=data["tag"], user=request.user)
 
             response_serializer = ResTagIdSerializer({"tag_id": new_tag.tag_id})
-            
+
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TagDetailView(APIView):
@@ -678,9 +795,7 @@ class TagDetailView(APIView):
         operation_description="Delete a tag (only the tag owner can delete)",
         request_body=None,
         responses={
-            204: openapi.Response(
-                description="No Content"
-            ),
+            204: openapi.Response(description="No Content"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
@@ -691,45 +806,59 @@ class TagDetailView(APIView):
                 description="Not Found - No tag such that tag's id is tag_id"
             ),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def delete(self, request, tag_id):
         try:
             try:
                 tag = Tag.objects.get(tag_id=tag_id)
             except Tag.DoesNotExist:
-                return Response({"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND
+                )
 
             if tag.user != request.user:
-                return Response({"error": "Forbidden - you are not the owner of this tag."}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {"error": "Forbidden - you are not the owner of this tag."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
             tag.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @swagger_auto_schema(
         operation_summary="Rename a Tag",
         operation_description="Change the name of a tag",
         request_body=ReqTagNameSerializer(),
         responses={
-            200: openapi.Response(
-                description="Success",
-                schema=ResTagIdSerializer()
-            ),
+            200: openapi.Response(description="Success", schema=ResTagIdSerializer()),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
             403: openapi.Response(
                 description="Forbidden - You are not the owner of this tag"
             ),
-            404: openapi.Response(
-                description="Not Found - Tag not found"
-            ),
+            404: openapi.Response(description="Not Found - Tag not found"),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def put(self, request, tag_id):
         try:
@@ -743,18 +872,25 @@ class TagDetailView(APIView):
             try:
                 old_tag = Tag.objects.get(tag_id=tag_id)
             except Tag.DoesNotExist:
-                return Response({"error": "Tag not found"}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": "Tag not found"}, status=status.HTTP_404_NOT_FOUND
+                )
 
             if old_tag.user != request.user:
-                return Response({"error": "Forbidden - you are not the owner of this tag."}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {"error": "Forbidden - you are not the owner of this tag."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
-            old_tag.tag = data['tag']
+            old_tag.tag = data["tag"]
             old_tag.save()
 
             response_serializer = ResTagIdSerializer({"tag_id": tag_id})
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @swagger_auto_schema(
         operation_summary="Get Tag Info",
@@ -762,8 +898,7 @@ class TagDetailView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success",
-                schema=ResTagVectorSerializer()
+                description="Success", schema=ResTagVectorSerializer()
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -775,20 +910,126 @@ class TagDetailView(APIView):
                 description="Not Found - No tag with tag_id as its id"
             ),
         },
-        manual_parameters=[openapi.Parameter(
-            "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
     )
     def get(self, request, tag_id):
         try:
             tag = Tag.objects.get(tag_id=tag_id)
-            
+
             if tag.user != request.user:
-                return Response({"error": "Forbidden - you are not the owner of this tag."}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {"error": "Forbidden - you are not the owner of this tag."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
             response_serializer = ResTagVectorSerializer({"tag": tag.tag})
-            
+
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
-            return Response({"error": "No tag with tag_id as its id"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "No tag with tag_id as its id"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class StoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Stories",
+        operation_description="Get stories generated from user's photos with pagination",
+        request_body=None,
+        responses={
+            200: openapi.Response(
+                description="Success",
+                schema=ResStorySerializer()
+            ),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING
+            ),
+            openapi.Parameter(
+                "page", openapi.IN_QUERY, description="Page number (default: 1)", type=openapi.TYPE_INTEGER
+            ),
+            openapi.Parameter(
+                "page_size", openapi.IN_QUERY, description="Number of items per page (default: 50, max: 200)", type=openapi.TYPE_INTEGER
+            )
+        ]
+    )
+    def get(self, request):
+        try:
+            # 페이지네이션 파라미터 가져오기
+            page = int(request.GET.get('page', 1))
+            page_size = min(int(request.GET.get('pagesize', 20)), 200)  # 최대 200개 제한
+            
+            if page < 1:
+                page = 1
+            if page_size < 1:
+                page_size = 20
+
+            # isTagged=False인 사용자의 사진들만 필터링
+            user_filter = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="user_id",
+                        match=models.MatchValue(value=request.user.id),
+                    ),
+                    models.FieldCondition(
+                        key="isTagged",
+                        match=models.MatchValue(value=False),
+                    )
+                ]
+            )
+
+            # 페이지네이션을 위한 offset 계산
+            offset = (page - 1) * page_size
+
+            # 요청된 페이지의 데이터만 가져오기
+            points, next_offset = client.scroll(
+                collection_name=IMAGE_COLLECTION_NAME,
+                scroll_filter=user_filter,
+                limit=page_size,
+                offset=offset,
+                with_payload=True
+            )
+
+            # 태그되지 않은 사진이 없는 경우
+            if len(points) == 0:
+                return Response({
+                    "recs": [],
+                }, status=status.HTTP_200_OK)
+
+            # ResPhotoSerializer 형태로 데이터 변환
+            photos_data = []
+            for point in points:
+                photos_data.append({
+                    "photo_id": point.id,
+                    "photo_path_id": point.payload.get("photo_path_id")
+                })
+
+            # ResStorySerializer에 맞는 형태로 응답 데이터 구성
+            story_response = {
+                "recs": photos_data,
+            }
+
+            serializer = ResStorySerializer(story_response)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
