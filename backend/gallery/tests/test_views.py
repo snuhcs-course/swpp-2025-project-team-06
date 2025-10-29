@@ -8,8 +8,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch, MagicMock
 from gallery.models import Tag, Photo_Tag
-import uuid
-import json
+
 from PIL import Image
 from io import BytesIO
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -356,7 +355,7 @@ class PhotoViewTest(APITestCase):
         mock_client.scroll.return_value = ([], None)
         
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        response = self.client.get(self.photos_url)
+        self.client.get(self.photos_url)
         
         # Verify the filter conditions
         call_args = mock_client.scroll.call_args
