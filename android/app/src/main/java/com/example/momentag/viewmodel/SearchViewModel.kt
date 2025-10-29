@@ -1,9 +1,10 @@
 package com.example.momentag.viewmodel
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.SemanticSearchState
+import com.example.momentag.repository.ImageBrowserRepository
+import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.SearchRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,12 +15,13 @@ import kotlinx.coroutines.launch
  *
  * 역할: Semantic Search UI 상태 관리
  * - SearchRepository에 비즈니스 로직 위임
+ * - ImageBrowserRepository로 검색 결과 세션 관리
  * - UI 상태만 관리
- * - Backend는 photo_path_id (MediaStore ID) 반환
  */
 class SearchViewModel(
     private val searchRepository: SearchRepository,
-    private val context: Context,
+    private val localRepository: LocalRepository,
+    private val imageBrowserRepository: ImageBrowserRepository,
 ) : ViewModel() {
     private val _searchState = MutableStateFlow<SemanticSearchState>(SemanticSearchState.Idle)
     val searchState = _searchState.asStateFlow()
@@ -43,15 +45,18 @@ class SearchViewModel(
 
             when (val result = searchRepository.semanticSearch(query, offset)) {
                 is SearchRepository.SearchResult.Success -> {
+                    val photos = localRepository.toPhotos(result.photos)
+                    imageBrowserRepository.setSearchResults(photos, query)
                     _searchState.value =
                         SemanticSearchState.Success(
-                            photoIds = result.photoIds,
+                            photos = photos,
                             query = query,
                         )
                 }
 
                 is SearchRepository.SearchResult.Empty -> {
                     _searchState.value = SemanticSearchState.Empty(query)
+                    imageBrowserRepository.clear()
                 }
 
                 is SearchRepository.SearchResult.BadRequest -> {
@@ -78,5 +83,6 @@ class SearchViewModel(
      */
     fun resetSearchState() {
         _searchState.value = SemanticSearchState.Idle
+        imageBrowserRepository.clear()
     }
 }

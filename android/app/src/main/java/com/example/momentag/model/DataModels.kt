@@ -1,6 +1,7 @@
 package com.example.momentag.model
 
 import android.net.Uri
+import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 
@@ -9,9 +10,14 @@ data class Tag(
     val thumbnailId: Long,
 )
 
+data class PhotoResponse(
+    @SerializedName("photo_id") val photoId: String,
+    @SerializedName("photo_path_id") val photoPathId: Long,
+)
+
 data class Photo(
-    val photoId: Long,
-    val tags: List<String>,
+    val photoId: String,
+    val contentUri: Uri,
 )
 
 data class Album(
@@ -47,21 +53,6 @@ data class RefreshRequest(
 
 data class RefreshResponse(
     val access_token: String,
-)
-
-// ========== Semantic Search Models ==========
-
-/**
- * Semantic Search 응답 모델
- * Backend: {"photos": [1, 2, 3, ...]}
- */
-data class SemanticSearchResponse(
-    val photos: List<Int>,
-)
-
-// TODO : photo name까지 받아오기
-data class RecommendPhotosResponse(
-    val photos: List<Long>,
 )
 
 // ========== Upload Models ==========

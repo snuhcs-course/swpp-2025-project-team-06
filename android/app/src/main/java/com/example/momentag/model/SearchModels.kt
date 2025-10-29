@@ -1,13 +1,11 @@
 package com.example.momentag.model
 
-import android.net.Uri
-
 /**
  * 검색 결과 아이템
  */
 data class SearchResultItem(
     val query: String,
-    val imageUri: Uri?,
+    val photo: Photo,
 )
 
 /**
@@ -41,7 +39,7 @@ sealed class SemanticSearchState {
     object Loading : SemanticSearchState()
 
     data class Success(
-        val photoIds: List<Int>,
+        val photos: List<Photo>,
         val query: String,
     ) : SemanticSearchState()
 

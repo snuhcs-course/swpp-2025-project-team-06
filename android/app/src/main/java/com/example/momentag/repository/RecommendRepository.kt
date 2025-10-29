@@ -1,6 +1,6 @@
 package com.example.momentag.repository
 
-import com.example.momentag.model.TagAlbum
+import com.example.momentag.model.PhotoResponse
 import com.example.momentag.network.ApiService
 import java.io.IOException
 
@@ -9,7 +9,7 @@ class RecommendRepository(
 ) {
     sealed class RecommendResult {
         data class Success(
-            val photos: List<Long>,
+            val photos: List<PhotoResponse>,
         ) : RecommendResult()
 
         data class Empty(
@@ -34,13 +34,12 @@ class RecommendRepository(
     }
 
     // TODO sync with spec
-    suspend fun recommendPhotos(tagAlbum: TagAlbum): RecommendResult =
+    suspend fun recommendPhotos(tagId: String): RecommendResult =
         try {
-            val response = apiService.recommendPhotos(tagAlbum)
+            val response = apiService.recommendPhotos(tagId)
 
             if (response.isSuccessful) {
-                val recommendResponse = response.body()!!
-                val photos = recommendResponse.photos
+                val photos = response.body()!!
                 RecommendResult.Success(photos)
             } else {
                 when (response.code()) {

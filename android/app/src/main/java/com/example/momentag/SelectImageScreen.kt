@@ -39,26 +39,31 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Word
-import com.example.momentag.viewmodel.PhotoTagViewModel
+import com.example.momentag.viewmodel.SelectImageViewModel
+import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SelectImageScreen(
-    navController: NavController,
-    viewModel: PhotoTagViewModel,
-) {
+fun SelectImageScreen(navController: NavController) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
-    // TODO: GET /api/photos/
-    val allPhotos: List<Long> = remember { (1L..20L).toList() }
 
-    val tagName by viewModel.tagName.collectAsState()
-    val selectedPhotos by viewModel.selectedPhotos.collectAsState()
+    // Screen-scoped ViewModel using DraftTagRepository
+    val selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+
+    // TODO: GET /api/photos/ and convert to List<Photo>
+    val allPhotos: List<Photo> = remember { emptyList() }
+
+    val tagName by selectImageViewModel.tagName.collectAsState()
+    val selectedPhotos by selectImageViewModel.selectedPhotos.collectAsState()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -80,12 +85,8 @@ fun SelectImageScreen(
         permissionLauncher.launch(permission)
     }
 
-    val onPhotoClick: (Long) -> Unit = { photoId ->
-        if (selectedPhotos.contains(photoId)) {
-            viewModel.removePhoto(photoId)
-        } else {
-            viewModel.addPhoto(photoId)
-        }
+    val onPhotoClick: (Photo) -> Unit = { photo ->
+        selectImageViewModel.togglePhoto(photo)
     }
 
     Scaffold(
@@ -138,12 +139,12 @@ fun SelectImageScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.height(453.dp),
                 ) {
-                    items(allPhotos) { photoId ->
-                        val isSelected = selectedPhotos.contains(photoId)
+                    items(allPhotos) { photo ->
+                        val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
                         PhotoCheckedItem(
-                            photoId = photoId,
+                            photo = photo,
                             isSelected = isSelected,
-                            onClick = { onPhotoClick(photoId) },
+                            onClick = { onPhotoClick(photo) },
                             modifier = Modifier.aspectRatio(1f),
                         )
                     }

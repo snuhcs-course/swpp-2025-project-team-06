@@ -10,7 +10,9 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import com.example.momentag.model.Album
+import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoMeta
+import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.PhotoUploadData
 import com.google.gson.Gson
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -370,5 +372,47 @@ class LocalRepository(
                 }
             }
         return images
+    }
+
+    fun toPhotos(photoResponses: List<PhotoResponse>): List<Photo> {
+        return photoResponses.mapNotNull { photoResponse ->
+            try {
+                // Filter out invalid MediaStore IDs
+                if (photoResponse.photoPathId <= 0) {
+                    return@mapNotNull null
+                }
+
+                val contentUri =
+                    ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        photoResponse.photoPathId,
+                    )
+
+                // Verify the image still exists in MediaStore
+                val exists =
+                    context.contentResolver
+                        .query(
+                            contentUri,
+                            arrayOf(MediaStore.Images.Media._ID),
+                            null,
+                            null,
+                            null,
+                        )?.use { cursor ->
+                            cursor.moveToFirst()
+                        } ?: false
+
+                if (exists) {
+                    Photo(
+                        photoId = photoResponse.photoId,
+                        contentUri = contentUri,
+                    )
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                // Skip photos that cause errors during URI conversion or validation
+                null
+            }
+        }
     }
 }
