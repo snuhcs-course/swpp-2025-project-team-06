@@ -6,7 +6,7 @@ from qdrant_client import models
 
 from .vision_service import get_image_embedding, get_image_captions
 from .qdrant_utils import client, IMAGE_COLLECTION_NAME, REPVEC_COLLECTION_NAME
-from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
+from .models import User, Photo_Caption, Caption, Photo_Tag, Tag, Photo
 
 import time
 
@@ -30,7 +30,7 @@ def get_text_model():
 
 @shared_task
 def process_and_embed_photo(
-    image_path, user_id, filename, photo_path_id, created_at, lat, lng
+    photo_id, image_path, user_id, filename, photo_path_id, created_at, lat, lng
 ):
     try:
         # 파일이 실제로 생길 때까지 잠시 대기
@@ -53,7 +53,6 @@ def process_and_embed_photo(
                 os.remove(image_path)
             return
 
-        photo_id = uuid.uuid4()
         point_to_upsert = models.PointStruct(
             id=str(photo_id),
             vector=embedding,
@@ -73,10 +72,11 @@ def process_and_embed_photo(
         )
         print(f"[Celery Task Success] Processed and upserted photo {filename}")
 
-        captions = get_image_captions(image_path)
 
         # asserts that user id has checked
         user = User.objects.get(id=user_id)
+
+        captions = get_image_captions(image_path)
 
         for word, count in captions.items():
             caption, _ = Caption.objects.get_or_create(
@@ -84,9 +84,11 @@ def process_and_embed_photo(
                 caption=word,
             )
 
+            photo = Photo.objects.get(photo_id=photo_id)
+
             _ = Photo_Caption.objects.create(
                 user=user,
-                photo_id=photo_id,
+                photo=photo,
                 caption=caption,
                 weight=count,
             )
@@ -137,8 +139,8 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
 
     tagged_photo_ids = (
         Photo_Tag.objects.filter(user__id=user_id)
-        .filter(tag_id=tag_id)
-        .values_list("photo_id", flat=True)
+        .filter(tag__tag_id=tag_id)
+        .values_list("photo__photo_id", flat=True)
     )
 
     recommendations = [

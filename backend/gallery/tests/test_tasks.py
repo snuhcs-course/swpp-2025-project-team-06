@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from qdrant_client.http import models
 
-from gallery.models import Tag, Photo_Tag
+from gallery.models import Tag, Photo, Photo_Tag
 from gallery.tasks import (
     retrieve_all_rep_vectors_of_tag,
     recommend_photo_from_tag,
@@ -24,8 +24,18 @@ class TaskFunctionsTest(TestCase):
         self.photo_id = uuid.uuid4()
         self.tag_id = uuid.uuid4()
         self.tag = Tag.objects.create(tag_id=self.tag_id, user=self.user, tag="test")
+        
+        # Create photo first
+        self.photo = Photo.objects.create(
+            photo_id=self.photo_id,
+            user=self.user,
+            photo_path_id=123,
+            filename="test.jpg"
+        )
+        
+        # Create photo_tag relationship with photo instance
         self.photo_tag = Photo_Tag.objects.create(
-            user=self.user, tag=self.tag, photo_id=self.photo_id
+            user=self.user, tag=self.tag, photo=self.photo
         )
 
     @patch("gallery.tasks.client")
