@@ -150,7 +150,9 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
     return recommendations
 
 
-def tag_recommendation(user_id, photo_id):
+def tag_recommendation(user, photo_id):
+    LIMIT = 10
+
     retrieved_points = client.retrieve(
         collection_name=IMAGE_COLLECTION_NAME,
         ids=[photo_id],
@@ -166,32 +168,31 @@ def tag_recommendation(user_id, photo_id):
         must=[
             models.FieldCondition(
                 key="user_id",
-                match=models.MatchValue(value=user_id),
+                match=models.MatchValue(value=user.id),
             )
         ]
     )
 
-    search_result = client.search(
+    search_results = client.search(
         collection_name=REPVEC_COLLECTION_NAME,
         query_vector=image_vector,
         query_filter=user_filter,
-        limit=1,
+        limit=LIMIT,
         with_payload=True,
     )
 
-    if not search_result:
-        return None, None
+    tag_ids = list(dict.fromkeys(result.payload["tag_id"] for result in search_results))
 
-    most_similar_point = search_result[0]
-    recommended_tag_id = most_similar_point.payload["tag_id"]
+    recommendations = []
 
-    try:
-        tag = Tag.objects.get(tag_id=recommended_tag_id)
-        recommended_tag_name = tag.tag
-    except Tag.DoesNotExist:
-        return None, None
+    for tag_id in tag_ids:
+        try:
+            tag = Tag.objects.get(tag_id=tag_id)
+            recommendations.append(tag)
+        except Tag.DoesNotExist:
+            continue
 
-    return recommended_tag_name, recommended_tag_id
+    return recommendations
 
 
 def retrieve_all_rep_vectors_of_tag(user_id: int, tag_id: uuid.UUID):

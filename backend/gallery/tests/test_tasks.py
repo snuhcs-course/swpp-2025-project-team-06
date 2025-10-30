@@ -169,17 +169,20 @@ class TaskFunctionsTest(TestCase):
             id=str(uuid.uuid4()),
             version=1,
             score=0.95,
-            payload={"user_id": self.user_id, "tag_id": self.tag.tag_id},
+            payload={"user_id": self.user_id, "tag_id": str(self.tag.tag_id)},
             vector=None,
         )
         mock_client.search.return_value = [mock_search_result_point]
 
         mock_tag_get.return_value = self.tag
 
-        tag_name, tag_id = tag_recommendation(self.user_id, self.photo_id)
+        recommendations = tag_recommendation(self.user, self.photo_id)
 
-        self.assertEqual(tag_name, "test")
-        self.assertEqual(tag_id, self.tag.tag_id)
+        self.assertIsInstance(recommendations, list)
+        self.assertEqual(len(recommendations), 1)
+        self.assertEqual(recommendations[0], self.tag)
+        self.assertEqual(recommendations[0].tag, "test")
+        self.assertEqual(recommendations[0].tag_id, self.tag.tag_id)
 
         mock_client.retrieve.assert_called_once_with(
             collection_name="my_image_collection",
@@ -190,12 +193,12 @@ class TaskFunctionsTest(TestCase):
         mock_client.search.assert_called_once()
         call_args, call_kwargs = mock_client.search.call_args
         self.assertEqual(call_kwargs["collection_name"], "my_repvec_collection")
-        self.assertEqual(call_kwargs["limit"], 1)
+        self.assertEqual(call_kwargs["limit"], 10)
         np.testing.assert_array_equal(
             call_kwargs["query_vector"], mock_retrieve_point.vector
         )
 
-        mock_tag_get.assert_called_once_with(tag_id=self.tag.tag_id)
+        mock_tag_get.assert_called_once_with(tag_id=str(self.tag.tag_id))
 
     @patch("gallery.tasks.client")
     def test_tag_recommendation_no_similar_tag_found(self, mock_client):
@@ -205,7 +208,7 @@ class TaskFunctionsTest(TestCase):
         mock_client.retrieve.return_value = [mock_retrieve_point]
         mock_client.search.return_value = []
 
-        tag_name, tag_id = tag_recommendation(self.user_id, self.photo_id)
+        recommendations = tag_recommendation(self.user, self.photo_id)
 
-        self.assertIsNone(tag_name)
-        self.assertIsNone(tag_id)
+        self.assertIsInstance(recommendations, list)
+        self.assertEqual(len(recommendations), 0)
