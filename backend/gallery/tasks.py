@@ -306,3 +306,102 @@ def is_valid_uuid(uuid_to_test):
     except ValueError:
         return False
     return True
+
+
+@shared_task
+def compute_and_store_rep_vectors(user_id: int, tag_id: str):
+    K_CLUSTERS = 3           # 기본 코드의 k = 3
+    OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
+    MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수 (기본 코드 기준)
+
+    print(f"[Task Start] RepVec computation for User: {user_id}, Tag: {tag_id}")
+
+    try:
+        photo_tags = Photo_Tag.objects.filter(user_id=user_id, tag_id=tag_id)
+        photo_ids = [str(pt.photo_id) for pt in photo_tags]
+
+        delete_filter = models.Filter(
+            must=[
+                models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
+                models.FieldCondition(key="tag_id", match=models.MatchValue(value=str(tag_id))) 
+            ]
+        )
+        client.delete(
+            collection_name=REPVEC_COLLECTION_NAME,
+            points_selector=models.FilterSelector(filter=delete_filter),
+            wait=True
+        )
+        print(f"[Task Info] Deleted old repvecs for Tag: {tag_id}.")
+
+        if not photo_ids:
+            print(f"[Task Info] No photos found for Tag: {tag_id}. RepVecs deleted. Task finished.")
+            return
+
+        points = client.retrieve(
+            collection_name=IMAGE_COLLECTION_NAME,
+            ids=photo_ids,
+            with_vectors=True
+        )
+        
+        selected_vecs = np.array([point.vector for point in points if point.vector])
+
+        if len(selected_vecs) == 0:
+            print(f"[Task Info] No vectors found in Qdrant for Tag: {tag_id}. Skipping.")
+            return
+
+        if len(selected_vecs) < MIN_SAMPLES_FOR_ML:
+            final_representatives = selected_vecs
+        else:
+            iso_forest = IsolationForest(contamination=OUTLIER_FRACTION, random_state=42)
+            preds = iso_forest.fit_predict(selected_vecs)
+            
+            outlier_vecs = selected_vecs[preds == -1]
+            inlier_vecs = selected_vecs[preds == 1]
+            
+            kmeans_centers = np.array([])
+            if len(inlier_vecs) >= K_CLUSTERS:
+                kmeans = KMeans(n_clusters=K_CLUSTERS, random_state=42, n_init='auto')
+                kmeans.fit(inlier_vecs)
+                kmeans_centers = kmeans.cluster_centers_
+            elif len(inlier_vecs) > 0:
+                kmeans_centers = inlier_vecs
+                
+            final_representatives_list = []
+            if len(outlier_vecs) > 0:
+                final_representatives_list.append(outlier_vecs)
+            if len(kmeans_centers) > 0:
+                final_representatives_list.append(kmeans_centers)
+
+            if not final_representatives_list:
+                print(f"[Task Info] No representative vectors generated for Tag: {tag_id}.")
+                return
+
+            final_representatives = np.vstack(final_representatives_list)
+
+        points_to_upsert = []
+        for vec in final_representatives:
+            point_id = str(uuid.uuid4())
+            payload = {
+                "user_id": user_id,
+                "tag_id": str(tag_id)
+            }
+            points_to_upsert.append(
+                models.PointStruct(
+                    id=point_id,
+                    vector=vec.tolist(),
+                    payload=payload
+                )
+            )
+
+        if points_to_upsert:
+            client.upsert(
+                collection_name=REPVEC_COLLECTION_NAME,
+                points=points_to_upsert,
+                wait=True
+            )
+            print(f"[Task Success] Upserted {len(points_to_upsert)} new repvecs for Tag: {tag_id}.")
+        else:
+            print(f"[Task Info] No new repvecs to upsert for Tag: {tag_id}.")
+
+    except Exception as e:
+        print(f"[Task Exception] Error processing Tag {tag_id}: {str(e)}")

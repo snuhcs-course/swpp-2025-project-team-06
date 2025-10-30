@@ -59,7 +59,7 @@ def initialize_qdrant():
 
     refvec_indexes = {
         "user_id": models.PayloadSchemaType.INTEGER,
-        "tag_id": models.PayloadSchemaType.INTEGER,
+        "tag_id": models.PayloadSchemaType.KEYWORD,
     }
     for field, schema in refvec_indexes.items():
         try:
