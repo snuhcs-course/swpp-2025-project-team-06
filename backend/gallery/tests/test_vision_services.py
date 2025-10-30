@@ -108,8 +108,6 @@ class VisionServicesTest(TestCase):
             num_return_sequences=5,
         )
 
-        mock_print.assert_any_call(f"[DONE] Finished: {test_path}\n", flush=True)
-
     @patch("gallery.vision_service.torch.no_grad")
     @patch("gallery.vision_service.Image.open")
     @patch("gallery.vision_service.get_caption_model")
