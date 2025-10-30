@@ -25,5 +25,9 @@ class ReqTagIdSerializer(serializers.Serializer):
 class ReqPhotoListSerializer(serializers.Serializer):
     photos = serializers.ListField(
         child=serializers.UUIDField(),
-        help_text="추천을 받기 위한 사진들의 고유 ID 리스트"
+        help_text="추천을 받기 위한 사진들의 고유 ID 리스트",
     )
+
+
+class ReqPhotoBulkDeleteSerializer(serializers.Serializer):
+    photos = ReqPhotoIdSerializer(many=True, help_text="삭제할 사진 ID 목록")
