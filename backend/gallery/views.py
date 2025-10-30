@@ -565,8 +565,7 @@ class DeletePhotoTagsView(APIView):
                 photo_id=photo_id, tag_id=tag_id, user=request.user
             )
 
-            if photo_tag:
-                photo_tag.delete()
+            photo_tag.delete()
 
             # Check if any tags remain for the photo
             remaining_tags = Photo_Tag.objects.filter(photo_id=photo_id, user=request.user)
