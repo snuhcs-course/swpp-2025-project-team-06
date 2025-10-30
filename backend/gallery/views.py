@@ -476,7 +476,7 @@ class PostPhotoTagsView(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
             try:
-                current_user_obj = User.objects.get(pk=request.user.pk)
+                User.objects.get(pk=request.user.pk)
             except User.DoesNotExist:
                  return Response({"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED)
 
