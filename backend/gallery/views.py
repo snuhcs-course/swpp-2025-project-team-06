@@ -14,13 +14,14 @@ from .reponse_serializers import (
     ResPhotoIdSerializer,
     ResTagIdSerializer,
     ResTagVectorSerializer,
-    ResStorySerializer
+    ResStorySerializer,
+    ResTagAlbumSerializer
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
-    ReqPhotoIdSerializer,
     ReqTagNameSerializer,
     ReqTagIdSerializer,
+    ReqPhotoBulkDeleteSerializer,
 )
 
 from .serializers import TagSerializer
@@ -31,6 +32,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
+
 from .tasks import (
     process_and_embed_photo,
     tag_recommendation,
@@ -258,55 +260,44 @@ class PhotoDetailView(APIView):
     )
     def get(self, request, photo_id):
         try:
-            user_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="user_id",
-                        match=models.MatchValue(value=request.user.id),
-                    ),
-                    models.FieldCondition(
-                        key="photo_id",
-                        match=models.MatchValue(value=str(photo_id)),
-                    ),
-                ]
+            # 해당 photo_id의 사진만 직접 가져오기 (하나만 가져온다 해도 리스트 형식으로만 받을 수 있다고 함.)
+            points = client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME,
+                ids=[str(photo_id)],
+                with_payload=True
             )
 
-            all_photo_points = []
-            next_offset = None
-
-            while True:
-                points, next_offset = client.scroll(
-                    collection_name=IMAGE_COLLECTION_NAME,
-                    scroll_filter=user_filter,
-                    limit=200,
-                    offset=next_offset,
-                    with_payload=True,
-                )
-
-                all_photo_points.extend(points)
-
-                if next_offset is None:
-                    break
-
-            if all_photo_points.size == 0:
+            if not points:
                 return Response(
                     {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
                 )
 
-            photos = []
+            # 사용자 권한 확인 (해당 사진이 현재 사용자의 것인지 확인)
+            photo_point = points[0]
+            if photo_point.payload.get("user_id") != request.user.id:
+                return Response(
+                    {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
+                )
 
-            for point in all_photo_points:
-                photo_tags = Photo_Tag.objects.filter(photo_id=point.id)
-                for pt in photo_tags:
-                    tag = Tag.objects.get(tag_id=pt.tag_id)
-                    photos.append(
-                        {
-                            "photo_path_id": point.payload.get("photo_path_id"),
-                            "tags": [{"tag_id": tag.tag_id, "tag": tag.tag}],
-                        }
-                    )
+            # 해당 사진의 태그들 조회
+            photo_tags = Photo_Tag.objects.filter(photo_id=photo_id)
+            
+            # 태그 정보 구성
+            tags_list = []
+            for pt in photo_tags:
+                tag = Tag.objects.get(tag_id=pt.tag_id)
+                tags_list.append({"tag_id": str(tag.tag_id), "tag": tag.tag})
 
-            return Response(photos, status=status.HTTP_200_OK)
+            # 응답 데이터 구성
+            photo_data = {
+                "photo_path_id": photo_point.payload.get("photo_path_id"),
+                "tags": tags_list
+            }
+
+            serializer = ResPhotoTagListSerializer(photo_data)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -333,8 +324,7 @@ class PhotoDetailView(APIView):
     )
     def delete(self, request, photo_id):
         try:
-            photo_tag = Photo_Tag.objects.get(photo_id=photo_id, user=request.user)
-            photo_tag.delete()
+            Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
@@ -356,7 +346,7 @@ class BulkDeletePhotoView(APIView):
     @swagger_auto_schema(
         operation_summary="Delete Photos",
         operation_description="Delete photos from the app",
-        request_body=ReqPhotoIdSerializer(many=True),
+        request_body=ReqPhotoBulkDeleteSerializer(),
         responses={
             204: openapi.Response(description="No Content"),
             400: openapi.Response(description="Bad Request - Request form mismatch"),
@@ -373,23 +363,27 @@ class BulkDeletePhotoView(APIView):
             )
         ],
     )
-    def delete(self, request):
+    def post(self, request):
         try:
-            serializer = ReqPhotoDetailSerializer(data=request.data, many=True)
+            serializer = ReqPhotoBulkDeleteSerializer(data=request.data)
 
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            photos_data = serializer.validated_data
+            photos_data = serializer.validated_data['photos']
 
-            photos = []
+            photos_to_delete = [data['photo_id'] for data in photos_data]
 
-            for data in photos_data:
-                photos.append(data["photo_id"])
+            # 일단 동작만 하게 해놓음. 
+            # 여러 API가 동시에 들어와서 중복 삭제하는 등의 문제를 해결하는건 나중에 atomic transaction 등의 방식으로 수정
+            Photo_Tag.objects.filter(
+                photo_id__in=photos_to_delete,
+                user=request.user
+            ).delete()  
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
-                points_selector=[str(photo_id) for photo_id in photos],
+                points_selector=[str(photo_id) for photo_id in photos_to_delete],
                 wait=True,
             )
 
@@ -410,7 +404,7 @@ class GetPhotosByTagView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success", schema=ResPhotoSerializer(many=True)
+                description="Success", schema=ResTagAlbumSerializer()
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -433,7 +427,9 @@ class GetPhotosByTagView(APIView):
             photo_ids = [str(pt.photo_id) for pt in photo_tags]
 
             retrieved_points = client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME, ids=photo_ids, with_payload=True
+                collection_name=IMAGE_COLLECTION_NAME, 
+                ids=photo_ids, 
+                with_payload=True
             )
 
             photos = []
@@ -445,8 +441,12 @@ class GetPhotosByTagView(APIView):
                         "photo_path_id": point.payload.get("photo_path_id"),
                     }
                 )
+            
+            response_data = {
+                "photos": photos
+            }
 
-            return Response(photos, status=status.HTTP_200_OK)
+            return Response(ResTagAlbumSerializer(response_data).data, status=status.HTTP_200_OK)
         except Photo_Tag.DoesNotExist:
             return Response(
                 {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
@@ -504,6 +504,12 @@ class PostPhotoTagsView(APIView):
                 pt_id = uuid.uuid4()
 
                 tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+
+                if Photo_Tag.objects.filter(
+                    photo_id=photo_id, tag=tag, user=request.user
+                ).exists():
+                    continue  # Skip if the relationship already exists
+
                 Photo_Tag.objects.create(
                     pt_id=pt_id, 
                     photo_id=photo_id, 
@@ -555,20 +561,21 @@ class DeletePhotoTagsView(APIView):
     )
     def delete(self, request, photo_id, tag_id):
         try:
-            Tag.objects.get(tag_id=tag_id, user=request.user)
-            if not client.exists(
-                collection_name=IMAGE_COLLECTION_NAME, point_id=str(photo_id)
-            ):
-                return Response(
-                    {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
-                )
-
             photo_tag = Photo_Tag.objects.get(
                 photo_id=photo_id, tag_id=tag_id, user=request.user
             )
 
-            if photo_tag.exists():
-                photo_tag.delete()
+            photo_tag.delete()
+
+            # Check if any tags remain for the photo
+            remaining_tags = Photo_Tag.objects.filter(photo_id=photo_id, user=request.user)
+            if not remaining_tags.exists():
+                # If no tags remain, update isTagged to False in Qdrant
+                client.set_payload(
+                    collection_name=IMAGE_COLLECTION_NAME,
+                    payload={"isTagged": False},
+                    points=[str(photo_id)]
+                )
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Tag.DoesNotExist:
@@ -939,7 +946,6 @@ class TagDetailView(APIView):
             )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 class StoryView(APIView):
