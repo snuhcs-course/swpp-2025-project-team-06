@@ -20,3 +20,8 @@ class ReqTagNameSerializer(serializers.Serializer):
 
 class ReqTagIdSerializer(serializers.Serializer):
     tag_id = serializers.UUIDField(help_text="태그의 고유 ID")
+
+
+class ReqPhotoBulkDeleteSerializer(serializers.Serializer):
+    photos = ReqPhotoIdSerializer(many=True, help_text="삭제할 사진 ID 목록")
+    
