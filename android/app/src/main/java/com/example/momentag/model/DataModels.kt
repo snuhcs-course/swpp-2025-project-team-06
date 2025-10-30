@@ -6,8 +6,8 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 
 data class Tag(
-    val tagName: String,
-    val thumbnailId: Long,
+    @SerializedName("tag") val tagName: String,
+    @SerializedName("tag_id") val tagId: String,
 )
 
 data class PhotoResponse(
@@ -55,6 +55,10 @@ data class RefreshResponse(
     val access_token: String,
 )
 
+data class StoryResponse(
+    val recs: List<PhotoResponse>,
+)
+
 // ========== Upload Models ==========
 
 data class PhotoMeta(
@@ -73,6 +77,7 @@ data class PhotoUploadData(
 // ========== Story Models =================
 data class StoryModel(
     val id: String,
+    val photoId: String,
     val images: List<String>,
     val date: String,
     val location: String,

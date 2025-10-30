@@ -9,6 +9,7 @@ import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
+import com.example.momentag.model.StoryResponse
 import com.example.momentag.model.Tag
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -76,11 +77,21 @@ interface ApiService {
         @Query("offset") offset: Int = 0,
     ): Response<List<PhotoResponse>>
 
+    @GET("api/photos/{photo_id}/recommendation/")
+    suspend fun recommendTagFromPhoto(
+        @Path("photo_id") photoId: String,
+    ): Response<List<Tag>>
+
     // TODO : api 주소 변경
     @GET("api/tags/{tag_id}/recommendation/")
     suspend fun recommendPhotos(
         @Path("tag_id") tagId: String,
     ): Response<List<PhotoResponse>>
+
+    @GET("api/stories/")
+    suspend fun getStories(
+        @Query("size") size: Int,
+    ): Response<StoryResponse>
 }
 
 /**

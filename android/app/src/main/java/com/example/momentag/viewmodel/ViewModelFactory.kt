@@ -114,6 +114,9 @@ class ViewModelFactory private constructor(
             modelClass.isAssignableFrom(SelectImageViewModel::class.java) -> {
                 SelectImageViewModel(draftTagRepository) as T
             }
+            modelClass.isAssignableFrom(StoryViewModel::class.java) -> {
+                StoryViewModel(recommendRepository, localRepository) as T
+            }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
 }
