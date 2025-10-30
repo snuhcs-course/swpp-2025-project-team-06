@@ -51,7 +51,7 @@ class RecommendRepository(
             RecommendResult.Error("An unexpected error occurred: ${e.message}")
         }
 
-    suspend fun recommendTagFromPhoto(photoId: String): RecommendResult<Tag> =
+    suspend fun recommendTagFromPhoto(photoId: String): RecommendResult<List<Tag>> =
         try {
             val response = apiService.recommendTagFromPhoto(photoId)
 

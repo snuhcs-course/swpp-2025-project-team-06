@@ -92,14 +92,13 @@ class ImageDetailViewModel(
 
                     when (recommendResult) {
                         is RecommendRepository.RecommendResult.Success -> {
-                            val recommendedTag = recommendResult.data.tagName
-                            // Only include recommendation if not already in existing tags
                             val recommendedTags =
-                                if (recommendedTag !in existingTags) {
-                                    listOf(recommendedTag)
-                                } else {
-                                    emptyList()
-                                }
+                                recommendResult.data
+                                    .map {
+                                        it.tagName
+                                    }.filter {
+                                        it !in existingTags
+                                    }.take(1)
 
                             _photoTagState.value =
                                 PhotoTagState.Success(

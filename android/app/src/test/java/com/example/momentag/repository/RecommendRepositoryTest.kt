@@ -155,8 +155,12 @@ class RecommendRepositoryTest {
         runTest {
             // Given
             val photoId = "photo123"
-            val expectedTag = Tag(tagName = "Nature", tagId = "tag1")
-            val response = Response.success(expectedTag)
+            val expectedTags =
+                listOf(
+                    Tag(tagName = "Nature", tagId = "tag1"),
+                    Tag(tagName = "Landscape", tagId = "tag2"),
+                )
+            val response = Response.success(expectedTags)
             whenever(apiService.recommendTagFromPhoto(photoId)).thenReturn(response)
 
             // When
@@ -164,7 +168,7 @@ class RecommendRepositoryTest {
 
             // Then
             assertTrue(result is RecommendRepository.RecommendResult.Success)
-            assertEquals(expectedTag, (result as RecommendRepository.RecommendResult.Success).data)
+            assertEquals(expectedTags, (result as RecommendRepository.RecommendResult.Success).data)
             verify(apiService).recommendTagFromPhoto(photoId)
         }
 
@@ -173,7 +177,7 @@ class RecommendRepositoryTest {
         runTest {
             // Given
             val photoId = "photo123"
-            val response = Response.error<Tag>(400, "".toResponseBody())
+            val response = Response.error<List<Tag>>(400, "".toResponseBody())
             whenever(apiService.recommendTagFromPhoto(photoId)).thenReturn(response)
 
             // When
@@ -190,7 +194,7 @@ class RecommendRepositoryTest {
         runTest {
             // Given
             val photoId = "photo123"
-            val response = Response.error<Tag>(401, "".toResponseBody())
+            val response = Response.error<List<Tag>>(401, "".toResponseBody())
             whenever(apiService.recommendTagFromPhoto(photoId)).thenReturn(response)
 
             // When
@@ -210,7 +214,7 @@ class RecommendRepositoryTest {
         runTest {
             // Given
             val photoId = "photo123"
-            val response = Response.error<Tag>(404, "".toResponseBody())
+            val response = Response.error<List<Tag>>(404, "".toResponseBody())
             whenever(apiService.recommendTagFromPhoto(photoId)).thenReturn(response)
 
             // When

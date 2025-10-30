@@ -110,7 +110,7 @@ interface ApiService {
     @GET("api/photos/{photo_id}/recommendation/")
     suspend fun recommendTagFromPhoto(
         @Path("photo_id") photoId: String,
-    ): Response<Tag>
+    ): Response<List<Tag>>
 
     @GET("api/tags/{tag_id}/recommendation/")
     suspend fun recommendPhotosFromTag(

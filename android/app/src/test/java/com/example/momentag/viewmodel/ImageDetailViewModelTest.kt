@@ -205,12 +205,12 @@ class ImageDetailViewModelTest {
                     photoPathId = 1L,
                     tags = listOf(Tag("Nature", "tag1")),
                 )
-            val recommendedTag = Tag("Sunset", "tag2")
+            val recommendedTags = listOf(Tag("Sunset", "tag2"))
 
             whenever(remoteRepository.getPhotoDetail(photoId))
                 .thenReturn(RemoteRepository.Result.Success(photoDetail))
             whenever(recommendRepository.recommendTagFromPhoto(photoId))
-                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTag))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
 
             // When
             viewModel.loadPhotoTags(photoId)
@@ -233,12 +233,12 @@ class ImageDetailViewModelTest {
                     photoPathId = 1L,
                     tags = listOf(Tag("Nature", "tag1"), Tag("Forest", "tag2")),
                 )
-            val recommendedTag = Tag("Sunset", "tag3")
+            val recommendedTags = listOf(Tag("Sunset", "tag3"))
 
             whenever(remoteRepository.getPhotoDetail(photoId))
                 .thenReturn(RemoteRepository.Result.Success(photoDetail))
             whenever(recommendRepository.recommendTagFromPhoto(photoId))
-                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTag))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
 
             // When
             viewModel.loadPhotoTags(photoId)
@@ -265,12 +265,12 @@ class ImageDetailViewModelTest {
                     photoPathId = 1L,
                     tags = listOf(Tag("Nature", "tag1"), Tag("Sunset", "tag2")),
                 )
-            val recommendedTag = Tag("Sunset", "tag2") // Already exists
+            val recommendedTags = listOf(Tag("Sunset", "tag2")) // Already exists
 
             whenever(remoteRepository.getPhotoDetail(photoId))
                 .thenReturn(RemoteRepository.Result.Success(photoDetail))
             whenever(recommendRepository.recommendTagFromPhoto(photoId))
-                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTag))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
 
             // When
             viewModel.loadPhotoTags(photoId)
@@ -294,12 +294,12 @@ class ImageDetailViewModelTest {
                     photoPathId = 1L,
                     tags = emptyList(),
                 )
-            val recommendedTag = Tag("Nature", "tag1")
+            val recommendedTags = listOf(Tag("Nature", "tag1"))
 
             whenever(remoteRepository.getPhotoDetail(photoId))
                 .thenReturn(RemoteRepository.Result.Success(photoDetail))
             whenever(recommendRepository.recommendTagFromPhoto(photoId))
-                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTag))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
 
             // When
             viewModel.loadPhotoTags(photoId)
@@ -589,12 +589,12 @@ class ImageDetailViewModelTest {
                     photoPathId = 1L,
                     tags = listOf(Tag("Nature", "tag1")),
                 )
-            val recommendedTag = Tag("Sunset", "tag2")
+            val recommendedTags = listOf(Tag("Sunset", "tag2"))
 
             whenever(remoteRepository.getPhotoDetail(photoId))
                 .thenReturn(RemoteRepository.Result.Success(photoDetail))
             whenever(recommendRepository.recommendTagFromPhoto(photoId))
-                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTag))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
 
             viewModel.loadPhotoTags(photoId)
             mainCoroutineRule.testDispatcher.scheduler.runCurrent()
@@ -626,13 +626,13 @@ class ImageDetailViewModelTest {
                     photoPathId = 1L,
                     tags = listOf(Tag("Nature", "tag1")),
                 )
-            val recommendedTag = Tag("Sunset", "tag2")
+            val recommendedTags = listOf(Tag("Sunset", "tag2"))
 
             whenever(imageBrowserRepository.getPhotoContext(photoId)).thenReturn(context)
             whenever(remoteRepository.getPhotoDetail(photoId))
                 .thenReturn(RemoteRepository.Result.Success(photoDetail))
             whenever(recommendRepository.recommendTagFromPhoto(photoId))
-                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTag))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
 
             // When
             viewModel.loadImageContext(photoId)
@@ -690,7 +690,7 @@ class ImageDetailViewModelTest {
             whenever(remoteRepository.getPhotoDetail("photo1"))
                 .thenReturn(RemoteRepository.Result.Success(photoDetail1))
             whenever(recommendRepository.recommendTagFromPhoto("photo1"))
-                .thenReturn(RecommendRepository.RecommendResult.Success(Tag("Sunset", "tag2")))
+                .thenReturn(RecommendRepository.RecommendResult.Success(listOf(Tag("Sunset", "tag2"))))
 
             viewModel.loadImageContext("photo1")
             viewModel.loadPhotoTags("photo1")
@@ -735,7 +735,7 @@ class ImageDetailViewModelTest {
             whenever(remoteRepository.getPhotoDetail(photoId))
                 .thenReturn(RemoteRepository.Result.Success(photoDetail))
             whenever(recommendRepository.recommendTagFromPhoto(photoId))
-                .thenReturn(RecommendRepository.RecommendResult.Success(Tag("Sunset", "tag2")))
+                .thenReturn(RecommendRepository.RecommendResult.Success(listOf(Tag("Sunset", "tag2"))))
 
             // When - call multiple times (simulating rapid calls)
             viewModel.loadPhotoTags(photoId)
