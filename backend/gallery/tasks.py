@@ -255,13 +255,6 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
 
     return recommendations
 
-def is_valid_uuid(uuid_to_test):
-    try:
-        uuid.UUID(str(uuid_to_test))
-    except ValueError:
-        return False
-    return True
-
 
 def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
     client = get_qdrant_client()
