@@ -9,7 +9,6 @@ import com.example.momentag.model.PhotoTagState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
-import com.example.momentag.viewmodel.HomeViewModel.HomeDeleteState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -26,7 +25,7 @@ class ImageDetailViewModel(
     private val remoteRepository: RemoteRepository,
     private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
-    sealed class TagDeleteState{
+    sealed class TagDeleteState {
         object Idle : TagDeleteState()
 
         object Loading : TagDeleteState()
@@ -37,6 +36,7 @@ class ImageDetailViewModel(
             val message: String,
         ) : TagDeleteState()
     }
+
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
     val imageContext = _imageContext.asStateFlow()
 
@@ -164,7 +164,10 @@ class ImageDetailViewModel(
         }
     }
 
-    fun deleteTagFromPhoto(photoId: String, tagId: String) {
+    fun deleteTagFromPhoto(
+        photoId: String,
+        tagId: String,
+    ) {
         viewModelScope.launch {
             _tagDeleteState.value = TagDeleteState.Loading
 

@@ -3,7 +3,6 @@ package com.example.momentag
 import android.Manifest
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -349,7 +348,7 @@ fun ImageDetailScreen(
                                     onLongClick = { isDeleteMode = true },
                                     onClick = {
                                         if (isDeleteMode) isDeleteMode = false
-                                    }
+                                    },
                                 ),
                         ) {
                             tagXMode(
@@ -367,7 +366,6 @@ fun ImageDetailScreen(
                             )
                         }
                     }
-
 
                     // Display recommended tags with transparency
                     recommendedTags.forEach { tagName ->

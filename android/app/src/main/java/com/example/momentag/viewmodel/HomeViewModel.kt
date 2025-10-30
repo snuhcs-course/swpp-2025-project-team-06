@@ -27,7 +27,7 @@ class HomeViewModel(
         ) : HomeLoadingState()
     }
 
-    sealed class HomeDeleteState{
+    sealed class HomeDeleteState {
         object Idle : HomeDeleteState()
 
         object Loading : HomeDeleteState()
@@ -44,7 +44,6 @@ class HomeViewModel(
 
     private val _homeDeleteState = MutableStateFlow<HomeDeleteState>(HomeDeleteState.Idle)
     val homeDeleteState = _homeDeleteState.asStateFlow()
-
 
     fun loadServerTags() {
         viewModelScope.launch {

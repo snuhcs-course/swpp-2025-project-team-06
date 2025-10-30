@@ -230,9 +230,7 @@ class RemoteRepository(
             Result.Exception(e)
         }
 
-    suspend fun removeTag(
-        tagId: String,
-    ): Result<Unit> =
+    suspend fun removeTag(tagId: String): Result<Unit> =
         try {
             val response = apiService.removeTag(tagId)
 

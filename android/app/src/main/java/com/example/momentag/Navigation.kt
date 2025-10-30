@@ -69,10 +69,11 @@ fun appNavigation() {
 
         composable(
             route = Screen.Image.route,
-            arguments = listOf(
-                navArgument("imageId") { type = NavType.StringType },
-                navArgument("imageUri") { type = NavType.StringType },
-            )
+            arguments =
+                listOf(
+                    navArgument("imageId") { type = NavType.StringType },
+                    navArgument("imageUri") { type = NavType.StringType },
+                ),
         ) { backStackEntry ->
             val encodedUriString = backStackEntry.arguments?.getString("imageUri")
             val decodedUri = encodedUriString?.let { Uri.decode(it).toUri() }

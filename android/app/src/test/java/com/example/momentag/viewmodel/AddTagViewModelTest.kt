@@ -29,7 +29,6 @@ import org.mockito.kotlin.whenever
 
 @ExperimentalCoroutinesApi
 class AddTagViewModelTest {
-
     @get:Rule
     val mainCoroutineRule = MainCoroutineRule() // Assuming MainCoroutineRule is available
 
@@ -52,6 +51,7 @@ class AddTagViewModelTest {
     private val testPhotoResponses = listOf(testPhotoResponse1, testPhotoResponse2)
 
     private val testTagId = "t123"
+
     // RecommendModels.kt에 정의된 TagAlbum
     private val testTagAlbum = TagAlbum(tagName = "Test", photos = emptyList())
 
@@ -70,12 +70,13 @@ class AddTagViewModelTest {
         whenever(draftTagRepository.tagName).thenReturn(tagNameFlow.asStateFlow())
         whenever(draftTagRepository.selectedPhotos).thenReturn(selectedPhotosFlow.asStateFlow())
 
-        viewModel = AddTagViewModel(
-            draftTagRepository,
-            recommendRepository,
-            localRepository,
-            remoteRepository,
-        )
+        viewModel =
+            AddTagViewModel(
+                draftTagRepository,
+                recommendRepository,
+                localRepository,
+                remoteRepository,
+            )
     }
 
     // region DraftTagRepository Delegation Tests
@@ -136,176 +137,185 @@ class AddTagViewModelTest {
 
     // region recommendPhoto Tests
     @Test
-    fun recommendPhotoEmptyQueryTest() = runTest{
-        val emptyAlbum = TagAlbum(tagName = "", photos = emptyList())
-        viewModel.recommendPhoto(emptyAlbum)
+    fun recommendPhotoEmptyQueryTest() =
+        runTest {
+            val emptyAlbum = TagAlbum(tagName = "", photos = emptyList())
+            viewModel.recommendPhoto(emptyAlbum)
 
-        val state = viewModel.recommendState.value
-        assertTrue(state is RecommendState.Error)
-        assertEquals("Query cannot be empty", (state as RecommendState.Error).message)
-        verify(recommendRepository, never()).recommendPhotosFromTag(any())
-    }
-
-    @Test
-    fun recommendPhotoSuccessTest() = runTest {
-        // recommendPhotosFromTag는 List<PhotoResponse>를 반환합니다.
-        val recommendResult =
-            RecommendRepository.RecommendResult.Success(testPhotoResponses)
-        // localRepository.toPhotos가 List<Photo>로 변환합니다.
-        whenever(recommendRepository.recommendPhotosFromTag(testTagAlbum.tagName))
-            .thenReturn(recommendResult)
-        whenever(localRepository.toPhotos(testPhotoResponses)).thenReturn(testPhotos)
-
-        viewModel.recommendPhoto(testTagAlbum)
-
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
-
-        // Check success state
-        val state = viewModel.recommendState.value
-        assertTrue(state is RecommendState.Success)
-        assertEquals(testPhotos, (state as RecommendState.Success).photos)
-    }
+            val state = viewModel.recommendState.value
+            assertTrue(state is RecommendState.Error)
+            assertEquals("Query cannot be empty", (state as RecommendState.Error).message)
+            verify(recommendRepository, never()).recommendPhotosFromTag(any())
+        }
 
     @Test
-    fun recommendPhotoErrorTest() = runTest {
-        val errorResult =
-            RecommendRepository.RecommendResult.Error<List<PhotoResponse>>("Server Error")
-        whenever(recommendRepository.recommendPhotosFromTag(testTagAlbum.tagName))
-            .thenReturn(errorResult)
+    fun recommendPhotoSuccessTest() =
+        runTest {
+            // recommendPhotosFromTag는 List<PhotoResponse>를 반환합니다.
+            val recommendResult =
+                RecommendRepository.RecommendResult.Success(testPhotoResponses)
+            // localRepository.toPhotos가 List<Photo>로 변환합니다.
+            whenever(recommendRepository.recommendPhotosFromTag(testTagAlbum.tagName))
+                .thenReturn(recommendResult)
+            whenever(localRepository.toPhotos(testPhotoResponses)).thenReturn(testPhotos)
 
-        viewModel.recommendPhoto(testTagAlbum)
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+            viewModel.recommendPhoto(testTagAlbum)
 
-        val state = viewModel.recommendState.value
-        assertTrue(state is RecommendState.Error)
-        assertEquals("Server Error", (state as RecommendState.Error).message)
-    }
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Check success state
+            val state = viewModel.recommendState.value
+            assertTrue(state is RecommendState.Success)
+            assertEquals(testPhotos, (state as RecommendState.Success).photos)
+        }
 
     @Test
-    fun recommendPhotoUnauthorizedTest() = runTest {
-        val unauthorizedResult =
-            RecommendRepository.RecommendResult.Unauthorized<List<PhotoResponse>>("Token expired")
-        whenever(recommendRepository.recommendPhotosFromTag(testTagAlbum.tagName))
-            .thenReturn(unauthorizedResult)
+    fun recommendPhotoErrorTest() =
+        runTest {
+            val errorResult =
+                RecommendRepository.RecommendResult.Error<List<PhotoResponse>>("Server Error")
+            whenever(recommendRepository.recommendPhotosFromTag(testTagAlbum.tagName))
+                .thenReturn(errorResult)
 
-        viewModel.recommendPhoto(testTagAlbum)
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+            viewModel.recommendPhoto(testTagAlbum)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
-        val state = viewModel.recommendState.value
-        assertTrue(state is RecommendState.Error)
-        assertEquals("Please login again", (state as RecommendState.Error).message)
-    }
+            val state = viewModel.recommendState.value
+            assertTrue(state is RecommendState.Error)
+            assertEquals("Server Error", (state as RecommendState.Error).message)
+        }
+
+    @Test
+    fun recommendPhotoUnauthorizedTest() =
+        runTest {
+            val unauthorizedResult =
+                RecommendRepository.RecommendResult.Unauthorized<List<PhotoResponse>>("Token expired")
+            whenever(recommendRepository.recommendPhotosFromTag(testTagAlbum.tagName))
+                .thenReturn(unauthorizedResult)
+
+            viewModel.recommendPhoto(testTagAlbum)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            val state = viewModel.recommendState.value
+            assertTrue(state is RecommendState.Error)
+            assertEquals("Please login again", (state as RecommendState.Error).message)
+        }
 
     // endregion
 
     // region saveTagAndPhotos Tests
     @Test
-    fun saveTagAndPhotosValidationErrorTagEmptyTest() = runTest {
-        tagNameFlow.value = "" // Empty tag name
-        selectedPhotosFlow.value = testPhotos // Valid photos
+    fun saveTagAndPhotosValidationErrorTagEmptyTest() =
+        runTest {
+            tagNameFlow.value = "" // Empty tag name
+            selectedPhotosFlow.value = testPhotos // Valid photos
 
-        viewModel.saveTagAndPhotos()
+            viewModel.saveTagAndPhotos()
 
-        val state = viewModel.saveState.value
-        assertTrue(state is AddTagViewModel.SaveState.Error)
-        assertEquals(
-            "Tag cannot be empty and photos must be selected",
-            (state as AddTagViewModel.SaveState.Error).message,
-        )
-        verify(remoteRepository, never()).postTags(any())
-    }
-
-    @Test
-    fun saveTagAndPhotosValidationErrorPhotosEmptyTest() = runTest {
-        tagNameFlow.value = "Test Tag" // Valid tag name
-        selectedPhotosFlow.value = emptyList() // Empty photos
-
-        viewModel.saveTagAndPhotos()
-
-        val state = viewModel.saveState.value
-        assertTrue(state is AddTagViewModel.SaveState.Error)
-        assertEquals(
-            "Tag cannot be empty and photos must be selected",
-            (state as AddTagViewModel.SaveState.Error).message,
-        )
-        verify(remoteRepository, never()).postTags(any())
-    }
+            val state = viewModel.saveState.value
+            assertTrue(state is AddTagViewModel.SaveState.Error)
+            assertEquals(
+                "Tag cannot be empty and photos must be selected",
+                (state as AddTagViewModel.SaveState.Error).message,
+            )
+            verify(remoteRepository, never()).postTags(any())
+        }
 
     @Test
-    fun saveTagAndPhotosTagCreationErrorTest() = runTest {
-        tagNameFlow.value = "Test Tag"
-        selectedPhotosFlow.value = testPhotos
-        // postTags는 Result<TagCreateResponse>를 반환합니다.
-        val errorResult = RemoteRepository.Result.Error<TagCreateResponse>(500, "Server Error")
-        whenever(remoteRepository.postTags("Test Tag")).thenReturn(errorResult)
+    fun saveTagAndPhotosValidationErrorPhotosEmptyTest() =
+        runTest {
+            tagNameFlow.value = "Test Tag" // Valid tag name
+            selectedPhotosFlow.value = emptyList() // Empty photos
 
-        viewModel.saveTagAndPhotos()
+            viewModel.saveTagAndPhotos()
 
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
-
-        // Check error state
-        val state = viewModel.saveState.value
-        assertTrue(state is AddTagViewModel.SaveState.Error)
-        assertEquals("Error creating tag", (state as AddTagViewModel.SaveState.Error).message)
-        verify(remoteRepository, never()).postTagsToPhoto(any(), any())
-    }
+            val state = viewModel.saveState.value
+            assertTrue(state is AddTagViewModel.SaveState.Error)
+            assertEquals(
+                "Tag cannot be empty and photos must be selected",
+                (state as AddTagViewModel.SaveState.Error).message,
+            )
+            verify(remoteRepository, never()).postTags(any())
+        }
 
     @Test
-    fun saveTagAndPhotosAddPhotoErrorTest() = runTest {
-        tagNameFlow.value = "Test Tag"
-        selectedPhotosFlow.value = testPhotos // p1 and p2
+    fun saveTagAndPhotosTagCreationErrorTest() =
+        runTest {
+            tagNameFlow.value = "Test Tag"
+            selectedPhotosFlow.value = testPhotos
+            // postTags는 Result<TagCreateResponse>를 반환합니다.
+            val errorResult = RemoteRepository.Result.Error<TagCreateResponse>(500, "Server Error")
+            whenever(remoteRepository.postTags("Test Tag")).thenReturn(errorResult)
 
-        val tagSuccessResult = RemoteRepository.Result.Success(TagCreateResponse(tagId = testTagId))
-        val photoSuccessResult = RemoteRepository.Result.Success(Unit)
-        val photoFailResult = RemoteRepository.Result.BadRequest<Unit>("Bad photo ID")
+            viewModel.saveTagAndPhotos()
 
-        whenever(remoteRepository.postTags("Test Tag")).thenReturn(tagSuccessResult)
-        whenever(remoteRepository.postTagsToPhoto(testPhoto1.photoId, testTagId))
-            .thenReturn(photoSuccessResult) // p1 succeeds
-        whenever(remoteRepository.postTagsToPhoto(testPhoto2.photoId, testTagId))
-            .thenReturn(photoFailResult) // p2 fails
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
-        viewModel.saveTagAndPhotos()
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
-
-        val state = viewModel.saveState.value
-        assertTrue(state is AddTagViewModel.SaveState.Error)
-        assertEquals(
-            "Bad Request: Bad photo ID", // ViewModel의 getErrorMessage 포맷에 맞춤
-            (state as AddTagViewModel.SaveState.Error).message,
-        )
-
-        // Verify calls
-        verify(remoteRepository).postTags("Test Tag")
-        verify(remoteRepository).postTagsToPhoto(testPhoto1.photoId, testTagId)
-        verify(remoteRepository).postTagsToPhoto(testPhoto2.photoId, testTagId)
-    }
+            // Check error state
+            val state = viewModel.saveState.value
+            assertTrue(state is AddTagViewModel.SaveState.Error)
+            assertEquals("Error creating tag", (state as AddTagViewModel.SaveState.Error).message)
+            verify(remoteRepository, never()).postTagsToPhoto(any(), any())
+        }
 
     @Test
-    fun saveTagAndPhotosSuccessTest() = runTest {
-        tagNameFlow.value = "Test Tag"
-        selectedPhotosFlow.value = testPhotos // p1 and p2
+    fun saveTagAndPhotosAddPhotoErrorTest() =
+        runTest {
+            tagNameFlow.value = "Test Tag"
+            selectedPhotosFlow.value = testPhotos // p1 and p2
 
-        val tagSuccessResult = RemoteRepository.Result.Success(TagCreateResponse(tagId = testTagId))
-        val photoSuccessResult = RemoteRepository.Result.Success(Unit)
+            val tagSuccessResult = RemoteRepository.Result.Success(TagCreateResponse(tagId = testTagId))
+            val photoSuccessResult = RemoteRepository.Result.Success(Unit)
+            val photoFailResult = RemoteRepository.Result.BadRequest<Unit>("Bad photo ID")
 
-        whenever(remoteRepository.postTags("Test Tag")).thenReturn(tagSuccessResult)
-        // Both photos succeed
-        whenever(remoteRepository.postTagsToPhoto(any(), eq(testTagId)))
-            .thenReturn(photoSuccessResult)
+            whenever(remoteRepository.postTags("Test Tag")).thenReturn(tagSuccessResult)
+            whenever(remoteRepository.postTagsToPhoto(testPhoto1.photoId, testTagId))
+                .thenReturn(photoSuccessResult) // p1 succeeds
+            whenever(remoteRepository.postTagsToPhoto(testPhoto2.photoId, testTagId))
+                .thenReturn(photoFailResult) // p2 fails
 
-        viewModel.saveTagAndPhotos()
-        mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+            viewModel.saveTagAndPhotos()
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
-        // Check success state
-        assertTrue(viewModel.saveState.value is AddTagViewModel.SaveState.Success)
+            val state = viewModel.saveState.value
+            assertTrue(state is AddTagViewModel.SaveState.Error)
+            assertEquals(
+                "Bad Request: Bad photo ID", // ViewModel의 getErrorMessage 포맷에 맞춤
+                (state as AddTagViewModel.SaveState.Error).message,
+            )
 
-        // Verify calls
-        verify(remoteRepository).postTags("Test Tag")
-        verify(remoteRepository, times(2)).postTagsToPhoto(any(), eq(testTagId))
-        verify(remoteRepository).postTagsToPhoto(testPhoto1.photoId, testTagId)
-        verify(remoteRepository).postTagsToPhoto(testPhoto2.photoId, testTagId)
-    }
+            // Verify calls
+            verify(remoteRepository).postTags("Test Tag")
+            verify(remoteRepository).postTagsToPhoto(testPhoto1.photoId, testTagId)
+            verify(remoteRepository).postTagsToPhoto(testPhoto2.photoId, testTagId)
+        }
+
+    @Test
+    fun saveTagAndPhotosSuccessTest() =
+        runTest {
+            tagNameFlow.value = "Test Tag"
+            selectedPhotosFlow.value = testPhotos // p1 and p2
+
+            val tagSuccessResult = RemoteRepository.Result.Success(TagCreateResponse(tagId = testTagId))
+            val photoSuccessResult = RemoteRepository.Result.Success(Unit)
+
+            whenever(remoteRepository.postTags("Test Tag")).thenReturn(tagSuccessResult)
+            // Both photos succeed
+            whenever(remoteRepository.postTagsToPhoto(any(), eq(testTagId)))
+                .thenReturn(photoSuccessResult)
+
+            viewModel.saveTagAndPhotos()
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Check success state
+            assertTrue(viewModel.saveState.value is AddTagViewModel.SaveState.Success)
+
+            // Verify calls
+            verify(remoteRepository).postTags("Test Tag")
+            verify(remoteRepository, times(2)).postTagsToPhoto(any(), eq(testTagId))
+            verify(remoteRepository).postTagsToPhoto(testPhoto1.photoId, testTagId)
+            verify(remoteRepository).postTagsToPhoto(testPhoto2.photoId, testTagId)
+        }
 
     // endregion
 }
