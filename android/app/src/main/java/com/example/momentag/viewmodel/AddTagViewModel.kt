@@ -118,6 +118,11 @@ class AddTagViewModel(
     }
 
     fun saveTagAndPhotos() {
+        // Reset error state on retry
+        if (_saveState.value is SaveState.Error) {
+            _saveState.value = SaveState.Idle
+        }
+
         if (tagName.value.isBlank() || selectedPhotos.value.isEmpty()) {
             _saveState.value = SaveState.Error("Tag cannot be empty and photos must be selected")
             return
