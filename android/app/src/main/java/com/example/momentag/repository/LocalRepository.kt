@@ -65,13 +65,19 @@ class LocalRepository(
         maxHeight: Int,
         quality: Int = 85,
     ): ByteArray? {
+        var bitmap: Bitmap? = null
+        var sampled: Bitmap? = null
+        var rotated: Bitmap? = null
+        var finalBitmap: Bitmap? = null
+        var baos: ByteArrayOutputStream? = null
+
         try {
             val cr = context.contentResolver
 
             // API 28 이상: ImageDecoder 사용
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val source = ImageDecoder.createSource(cr, contentUri)
-                val bitmap =
+                bitmap =
                     ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
                         val ow = info.size.width
                         val oh = info.size.height
@@ -103,7 +109,7 @@ class LocalRepository(
                         decoder.isMutableRequired = false
                     }
 
-                val baos = ByteArrayOutputStream()
+                baos = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
                 val bytes = baos.toByteArray()
                 baos.close()
@@ -131,18 +137,18 @@ class LocalRepository(
                 BitmapFactory.Options().apply {
                     this.inSampleSize = inSampleSize
                 }
-            val sampled =
+            sampled =
                 cr.openInputStream(contentUri)?.use {
                     BitmapFactory.decodeStream(it, null, decodeOpts)
                 } ?: return null
 
             // EXIF 회전/플립 보정
-            val rotated = applyExifRotation(cr, contentUri, sampled)
+            rotated = applyExifRotation(cr, contentUri, sampled)
 
             // 아직도 큰 경우, 비율 유지 Scale (최소 1픽셀 보장)
             val cw = rotated.width
             val ch = rotated.height
-            val finalBitmap =
+            finalBitmap =
                 if (cw > maxWidth || ch > maxHeight) {
                     val ratio =
                         minOf(
@@ -159,14 +165,37 @@ class LocalRepository(
                 }
 
             // JPEG 압축
-            val baos = ByteArrayOutputStream()
+            baos = ByteArrayOutputStream()
             finalBitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
             val bytes = baos.toByteArray()
             baos.close()
             finalBitmap.recycle()
             return bytes
         } catch (t: Throwable) {
-            // OOM 포함 모든 치명적 오류에 대해 null로 fail-safe
+            // OOM 포함 모든 치명적 오류 시 리소스 정리
+            try {
+                baos?.close()
+            } catch (_: Exception) {
+            }
+
+            // 생성된 비트맵들을 안전하게 recycle
+            try {
+                bitmap?.recycle()
+            } catch (_: Exception) {
+            }
+            try {
+                if (sampled != null && sampled !== rotated) sampled.recycle()
+            } catch (_: Exception) {
+            }
+            try {
+                if (rotated != null && rotated !== finalBitmap) rotated.recycle()
+            } catch (_: Exception) {
+            }
+            try {
+                finalBitmap?.recycle()
+            } catch (_: Exception) {
+            }
+
             return null
         }
     }
