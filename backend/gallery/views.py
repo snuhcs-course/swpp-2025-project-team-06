@@ -452,6 +452,10 @@ class GetPhotosByTagView(APIView):
 
             # response_data = {"photos": photos}
 
+            # return Response(
+            #     ResTagAlbumSerializer(
+            #         response_data).data, status=status.HTTP_200_OK
+            # )
             return Response(
                 photos, status=status.HTTP_200_OK
             )
@@ -578,7 +582,7 @@ class DeletePhotoTagsView(APIView):
             client = get_qdrant_client()
             tag = Tag.objects.get(tag_id=tag_id, user=request.user)
             if not client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME, ids=str(photo_id)
+                collection_name=IMAGE_COLLECTION_NAME, ids=[str(photo_id)]
             ):
                 return Response(
                     {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
