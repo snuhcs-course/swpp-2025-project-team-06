@@ -155,7 +155,7 @@ def tag_recommendation(user, photo_id):
 
     retrieved_points = client.retrieve(
         collection_name=IMAGE_COLLECTION_NAME,
-        ids=[photo_id],
+        ids=[str(photo_id)],
         with_vectors=True,
     )
 

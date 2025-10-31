@@ -186,7 +186,7 @@ class TaskFunctionsTest(TestCase):
 
         mock_client.retrieve.assert_called_once_with(
             collection_name="my_image_collection",
-            ids=[self.photo_id],
+            ids=[str(self.photo_id)],
             with_vectors=True,
         )
 
