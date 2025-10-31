@@ -105,53 +105,6 @@ def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
 
-
-# aggregates N similarity queries with Reciprocal Rank Fusion
-def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
-    LIMIT = 40
-    RRF_CONSTANT = 40
-
-    rep_vectors = retrieve_all_rep_vectors_of_tag(user_id, tag_id)
-
-    rrf_scores = defaultdict(float)
-    photo_id_to_path_id = {}
-
-    for rep_vector in rep_vectors:
-        img_points = client.query_points(
-            IMAGE_COLLECTION_NAME,
-            query=rep_vector,
-            with_payload=["photo_id", "photo_path_id"],
-            limit=LIMIT,
-        ).points
-
-        for i, img_point in enumerate(img_points):
-            photo_id = img_point.payload["photo_id"]
-            photo_path_id = img_point.payload["photo_path_id"]
-
-            rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
-            photo_id_to_path_id[photo_id] = photo_path_id
-
-    rrf_sorted = sorted(
-        rrf_scores.items(),
-        key=lambda item: item[1],
-        reverse=True,
-    )
-
-    tagged_photo_ids = (
-        Photo_Tag.objects.filter(user__id=user_id)
-        .filter(tag_id=tag_id)
-        .values_list("photo_id", flat=True)
-    )
-
-    recommendations = [
-        {"photo_id": photo_id, "photo_path_id": photo_id_to_path_id[photo_id]}
-        for (photo_id, _) in rrf_sorted
-        if photo_id not in tagged_photo_ids
-    ][:LIMIT]
-
-    return recommendations
-
-
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     client = get_qdrant_client()
     ALPHA = 0.5
@@ -356,11 +309,3 @@ def retrieve_photo_caption_graph(user: User):
         )
 
     return photo_set, caption_set, graph
-
-
-def is_valid_uuid(uuid_to_test):
-    try:
-        uuid.UUID(str(uuid_to_test))
-    except ValueError:
-        return False
-    return True
