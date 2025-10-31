@@ -15,7 +15,6 @@ from .reponse_serializers import (
     ResTagIdSerializer,
     ResTagVectorSerializer,
     ResStorySerializer,
-    ResTagAlbumSerializer,
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
@@ -399,8 +398,7 @@ class BulkDeletePhotoView(APIView):
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
-                points_selector=[str(photo_id)
-                                 for photo_id in photos_to_delete],
+                points_selector=[str(photo_id) for photo_id in photos_to_delete],
                 wait=True,
             )
 
@@ -424,7 +422,7 @@ class GetPhotosByTagView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success", schema=ResTagAlbumSerializer()
+                description="Success", schema=ResPhotoSerializer(many=True)
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -461,15 +459,9 @@ class GetPhotosByTagView(APIView):
                     }
                 )
 
-            # response_data = {"photos": photos}
+            serializer = ResPhotoSerializer(photos, many=True)
 
-            # return Response(
-            #     ResTagAlbumSerializer(
-            #         response_data).data, status=status.HTTP_200_OK
-            # )
-            return Response(
-                photos, status=status.HTTP_200_OK
-            )
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Photo_Tag.DoesNotExist:
             return Response(
                 {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
@@ -512,11 +504,13 @@ class PostPhotoTagsView(APIView):
 
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
+
             try:
                 User.objects.get(pk=request.user.pk)
             except User.DoesNotExist:
-                 return Response({"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED)
+                return Response(
+                    {"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED
+                )
 
             tag_ids = [data["tag_id"] for data in serializer.validated_data]
 
@@ -540,10 +534,7 @@ class PostPhotoTagsView(APIView):
                         continue  # Skip if the relationship already exists
 
                     Photo_Tag.objects.create(
-                        pt_id=pt_id, 
-                        photo_id=photo_id, 
-                        tag=tag, 
-                        user=request.user
+                        pt_id=pt_id, photo_id=photo_id, tag=tag, user=request.user
                     )
 
             # now update the metadata isTagged in Qdrant
@@ -647,7 +638,9 @@ class GetRecommendTagView(APIView):
         operation_description="Get recommended tag about a photo.",
         request_body=None,
         responses={
-            200: openapi.Response(description="Success", schema=TagSerializer()),
+            200: openapi.Response(
+                description="Success", schema=TagSerializer(many=True)
+            ),
             400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -682,14 +675,13 @@ class GetRecommendTagView(APIView):
                     {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-            tag, tag_id = tag_recommendation(request.user.id, photo_id)
+            tags = tag_recommendation(request.user, photo_id)
 
-            tag = {"tag_id": tag_id, "tag": tag}
-            response_serializer = TagSerializer(tag)
+            serializer = TagSerializer(tags, many=True)
 
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
+            print(str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -864,14 +856,14 @@ class TagView(APIView):
                 )
 
             if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
-                tag = Tag.objects.get(tag=data["tag"], user=request.user)
-                response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
-                return Response(response_serializer.data, status=status.HTTP_200_OK)
+                return Response(
+                    {"error": f"Tag {data['tag']} already exists"},
+                    status=status.HTTP_409_CONFLICT,
+                )
 
             new_tag = Tag.objects.create(tag=data["tag"], user=request.user)
 
-            response_serializer = ResTagIdSerializer(
-                {"tag_id": new_tag.tag_id})
+            response_serializer = ResTagIdSerializer({"tag_id": new_tag.tag_id})
 
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
