@@ -6,7 +6,11 @@ from celery import shared_task
 from qdrant_client import models
 
 from .vision_service import get_image_embedding, get_image_captions
-from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME, REPVEC_COLLECTION_NAME
+from .qdrant_utils import (
+    get_qdrant_client,
+    IMAGE_COLLECTION_NAME,
+    REPVEC_COLLECTION_NAME,
+)
 from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
 
 import time
@@ -105,6 +109,7 @@ def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
 
+
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     client = get_qdrant_client()
     ALPHA = 0.5
@@ -163,12 +168,13 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     ]
 
 
-def tag_recommendation(user_id, photo_id):
+def tag_recommendation(user, photo_id):
+    LIMIT = 10
     client = get_qdrant_client()
 
     retrieved_points = client.retrieve(
         collection_name=IMAGE_COLLECTION_NAME,
-        ids=[photo_id],
+        ids=[str(photo_id)],
         with_vectors=True,
     )
 
@@ -181,32 +187,32 @@ def tag_recommendation(user_id, photo_id):
         must=[
             models.FieldCondition(
                 key="user_id",
-                match=models.MatchValue(value=user_id),
+                match=models.MatchValue(value=user.id),
             )
         ]
     )
 
-    search_result = client.search(
+    search_results = client.search(
         collection_name=REPVEC_COLLECTION_NAME,
         query_vector=image_vector,
         query_filter=user_filter,
-        limit=1,
+        limit=LIMIT,
         with_payload=True,
     )
 
-    if not search_result:
-        return None, None
+    tag_ids = list(dict.fromkeys(result.payload["tag_id"] for result in search_results))
 
-    most_similar_point = search_result[0]
-    recommended_tag_id = most_similar_point.payload["tag_id"]
+    recommendations = []
 
-    try:
-        tag = Tag.objects.get(tag_id=recommended_tag_id)
-        recommended_tag_name = tag.tag
-    except Tag.DoesNotExist:
-        return None, None
+    for tag_id in tag_ids:
+        try:
+            tag = Tag.objects.get(tag_id=tag_id)
+            recommendations.append(tag)
+        except Tag.DoesNotExist:
+            continue
 
-    return recommended_tag_name, recommended_tag_id
+    return recommendations
+
 
 # aggregates N similarity queries with Reciprocal Rank Fusion
 def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
@@ -253,14 +259,6 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     ][:LIMIT]
 
     return recommendations
-
-def is_valid_uuid(uuid_to_test):
-    try:
-        uuid.UUID(str(uuid_to_test))
-    except ValueError:
-        return False
-    return True
-
 
 def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
     client = get_qdrant_client()
@@ -309,3 +307,11 @@ def retrieve_photo_caption_graph(user: User):
         )
 
     return photo_set, caption_set, graph
+
+
+def is_valid_uuid(uuid_to_test):
+    try:
+        uuid.UUID(str(uuid_to_test))
+    except ValueError:
+        return False
+    return True
