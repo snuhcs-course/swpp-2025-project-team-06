@@ -81,3 +81,18 @@ data class HomeScreenUiState(
     val userMessage: String? = null,
     val isUploadSuccess: Boolean = false,
 )
+
+sealed class PhotoTagState {
+    object Idle : PhotoTagState()
+
+    object Loading : PhotoTagState()
+
+    data class Success(
+        val existingTags: List<String>,
+        val recommendedTags: List<String>,
+    ) : PhotoTagState()
+
+    data class Error(
+        val message: String,
+    ) : PhotoTagState()
+}
