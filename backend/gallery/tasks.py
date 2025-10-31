@@ -6,7 +6,7 @@ from celery import shared_task
 from qdrant_client import models
 
 from .vision_service import get_image_embedding, get_image_captions
-from .qdrant_utils import client, IMAGE_COLLECTION_NAME, REPVEC_COLLECTION_NAME
+from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME, REPVEC_COLLECTION_NAME
 from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
 
 import time
@@ -38,6 +38,7 @@ def process_and_embed_photo(
     image_path, user_id, filename, photo_path_id, created_at, lat, lng
 ):
     try:
+        client = get_qdrant_client()
         # 파일이 실제로 생길 때까지 잠시 대기
         waited = 0
         while not os.path.exists(image_path) and waited < MAX_WAIT:
@@ -111,6 +112,7 @@ def create_query_embedding(query):
 
 # aggregates N similarity queries with Reciprocal Rank Fusion
 def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
+    client = get_qdrant_client()
     LIMIT = 40
     RRF_CONSTANT = 40
 
@@ -162,6 +164,7 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
 
 
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
+    client = get_qdrant_client()
     ALPHA = 0.5
     LIMIT = 20
 
@@ -219,6 +222,8 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
 
 
 def tag_recommendation(user_id, photo_id):
+    client = get_qdrant_client()
+
     retrieved_points = client.retrieve(
         collection_name=IMAGE_COLLECTION_NAME,
         ids=[photo_id],
@@ -261,8 +266,16 @@ def tag_recommendation(user_id, photo_id):
 
     return recommended_tag_name, recommended_tag_id
 
+def is_valid_uuid(uuid_to_test):
+    try:
+        uuid.UUID(str(uuid_to_test))
+    except ValueError:
+        return False
+    return True
+
 
 def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
+    client = get_qdrant_client()
     LIMIT = 32  # assert max num of rep vectors <= 32
 
     filters = models.Filter(
@@ -321,6 +334,7 @@ def is_valid_uuid(uuid_to_test):
 
 @shared_task
 def compute_and_store_rep_vectors(user_id: int, tag_id: str):
+    client = get_qdrant_client()
     K_CLUSTERS = 3           # 기본 코드의 k = 3
     OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
     MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수 (기본 코드 기준)

@@ -45,12 +45,20 @@ fun appNavigation() {
 
         composable(
             route = Screen.Album.route,
-            arguments = listOf(navArgument("tagName") { type = NavType.StringType }),
+            arguments =
+                listOf(
+                    navArgument("tagId") { type = NavType.StringType },
+                    navArgument("tagName") { type = NavType.StringType },
+                ),
         ) { backStackEntry ->
+            val encodedTagId = backStackEntry.arguments?.getString("tagId") ?: ""
+            val tagId = URLDecoder.decode(encodedTagId, StandardCharsets.UTF_8.toString())
+
             val encodedTag = backStackEntry.arguments?.getString("tagName") ?: ""
             val tagName = URLDecoder.decode(encodedTag, StandardCharsets.UTF_8.toString())
 
             AlbumScreen(
+                tagId = tagId,
                 tagName = tagName,
                 navController = navController,
                 onNavigateBack = {
@@ -61,13 +69,20 @@ fun appNavigation() {
 
         composable(
             route = Screen.Image.route,
-            arguments = listOf(navArgument("imageUri") { type = NavType.StringType }),
+            arguments =
+                listOf(
+                    navArgument("imageId") { type = NavType.StringType },
+                    navArgument("imageUri") { type = NavType.StringType },
+                ),
         ) { backStackEntry ->
             val encodedUriString = backStackEntry.arguments?.getString("imageUri")
             val decodedUri = encodedUriString?.let { Uri.decode(it).toUri() }
 
+            val imageId = backStackEntry.arguments?.getString("imageId") ?: ""
+
             ImageDetailScreen(
                 imageUri = decodedUri,
+                imageId = imageId,
                 onNavigateBack = { navController.popBackStack() },
             )
         }

@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,8 +54,10 @@ import com.example.momentag.viewmodel.ViewModelFactory
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelectImageScreen(navController: NavController) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
+
+    // TODO: GET /api/photos/
+    val context = LocalContext.current
 
     // Screen-scoped ViewModel using DraftTagRepository
     val selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
@@ -87,6 +90,12 @@ fun SelectImageScreen(navController: NavController) {
 
     val onPhotoClick: (Photo) -> Unit = { photo ->
         selectImageViewModel.togglePhoto(photo)
+    }
+
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            selectImageViewModel.getAllPhotos()
+        }
     }
 
     Scaffold(
