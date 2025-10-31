@@ -13,6 +13,10 @@ import time
 
 from sentence_transformers import SentenceTransformer
 
+import numpy as np
+from sklearn.ensemble import IsolationForest
+from sklearn.cluster import KMeans
+
 _TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 _text_model = None  # 전역 캐시
 
@@ -110,20 +114,26 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
     LIMIT = 40
     RRF_CONSTANT = 40
 
-    rep_vectors = retrieve_all_rep_vectors_of_tag(user_id, tag_id)
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        print(f"[Error] User {user_id} not found.")
+        return []
+    
+    rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
 
     rrf_scores = defaultdict(float)
     photo_id_to_path_id = {}
 
     for rep_vector in rep_vectors:
-        img_points = client.query_points(
+        search_result = client.search(
             IMAGE_COLLECTION_NAME,
-            query=rep_vector,
+            query_vector=rep_vector,
             with_payload=["photo_id", "photo_path_id"],
             limit=LIMIT,
-        ).points
+        )
 
-        for i, img_point in enumerate(img_points):
+        for i, img_point in enumerate(search_result):
             photo_id = img_point.payload["photo_id"]
             photo_path_id = img_point.payload["photo_path_id"]
 
@@ -136,8 +146,8 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
         reverse=True,
     )
 
-    tagged_photo_ids = (
-        Photo_Tag.objects.filter(user__id=user_id)
+    tagged_photo_ids = set(
+        str(pid) for pid in Photo_Tag.objects.filter(user__id=user_id)
         .filter(tag_id=tag_id)
         .values_list("photo_id", flat=True)
     )
@@ -288,13 +298,14 @@ def retrieve_photo_caption_graph(user: User):
         if photo_caption.photo_id not in photo_set:
             photo_set.add(photo_caption.photo_id)
             graph.add_node(photo_caption.photo_id, bipartite=0)
-
-        if photo_caption.caption.caption_id not in caption_set:
-            caption_set.add(photo_caption.caption.caption_id)
-            graph.add_node(photo_caption.caption, bipartite=1)
+            
+        caption_id = photo_caption.caption.caption_id
+        if caption_id not in caption_set:
+            caption_set.add(caption_id)
+            graph.add_node(caption_id, bipartite=1)
 
         graph.add_edge(
-            photo_caption.photo_id, photo_caption.caption, weight=photo_caption.weight
+            photo_caption.photo_id, caption_id, weight=photo_caption.weight
         )
 
     return photo_set, caption_set, graph
