@@ -450,11 +450,10 @@ class GetPhotosByTagView(APIView):
                     }
                 )
 
-            response_data = {"photos": photos}
+            # response_data = {"photos": photos}
 
             return Response(
-                ResTagAlbumSerializer(
-                    response_data).data, status=status.HTTP_200_OK
+                photos, status=status.HTTP_200_OK
             )
         except Photo_Tag.DoesNotExist:
             return Response(
