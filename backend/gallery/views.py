@@ -26,7 +26,7 @@ from .request_serializers import (
 )
 
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag, User
+from .models import Photo_Tag, Tag
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -514,19 +514,23 @@ class PostPhotoTagsView(APIView):
                     {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-            for tag_id in tag_ids:
-                pt_id = uuid.uuid4()
+            with transaction.atomic():
+                for tag_id in tag_ids:
+                    pt_id = uuid.uuid4()
 
-                tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+                    tag = Tag.objects.get(tag_id=tag_id, user=request.user)
 
-                if Photo_Tag.objects.filter(
-                    photo_id=photo_id, tag=tag, user=request.user
-                ).exists():
-                    continue  # Skip if the relationship already exists
+                    if Photo_Tag.objects.filter(
+                        photo_id=photo_id, tag=tag, user=request.user
+                    ).exists():
+                        continue  # Skip if the relationship already exists
 
-                Photo_Tag.objects.create(
-                    pt_id=pt_id, photo_id=photo_id, tag=tag, user=request.user
-                )
+                    Photo_Tag.objects.create(
+                        pt_id=pt_id, 
+                        photo_id=photo_id, 
+                        tag=tag, 
+                        user=request.user
+                    )
 
             # now update the metadata isTagged in Qdrant
             client.set_payload(
@@ -573,6 +577,14 @@ class DeletePhotoTagsView(APIView):
     def delete(self, request, photo_id, tag_id):
         try:
             client = get_qdrant_client()
+            Tag.objects.get(tag_id=tag_id, user=request.user)
+            if not client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME, ids=str(photo_id)
+            ):
+                return Response(
+                    {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
+                )
+
             photo_tag = Photo_Tag.objects.get(
                 photo_id=photo_id, tag=tag, user=request.user
             )
@@ -601,6 +613,7 @@ class DeletePhotoTagsView(APIView):
                 {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            print(str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -695,13 +708,13 @@ class PhotoRecommendationView(APIView):
     )
     def get(self, request, tag_id, *args, **kwargs):
         try:
-            if not Tag.objects.filter(tag_id=tag_id, user__id=request.user.id).exists():
+            if not Tag.objects.filter(tag_id=tag_id, user=request.user).exists():
                 return Response(
                     {"error": f"No tag with id {tag_id}"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            photos = recommend_photo_from_tag(request.user.id, tag_id)
+            photos = recommend_photo_from_tag(request.user, tag_id)
 
             return Response(photos, status=status.HTTP_200_OK)
 

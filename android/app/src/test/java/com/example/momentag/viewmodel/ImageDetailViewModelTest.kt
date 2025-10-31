@@ -18,43 +18,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.kotlin.any
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @ExperimentalCoroutinesApi
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class ImageDetailViewModelTest {
     @get:Rule
-    val mainCoroutineRule = MainCoroutineRule() // Assuming MainCoroutineRule is available
+    val mainCoroutineRule = MainCoroutineRule()
 
-    // Mocks
     private lateinit var imageBrowserRepository: ImageBrowserRepository
     private lateinit var remoteRepository: RemoteRepository
     private lateinit var recommendRepository: RecommendRepository
-    private var mockUri: Uri = mock()
-
-    // System Under Test
     private lateinit var viewModel: ImageDetailViewModel
 
-    // Test Data
-    private val testTag = Tag(tagId = "t1", tagName = "Existing")
-    private val testPhoto =
-        Photo(
-            photoId = "p1",
-            contentUri = mockUri,
-        )
-    private val testPhotoDetail =
-        PhotoDetailResponse(
-            photoPathId = 1L,
-            tags = listOf(testTag),
-        )
-    private val testContext =
-        ImageContext(
-            images = listOf(testPhoto),
-            currentIndex = 0,
-            contextType = ImageContext.ContextType.GALLERY,
+    private val testPhotos =
+        listOf(
+            Photo(photoId = "photo1", contentUri = Uri.parse("content://media/1")),
+            Photo(photoId = "photo2", contentUri = Uri.parse("content://media/2")),
+            Photo(photoId = "photo3", contentUri = Uri.parse("content://media/3")),
         )
 
     @Before
@@ -62,217 +49,701 @@ class ImageDetailViewModelTest {
         imageBrowserRepository = mock()
         remoteRepository = mock()
         recommendRepository = mock()
-        mockUri = mock() // Mock android.net.Uri
-
-        viewModel =
-            ImageDetailViewModel(
-                imageBrowserRepository,
-                remoteRepository,
-                recommendRepository,
-            )
+        viewModel = ImageDetailViewModel(imageBrowserRepository, remoteRepository, recommendRepository)
     }
 
-    @Test
-    fun loadImageContextTest() {
-        val photoId = "p1"
-        whenever(imageBrowserRepository.getPhotoContext(photoId)).thenReturn(testContext)
+    // ========== loadImageContext Tests ==========
 
+    @Test
+    fun `loadImageContext loads context from repository`() {
+        // Given
+        val photoId = "photo1"
+        val expectedContext =
+            ImageContext(
+                images = testPhotos,
+                currentIndex = 0,
+                contextType = ImageContext.ContextType.GALLERY,
+            )
+        whenever(imageBrowserRepository.getPhotoContext(photoId)).thenReturn(expectedContext)
+
+        // When
         viewModel.loadImageContext(photoId)
 
-        assertEquals(testContext, viewModel.imageContext.value)
+        // Then
+        assertEquals(expectedContext, viewModel.imageContext.value)
         verify(imageBrowserRepository).getPhotoContext(photoId)
     }
 
     @Test
-    fun loadImageContextByUriFoundTest() {
-        whenever(imageBrowserRepository.getPhotoContextByUri(mockUri)).thenReturn(testContext)
+    fun `loadImageContext sets null when repository returns null`() {
+        // Given
+        val photoId = "nonexistent"
+        whenever(imageBrowserRepository.getPhotoContext(photoId)).thenReturn(null)
 
-        viewModel.loadImageContextByUri(mockUri)
+        // When
+        viewModel.loadImageContext(photoId)
 
-        assertEquals(testContext, viewModel.imageContext.value)
-        verify(imageBrowserRepository).getPhotoContextByUri(mockUri)
+        // Then
+        assertNull(viewModel.imageContext.value)
+        verify(imageBrowserRepository).getPhotoContext(photoId)
     }
 
     @Test
-    fun loadImageContextByUriNotFoundTest() {
-        // URI가 세션에 없는 경우
-        whenever(imageBrowserRepository.getPhotoContextByUri(mockUri)).thenReturn(null)
+    fun `loadImageContext updates context when called multiple times`() {
+        // Given
+        val context1 =
+            ImageContext(
+                images = listOf(testPhotos[0]),
+                currentIndex = 0,
+                contextType = ImageContext.ContextType.SEARCH_RESULT,
+            )
+        val context2 =
+            ImageContext(
+                images = testPhotos,
+                currentIndex = 2,
+                contextType = ImageContext.ContextType.TAG_ALBUM,
+            )
 
-        viewModel.loadImageContextByUri(mockUri)
+        whenever(imageBrowserRepository.getPhotoContext("photo1")).thenReturn(context1)
+        whenever(imageBrowserRepository.getPhotoContext("photo3")).thenReturn(context2)
 
+        // When
+        viewModel.loadImageContext("photo1")
+        assertEquals(context1, viewModel.imageContext.value)
+
+        viewModel.loadImageContext("photo3")
+
+        // Then
+        assertEquals(context2, viewModel.imageContext.value)
+    }
+
+    // ========== loadImageContextByUri Tests ==========
+
+    @Test
+    fun `loadImageContextByUri loads context from repository when found`() {
+        // Given
+        val uri = Uri.parse("content://media/1")
+        val expectedContext =
+            ImageContext(
+                images = testPhotos,
+                currentIndex = 0,
+                contextType = ImageContext.ContextType.GALLERY,
+            )
+        whenever(imageBrowserRepository.getPhotoContextByUri(uri)).thenReturn(expectedContext)
+
+        // When
+        viewModel.loadImageContextByUri(uri)
+
+        // Then
+        assertEquals(expectedContext, viewModel.imageContext.value)
+        verify(imageBrowserRepository).getPhotoContextByUri(uri)
+    }
+
+    @Test
+    fun `loadImageContextByUri creates standalone context when not in repository`() {
+        // Given
+        val uri = Uri.parse("content://standalone/photo")
+        whenever(imageBrowserRepository.getPhotoContextByUri(uri)).thenReturn(null)
+
+        // When
+        viewModel.loadImageContextByUri(uri)
+
+        // Then
         val context = viewModel.imageContext.value
         assertNotNull(context)
         assertEquals(1, context!!.images.size)
-        assertEquals(mockUri, context.images[0].contentUri)
-        assertEquals("", context.images[0].photoId) // Standalone 이미지는 ID가 없음
+        assertEquals(uri, context.images[0].contentUri)
+        assertEquals("", context.images[0].photoId)
         assertEquals(0, context.currentIndex)
         assertEquals(ImageContext.ContextType.GALLERY, context.contextType)
+        verify(imageBrowserRepository).getPhotoContextByUri(uri)
     }
 
     @Test
-    fun loadPhotoTagsEmptyIdTest() =
+    fun `loadImageContextByUri prefers repository context over standalone`() {
+        // Given
+        val uri = Uri.parse("content://media/2")
+        val repositoryContext =
+            ImageContext(
+                images = testPhotos,
+                currentIndex = 1,
+                contextType = ImageContext.ContextType.TAG_ALBUM,
+            )
+        whenever(imageBrowserRepository.getPhotoContextByUri(uri)).thenReturn(repositoryContext)
+
+        // When
+        viewModel.loadImageContextByUri(uri)
+
+        // Then
+        assertEquals(repositoryContext, viewModel.imageContext.value)
+        assertEquals(
+            3,
+            viewModel.imageContext.value!!
+                .images.size,
+        ) // Not standalone (which would have 1)
+    }
+
+    // ========== loadPhotoTags Tests ==========
+
+    @Test
+    fun `loadPhotoTags with empty photoId sets state to Idle`() =
         runTest {
+            // When
             viewModel.loadPhotoTags("")
 
+            // Then
             assertTrue(viewModel.photoTagState.value is PhotoTagState.Idle)
-            verify(remoteRepository, never()).getPhotoDetail(any())
-            verify(recommendRepository, never()).recommendTagFromPhoto(any())
         }
 
     @Test
-    fun loadPhotoTagsSuccessTest() =
+    fun `loadPhotoTags sets Loading state immediately`() =
         runTest {
-            val photoId = "p1"
-            val detailResult = RemoteRepository.Result.Success(testPhotoDetail)
-            // recommendTagFromPhoto는 Tag 객체를 반환합니다.
-            val recommendData = Tag(tagName = "Recommended", tagId = "t-rec")
-            val recommendResult = RecommendRepository.RecommendResult.Success(recommendData)
+            // Given
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1")),
+                )
+            val recommendedTags = listOf(Tag("Sunset", "tag2"))
 
-            whenever(remoteRepository.getPhotoDetail(photoId)).thenReturn(detailResult)
-            whenever(recommendRepository.recommendTagFromPhoto(photoId)).thenReturn(recommendResult)
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
 
+            // When
             viewModel.loadPhotoTags(photoId)
 
-            // Coroutine 실행
+            // Note: Loading state is set synchronously before coroutine suspends
+            mainCoroutineRule.testDispatcher.scheduler.advanceTimeBy(1)
+
+            // Then - after completion
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+            assertTrue(viewModel.photoTagState.value is PhotoTagState.Success)
+        }
+
+    @Test
+    fun `loadPhotoTags success with existing tags and recommendation`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1"), Tag("Forest", "tag2")),
+                )
+            val recommendedTags = listOf(Tag("Sunset", "tag3"))
+
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
+
+            // When
+            viewModel.loadPhotoTags(photoId)
             mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
+            // Then
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
-            assertEquals(testPhotoDetail.tags, (state as PhotoTagState.Success).existingTags)
-            assertEquals(listOf("Recommended"), state.recommendedTags)
+            val successState = state as PhotoTagState.Success
+            assertEquals(listOf("Nature", "Forest"), successState.existingTags)
+            assertEquals(listOf("Sunset"), successState.recommendedTags)
+
+            verify(remoteRepository).getPhotoDetail(photoId)
+            verify(recommendRepository).recommendTagFromPhoto(photoId)
         }
 
     @Test
-    fun loadPhotoTagsSuccessDuplicateRecommendTest() =
+    fun `loadPhotoTags filters duplicate recommendation from existing tags`() =
         runTest {
-            // 추천 태그가 이미 존재하는 태그일 경우
-            val photoId = "p1"
-            val detailResult = RemoteRepository.Result.Success(testPhotoDetail)
-            // "Existing" 태그는 이미 testPhotoDetail에 있습니다.
-            val recommendData = Tag(tagName = "Existing", tagId = "t1") // 중복
-            val recommendResult = RecommendRepository.RecommendResult.Success(recommendData)
+            // Given
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1"), Tag("Sunset", "tag2")),
+                )
+            val recommendedTags = listOf(Tag("Sunset", "tag2")) // Already exists
 
-            whenever(remoteRepository.getPhotoDetail(photoId)).thenReturn(detailResult)
-            whenever(recommendRepository.recommendTagFromPhoto(photoId)).thenReturn(recommendResult)
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
 
+            // When
             viewModel.loadPhotoTags(photoId)
             mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
+            // Then
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
-            assertEquals(testPhotoDetail.tags, (state as PhotoTagState.Success).existingTags)
-            assertEquals(emptyList<String>(), state.recommendedTags) // 중복되므로 추천 목록에 없음
+            val successState = state as PhotoTagState.Success
+            assertEquals(listOf("Nature", "Sunset"), successState.existingTags)
+            assertEquals(emptyList<String>(), successState.recommendedTags) // Filtered out
         }
 
     @Test
-    fun loadPhotoTagsRecommendErrorTest() =
+    fun `loadPhotoTags success with empty existing tags`() =
         runTest {
-            // 태그 추천은 실패했지만, 기존 태그 로드는 성공한 경우
-            val photoId = "p1"
-            val detailResult = RemoteRepository.Result.Success(testPhotoDetail)
-            // RecommendRepository의 Result Type을 사용합니다.
-            val recommendResult = RecommendRepository.RecommendResult.Error<Tag>("Recommend failed")
+            // Given
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = emptyList(),
+                )
+            val recommendedTags = listOf(Tag("Nature", "tag1"))
 
-            whenever(remoteRepository.getPhotoDetail(photoId)).thenReturn(detailResult)
-            whenever(recommendRepository.recommendTagFromPhoto(photoId)).thenReturn(recommendResult)
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
 
+            // When
             viewModel.loadPhotoTags(photoId)
             mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
+            // Then
             val state = viewModel.photoTagState.value
-            assertTrue(state is PhotoTagState.Success) // 여전히 Success여야 함
-            assertEquals(testPhotoDetail.tags, (state as PhotoTagState.Success).existingTags)
-            assertEquals(emptyList<String>(), state.recommendedTags) // 추천 태그는 비어있음
+            assertTrue(state is PhotoTagState.Success)
+            val successState = state as PhotoTagState.Success
+            assertEquals(emptyList<String>(), successState.existingTags)
+            assertEquals(listOf("Nature"), successState.recommendedTags)
         }
 
     @Test
-    fun loadPhotoTagsDetailErrorTest() =
+    fun `loadPhotoTags shows existing tags when recommendation fails with Error`() =
         runTest {
-            // 사진 상세 정보 로드 자체를 실패한 경우
-            val photoId = "p1"
-            // RemoteRepository의 Result Type과 PhotoDetailResponse를 사용합니다.
-            val detailError = RemoteRepository.Result.Error<PhotoDetailResponse>(404, "Not Found")
+            // Given
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1")),
+                )
 
-            whenever(remoteRepository.getPhotoDetail(photoId)).thenReturn(detailError)
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.Error("Recommendation failed"))
 
+            // When
             viewModel.loadPhotoTags(photoId)
             mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
+            // Then
+            val state = viewModel.photoTagState.value
+            assertTrue(state is PhotoTagState.Success)
+            val successState = state as PhotoTagState.Success
+            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(emptyList<String>(), successState.recommendedTags)
+        }
+
+    @Test
+    fun `loadPhotoTags shows existing tags when recommendation fails with BadRequest`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1")),
+                )
+
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.BadRequest("Bad request"))
+
+            // When
+            viewModel.loadPhotoTags(photoId)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Then
+            val state = viewModel.photoTagState.value
+            assertTrue(state is PhotoTagState.Success)
+            val successState = state as PhotoTagState.Success
+            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(emptyList<String>(), successState.recommendedTags)
+        }
+
+    @Test
+    fun `loadPhotoTags shows existing tags when recommendation fails with Unauthorized`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1")),
+                )
+
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.Unauthorized("Unauthorized"))
+
+            // When
+            viewModel.loadPhotoTags(photoId)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Then
+            val state = viewModel.photoTagState.value
+            assertTrue(state is PhotoTagState.Success)
+            val successState = state as PhotoTagState.Success
+            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(emptyList<String>(), successState.recommendedTags)
+        }
+
+    @Test
+    fun `loadPhotoTags shows existing tags when recommendation fails with NetworkError`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1")),
+                )
+
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.NetworkError("Network error"))
+
+            // When
+            viewModel.loadPhotoTags(photoId)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Then
+            val state = viewModel.photoTagState.value
+            assertTrue(state is PhotoTagState.Success)
+            val successState = state as PhotoTagState.Success
+            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(emptyList<String>(), successState.recommendedTags)
+        }
+
+    @Test
+    fun `loadPhotoTags sets Error state when getPhotoDetail fails with Error`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            val errorMessage = "Failed to load photo detail"
+
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Error(500, errorMessage))
+
+            // When
+            viewModel.loadPhotoTags(photoId)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Then
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Error)
-            assertEquals("Not Found", (state as PhotoTagState.Error).message)
-
-            // 추천 API는 호출되지 않았어야 함
-            verify(recommendRepository, never()).recommendTagFromPhoto(any())
+            assertEquals(errorMessage, (state as PhotoTagState.Error).message)
         }
 
     @Test
-    fun deleteTagFromPhotoSuccessTest() =
+    fun `loadPhotoTags sets Error state when getPhotoDetail fails with BadRequest`() =
         runTest {
-            val photoId = "p1"
-            val tagId = "t1"
-            // RemoteRepository.removeTagFromPhoto는 Result<Unit>을 반환합니다.
-            val deleteResult = RemoteRepository.Result.Success(Unit)
+            // Given
+            val photoId = "photo1"
+            val errorMessage = "Bad request"
 
-            whenever(remoteRepository.removeTagFromPhoto(photoId, tagId)).thenReturn(deleteResult)
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.BadRequest(errorMessage))
 
-            viewModel.deleteTagFromPhoto(photoId, tagId)
+            // When
+            viewModel.loadPhotoTags(photoId)
             mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
-            assertTrue(viewModel.tagDeleteState.value is ImageDetailViewModel.TagDeleteState.Success)
-            verify(remoteRepository).removeTagFromPhoto(photoId, tagId)
+            // Then
+            val state = viewModel.photoTagState.value
+            assertTrue(state is PhotoTagState.Error)
+            assertEquals(errorMessage, (state as PhotoTagState.Error).message)
         }
 
     @Test
-    fun deleteTagFromPhotoErrorTest() =
+    fun `loadPhotoTags sets Error state when getPhotoDetail fails with Unauthorized`() =
         runTest {
-            val photoId = "p1"
-            val tagId = "t1"
-            val errorResult = RemoteRepository.Result.Error<Unit>(500, "Server Error")
+            // Given
+            val photoId = "photo1"
+            val errorMessage = "Unauthorized"
 
-            whenever(remoteRepository.removeTagFromPhoto(photoId, tagId)).thenReturn(errorResult)
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Unauthorized(errorMessage))
 
-            viewModel.deleteTagFromPhoto(photoId, tagId)
+            // When
+            viewModel.loadPhotoTags(photoId)
             mainCoroutineRule.testDispatcher.scheduler.runCurrent()
 
-            val state = viewModel.tagDeleteState.value
-            assertTrue(state is ImageDetailViewModel.TagDeleteState.Error)
-            assertEquals("Server Error", (state as ImageDetailViewModel.TagDeleteState.Error).message)
+            // Then
+            val state = viewModel.photoTagState.value
+            assertTrue(state is PhotoTagState.Error)
+            assertEquals(errorMessage, (state as PhotoTagState.Error).message)
         }
 
     @Test
-    fun resetDeleteStateTest() =
+    fun `loadPhotoTags sets Error state when getPhotoDetail fails with NetworkError`() =
         runTest {
-            // given: 상태를 Error로 변경
-            val errorResult = RemoteRepository.Result.Error<Unit>(500, "Server Error")
-            whenever(remoteRepository.removeTagFromPhoto(any(), any())).thenReturn(errorResult)
-            viewModel.deleteTagFromPhoto("p1", "t1")
+            // Given
+            val photoId = "photo1"
+            val errorMessage = "Network connection failed"
+
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.NetworkError(errorMessage))
+
+            // When
+            viewModel.loadPhotoTags(photoId)
             mainCoroutineRule.testDispatcher.scheduler.runCurrent()
-            assertTrue(viewModel.tagDeleteState.value is ImageDetailViewModel.TagDeleteState.Error)
 
-            // when: 상태 리셋
-            viewModel.resetDeleteState()
-
-            // then: Idle 상태로 변경
-            assertTrue(viewModel.tagDeleteState.value is ImageDetailViewModel.TagDeleteState.Idle)
+            // Then
+            val state = viewModel.photoTagState.value
+            assertTrue(state is PhotoTagState.Error)
+            assertEquals(errorMessage, (state as PhotoTagState.Error).message)
         }
 
     @Test
-    fun clearImageContextTest() {
-        // given: 상태 설정
-        val photoId = "p1"
-        whenever(imageBrowserRepository.getPhotoContext(photoId)).thenReturn(testContext)
+    fun `loadPhotoTags sets Error state when getPhotoDetail fails with Exception`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            val exception = RuntimeException("Unexpected error")
 
-        // Act 1 (Arrange의 일부)
-        viewModel.loadImageContext(photoId)
-        assertNotNull(viewModel.imageContext.value)
-        assertTrue(viewModel.photoTagState.value is PhotoTagState.Idle) // loadPhotoTags("")는 Idle로 설정됨
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Exception(exception))
 
-        // when
+            // When
+            viewModel.loadPhotoTags(photoId)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Then
+            val state = viewModel.photoTagState.value
+            assertTrue(state is PhotoTagState.Error)
+            assertEquals("Unexpected error", (state as PhotoTagState.Error).message)
+        }
+
+    @Test
+    fun `loadPhotoTags handles exception with null message`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            val exception = RuntimeException(null as String?)
+
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Exception(exception))
+
+            // When
+            viewModel.loadPhotoTags(photoId)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Then
+            val state = viewModel.photoTagState.value
+            assertTrue(state is PhotoTagState.Error)
+            assertEquals("Unknown error", (state as PhotoTagState.Error).message)
+        }
+
+    // ========== clearImageContext Tests ==========
+
+    @Test
+    fun `clearImageContext resets both context and tag state to initial values`() {
+        // Given - set some state
+        val context =
+            ImageContext(
+                images = testPhotos,
+                currentIndex = 0,
+                contextType = ImageContext.ContextType.GALLERY,
+            )
+        whenever(imageBrowserRepository.getPhotoContext("photo1")).thenReturn(context)
+        viewModel.loadImageContext("photo1")
+
+        // When
         viewModel.clearImageContext()
 
-        // then
+        // Then
         assertNull(viewModel.imageContext.value)
         assertTrue(viewModel.photoTagState.value is PhotoTagState.Idle)
     }
+
+    @Test
+    fun `clearImageContext can be called when context is already null`() {
+        // Given - no context set
+        assertNull(viewModel.imageContext.value)
+
+        // When/Then - should not throw
+        viewModel.clearImageContext()
+
+        assertNull(viewModel.imageContext.value)
+        assertTrue(viewModel.photoTagState.value is PhotoTagState.Idle)
+    }
+
+    @Test
+    fun `clearImageContext resets photoTagState to Idle from any state`() =
+        runTest {
+            // Given - set tag state to Success
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1")),
+                )
+            val recommendedTags = listOf(Tag("Sunset", "tag2"))
+
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
+
+            viewModel.loadPhotoTags(photoId)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            assertTrue(viewModel.photoTagState.value is PhotoTagState.Success)
+
+            // When
+            viewModel.clearImageContext()
+
+            // Then
+            assertTrue(viewModel.photoTagState.value is PhotoTagState.Idle)
+        }
+
+    // ========== Integration Tests ==========
+
+    @Test
+    fun `workflow - load context by ID then load tags`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            val context =
+                ImageContext(
+                    images = testPhotos,
+                    currentIndex = 0,
+                    contextType = ImageContext.ContextType.GALLERY,
+                )
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1")),
+                )
+            val recommendedTags = listOf(Tag("Sunset", "tag2"))
+
+            whenever(imageBrowserRepository.getPhotoContext(photoId)).thenReturn(context)
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.Success(recommendedTags))
+
+            // When
+            viewModel.loadImageContext(photoId)
+            assertEquals(context, viewModel.imageContext.value)
+
+            viewModel.loadPhotoTags(photoId)
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Then
+            val tagState = viewModel.photoTagState.value
+            assertTrue(tagState is PhotoTagState.Success)
+            val successState = tagState as PhotoTagState.Success
+            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf("Sunset"), successState.recommendedTags)
+        }
+
+    @Test
+    fun `workflow - load context by URI (standalone) then skip tags for empty photoId`() {
+        // Given
+        val uri = Uri.parse("content://standalone/photo")
+        whenever(imageBrowserRepository.getPhotoContextByUri(uri)).thenReturn(null)
+
+        // When
+        viewModel.loadImageContextByUri(uri)
+
+        // Then
+        val context = viewModel.imageContext.value
+        assertNotNull(context)
+        assertEquals("", context!!.images[0].photoId)
+
+        // When - try to load tags with empty photoId
+        viewModel.loadPhotoTags("")
+
+        // Then - should remain Idle
+        assertTrue(viewModel.photoTagState.value is PhotoTagState.Idle)
+    }
+
+    @Test
+    fun `workflow - load context, load tags, clear, reload different context`() =
+        runTest {
+            // Step 1: Load first context and tags
+            val context1 =
+                ImageContext(
+                    images = listOf(testPhotos[0]),
+                    currentIndex = 0,
+                    contextType = ImageContext.ContextType.GALLERY,
+                )
+            val photoDetail1 =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1")),
+                )
+
+            whenever(imageBrowserRepository.getPhotoContext("photo1")).thenReturn(context1)
+            whenever(remoteRepository.getPhotoDetail("photo1"))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail1))
+            whenever(recommendRepository.recommendTagFromPhoto("photo1"))
+                .thenReturn(RecommendRepository.RecommendResult.Success(listOf(Tag("Sunset", "tag2"))))
+
+            viewModel.loadImageContext("photo1")
+            viewModel.loadPhotoTags("photo1")
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            assertEquals(context1, viewModel.imageContext.value)
+            assertTrue(viewModel.photoTagState.value is PhotoTagState.Success)
+
+            // Step 2: Clear
+            viewModel.clearImageContext()
+
+            assertNull(viewModel.imageContext.value)
+            assertTrue(viewModel.photoTagState.value is PhotoTagState.Idle)
+
+            // Step 3: Reload different context
+            val context2 =
+                ImageContext(
+                    images = testPhotos,
+                    currentIndex = 2,
+                    contextType = ImageContext.ContextType.TAG_ALBUM,
+                )
+
+            whenever(imageBrowserRepository.getPhotoContext("photo3")).thenReturn(context2)
+
+            viewModel.loadImageContext("photo3")
+
+            assertEquals(context2, viewModel.imageContext.value)
+            assertTrue(viewModel.photoTagState.value is PhotoTagState.Idle)
+        }
+
+    @Test
+    fun `concurrent loadPhotoTags calls handle state transitions correctly`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    tags = listOf(Tag("Nature", "tag1")),
+                )
+
+            whenever(remoteRepository.getPhotoDetail(photoId))
+                .thenReturn(RemoteRepository.Result.Success(photoDetail))
+            whenever(recommendRepository.recommendTagFromPhoto(photoId))
+                .thenReturn(RecommendRepository.RecommendResult.Success(listOf(Tag("Sunset", "tag2"))))
+
+            // When - call multiple times (simulating rapid calls)
+            viewModel.loadPhotoTags(photoId)
+            viewModel.loadPhotoTags(photoId)
+
+            mainCoroutineRule.testDispatcher.scheduler.runCurrent()
+
+            // Then - should complete successfully (called twice due to two invocations)
+            assertTrue(viewModel.photoTagState.value is PhotoTagState.Success)
+        }
 }

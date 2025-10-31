@@ -153,6 +153,7 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
 
 
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
+    client = get_qdrant_client()
     ALPHA = 0.5
     LIMIT = 20
 
@@ -255,12 +256,12 @@ def tag_recommendation(user_id, photo_id):
     return recommended_tag_name, recommended_tag_id
 
 # aggregates N similarity queries with Reciprocal Rank Fusion
-def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
+def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     client = get_qdrant_client()
     LIMIT = 40
     RRF_CONSTANT = 40
 
-    rep_vectors = retrieve_all_rep_vectors_of_tag(user_id, tag_id)
+    rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
 
     rrf_scores = defaultdict(float)
     photo_id_to_path_id = {}
@@ -287,7 +288,7 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
     )
 
     tagged_photo_ids = (
-        Photo_Tag.objects.filter(user__id=user_id)
+        Photo_Tag.objects.filter(user=user)
         .filter(tag__tag_id=tag_id)
         .values_list("photo_id", flat=True)
     )

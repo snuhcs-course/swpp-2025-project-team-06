@@ -2,7 +2,6 @@ package com.example.momentag
 
 import android.Manifest
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,8 +62,8 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
-import com.example.momentag.model.TagAlbum
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Semi_background
@@ -110,6 +109,11 @@ fun AddTagScreen(navController: NavController) {
         permissionLauncher.launch(permission)
     }
 
+    // Call recommendPhoto once when screen is entered
+    LaunchedEffect(Unit) {
+        addTagViewModel.recommendPhoto()
+    }
+
     // Handle back button - clear draft when leaving workflow
     BackHandler {
         addTagViewModel.clearDraft()
@@ -135,16 +139,7 @@ fun AddTagScreen(navController: NavController) {
                 addTagViewModel.clearDraft()
                 navController.popBackStack()
             }
-            is AddTagViewModel.SaveState.Error -> {
-                Toast
-                    .makeText(
-                        context,
-                        "Save failed: ${(saveState as AddTagViewModel.SaveState.Error).message}",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                addTagViewModel.resetSaveState()
-            }
-            else -> { /* Idle or Loading */ }
+            else -> { /* Idle, Loading, or Error - Error is now shown in UI */ }
         }
     }
 
@@ -158,11 +153,6 @@ fun AddTagScreen(navController: NavController) {
         isChanged = true
         addTagViewModel.addPhoto(photo)
         recommendedPhotos.remove(photo)
-
-        // Extract photoIds for TagAlbum
-        val photoIds = (selectedPhotos + photo).map { it.photoId }
-        val tagAlbum = TagAlbum(tagName, photoIds)
-        addTagViewModel.recommendPhoto(tagAlbum)
     }
 
     Scaffold(
@@ -231,6 +221,18 @@ fun AddTagScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp),
                 ) {
+                    // Show error message if save failed
+                    if (saveState is AddTagViewModel.SaveState.Error) {
+                        WarningBanner(
+                            title = "Save failed",
+                            message = (saveState as AddTagViewModel.SaveState.Error).message,
+                            onActionClick = {
+                                addTagViewModel.saveTagAndPhotos()
+                            },
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     Button(
                         onClick = {
                             addTagViewModel.saveTagAndPhotos()
@@ -380,7 +382,7 @@ private fun RecommendedPicturesSection(
 
 @Composable
 fun PhotoCheckedItem(
-    photo: com.example.momentag.model.Photo,
+    photo: Photo,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,

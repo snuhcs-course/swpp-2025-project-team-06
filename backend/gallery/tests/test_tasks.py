@@ -68,13 +68,13 @@ class TaskFunctionsTest(TestCase):
         mock_get_client.return_value.query_points.return_value = MagicMock(points=mock_points)
 
         # Execute
-        result = recommend_photo_from_tag(self.user_id, self.tag_id)
+        result = recommend_photo_from_tag(self.user, self.tag_id)
 
         # Assert
         self.assertEqual(len(result), 3)
         self.assertEqual(result[0]["photo_id"], first_uuid)
         self.assertEqual(result[0]["photo_path_id"], 1)
-        mock_retrieve.assert_called_once_with(self.user_id, self.tag_id)
+        mock_retrieve.assert_called_once_with(self.user, self.tag_id)
 
     @patch("gallery.tasks.get_qdrant_client")
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
@@ -95,7 +95,7 @@ class TaskFunctionsTest(TestCase):
         mock_get_client.return_value.query_points.return_value = MagicMock(points=mock_points)
 
         # Execute
-        result = recommend_photo_from_tag(self.user_id, self.tag_id)
+        result = recommend_photo_from_tag(self.user, self.tag_id)
 
         # Assert
         self.assertEqual(len(result), 2)
@@ -136,7 +136,7 @@ class TaskFunctionsTest(TestCase):
         ]
 
         # Execute
-        result = recommend_photo_from_tag(self.user_id, self.tag_id)
+        result = recommend_photo_from_tag(self.user, self.tag_id)
 
         # Assert
         # photo2 should rank highest (appears 2nd and 1st in each query)
@@ -152,7 +152,7 @@ class TaskFunctionsTest(TestCase):
         mock_retrieve.return_value = []
 
         # Execute
-        result = recommend_photo_from_tag(self.user_id, self.tag_id)
+        result = recommend_photo_from_tag(self.user, self.tag_id)
 
         # Assert
         self.assertEqual(len(result), 0)
@@ -511,8 +511,8 @@ class RecommendPhotoFromPhotoTest(TestCase):
             username="testuser", password="password123"
         )
 
-    @patch("gallery.tasks.client")
-    def test_basic_recommendation_with_shared_captions(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_basic_recommendation_with_shared_captions(self, mock_get_client):
         """Test basic photo-to-photo recommendation with shared captions"""
         # Setup: Create 3 photos with overlapping captions
         photo_id1 = uuid.uuid4()
@@ -545,7 +545,7 @@ class RecommendPhotoFromPhotoTest(TestCase):
             MagicMock(id=str(photo_id2), payload={"photo_path_id": 102}),
             MagicMock(id=str(photo_id3), payload={"photo_path_id": 103}),
         ]
-        mock_client.retrieve.return_value = mock_points
+        mock_get_client.return_value.retrieve.return_value = mock_points
 
         # Execute
         result = recommend_photo_from_photo(self.user, [photo_id1])
@@ -563,10 +563,10 @@ class RecommendPhotoFromPhotoTest(TestCase):
         self.assertNotIn(str(photo_id1), result_photo_ids)
 
         # Verify client.retrieve was called
-        mock_client.retrieve.assert_called_once()
+        mock_get_client.return_value.retrieve.assert_called_once()
 
-    @patch("gallery.tasks.client")
-    def test_multiple_target_photos(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_multiple_target_photos(self, mock_get_client):
         """Test recommendation with multiple target photos"""
         photo_ids = [uuid.uuid4() for _ in range(5)]
 
@@ -596,7 +596,7 @@ class RecommendPhotoFromPhotoTest(TestCase):
             MagicMock(id=str(pid), payload={"photo_path_id": i + 100})
             for i, pid in enumerate(photo_ids[2:])
         ]
-        mock_client.retrieve.return_value = mock_points
+        mock_get_client.return_value.retrieve.return_value = mock_points
 
         # Execute with multiple target photos
         result = recommend_photo_from_photo(self.user, [photo_ids[0], photo_ids[1]])
@@ -613,8 +613,8 @@ class RecommendPhotoFromPhotoTest(TestCase):
         self.assertIn(str(photo_ids[3]), result_photo_ids)
         self.assertIn(str(photo_ids[4]), result_photo_ids)
 
-    @patch("gallery.tasks.client")
-    def test_no_candidates_all_photos_are_targets(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_no_candidates_all_photos_are_targets(self, mock_get_client):
         """Test when all photos in database are target photos (no candidates)"""
         photo_id1 = uuid.uuid4()
         photo_id2 = uuid.uuid4()
@@ -628,17 +628,17 @@ class RecommendPhotoFromPhotoTest(TestCase):
             user=self.user, photo_id=photo_id2, caption=caption, weight=3
         )
 
-        mock_client.retrieve.return_value = []
+        mock_get_client.return_value.retrieve.return_value = []
 
         # Execute with all photos as targets
         result = recommend_photo_from_photo(self.user, [photo_id1, photo_id2])
 
         # Assert
         self.assertEqual(len(result), 0)
-        mock_client.retrieve.assert_called_once()
+        mock_get_client.return_value.retrieve.assert_called_once()
 
-    @patch("gallery.tasks.client")
-    def test_single_target_single_candidate(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_single_target_single_candidate(self, mock_get_client):
         """Test minimal case with one target and one candidate"""
         photo_id1 = uuid.uuid4()
         photo_id2 = uuid.uuid4()
@@ -653,7 +653,7 @@ class RecommendPhotoFromPhotoTest(TestCase):
         )
 
         mock_point = MagicMock(id=str(photo_id2), payload={"photo_path_id": 200})
-        mock_client.retrieve.return_value = [mock_point]
+        mock_get_client.return_value.retrieve.return_value = [mock_point]
 
         result = recommend_photo_from_photo(self.user, [photo_id1])
 
@@ -661,8 +661,8 @@ class RecommendPhotoFromPhotoTest(TestCase):
         self.assertEqual(result[0]["photo_id"], str(photo_id2))
         self.assertEqual(result[0]["photo_path_id"], 200)
 
-    @patch("gallery.tasks.client")
-    def test_no_shared_captions_between_photos(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_no_shared_captions_between_photos(self, mock_get_client):
         """Test recommendation when photos don't share any captions"""
         photo_id1 = uuid.uuid4()
         photo_id2 = uuid.uuid4()
@@ -687,7 +687,7 @@ class RecommendPhotoFromPhotoTest(TestCase):
             MagicMock(id=str(photo_id2), payload={"photo_path_id": 102}),
             MagicMock(id=str(photo_id3), payload={"photo_path_id": 103}),
         ]
-        mock_client.retrieve.return_value = mock_points
+        mock_get_client.return_value.retrieve.return_value = mock_points
 
         result = recommend_photo_from_photo(self.user, [photo_id1])
 
@@ -695,8 +695,8 @@ class RecommendPhotoFromPhotoTest(TestCase):
         # even though Adamic/Adar score will be 0
         self.assertGreater(len(result), 0)
 
-    @patch("gallery.tasks.client")
-    def test_limit_enforcement(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_limit_enforcement(self, mock_get_client):
         """Test that recommendation respects LIMIT of 20"""
         # Create 30 photos to exceed the limit
         target_photo = uuid.uuid4()
@@ -720,15 +720,15 @@ class RecommendPhotoFromPhotoTest(TestCase):
             MagicMock(id=str(pid), payload={"photo_path_id": i})
             for i, pid in enumerate(candidate_photos[:20])
         ]
-        mock_client.retrieve.return_value = mock_points
+        mock_get_client.return_value.retrieve.return_value = mock_points
 
         result = recommend_photo_from_photo(self.user, [target_photo])
 
         # Assert limit is enforced
         self.assertEqual(len(result), 20)
 
-    @patch("gallery.tasks.client")
-    def test_ranking_by_shared_captions(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_ranking_by_shared_captions(self, mock_get_client):
         """Test that photos with more shared captions rank higher"""
         target_photo = uuid.uuid4()
         candidate1 = uuid.uuid4()  # Shares 2 captions
@@ -771,26 +771,26 @@ class RecommendPhotoFromPhotoTest(TestCase):
             MagicMock(id=str(candidate2), payload={"photo_path_id": 2}),
             MagicMock(id=str(candidate3), payload={"photo_path_id": 3}),
         ]
-        mock_client.retrieve.return_value = mock_points
+        mock_get_client.return_value.retrieve.return_value = mock_points
 
         result = recommend_photo_from_photo(self.user, [target_photo])
 
         # Verify all candidates are returned
         self.assertEqual(len(result), 3)
 
-    @patch("gallery.tasks.client")
-    def test_empty_database(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_empty_database(self, mock_get_client):
         """Test recommendation when database has no photo-caption relationships"""
         non_existent_photo = uuid.uuid4()
 
-        mock_client.retrieve.return_value = []
+        mock_get_client.return_value.retrieve.return_value = []
 
         result = recommend_photo_from_photo(self.user, [non_existent_photo])
 
         self.assertEqual(len(result), 0)
 
-    @patch("gallery.tasks.client")
-    def test_user_isolation(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_user_isolation(self, mock_get_client):
         """Test that recommendations only consider the specified user's photos"""
         user2 = User.objects.create_user(username="user2", password="pass123")
 
@@ -815,7 +815,7 @@ class RecommendPhotoFromPhotoTest(TestCase):
         )
 
         mock_point = MagicMock(id=str(photo2_user1), payload={"photo_path_id": 200})
-        mock_client.retrieve.return_value = [mock_point]
+        mock_get_client.return_value.retrieve.return_value = [mock_point]
 
         result = recommend_photo_from_photo(self.user, [photo1_user1])
 
@@ -823,8 +823,8 @@ class RecommendPhotoFromPhotoTest(TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["photo_id"], str(photo2_user1))
 
-    @patch("gallery.tasks.client")
-    def test_payload_structure(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_payload_structure(self, mock_get_client):
         """Test that returned payload has correct structure"""
         photo_id1 = uuid.uuid4()
         photo_id2 = uuid.uuid4()
@@ -842,7 +842,7 @@ class RecommendPhotoFromPhotoTest(TestCase):
         mock_point = MagicMock(
             id=str(photo_id2), payload={"photo_path_id": expected_photo_path_id}
         )
-        mock_client.retrieve.return_value = [mock_point]
+        mock_get_client.return_value.retrieve.return_value = [mock_point]
 
         result = recommend_photo_from_photo(self.user, [photo_id1])
 
@@ -852,8 +852,8 @@ class RecommendPhotoFromPhotoTest(TestCase):
         self.assertEqual(result[0]["photo_id"], str(photo_id2))
         self.assertEqual(result[0]["photo_path_id"], expected_photo_path_id)
 
-    @patch("gallery.tasks.client")
-    def test_weighted_captions_affect_recommendations(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_weighted_captions_affect_recommendations(self, mock_get_client):
         """Test that caption weights influence recommendation scores"""
         target_photo = uuid.uuid4()
         candidate1 = uuid.uuid4()
@@ -880,15 +880,15 @@ class RecommendPhotoFromPhotoTest(TestCase):
             MagicMock(id=str(candidate1), payload={"photo_path_id": 1}),
             MagicMock(id=str(candidate2), payload={"photo_path_id": 2}),
         ]
-        mock_client.retrieve.return_value = mock_points
+        mock_get_client.return_value.retrieve.return_value = mock_points
 
         result = recommend_photo_from_photo(self.user, [target_photo])
 
         # Both candidates should be returned (weights affect PageRank scores)
         self.assertEqual(len(result), 2)
 
-    @patch("gallery.tasks.client")
-    def test_complex_graph_with_multiple_connections(self, mock_client):
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_complex_graph_with_multiple_connections(self, mock_get_client):
         """Test recommendation with a complex bipartite graph"""
         photos = [uuid.uuid4() for _ in range(6)]
         captions = [
@@ -935,7 +935,7 @@ class RecommendPhotoFromPhotoTest(TestCase):
             MagicMock(id=str(photos[i]), payload={"photo_path_id": i})
             for i in range(1, 5)
         ]
-        mock_client.retrieve.return_value = mock_points
+        mock_get_client.return_value.retrieve.return_value = mock_points
 
         result = recommend_photo_from_photo(self.user, [photos[0]])
 

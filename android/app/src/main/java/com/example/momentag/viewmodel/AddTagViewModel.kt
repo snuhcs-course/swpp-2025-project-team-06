@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
-import com.example.momentag.model.TagAlbum
 import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
@@ -88,17 +87,11 @@ class AddTagViewModel(
         draftTagRepository.clear()
     }
 
-    fun recommendPhoto(tagAlbum: TagAlbum) {
-        if (tagAlbum.tagName.isBlank() && tagAlbum.photos.isEmpty()) {
-            _recommendState.value = RecommendState.Error("Query cannot be empty")
-            return
-        }
-
+    fun recommendPhoto() {
         viewModelScope.launch {
             _recommendState.value = RecommendState.Loading
 
-            // TODO: make TagAlbum hold both tagName and tagId
-            when (val result = recommendRepository.recommendPhotosFromTag(tagAlbum.tagName)) {
+            when (val result = recommendRepository.recommendPhotosFromPhotos(selectedPhotos.value.map { it.photoId })) {
                 is RecommendRepository.RecommendResult.Success -> {
                     _recommendState.value =
                         RecommendState.Success(
@@ -125,6 +118,11 @@ class AddTagViewModel(
     }
 
     fun saveTagAndPhotos() {
+        // Reset error state on retry
+        if (_saveState.value is SaveState.Error) {
+            _saveState.value = SaveState.Idle
+        }
+
         if (tagName.value.isBlank() || selectedPhotos.value.isEmpty()) {
             _saveState.value = SaveState.Error("Tag cannot be empty and photos must be selected")
             return

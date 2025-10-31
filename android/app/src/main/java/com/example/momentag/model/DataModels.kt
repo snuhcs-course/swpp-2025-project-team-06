@@ -62,6 +62,10 @@ data class Album(
     val thumbnailUri: Uri,
 )
 
+data class PhotoToPhotoRequest(
+    val photos: List<String>,
+)
+
 data class LoginRequest(
     val username: String,
     val password: String,
