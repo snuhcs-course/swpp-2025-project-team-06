@@ -9,10 +9,14 @@ sealed class Screen(
 ) {
     object Home : Screen("home_screen")
 
-    object Album : Screen("album_screen/{tagName}") {
-        fun createRoute(tagName: String): String {
+    object Album : Screen("album_screen/{tagId}/{tagName}") {
+        fun createRoute(
+            tagId: String,
+            tagName: String,
+        ): String {
+            val encodedTagId = URLEncoder.encode(tagId, StandardCharsets.UTF_8.toString())
             val encodedTag = URLEncoder.encode(tagName, StandardCharsets.UTF_8.toString())
-            return "album_screen/$encodedTag"
+            return "album_screen/$encodedTagId/$encodedTag"
         }
     }
 

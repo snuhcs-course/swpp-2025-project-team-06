@@ -101,3 +101,18 @@ sealed interface StoryState {
         val message: String,
     ) : StoryState
 }
+
+sealed class PhotoTagState {
+    object Idle : PhotoTagState()
+
+    object Loading : PhotoTagState()
+
+    data class Success(
+        val existingTags: List<String>,
+        val recommendedTags: List<String>,
+    ) : PhotoTagState()
+
+    data class Error(
+        val message: String,
+    ) : PhotoTagState()
+}

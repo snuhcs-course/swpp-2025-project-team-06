@@ -27,7 +27,7 @@ from .request_serializers import (
 
 from .serializers import TagSerializer
 from .models import Photo_Tag, Tag
-from .qdrant_utils import client, IMAGE_COLLECTION_NAME
+from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
@@ -41,6 +41,9 @@ from .tasks import (
     recommend_photo_from_tag,
     recommend_photo_from_photo,
 )
+
+
+from django.db import transaction
 
 
 class PhotoView(APIView):
@@ -189,6 +192,7 @@ class PhotoView(APIView):
         ],
     )
     def get(self, request):
+        client = get_qdrant_client()
         try:
             user_filter = models.Filter(
                 must=[
@@ -262,6 +266,8 @@ class PhotoDetailView(APIView):
     )
     def get(self, request, photo_id):
         try:
+            client = get_qdrant_client()
+
             # 해당 photo_id의 사진만 직접 가져오기 (하나만 가져온다 해도 리스트 형식으로만 받을 수 있다고 함.)
             points = client.retrieve(
                 collection_name=IMAGE_COLLECTION_NAME,
@@ -326,8 +332,8 @@ class PhotoDetailView(APIView):
     )
     def delete(self, request, photo_id):
         try:
-            Photo_Tag.objects.filter(
-                photo_id=photo_id, user=request.user).delete()
+            client = get_qdrant_client()
+            Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
@@ -368,6 +374,7 @@ class BulkDeletePhotoView(APIView):
     )
     def post(self, request):
         try:
+            client = get_qdrant_client()
             serializer = ReqPhotoBulkDeleteSerializer(data=request.data)
 
             if not serializer.is_valid():
@@ -425,6 +432,7 @@ class GetPhotosByTagView(APIView):
     )
     def get(self, request, tag_id):
         try:
+            client = get_qdrant_client()
             photo_tags = Photo_Tag.objects.filter(tag_id=tag_id)
 
             photo_ids = [str(pt.photo_id) for pt in photo_tags]
@@ -486,6 +494,7 @@ class PostPhotoTagsView(APIView):
     )
     def post(self, request, photo_id):
         try:
+            client = get_qdrant_client()
             serializer = ReqTagIdSerializer(data=request.data, many=True)
 
             if not serializer.is_valid():
@@ -501,19 +510,23 @@ class PostPhotoTagsView(APIView):
                     {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-            for tag_id in tag_ids:
-                pt_id = uuid.uuid4()
+            with transaction.atomic():
+                for tag_id in tag_ids:
+                    pt_id = uuid.uuid4()
 
-                tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+                    tag = Tag.objects.get(tag_id=tag_id, user=request.user)
 
-                if Photo_Tag.objects.filter(
-                    photo_id=photo_id, tag=tag, user=request.user
-                ).exists():
-                    continue  # Skip if the relationship already exists
+                    if Photo_Tag.objects.filter(
+                        photo_id=photo_id, tag=tag, user=request.user
+                    ).exists():
+                        continue  # Skip if the relationship already exists
 
-                Photo_Tag.objects.create(
-                    pt_id=pt_id, photo_id=photo_id, tag=tag, user=request.user
-                )
+                    Photo_Tag.objects.create(
+                        pt_id=pt_id, 
+                        photo_id=photo_id, 
+                        tag=tag, 
+                        user=request.user
+                    )
 
             # now update the metadata isTagged in Qdrant
             client.set_payload(
@@ -559,6 +572,15 @@ class DeletePhotoTagsView(APIView):
     )
     def delete(self, request, photo_id, tag_id):
         try:
+            client = get_qdrant_client()
+            Tag.objects.get(tag_id=tag_id, user=request.user)
+            if not client.retrieve(
+                collection_name=IMAGE_COLLECTION_NAME, ids=str(photo_id)
+            ):
+                return Response(
+                    {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
+                )
+
             photo_tag = Photo_Tag.objects.get(
                 photo_id=photo_id, tag_id=tag_id, user=request.user
             )
@@ -587,6 +609,7 @@ class DeletePhotoTagsView(APIView):
                 {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            print(str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -621,6 +644,7 @@ class GetRecommendTagView(APIView):
     )
     def get(self, request, photo_id, *args, **kwargs):
         try:
+            client = get_qdrant_client()
             if not is_valid_uuid(photo_id):
                 return Response(
                     {"error": "Request form mismatch."},
@@ -680,13 +704,13 @@ class PhotoRecommendationView(APIView):
     )
     def get(self, request, tag_id, *args, **kwargs):
         try:
-            if not Tag.objects.filter(tag_id=tag_id, user__id=request.user.id).exists():
+            if not Tag.objects.filter(tag_id=tag_id, user=request.user).exists():
                 return Response(
                     {"error": f"No tag with id {tag_id}"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            photos = recommend_photo_from_tag(request.user.id, tag_id)
+            photos = recommend_photo_from_tag(request.user, tag_id)
 
             return Response(photos, status=status.HTTP_200_OK)
 
@@ -1028,6 +1052,8 @@ class StoryView(APIView):
     )
     def get(self, request):
         try:
+            client = get_qdrant_client()
+
             # 페이지네이션 파라미터 가져오기
             page = int(request.GET.get("page", 1))
             page_size = min(

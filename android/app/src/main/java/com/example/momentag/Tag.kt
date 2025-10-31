@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,9 @@ sealed interface TagVariant {
         val isDeleteMode: Boolean,
         val onDismiss: () -> Unit,
     ) : TagVariant
+
+    /** 추천 태그 (투명도 적용) */
+    data object Recommended : TagVariant
 }
 
 /**
@@ -77,7 +81,9 @@ fun tagChip(
     variant: TagVariant = TagVariant.Plain,
     modifier: Modifier = Modifier,
 ) {
-    tagContainer(modifier = modifier) {
+    val alpha = if (variant is TagVariant.Recommended) 0.5f else 1f
+
+    tagContainer(modifier = modifier.alpha(alpha)) {
         Text(text = text, fontSize = 14.sp, color = Word)
         Spacer(modifier = Modifier.width(4.dp))
 
@@ -103,6 +109,8 @@ fun tagChip(
                     }
                 }
             }
+
+            is TagVariant.Recommended -> Unit
         }
     }
 }
@@ -136,6 +144,13 @@ fun tagXMode(
     variant = TagVariant.CloseWhen(isDeleteMode, onDismiss),
     modifier = modifier,
 )
+
+/** 추천 태그 (투명도가 적용된 태그) */
+@Composable
+fun tagRecommended(
+    text: String,
+    modifier: Modifier = Modifier,
+) = tagChip(text = text, variant = TagVariant.Recommended, modifier = modifier)
 
 @Composable
 fun StoryTagChip(

@@ -79,6 +79,9 @@ fun ImageDetailScreen(
     // Observe ImageContext from ViewModel
     val imageContext by imageDetailViewModel.imageContext.collectAsState()
 
+    // Observe PhotoTagState from ViewModel
+    val photoTagState by imageDetailViewModel.photoTagState.collectAsState()
+
     // Load ImageContext from Repository when screen opens
     LaunchedEffect(imageUri) {
         imageUri?.let { uri ->
@@ -125,10 +128,25 @@ fun ImageDetailScreen(
     // Current photo based on pager state
     val currentPhoto = photos.getOrNull(pagerState.currentPage)
 
-    // Tags state - will be loaded from backend
-    var tagSet by remember { mutableStateOf<List<String>>(emptyList()) }
-    var isLoadingTags by remember { mutableStateOf(false) }
+    // Tags state - managed by ViewModel
     var isDeleteMode by remember { mutableStateOf(false) }
+
+    // Extract tags from photoTagState
+    val existingTags =
+        when (photoTagState) {
+            is com.example.momentag.model.PhotoTagState.Success ->
+                (photoTagState as com.example.momentag.model.PhotoTagState.Success)
+                    .existingTags
+            else -> emptyList()
+        }
+
+    val recommendedTags =
+        when (photoTagState) {
+            is com.example.momentag.model.PhotoTagState.Success ->
+                (photoTagState as com.example.momentag.model.PhotoTagState.Success)
+                    .recommendedTags
+            else -> emptyList()
+        }
 
     val sheetState =
         rememberStandardBottomSheetState(
@@ -185,15 +203,9 @@ fun ImageDetailScreen(
             }
         }
 
-        // TODO: Load tags from backend using photo.photoId
-        // For now, show placeholder tags
+        // Load tags from backend using photo.photoId
         if (photo != null && photo.photoId.isNotEmpty()) {
-            isLoadingTags = true
-            // Placeholder - will be replaced with actual backend call
-            tagSet = listOf("#todo", "#load", "#from", "#backend")
-            isLoadingTags = false
-        } else {
-            tagSet = emptyList()
+            imageDetailViewModel.loadPhotoTags(photo.photoId)
         }
     }
 
@@ -235,7 +247,8 @@ fun ImageDetailScreen(
                     lineHeight = 22.sp,
                 )
                 TagsSection(
-                    tagSet = tagSet,
+                    existingTags = existingTags,
+                    recommendedTags = recommendedTags,
                 )
                 Spacer(modifier = Modifier.height(200.dp))
             }
@@ -285,7 +298,8 @@ fun ImageDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    tagSet.forEach { tagName ->
+                    // Display existing tags with delete mode
+                    existingTags.forEach { tagName ->
                         Box(
                             modifier =
                                 Modifier.combinedClickable(
@@ -297,11 +311,19 @@ fun ImageDetailScreen(
                                 text = tagName,
                                 isDeleteMode = isDeleteMode,
                                 onDismiss = {
-                                    tagSet = tagSet - tagName
+                                    // TODO: Implement tag deletion
                                 },
                             )
                         }
                     }
+
+                    // Display recommended tags with transparency
+                    recommendedTags.forEach { tagName ->
+                        Box {
+                            tagRecommended(text = tagName)
+                        }
+                    }
+
                     IconButton(
                         onClick = { /* TODO */ },
                         modifier = Modifier.size(32.dp),
@@ -319,7 +341,8 @@ fun ImageDetailScreen(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagsSection(
-    tagSet: List<String>,
+    existingTags: List<String>,
+    recommendedTags: List<String>,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -328,13 +351,24 @@ fun TagsSection(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        tagSet.forEach { tagName ->
+        // Display existing tags
+        existingTags.forEach { tagName ->
             Box {
                 tag(
                     text = tagName,
                 )
             }
         }
+
+        // Display recommended tags with transparency
+        recommendedTags.forEach { tagName ->
+            Box {
+                tagRecommended(
+                    text = tagName,
+                )
+            }
+        }
+
         IconButton(onClick = { /* TODO */ }, modifier = Modifier.size(32.dp)) {
             Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag", tint = Color.Gray)
         }

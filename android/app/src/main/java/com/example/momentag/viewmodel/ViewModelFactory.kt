@@ -87,8 +87,8 @@ class ViewModelFactory private constructor(
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
         when {
-            modelClass.isAssignableFrom(ServerViewModel::class.java) -> {
-                ServerViewModel(remoteRepository) as T
+            modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
+                HomeViewModel(localRepository, remoteRepository) as T
             }
             modelClass.isAssignableFrom(LocalViewModel::class.java) -> {
                 LocalViewModel(localRepository, imageBrowserRepository) as T
@@ -97,22 +97,22 @@ class ViewModelFactory private constructor(
                 AuthViewModel(tokenRepository) as T
             }
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
-                SearchViewModel(searchRepository, localRepository, imageBrowserRepository) as T
+                SearchViewModel(searchRepository, draftTagRepository, localRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(ImageDetailViewModel::class.java) -> {
-                ImageDetailViewModel(imageBrowserRepository) as T
+                ImageDetailViewModel(imageBrowserRepository, remoteRepository, recommendRepository) as T
             }
             modelClass.isAssignableFrom(PhotoViewModel::class.java) -> {
                 PhotoViewModel(remoteRepository, localRepository) as T
             }
-            modelClass.isAssignableFrom(RecommendViewModel::class.java) -> {
-                RecommendViewModel(recommendRepository, localRepository) as T
-            }
             modelClass.isAssignableFrom(AddTagViewModel::class.java) -> {
-                AddTagViewModel(draftTagRepository) as T
+                AddTagViewModel(draftTagRepository, recommendRepository, localRepository, remoteRepository) as T
             }
             modelClass.isAssignableFrom(SelectImageViewModel::class.java) -> {
-                SelectImageViewModel(draftTagRepository) as T
+                SelectImageViewModel(draftTagRepository, localRepository, remoteRepository) as T
+            }
+            modelClass.isAssignableFrom(AlbumViewModel::class.java) -> {
+                AlbumViewModel(localRepository, remoteRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(StoryViewModel::class.java) -> {
                 StoryViewModel(recommendRepository, localRepository) as T

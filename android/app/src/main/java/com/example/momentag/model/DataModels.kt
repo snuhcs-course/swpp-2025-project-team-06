@@ -6,8 +6,26 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 
 data class Tag(
-    @SerializedName("tag") val tagName: String,
-    @SerializedName("tag_id") val tagId: String,
+    @SerializedName("tag")
+    val tagName: String,
+    @SerializedName("tag_id")
+    val tagId: String,
+)
+
+data class TagItem(
+    val tagName: String,
+    val coverImageId: Long?,
+    val tagId: String,
+)
+
+data class TagCreateRequest(
+    @SerializedName("tag")
+    val name: String,
+)
+
+data class PhotoDetailResponse(
+    @SerializedName("photo_path_id") val photoPathId: Long,
+    val tags: List<Tag>,
 )
 
 data class PhotoResponse(
@@ -20,10 +38,32 @@ data class Photo(
     val contentUri: Uri,
 )
 
+data class Photos(
+    val photos: List<Photo>,
+)
+
+data class TagIdRequest(
+    @SerializedName("tag_id")
+    val tagId: String,
+)
+
+data class TagCreateResponse(
+    @SerializedName("tag_id")
+    val tagId: String,
+)
+
+data class PhotoTag(
+    val ptId: Long,
+)
+
 data class Album(
     val albumId: Long,
     val albumName: String,
     val thumbnailUri: Uri,
+)
+
+data class PhotoToPhotoRequest(
+    val photos: List<String>,
 )
 
 data class LoginRequest(
