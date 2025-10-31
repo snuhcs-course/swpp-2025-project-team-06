@@ -343,8 +343,11 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
 def execute_hybrid_graph_search(
     user: User, 
     personalization_nodes: set, 
+    semantic_scores: dict,
     tag_edge_weight: float = 10.0,
     alpha: float = 0.5,
+    graph_weight: float = 0.6,
+    semantic_weight: float = 0.4,
     limit: int = 20,
 ):
     
@@ -399,12 +402,23 @@ def execute_hybrid_graph_search(
 
     max_aa = max(aa_scores.values()) if aa_scores else 0
     min_aa = min(aa_scores.values()) if aa_scores else 0
+    
+    max_sem = max(semantic_scores.values()) if semantic_scores else 0
+    min_sem = min(semantic_scores.values()) if semantic_scores else 0
 
-    scores = {
-        candidate: alpha * normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0))
-        + (1 - alpha) * normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
-        for candidate in candidates
-    }
+    scores = {}
+    for candidate in candidates:
+        # 그래프 점수 계산
+        norm_rwr = normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0))
+        norm_aa = normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
+        graph_score = alpha * norm_rwr + (1 - alpha) * norm_aa
+
+        # 시맨틱 점수 계산
+        # (시맨틱 검색 결과에 없던 후보는 0점)
+        norm_sem = normalize(min_sem, max_sem, semantic_scores.get(candidate, 0))
+        
+        # ✨ 최종 하이브리드 점수
+        scores[candidate] = (graph_weight * graph_score) + (semantic_weight * norm_sem)
 
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
 

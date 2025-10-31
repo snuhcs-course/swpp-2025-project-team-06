@@ -87,6 +87,7 @@ class SemanticSearchView(APIView):
                     personalization_nodes.add(tag_obj)
 
             semantic_photo_ids = []
+            semantic_scores = {}
             if semantic_query:
                 try:
                     query_vector = create_query_embedding(semantic_query)
@@ -106,11 +107,16 @@ class SemanticSearchView(APIView):
                         query_filter=user_filter,
                         limit=20,
                         offset=offset,
+                        with_payload=True,
+                        with_vectors=False, 
+                        score_threshold=0.2
                     )
                     
                     for point in search_result:
-                        personalization_nodes.add(uuid.UUID(point.id))
+                        photo_uuid = uuid.UUID(point.id)
+                        personalization_nodes.add(photo_uuid)
                         semantic_photo_ids.append(point.id)
+                        semantic_scores[photo_uuid] = point.score
 
                 except Exception as e:
                     return Response(
@@ -134,9 +140,9 @@ class SemanticSearchView(APIView):
 
                 if photo_ids_str:
                     points = client.retrieve(
-                        collection_name=IMAGE_COLLECTION_NAME, #
+                        collection_name=IMAGE_COLLECTION_NAME,
                         ids=photo_ids_str,
-                        with_payload=["photo_path_id"], #
+                        with_payload=["photo_path_id"],
                     )
                     
                     final_results = [
@@ -162,6 +168,7 @@ class SemanticSearchView(APIView):
                 final_results = execute_hybrid_graph_search(
                     user=user,
                     personalization_nodes=personalization_nodes,
+                    semantic_scores=semantic_scores,
                     tag_edge_weight=TAG_EDGE_WEIGHT,
                 ) #
 
