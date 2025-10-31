@@ -299,6 +299,140 @@ def retrieve_photo_caption_graph(user: User):
 
     return photo_set, caption_set, graph
 
+def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
+    graph = nx.Graph()
+    photo_set = set()
+    
+    # meta_set은 캡션 '객체'와 태그 '객체'를 모두 담습니다.
+    meta_set = set() 
+
+    for photo_caption in Photo_Caption.objects.filter(user=user):
+        photo_id = photo_caption.photo_id
+        caption_obj = photo_caption.caption
+
+        if photo_id not in photo_set:
+            photo_set.add(photo_id)
+            graph.add_node(photo_id, bipartite=0)
+
+        if caption_obj not in meta_set:
+            meta_set.add(caption_obj)
+            graph.add_node(caption_obj, bipartite=1)
+
+        graph.add_edge(
+            photo_id, caption_obj, weight=photo_caption.weight 
+        ) 
+
+    for photo_tag in Photo_Tag.objects.filter(user=user):
+        photo_id = photo_tag.photo_id
+        tag_obj = photo_tag.tag 
+
+        if photo_id not in photo_set:
+            photo_set.add(photo_id)
+            graph.add_node(photo_id, bipartite=0)
+
+        if tag_obj not in meta_set:
+            meta_set.add(tag_obj)
+            graph.add_node(tag_obj, bipartite=1)
+
+        graph.add_edge(
+            photo_id, tag_obj, weight=tag_edge_weight
+        )
+
+    return photo_set, meta_set, graph
+
+def execute_hybrid_graph_search(
+    user: User, 
+    personalization_nodes: set, 
+    tag_edge_weight: float = 10.0,
+    alpha: float = 0.5,
+    limit: int = 20,
+):
+    
+    # 1. 결합 그래프 생성
+    all_photos, _, graph = retrieve_combined_graph(user, tag_edge_weight)
+    
+    # 2. 후보군 정의
+    # 재시작 집합의 노드 중 '사진' 노드만 분리
+    # (Tag, Caption 객체는 UUID가 아니므로 분리 가능)
+    personalization_photos = {
+        node for node in personalization_nodes if isinstance(node, uuid.UUID)
+    }
+    
+    candidates: set[uuid.UUID] = all_photos - personalization_photos
+    
+    valid_personalization_nodes = {
+        node for node in personalization_nodes if node in graph
+    }
+
+    if not valid_personalization_nodes:
+        return []
+
+    # 점수 계산 1: Personalized PageRank (RWR)
+    rwr_scores = nx.pagerank(
+        graph, 
+        personalization=valid_personalization_nodes, 
+        weight="weight"
+    )
+
+    # 4. 점수 계산 2: Adamic/Adar Index
+    aa_scores = defaultdict(float)
+    target_set = valid_personalization_nodes 
+    
+    try:
+        for u, _, score in nx.adamic_adar_index(
+            graph, [(c, t) for c in candidates for t in target_set if (c in graph and t in graph)]
+        ):
+            aa_scores[u] += score
+    except Exception as e:
+        print(f"[AdamicAdar Error] {e}")
+        pass
+
+    # 점수 정규화 및 결합
+    def normalize(minv, maxv, v):
+        if maxv == minv:
+            return 0
+        else:
+            return (v - minv) / (maxv - minv)
+
+    max_rwr = max(rwr_scores.values()) if rwr_scores else 0
+    min_rwr = min(rwr_scores.values()) if rwr_scores else 0
+
+    max_aa = max(aa_scores.values()) if aa_scores else 0
+    min_aa = min(aa_scores.values()) if aa_scores else 0
+
+    scores = {
+        candidate: alpha * normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0))
+        + (1 - alpha) * normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
+        for candidate in candidates
+    }
+
+    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+
+    recommend_photos = list(map(lambda t: str(t[0]), sorted_scores[:limit]))
+
+    if not recommend_photos:
+        return []
+
+    # Qdrant에서 최종 정보 조회
+    points = client.retrieve(
+        collection_name=IMAGE_COLLECTION_NAME,
+        ids=recommend_photos,
+        with_payload=["photo_path_id"],
+    )
+
+    # 정렬 순서 유지를 위해 ID를 키로 하는 딕셔너리 생성
+    points_dict = {point.id: point.payload["photo_path_id"] for point in points}
+
+    # RWR/AA로 정렬된 순서대로 최종 결과 생성
+    final_results = [
+        {"photo_id": photo_id, "photo_path_id": points_dict[photo_id]}
+        for photo_id in recommend_photos if photo_id in points_dict
+    ]
+    
+    return final_results
+
+
+
 
 def is_valid_uuid(uuid_to_test):
     try:
