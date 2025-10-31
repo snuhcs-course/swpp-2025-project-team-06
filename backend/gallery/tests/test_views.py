@@ -61,8 +61,8 @@ class PhotoViewTest(APITestCase):
             name=name, content=img_io.read(), content_type="image/jpeg"
         )
 
-    @patch("gallery.views.client")
-    def test_get_photos_success(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_photos_success(self, mock_get_client):
         """Test successful photo list retrieval"""
         # Mock Qdrant response
         mock_points = []
@@ -73,7 +73,8 @@ class PhotoViewTest(APITestCase):
             mock_points.append(mock_point)
 
         # Mock the scroll method to return photos in batches
-        mock_client.scroll.return_value = (mock_points, None)
+
+        mock_get_client.return_value.scroll.return_value = (mock_points, None)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         response = self.client.get(self.photos_url)
@@ -87,11 +88,11 @@ class PhotoViewTest(APITestCase):
             self.assertIn("photo_id", photo)
             self.assertIn("photo_path_id", photo)
 
-    @patch("gallery.views.client")
-    def test_get_photos_empty_results(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_photos_empty_results(self, mock_get_client):
         """Test photo list when user has no photos"""
         # Mock empty Qdrant response
-        mock_client.scroll.return_value = ([], None)
+        mock_get_client.return_value.scroll.return_value = ([], None)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         response = self.client.get(self.photos_url)
@@ -99,8 +100,8 @@ class PhotoViewTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
 
-    @patch("gallery.views.client")
-    def test_get_photos_pagination(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_photos_pagination(self, mock_get_client):
         """Test photo list pagination logic"""
         # Mock large number of photos
         mock_points_batch1 = []
@@ -118,7 +119,7 @@ class PhotoViewTest(APITestCase):
             mock_points_batch2.append(mock_point)
 
         # Mock scroll to simulate pagination
-        mock_client.scroll.side_effect = [
+        mock_get_client.return_value.scroll.side_effect = [
             (mock_points_batch1, 50),  # First batch with next_offset
             (mock_points_batch2, None),  # Second batch, no more data
         ]
@@ -127,7 +128,8 @@ class PhotoViewTest(APITestCase):
         response = self.client.get(self.photos_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 80)  # Total photos from both batches
+        # Total photos from both batches
+        self.assertEqual(len(response.data), 80)
 
     def test_get_photos_unauthorized(self):
         """Test unauthorized photo list access"""
@@ -345,16 +347,16 @@ class PhotoViewTest(APITestCase):
             [status.HTTP_202_ACCEPTED, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE],
         )
 
-    @patch("gallery.views.client")
-    def test_get_photos_filter_conditions(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_photos_filter_conditions(self, mock_get_client):
         """Test that correct filter conditions are applied for photo list"""
-        mock_client.scroll.return_value = ([], None)
+        mock_get_client.return_value.scroll.return_value = ([], None)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         self.client.get(self.photos_url)
 
         # Verify the filter conditions
-        call_args = mock_client.scroll.call_args
+        call_args = mock_get_client.return_value.scroll.call_args
         filter_obj = call_args[1]["scroll_filter"]
 
         # Should filter by user_id
@@ -368,8 +370,10 @@ class PhotoViewTest(APITestCase):
 
         # Test with extreme coordinate values
         extreme_coordinates = [
-            {"lat": 90.0, "lng": -180.0},  # North Pole, International Date Line
-            {"lat": -90.0, "lng": 180.0},  # South Pole, International Date Line
+            # North Pole, International Date Line
+            {"lat": 90.0, "lng": -180.0},
+            # South Pole, International Date Line
+            {"lat": -90.0, "lng": 180.0},
             {"lat": 0.0, "lng": 0.0},  # Equator, Prime Meridian
         ]
 
@@ -931,11 +935,9 @@ class GetRecommendTagViewTest(APITestCase):
         )
 
     @patch("gallery.views.tag_recommendation")
-    @patch("gallery.views.client")
-    def test_get_recommend_tag_success(
-        self, mock_qdrant_client, mock_tag_recommendation
-    ):
-        mock_qdrant_client.retrieve.return_value = ["some_point_data"]
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_recommend_tag_success(self, mock_get_client, mock_tag_recommendation):
+        mock_get_client.return_value.retrieve.return_value = ["some_point_data"]
         mock_tag_recommendation.return_value = [self.tag]
 
         self.client.force_authenticate(user=self.user)
@@ -946,7 +948,7 @@ class GetRecommendTagViewTest(APITestCase):
         self.assertIsInstance(response.data, list)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["tag_id"], str(self.tag.tag_id))
-        self.assertEqual(response.data[0]["tag"], "test_tag")
+        self.assertEqual(response.data[0]["tag"], self.tag.tag)
         mock_tag_recommendation.assert_called_once_with(self.user, self.photo_id)
 
     def test_get_recommend_tag_unauthorized(self):
@@ -956,9 +958,9 @@ class GetRecommendTagViewTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @patch("gallery.views.client")
-    def test_get_recommend_tag_photo_not_found(self, mock_qdrant_client):
-        mock_qdrant_client.retrieve.return_value = []
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_recommend_tag_photo_not_found(self, mock_get_client):
+        mock_get_client.return_value.retrieve.return_value = []
         self.client.force_authenticate(user=self.user)
 
         response = self.client.get(self.url)
@@ -974,6 +976,318 @@ class GetRecommendTagViewTest(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class PhotoToPhotoRecommendationViewTest(APITestCase):
+    def setUp(self):
+        """Set up test client and test data"""
+        self.client = APIClient()
+
+        # Create test user
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.other_user = User.objects.create_user(
+            username="otheruser", email="other@example.com", password="testpass123"
+        )
+
+        # Generate JWT token for authenticated user
+        refresh = RefreshToken.for_user(self.user)
+        self.access_token = str(refresh.access_token)
+
+        # URL for the view
+        self.url = reverse("gallery:photo_to_photo_recommendation")
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_success(self, mock_recommend):
+        """Test successful retrieval of photo-to-photo recommendations"""
+        # Setup mock data
+        photo_id1 = uuid.uuid4()
+        photo_id2 = uuid.uuid4()
+        photo_id3 = uuid.uuid4()
+
+        mock_recommendations = [
+            {"photo_id": str(photo_id2), "photo_path_id": 102},
+            {"photo_id": str(photo_id3), "photo_path_id": 103},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        # Make request
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(photo_id1)]}
+        response = self.client.post(self.url, payload, format="json")
+
+        # Assert
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data, mock_recommendations)
+        mock_recommend.assert_called_once()
+
+        # Verify the function was called with correct arguments
+        call_args = mock_recommend.call_args
+        self.assertEqual(call_args[0][0], self.user)
+        self.assertEqual(call_args[0][1], [photo_id1])
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_multiple_photos(self, mock_recommend):
+        """Test recommendations with multiple input photos"""
+        photo_ids = [uuid.uuid4() for _ in range(3)]
+
+        mock_recommendations = [
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": 201},
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": 202},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(pid) for pid in photo_ids]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+        # Verify the function was called with multiple photo IDs
+        call_args = mock_recommend.call_args
+        self.assertEqual(len(call_args[0][1]), 3)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_empty_results(self, mock_recommend):
+        """Test when recommendation function returns empty list"""
+        mock_recommend.return_value = []
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(uuid.uuid4())]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_post_recommendations_unauthorized_no_token(self):
+        """Test that request without authentication token fails"""
+        payload = {"photos": [str(uuid.uuid4())]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_post_recommendations_unauthorized_invalid_token(self):
+        """Test that request with invalid token fails"""
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer invalid_token")
+        payload = {"photos": [str(uuid.uuid4())]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_post_recommendations_missing_photos_field(self):
+        """Test request with missing 'photos' field"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("photos", response.data)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_empty_photos_list(self, mock_recommend):
+        """Test request with empty photos list returns empty recommendations"""
+        mock_recommend.return_value = []
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": []}
+        response = self.client.post(self.url, payload, format="json")
+
+        # Empty list is valid input, should return empty recommendations
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_post_recommendations_invalid_photo_id_format(self):
+        """Test request with invalid UUID format"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": ["not-a-uuid", "also-invalid"]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_recommendations_mixed_valid_invalid_uuids(self):
+        """Test request with mix of valid and invalid UUIDs"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        valid_uuid = str(uuid.uuid4())
+        payload = {"photos": [valid_uuid, "invalid-uuid"]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_recommendations_wrong_data_type(self):
+        """Test request with wrong data type for photos field"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+
+        # Test with string instead of list
+        payload = {"photos": "not-a-list"}
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Test with integer
+        payload = {"photos": 123}
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_single_photo(self, mock_recommend):
+        """Test recommendation with single photo ID"""
+        photo_id = uuid.uuid4()
+        mock_recommendations = [
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": 100},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(photo_id)]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_large_photo_list(self, mock_recommend):
+        """Test recommendation with large list of photo IDs"""
+        photo_ids = [uuid.uuid4() for _ in range(50)]
+        mock_recommendations = [
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": i} for i in range(20)
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(pid) for pid in photo_ids]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 20)
+
+    def test_only_post_method_allowed(self):
+        """Test that only POST method is allowed"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+
+        # Test GET
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # Test PUT
+        response = self.client.put(self.url, {})
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # Test DELETE
+        response = self.client.delete(self.url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # Test PATCH
+        response = self.client.patch(self.url, {})
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_returns_correct_structure(self, mock_recommend):
+        """Test that response has correct structure with photo_id and photo_path_id"""
+        photo_id = uuid.uuid4()
+        expected_photo_id = str(uuid.uuid4())
+        expected_path_id = 999
+
+        mock_recommendations = [
+            {"photo_id": expected_photo_id, "photo_path_id": expected_path_id},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(photo_id)]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+        result = response.data[0]
+        self.assertIn("photo_id", result)
+        self.assertIn("photo_path_id", result)
+        self.assertEqual(result["photo_id"], expected_photo_id)
+        self.assertEqual(result["photo_path_id"], expected_path_id)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_user_isolation(self, mock_recommend):
+        """Test that recommendations use the authenticated user"""
+        mock_recommendations = []
+        mock_recommend.return_value = mock_recommendations
+
+        # Login as first user
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {"photos": [str(uuid.uuid4())]}
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify the function was called with the correct user
+        call_args = mock_recommend.call_args
+        self.assertEqual(call_args[0][0], self.user)
+
+        # Now test with other user
+        other_refresh = RefreshToken.for_user(self.other_user)
+        other_access_token = str(other_refresh.access_token)
+
+        mock_recommend.reset_mock()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {other_access_token}")
+        response = self.client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify the function was called with the other user
+        call_args = mock_recommend.call_args
+        self.assertEqual(call_args[0][0], self.other_user)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_with_duplicate_photo_ids(self, mock_recommend):
+        """Test request with duplicate photo IDs in the list"""
+        photo_id = uuid.uuid4()
+        mock_recommendations = [
+            {"photo_id": str(uuid.uuid4()), "photo_path_id": 100},
+        ]
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        # Include the same photo ID multiple times
+        payload = {"photos": [str(photo_id), str(photo_id), str(photo_id)]}
+        response = self.client.post(self.url, payload, format="json")
+
+        # Should still succeed (duplicates are allowed in the request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify the function was called with the list (including duplicates)
+        call_args = mock_recommend.call_args
+        self.assertEqual(len(call_args[0][1]), 3)
+
+    def test_post_recommendations_malformed_json(self):
+        """Test request with malformed JSON"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+
+        # Send invalid JSON (not using format="json" to bypass DRF's parser)
+        response = self.client.post(
+            self.url, data="invalid-json", content_type="application/json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("gallery.views.recommend_photo_from_photo")
+    def test_post_recommendations_extra_fields_ignored(self, mock_recommend):
+        """Test that extra fields in request are ignored"""
+        photo_id = uuid.uuid4()
+        mock_recommendations = []
+        mock_recommend.return_value = mock_recommendations
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        payload = {
+            "photos": [str(photo_id)],
+            "extra_field": "should be ignored",
+            "another_field": 123,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        # Should succeed despite extra fields
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_recommend.assert_called_once()
 
 
 class PhotoDetailViewTest(APITestCase):
@@ -997,8 +1311,8 @@ class PhotoDetailViewTest(APITestCase):
         self.photo_id = uuid.uuid4()
         self.tag = Tag.objects.create(tag="test_tag", user=self.user)
 
-    @patch("gallery.views.client")
-    def test_get_photo_detail_success_with_tags(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_photo_detail_success_with_tags(self, mock_get_client):
         """Test successful photo detail retrieval with tags"""
         # Mock Qdrant response
         mock_point = MagicMock()
@@ -1006,7 +1320,7 @@ class PhotoDetailViewTest(APITestCase):
             "photo_path_id": 123,
             "user_id": self.user.id,
         }
-        mock_client.retrieve.return_value = [mock_point]
+        mock_get_client.return_value.retrieve.return_value = [mock_point]
 
         # Create photo-tag relationship
         Photo_Tag.objects.create(photo_id=self.photo_id, tag=self.tag, user=self.user)
@@ -1022,15 +1336,15 @@ class PhotoDetailViewTest(APITestCase):
         self.assertEqual(len(response.data["tags"]), 1)
         self.assertEqual(response.data["tags"][0]["tag"], "test_tag")
 
-    @patch("gallery.views.client")
-    def test_get_photo_detail_success_no_tags(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_photo_detail_success_no_tags(self, mock_get_client):
         """Test successful photo detail retrieval without tags"""
         mock_point = MagicMock()
         mock_point.payload = {  # payload는 딕셔너리 그 자체
             "photo_path_id": 123,
             "user_id": self.user.id,
         }
-        mock_client.retrieve.return_value = [mock_point]
+        mock_get_client.return_value.retrieve.return_value = [mock_point]
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:photo_detail", kwargs={"photo_id": self.photo_id})
@@ -1040,10 +1354,10 @@ class PhotoDetailViewTest(APITestCase):
         self.assertEqual(response.data["photo_path_id"], 123)
         self.assertEqual(len(response.data["tags"]), 0)
 
-    @patch("gallery.views.client")
-    def test_get_photo_detail_not_found(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_photo_detail_not_found(self, mock_get_client):
         """Test photo not found"""
-        mock_client.retrieve.return_value = []
+        mock_get_client.return_value.retrieve.return_value = []
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:photo_detail", kwargs={"photo_id": self.photo_id})
@@ -1052,15 +1366,15 @@ class PhotoDetailViewTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn("Photo not found", response.data["error"])
 
-    @patch("gallery.views.client")
-    def test_get_photo_detail_wrong_user(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_photo_detail_wrong_user(self, mock_get_client):
         """Test accessing photo of another user"""
         mock_point = MagicMock()
         mock_point.payload.get.return_value = {
             "photo_path_id": 123,
             "user_id": self.other_user.id,
         }
-        mock_client.retrieve.return_value = [mock_point]
+        mock_get_client.return_value.retrieve.return_value = [mock_point]
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:photo_detail", kwargs={"photo_id": self.photo_id})
@@ -1075,8 +1389,8 @@ class PhotoDetailViewTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @patch("gallery.views.client")
-    def test_delete_photo_success(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_delete_photo_success(self, mock_get_client):
         """Test successful photo deletion"""
         # Create photo-tag relationship
         Photo_Tag.objects.create(photo_id=self.photo_id, tag=self.tag, user=self.user)
@@ -1119,8 +1433,8 @@ class BulkDeletePhotoViewTest(APITestCase):
         for photo_id in self.photo_ids:
             Photo_Tag.objects.create(photo_id=photo_id, tag=self.tag, user=self.user)
 
-    @patch("gallery.views.client")
-    def test_bulk_delete_photos_success(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_bulk_delete_photos_success(self, mock_get_client):
         """Test successful bulk photo deletion"""
         payload = {"photos": [{"photo_id": str(pid)} for pid in self.photo_ids]}
 
@@ -1175,8 +1489,8 @@ class GetPhotosByTagViewTest(APITestCase):
         for photo_id in self.photo_ids:
             Photo_Tag.objects.create(photo_id=photo_id, tag=self.tag, user=self.user)
 
-    @patch("gallery.views.client")
-    def test_get_photos_by_tag_success(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_photos_by_tag_success(self, mock_get_client):
         """Test successful retrieval of photos by tag"""
         # Mock Qdrant response
         mock_points = []
@@ -1185,7 +1499,8 @@ class GetPhotosByTagViewTest(APITestCase):
             mock_point.id = str(photo_id)
             mock_point.payload.get.return_value = 100 + i
             mock_points.append(mock_point)
-        mock_client.retrieve.return_value = mock_points
+
+        mock_get_client.return_value.retrieve.return_value = mock_points
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:photos_by_tag", kwargs={"tag_id": self.tag.tag_id})
@@ -1233,12 +1548,14 @@ class PostPhotoTagsViewTest(APITestCase):
         self.tag1 = Tag.objects.create(tag="tag1", user=self.user)
         self.tag2 = Tag.objects.create(tag="tag2", user=self.user)
 
-    @patch("gallery.views.client")
-    def test_post_photo_tags_success(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_post_photo_tags_success(self, mock_get_client):
         """Test successful addition of tags to photo"""
         # Mock Qdrant responses
-        mock_client.retrieve.return_value = [MagicMock()]  # Photo exists
-        mock_client.set_payload.return_value = None
+        mock_get_client.return_value.retrieve.return_value = [
+            MagicMock()
+        ]  # Photo exists
+        mock_get_client.return_value.set_payload.return_value = None
 
         payload = [{"tag_id": str(self.tag1.tag_id)}, {"tag_id": str(self.tag2.tag_id)}]
 
@@ -1256,10 +1573,10 @@ class PostPhotoTagsViewTest(APITestCase):
             Photo_Tag.objects.filter(photo_id=self.photo_id, tag=self.tag2).exists()
         )
 
-    @patch("gallery.views.client")
-    def test_post_photo_tags_photo_not_found(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_post_photo_tags_photo_not_found(self, mock_get_client):
         """Test adding tags to non-existent photo"""
-        mock_client.retrieve.return_value = []  # Photo doesn't exist
+        mock_get_client.return_value.retrieve.return_value = []  # Photo doesn't exist
 
         payload = [{"tag_id": str(self.tag1.tag_id)}]
 
@@ -1311,14 +1628,16 @@ class DeletePhotoTagsViewTest(APITestCase):
             photo_id=self.photo_id, tag=self.tag, user=self.user
         )
 
-    @patch("gallery.views.client")
-    def test_delete_photo_tag_success_with_remaining_tags(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_delete_photo_tag_success_with_remaining_tags(self, mock_get_client):
         """Test successful deletion of photo-tag relationship with remaining tags"""
         # Create another tag for the same photo
         another_tag = Tag.objects.create(tag="another_tag", user=self.user)
         Photo_Tag.objects.create(
             photo_id=self.photo_id, tag=another_tag, user=self.user
         )
+
+        mock_get_client.return_value.retrieve.return_value = [MagicMock()]
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse(
@@ -1337,10 +1656,11 @@ class DeletePhotoTagsViewTest(APITestCase):
             Photo_Tag.objects.filter(photo_id=self.photo_id, tag=another_tag).exists()
         )
 
-    @patch("gallery.views.client")
-    def test_delete_photo_tag_success_no_remaining_tags(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_delete_photo_tag_success_no_remaining_tags(self, mock_get_client):
         """Test successful deletion with no remaining tags (should update isTagged)"""
-        mock_client.set_payload.return_value = None
+        mock_get_client.return_value.retrieve.return_value = [MagicMock()]
+        mock_get_client.return_value.set_payload.return_value = None
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse(
@@ -1355,10 +1675,14 @@ class DeletePhotoTagsViewTest(APITestCase):
             Photo_Tag.objects.filter(photo_id=self.photo_id, tag=self.tag).exists()
         )
         # Verify Qdrant set_payload was called to update isTagged
-        mock_client.set_payload.assert_called_once()
+        mock_get_client.return_value.set_payload.assert_called_once()
 
-    def test_delete_photo_tag_not_found(self):
+    @patch("gallery.views.get_qdrant_client")
+    def test_delete_photo_tag_not_found(self, mock_get_client):
         """Test deletion of non-existent photo-tag relationship"""
+        mock_get_client.return_value.retrieve.return_value = [MagicMock()]
+        mock_get_client.return_value.set_payload.return_value = None
+
         non_existent_tag = Tag.objects.create(tag="non_existent", user=self.user)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
@@ -1395,8 +1719,8 @@ class StoryViewTest(APITestCase):
         refresh = RefreshToken.for_user(self.user)
         self.access_token = str(refresh.access_token)
 
-    @patch("gallery.views.client")
-    def test_get_stories_success(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_stories_success(self, mock_get_client):
         """Test successful retrieval of stories"""
         # Mock Qdrant response
         mock_points = []
@@ -1406,7 +1730,7 @@ class StoryViewTest(APITestCase):
             mock_point.payload.get.return_value = 100 + i
             mock_points.append(mock_point)
 
-        mock_client.scroll.return_value = (mock_points, None)
+        mock_get_client.return_value.scroll.return_value = (mock_points, None)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:stories")
@@ -1421,10 +1745,10 @@ class StoryViewTest(APITestCase):
             self.assertIn("photo_id", rec)
             self.assertIn("photo_path_id", rec)
 
-    @patch("gallery.views.client")
-    def test_get_stories_empty_results(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_stories_empty_results(self, mock_get_client):
         """Test retrieval when no untagged photos exist"""
-        mock_client.scroll.return_value = ([], None)
+        mock_get_client.return_value.scroll.return_value = ([], None)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:stories")
@@ -1434,8 +1758,8 @@ class StoryViewTest(APITestCase):
         self.assertIn("recs", response.data)
         self.assertEqual(len(response.data["recs"]), 0)
 
-    @patch("gallery.views.client")
-    def test_get_stories_with_pagination(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_stories_with_pagination(self, mock_get_client):
         """Test story retrieval with pagination parameters"""
         # Mock response for page 2 with page_size 3
         mock_points = []
@@ -1445,7 +1769,7 @@ class StoryViewTest(APITestCase):
             mock_point.payload.get.return_value = 200 + i
             mock_points.append(mock_point)
 
-        mock_client.scroll.return_value = (mock_points, None)
+        mock_get_client.return_value.scroll.return_value = (mock_points, None)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:stories")
@@ -1455,14 +1779,14 @@ class StoryViewTest(APITestCase):
         self.assertEqual(len(response.data["recs"]), 3)
 
         # Verify correct offset was calculated (page=2, page_size=3 -> offset=3)
-        call_args = mock_client.scroll.call_args
+        call_args = mock_get_client.return_value.scroll.call_args
         self.assertEqual(call_args[1]["offset"], 3)
         self.assertEqual(call_args[1]["limit"], 3)
 
-    @patch("gallery.views.client")
-    def test_get_stories_invalid_pagination_params(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_stories_invalid_pagination_params(self, mock_get_client):
         """Test story retrieval with invalid pagination parameters"""
-        mock_client.scroll.return_value = ([], None)
+        mock_get_client.return_value.scroll.return_value = ([], None)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:stories")
@@ -1476,7 +1800,7 @@ class StoryViewTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Verify page_size was capped at 200
-        call_args = mock_client.scroll.call_args
+        call_args = mock_get_client.return_value.scroll.call_args
         self.assertEqual(call_args[1]["limit"], 200)
 
     def test_get_stories_unauthorized(self):
@@ -1486,17 +1810,17 @@ class StoryViewTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @patch("gallery.views.client")
-    def test_get_stories_filter_conditions(self, mock_client):
+    @patch("gallery.views.get_qdrant_client")
+    def test_get_stories_filter_conditions(self, mock_get_client):
         """Test that correct filter conditions are applied"""
-        mock_client.scroll.return_value = ([], None)
+        mock_get_client.return_value.scroll.return_value = ([], None)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         url = reverse("gallery:stories")
         self.client.get(url)
 
         # Verify the filter conditions
-        call_args = mock_client.scroll.call_args
+        call_args = mock_get_client.return_value.scroll.call_args
         filter_obj = call_args[1]["scroll_filter"]
 
         # Should filter by user_id and isTagged=False

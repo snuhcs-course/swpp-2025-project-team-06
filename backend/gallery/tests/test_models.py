@@ -217,9 +217,7 @@ class PhotoTagModelTest(TestCase):
     def test_photo_tag_creation_success(self):
         """Photo_Tag 생성 성공 테스트"""
         photo_tag = Photo_Tag.objects.create(
-            tag=self.tag,
-            user=self.user,
-            photo_id=self.photo_id
+            tag=self.tag, user=self.user, photo_id=self.photo_id
         )
 
         self.assertEqual(photo_tag.tag, self.tag)
@@ -466,7 +464,9 @@ class CaptionModelTest(TestCase):
         for i, caption_text in enumerate(special_captions):
             # unique 제약 때문에 각각 다른 텍스트 사용
             unique_caption_text = f"{caption_text}_{i}"
-            caption = Caption.objects.create(caption=unique_caption_text, user=self.user)
+            caption = Caption.objects.create(
+                caption=unique_caption_text, user=self.user
+            )
             self.assertEqual(caption.caption, unique_caption_text)
 
     def test_caption_model_fields(self):
@@ -505,10 +505,7 @@ class PhotoCaptionModelTest(TestCase):
     def test_photo_caption_creation_success(self):
         """Photo_Caption 생성 성공 테스트"""
         photo_caption = Photo_Caption.objects.create(
-            caption=self.caption,
-            user=self.user,
-            photo_id=self.photo_id,
-            weight=85
+            caption=self.caption, user=self.user, photo_id=self.photo_id, weight=85
         )
 
         self.assertEqual(photo_caption.caption, self.caption)
@@ -558,7 +555,7 @@ class PhotoCaptionModelTest(TestCase):
                 caption=self.caption,
                 user=self.user,
                 photo_id=uuid.uuid4(),
-                weight=weight
+                weight=weight,
             )
             self.assertEqual(photo_caption.weight, weight)
 
@@ -644,7 +641,7 @@ class PhotoCaptionModelTest(TestCase):
         # weight 내림차순 정렬
         ordered_captions = Photo_Caption.objects.filter(
             photo_id=self.photo_id
-        ).order_by('-weight')
+        ).order_by("-weight")
 
         weights = [pc.weight for pc in ordered_captions]
         self.assertEqual(weights, [90, 70, 50])
@@ -657,10 +654,16 @@ class PhotoCaptionModelTest(TestCase):
 
         # 필드 타입 확인
         self.assertIsInstance(photo_caption._meta.get_field("pc_id"), models.UUIDField)
-        self.assertIsInstance(photo_caption._meta.get_field("caption"), models.ForeignKey)
+        self.assertIsInstance(
+            photo_caption._meta.get_field("caption"), models.ForeignKey
+        )
         self.assertIsInstance(photo_caption._meta.get_field("user"), models.ForeignKey)
-        self.assertIsInstance(photo_caption._meta.get_field("photo_id"), models.UUIDField)
-        self.assertIsInstance(photo_caption._meta.get_field("weight"), models.IntegerField)
+        self.assertIsInstance(
+            photo_caption._meta.get_field("photo_id"), models.UUIDField
+        )
+        self.assertIsInstance(
+            photo_caption._meta.get_field("weight"), models.IntegerField
+        )
 
         # 필드 속성 확인
         pc_id_field = photo_caption._meta.get_field("pc_id")

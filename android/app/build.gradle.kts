@@ -63,7 +63,11 @@ dependencies {
     implementation(libs.retrofit.converter.gson)
     implementation(libs.datastore.preferences)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.room.ktx)
+
     testImplementation(libs.junit)
+    testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.mockito:mockito-inline:5.2.0")
     testImplementation(libs.robolectric)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.androidx.test.core)
@@ -72,6 +76,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.arch.core.testing)
+    testImplementation(libs.mockk)
+    testImplementation(libs.mockk.android)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
