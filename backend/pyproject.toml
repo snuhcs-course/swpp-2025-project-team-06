@@ -26,3 +26,36 @@ dependencies = [
     "faiss-cpu",
     "pymysql>=1.1.2",
 ]
+
+[tool.coverage.run]
+# Specify source packages
+source = ["."]
+# Exclude test files from coverage measurement
+omit = [
+    "*/tests.py",
+    "*/tests/*",
+    "*/test_*.py",
+    "*/*tests.py",
+    ".venv/*",
+    "*/migrations/*",
+    "manage.py",
+    "config/*",
+    "*/__init__.py",
+    "*/admin.py",
+    "*/urls.py",
+    "*/apps.py",
+]
+
+[tool.coverage.report]
+# Reporting options
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if typing.TYPE_CHECKING:",
+]
+show_missing = true
+skip_covered = false
