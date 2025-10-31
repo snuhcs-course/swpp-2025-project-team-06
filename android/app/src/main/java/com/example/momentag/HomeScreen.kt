@@ -11,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -35,11 +37,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -98,10 +102,12 @@ fun HomeScreen(navController: NavController) {
     val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
     val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
+    val homeDeleteState by homeViewModel.homeDeleteState.collectAsState()
     val uiState by photoViewModel.uiState.collectAsState()
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
     var onlyTag by remember { mutableStateOf(false) }
+    var isDeleteMode by remember { mutableStateOf(false) }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -161,6 +167,26 @@ fun HomeScreen(navController: NavController) {
             }
         message?.let {
             scope.launch { snackbarHostState.showSnackbar(it) }
+        }
+    }
+
+    LaunchedEffect(homeDeleteState) {
+        when (val state = homeDeleteState) {
+            is HomeViewModel.HomeDeleteState.Success -> {
+                Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
+                homeViewModel.loadServerTags()
+                isDeleteMode = false
+                homeViewModel.resetDeleteState()
+            }
+            is HomeViewModel.HomeDeleteState.Error -> {
+                scope.launch { snackbarHostState.showSnackbar(state.message) }
+                isDeleteMode = false
+                homeViewModel.resetDeleteState()
+            }
+            is HomeViewModel.HomeDeleteState.Loading -> {
+            }
+            is HomeViewModel.HomeDeleteState.Idle -> {
+            }
         }
     }
 
@@ -225,6 +251,7 @@ fun HomeScreen(navController: NavController) {
             isRefreshing = homeLoadingState is HomeViewModel.HomeLoadingState.Loading,
             onRefresh = {
                 if (hasPermission) {
+                    isDeleteMode = false
                     homeViewModel.loadServerTags()
                 }
             },
@@ -271,7 +298,13 @@ fun HomeScreen(navController: NavController) {
                                 onlyTag = onlyTag,
                                 tagItems = tagItems,
                                 navController = navController,
+                                onDeleteClick = { tagId ->
+                                    homeViewModel.deleteTag(tagId)
+                                },
                                 modifier = Modifier.weight(1f),
+                                isDeleteMode = isDeleteMode,
+                                onEnterDeleteMode = { isDeleteMode = true },
+                                onExitDeleteMode = { isDeleteMode = false },
                             )
                         }
 
@@ -353,7 +386,11 @@ private fun MainContent(
     onlyTag: Boolean,
     tagItems: List<TagItem>,
     navController: NavController,
+    onDeleteClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    isDeleteMode: Boolean,
+    onEnterDeleteMode: () -> Unit,
+    onExitDeleteMode: () -> Unit,
 ) {
     if (!onlyTag) {
         LazyVerticalGrid(
@@ -368,6 +405,10 @@ private fun MainContent(
                     tagName = item.tagName,
                     imageId = item.coverImageId,
                     navController = navController,
+                    onDeleteClick = onDeleteClick,
+                    isDeleteMode = isDeleteMode,
+                    onEnterDeleteMode = onEnterDeleteMode,
+                    onExitDeleteMode = onExitDeleteMode,
                 )
             }
         }
@@ -380,7 +421,9 @@ private fun MainContent(
             tagItems.forEach { item ->
                 tagX(
                     text = item.tagName,
-                    onDismiss = { /* TODO */ },
+                    onDismiss = {
+                        onDeleteClick(item.tagId)
+                    },
                 )
             }
         }
@@ -400,6 +443,10 @@ fun TagGridItem(
     tagName: String,
     imageId: Long?,
     navController: NavController,
+    onDeleteClick: (String) -> Unit,
+    isDeleteMode: Boolean,
+    onEnterDeleteMode: () -> Unit,
+    onExitDeleteMode: () -> Unit,
 ) {
     val imageUri: Uri? =
         remember(imageId) {
@@ -422,9 +469,18 @@ fun TagGridItem(
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(16.dp))
                         .align(Alignment.BottomCenter)
-                        .clickable {
-                            navController.navigate(Screen.Album.createRoute(tagId, tagName))
-                        },
+                        .combinedClickable(
+                            onClick = {
+                                if (isDeleteMode) {
+                                    onExitDeleteMode()
+                                } else {
+                                    navController.navigate(Screen.Album.createRoute(tagId, tagName))
+                                }
+                            },
+                            onLongClick = {
+                                onEnterDeleteMode()
+                            },
+                        ),
                 contentScale = ContentScale.Crop,
             )
         } else {
@@ -437,9 +493,18 @@ fun TagGridItem(
                             color = Picture,
                             shape = RoundedCornerShape(16.dp),
                         ).align(Alignment.BottomCenter)
-                        .clickable {
-                            navController.navigate(Screen.Album.createRoute(tagId, tagName))
-                        },
+                        .combinedClickable(
+                            onClick = {
+                                if (isDeleteMode) {
+                                    onExitDeleteMode()
+                                } else {
+                                    navController.navigate(Screen.Album.createRoute(tagId, tagName))
+                                }
+                            },
+                            onLongClick = {
+                                onEnterDeleteMode()
+                            },
+                        ),
             )
         }
         Text(
@@ -455,5 +520,25 @@ fun TagGridItem(
                         shape = RoundedCornerShape(8.dp),
                     ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
+        if (isDeleteMode) {
+            IconButton(
+                onClick = {
+                    onDeleteClick(tagId)
+                },
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 4.dp, end = 4.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                        .size(24.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Delete Tag",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
     }
 }

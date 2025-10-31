@@ -88,7 +88,7 @@ sealed class PhotoTagState {
     object Loading : PhotoTagState()
 
     data class Success(
-        val existingTags: List<String>,
+        val existingTags: List<Tag>,
         val recommendedTags: List<String>,
     ) : PhotoTagState()
 

@@ -105,7 +105,6 @@ def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
 
-
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     client = get_qdrant_client()
     ALPHA = 0.5
@@ -255,6 +254,13 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
 
     return recommendations
 
+def is_valid_uuid(uuid_to_test):
+    try:
+        uuid.UUID(str(uuid_to_test))
+    except ValueError:
+        return False
+    return True
+
 
 def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
     client = get_qdrant_client()
@@ -303,11 +309,3 @@ def retrieve_photo_caption_graph(user: User):
         )
 
     return photo_set, caption_set, graph
-
-
-def is_valid_uuid(uuid_to_test):
-    try:
-        uuid.UUID(str(uuid_to_test))
-    except ValueError:
-        return False
-    return True

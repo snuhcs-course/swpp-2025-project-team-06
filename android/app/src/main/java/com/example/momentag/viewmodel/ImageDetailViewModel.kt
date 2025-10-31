@@ -25,11 +25,26 @@ class ImageDetailViewModel(
     private val remoteRepository: RemoteRepository,
     private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
+    sealed class TagDeleteState {
+        object Idle : TagDeleteState()
+
+        object Loading : TagDeleteState()
+
+        object Success : TagDeleteState()
+
+        data class Error(
+            val message: String,
+        ) : TagDeleteState()
+    }
+
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
     val imageContext = _imageContext.asStateFlow()
 
     private val _photoTagState = MutableStateFlow<PhotoTagState>(PhotoTagState.Idle)
     val photoTagState = _photoTagState.asStateFlow()
+
+    private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
+    val tagDeleteState = _tagDeleteState.asStateFlow()
 
     /**
      * photoId를 기반으로 ImageContext를 Repository에서 조회하여 설정
@@ -85,7 +100,9 @@ class ImageDetailViewModel(
 
             when (photoDetailResult) {
                 is RemoteRepository.Result.Success -> {
-                    val existingTags = photoDetailResult.data.tags.map { it.tagName }
+                    val existingTags = photoDetailResult.data.tags
+
+                    val existingTagNames = existingTags.map { it.tagName }
 
                     // Load recommended tags
                     val recommendResult = recommendRepository.recommendTagFromPhoto(photoId)
@@ -97,7 +114,7 @@ class ImageDetailViewModel(
                                     .map {
                                         it.tagName
                                     }.filter {
-                                        it !in existingTags
+                                        it !in existingTagNames
                                     }.take(1)
 
                             _photoTagState.value =
@@ -144,6 +161,46 @@ class ImageDetailViewModel(
                 }
             }
         }
+    }
+
+    fun deleteTagFromPhoto(
+        photoId: String,
+        tagId: String,
+    ) {
+        viewModelScope.launch {
+            _tagDeleteState.value = TagDeleteState.Loading
+
+            when (val result = remoteRepository.removeTagFromPhoto(photoId, tagId)) {
+                is RemoteRepository.Result.Success -> {
+                    _tagDeleteState.value = TagDeleteState.Success
+                }
+
+                is RemoteRepository.Result.Error -> {
+                    _tagDeleteState.value = TagDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.Unauthorized -> {
+                    _tagDeleteState.value = TagDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.BadRequest -> {
+                    _tagDeleteState.value = TagDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.NetworkError -> {
+                    _tagDeleteState.value = TagDeleteState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.Exception -> {
+                    _tagDeleteState.value =
+                        TagDeleteState.Error(result.e.message ?: "Unknown error")
+                }
+            }
+        }
+    }
+
+    fun resetDeleteState() {
+        _tagDeleteState.value = TagDeleteState.Idle
     }
 
     /**

@@ -209,6 +209,7 @@ class TaskFunctionsTest(TestCase):
         tag_name, tag_id = tag_recommendation(self.user_id, self.photo_id)
 
         self.assertIsNone(tag_name)
+        self.assertIsNone(tag_id)
 
 
 class RetrievePhotoCaptionGraphTest(TestCase):
