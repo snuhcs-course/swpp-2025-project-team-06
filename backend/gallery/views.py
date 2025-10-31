@@ -15,7 +15,6 @@ from .reponse_serializers import (
     ResTagIdSerializer,
     ResTagVectorSerializer,
     ResStorySerializer,
-    ResTagAlbumSerializer,
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
@@ -26,7 +25,7 @@ from .request_serializers import (
 )
 
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag
+from .models import Photo_Tag, Tag, User
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -267,8 +266,6 @@ class PhotoDetailView(APIView):
     def get(self, request, photo_id):
         try:
             client = get_qdrant_client()
-
-            # 해당 photo_id의 사진만 직접 가져오기 (하나만 가져온다 해도 리스트 형식으로만 받을 수 있다고 함.)
             points = client.retrieve(
                 collection_name=IMAGE_COLLECTION_NAME,
                 ids=[str(photo_id)],
@@ -333,7 +330,8 @@ class PhotoDetailView(APIView):
     def delete(self, request, photo_id):
         try:
             client = get_qdrant_client()
-            Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).delete()
+            photo_tag = Photo_Tag.objects.get(photo_id=photo_id, user=request.user)
+            photo_tag.delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
@@ -413,7 +411,7 @@ class GetPhotosByTagView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success", schema=ResTagAlbumSerializer()
+                description="Success", schema=ResPhotoSerializer(many=True)
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -450,11 +448,9 @@ class GetPhotosByTagView(APIView):
                     }
                 )
 
-            response_data = {"photos": photos}
+            serializer = ResPhotoSerializer(photos, many=True)
 
-            return Response(
-                ResTagAlbumSerializer(response_data).data, status=status.HTTP_200_OK
-            )
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Photo_Tag.DoesNotExist:
             return Response(
                 {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
@@ -497,6 +493,13 @@ class PostPhotoTagsView(APIView):
 
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                User.objects.get(pk=request.user.pk)
+            except User.DoesNotExist:
+                return Response(
+                    {"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED
+                )
 
             tag_ids = [data["tag_id"] for data in serializer.validated_data]
 
@@ -568,16 +571,16 @@ class DeletePhotoTagsView(APIView):
     def delete(self, request, photo_id, tag_id):
         try:
             client = get_qdrant_client()
-            Tag.objects.get(tag_id=tag_id, user=request.user)
+            tag = Tag.objects.get(tag_id=tag_id, user=request.user)
             if not client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME, ids=str(photo_id)
+                collection_name=IMAGE_COLLECTION_NAME, ids=[str(photo_id)]
             ):
                 return Response(
                     {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
                 )
 
             photo_tag = Photo_Tag.objects.get(
-                photo_id=photo_id, tag_id=tag_id, user=request.user
+                photo_id=photo_id, tag=tag, user=request.user
             )
 
             photo_tag.delete()
@@ -838,7 +841,7 @@ class TagView(APIView):
 
             if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
                 return Response(
-                    {"detail": f"Tag '{data['tag']}' already exists."},
+                    {"error": f"Tag {data['tag']} already exists"},
                     status=status.HTTP_409_CONFLICT,
                 )
 

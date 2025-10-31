@@ -55,6 +55,11 @@ interface ApiService {
         @Path("tag_id") tagId: String,
     ): Response<Unit>
 
+    @DELETE("api/tags/{tag_id}/")
+    suspend fun removeTag(
+        @Path("tag_id") tagId: String,
+    ): Response<Unit>
+
     @POST("api/photos/{photo_id}/tags/")
     suspend fun postTagsToPhoto(
         @Path("photo_id") photoId: String,
@@ -132,7 +137,7 @@ interface ApiService {
  */
 object RetrofitInstance {
 //    private const val BASE_URL = "http://10.0.2.2:8000/"
-    private const val BASE_URL = "http://10.213.116.234:8000/"
+    private const val BASE_URL = "http://192.168.58.234:8000/"
 
     private var apiService: ApiService? = null
 

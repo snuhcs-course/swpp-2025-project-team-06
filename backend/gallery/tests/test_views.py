@@ -598,7 +598,7 @@ class TagViewTest(APITestCase):
         response = self.client.post(self.tag_list_url, payload)
 
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertIn("already exists", response.data["detail"])
+        self.assertIn("already exists", response.data["error"])
 
     def test_create_tag_invalid_data(self):
         """잘못된 데이터로 태그 생성 시도 테스트"""
@@ -1507,8 +1507,7 @@ class GetPhotosByTagViewTest(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("photos", response.data)
-        self.assertEqual(len(response.data["photos"]), 2)
+        self.assertEqual(len(response.data), 2)
 
     def test_get_photos_by_tag_no_photos(self):
         """Test retrieval when tag has no photos"""
@@ -1519,7 +1518,7 @@ class GetPhotosByTagViewTest(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["photos"]), 0)
+        self.assertEqual(len(response.data), 0)
 
     def test_get_photos_by_tag_unauthorized(self):
         """Test unauthorized access"""

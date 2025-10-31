@@ -260,7 +260,6 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
 
     return recommendations
 
-
 def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
     client = get_qdrant_client()
     LIMIT = 32  # assert max num of rep vectors <= 32
