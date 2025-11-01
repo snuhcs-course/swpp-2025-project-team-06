@@ -15,8 +15,11 @@ from .response_serializers import PhotoResponseSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import uuid
+from django.conf import settings
 
 TAG_REGEX = re.compile(r"\{([^}]+)\}")
+
+SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
 
 class SemanticSearchView(APIView):
@@ -73,7 +76,7 @@ class SemanticSearchView(APIView):
             offset = int(request.GET.get("offset", 0))
             user = request.user
             
-            TAG_EDGE_WEIGHT = 10.0
+            TAG_EDGE_WEIGHT = SEARCH_SETTINGS["TAG_EDGE_WEIGHT"]
             
             tag_names = TAG_REGEX.findall(query)
             text_only_query = TAG_REGEX.sub("", query).strip()
@@ -112,7 +115,7 @@ class SemanticSearchView(APIView):
                         collection_name=IMAGE_COLLECTION_NAME, #
                         query_vector=query_vector,
                         query_filter=user_filter,
-                        limit=20,
+                        limit=SEARCH_SETTINGS["SEMANTIC_LIMIT_FOR_GRAPH"],
                         offset=offset,
                         with_payload=True,
                         with_vectors=False, 

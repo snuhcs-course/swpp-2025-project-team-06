@@ -4,6 +4,7 @@ import networkx as nx
 from collections import defaultdict
 from celery import shared_task
 from qdrant_client import models
+from django.conf import settings
 
 from .vision_service import get_image_embedding, get_image_captions
 from .qdrant_utils import (
@@ -14,6 +15,8 @@ from .qdrant_utils import (
 from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
 
 import time
+
+SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
 from sentence_transformers import SentenceTransformer
 
@@ -356,11 +359,11 @@ def execute_hybrid_graph_search(
     user: User, 
     personalization_nodes: set, 
     semantic_scores: dict,
-    tag_edge_weight: float = 10.0,
-    alpha: float = 0.5,
-    graph_weight: float = 0.6,
-    semantic_weight: float = 0.4,
-    limit: int = 20,
+    tag_edge_weight: float = SEARCH_SETTINGS["TAG_EDGE_WEIGHT"],
+    alpha: float = SEARCH_SETTINGS["ALPHA_RWR_VS_AA"],
+    graph_weight: float = SEARCH_SETTINGS["GRAPH_WEIGHT"],
+    semantic_weight: float =SEARCH_SETTINGS["SEMANTIC_WEIGHT"],
+    limit: int = SEARCH_SETTINGS["FINAL_RESULT_LIMIT"],
 ):
     client = get_qdrant_client()
     
