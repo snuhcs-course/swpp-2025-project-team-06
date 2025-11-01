@@ -57,6 +57,11 @@ interface ApiService {
         @Path("tag_id") tagId: String,
     ): Response<Unit>
 
+    @DELETE("api/tags/{tag_id}/")
+    suspend fun removeTag(
+        @Path("tag_id") tagId: String,
+    ): Response<Unit>
+
     @POST("api/photos/{photo_id}/tags/")
     suspend fun postTagsToPhoto(
         @Path("photo_id") photoId: String,

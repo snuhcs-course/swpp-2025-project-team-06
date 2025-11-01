@@ -73,6 +73,7 @@ class PhotoViewTest(APITestCase):
             mock_points.append(mock_point)
 
         # Mock the scroll method to return photos in batches
+
         mock_get_client.return_value.scroll.return_value = (mock_points, None)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
@@ -938,18 +939,18 @@ class GetRecommendTagViewTest(APITestCase):
     @patch("gallery.views.get_qdrant_client")
     def test_get_recommend_tag_success(self, mock_get_client, mock_tag_recommendation):
         mock_get_client.return_value.retrieve.return_value = ["some_point_data"]
-        mock_tag_recommendation.return_value = ("recommended_tag", self.tag.tag_id)
+        mock_tag_recommendation.return_value = [self.tag]
 
         self.client.force_authenticate(user=self.user)
 
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        expected_data = {"tag_id": self.tag.tag_id, "tag": "recommended_tag"}
-
-        self.assertEqual(int(response.data["tag_id"]), expected_data["tag_id"])
-        self.assertEqual(response.data["tag"], expected_data["tag"])
-        mock_tag_recommendation.assert_called_once_with(self.user.id, self.photo_id)
+        self.assertIsInstance(response.data, list)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["tag_id"], str(self.tag.tag_id))
+        self.assertEqual(response.data[0]["tag"], self.tag.tag)
+        mock_tag_recommendation.assert_called_once_with(self.user, self.photo_id)
 
     def test_get_recommend_tag_unauthorized(self):
         url = f"/api/photos/{self.photo_id}/recommendation/"
@@ -1499,6 +1500,7 @@ class GetPhotosByTagViewTest(APITestCase):
             mock_point.id = str(photo_id)
             mock_point.payload.get.return_value = 100 + i
             mock_points.append(mock_point)
+
         mock_get_client.return_value.retrieve.return_value = mock_points
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
@@ -1506,8 +1508,7 @@ class GetPhotosByTagViewTest(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("photos", response.data)
-        self.assertEqual(len(response.data["photos"]), 2)
+        self.assertEqual(len(response.data), 2)
 
     def test_get_photos_by_tag_no_photos(self):
         """Test retrieval when tag has no photos"""
@@ -1518,7 +1519,7 @@ class GetPhotosByTagViewTest(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["photos"]), 0)
+        self.assertEqual(len(response.data), 0)
 
     def test_get_photos_by_tag_unauthorized(self):
         """Test unauthorized access"""
