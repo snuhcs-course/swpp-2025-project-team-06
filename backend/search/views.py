@@ -76,7 +76,12 @@ class SemanticSearchView(APIView):
             TAG_EDGE_WEIGHT = 10.0
             
             tag_names = TAG_REGEX.findall(query)
-            semantic_query = TAG_REGEX.sub("something", query).strip()
+            text_only_query = TAG_REGEX.sub("", query).strip()
+
+            semantic_query = ""
+            
+            if text_only_query:
+                semantic_query = TAG_REGEX.sub("something", query).strip()
             
             personalization_nodes = set()
 
