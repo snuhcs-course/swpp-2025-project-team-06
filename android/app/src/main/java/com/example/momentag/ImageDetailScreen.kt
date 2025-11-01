@@ -120,7 +120,6 @@ fun ImageDetailScreen(
         imageContext?.currentIndex?.let { index ->
             if (index in 0 until photos.size && pagerState.currentPage != index) {
                 pagerState.scrollToPage(index)
-            } else {
             }
         }
     }
@@ -337,7 +336,6 @@ fun ImageDetailScreen(
     }
 }
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagsSection(

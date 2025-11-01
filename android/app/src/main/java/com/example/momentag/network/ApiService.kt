@@ -137,8 +137,8 @@ interface ApiService {
  * - TokenAuthenticator: 401 시 자동 리프레시 → 재시도
  */
 object RetrofitInstance {
-//    private const val BASE_URL = "http://10.0.2.2:8000/"
-    private const val BASE_URL = "http://10.213.116.234:8000/"
+    private const val BASE_URL = "http://10.0.2.2:8000/"
+//    private const val BASE_URL = "http://10.213.116.234:8000/"
 
     private var apiService: ApiService? = null
 
