@@ -15,10 +15,10 @@ from .qdrant_utils import (
 from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
 
 import time
+import torch
+from sentence_transformers import SentenceTransformer
 
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
-
-from sentence_transformers import SentenceTransformer
 
 _TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 _text_model = None  # 전역 캐시
@@ -26,7 +26,6 @@ _text_model = None  # 전역 캐시
 MAX_WAIT = 2.0  # 최대 2초 대기
 WAIT_INTERVAL = 0.1
 
-import torch
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
