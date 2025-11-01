@@ -362,6 +362,7 @@ def execute_hybrid_graph_search(
     semantic_weight: float = 0.4,
     limit: int = 20,
 ):
+    client = get_qdrant_client()
     
     # 1. 결합 그래프 생성
     all_photos, _, graph = retrieve_combined_graph(user, tag_edge_weight)
