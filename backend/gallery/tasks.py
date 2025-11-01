@@ -23,13 +23,16 @@ _text_model = None  # 전역 캐시
 MAX_WAIT = 2.0  # 최대 2초 대기
 WAIT_INTERVAL = 0.1
 
+import torch
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def get_text_model():
     """Lazy-load text model inside worker"""
     global _text_model
     if _text_model is None:
         print("[INFO] Loading text model inside worker...")
-        _text_model = SentenceTransformer(_TEXT_MODEL_NAME)
+        _text_model = SentenceTransformer(_TEXT_MODEL_NAME, device=DEVICE)
     return _text_model
 
 
