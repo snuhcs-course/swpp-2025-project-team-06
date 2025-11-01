@@ -432,6 +432,63 @@ class StoryViewModelTest {
         }
 
     @Test
+    fun `loadTagsForStory should use cached tags to update story when tags are cleared`() =
+        runTest {
+            // Given - initial stories loaded
+            val photoResponses =
+                listOf(
+                    PhotoResponse(photoId = "photo1", photoPathId = 1L),
+                )
+            val photos =
+                listOf(
+                    Photo(photoId = "photo1", contentUri = Uri.parse("content://media/1")),
+                )
+
+            coEvery { mockRecommendRepository.getStories(any()) } returns
+                RecommendRepository.RecommendResult.Success(photoResponses)
+            coEvery { mockLocalRepository.toPhotos(photoResponses) } returns photos
+            coEvery { mockLocalRepository.getPhotoDate(any()) } returns "2024-01-01"
+            coEvery { mockLocalRepository.getPhotoLocation(any()) } returns "Seoul, Korea"
+
+            viewModel.loadStories(1)
+            advanceUntilIdle()
+
+            // Load tags first time to populate cache
+            val tags =
+                listOf(
+                    Tag(tagName = "sunset", tagId = "tag1"),
+                    Tag(tagName = "beach", tagId = "tag2"),
+                )
+
+            coEvery { mockRecommendRepository.recommendTagFromPhoto("photo1") } returns
+                RecommendRepository.RecommendResult.Success(tags)
+
+            viewModel.loadTagsForStory(storyId = "photo1", photoId = "photo1")
+            advanceUntilIdle()
+
+            // Simulate state change that clears story tags (e.g., pagination)
+            viewModel.loadStories(1)
+            advanceUntilIdle()
+
+            // When - load tags again (should use cache instead of API)
+            viewModel.loadTagsForStory(storyId = "photo1", photoId = "photo1")
+            advanceUntilIdle()
+
+            // Then - story should have tags from cache
+            viewModel.storyState.test {
+                val state = awaitItem() as StoryState.Success
+                val story = state.stories[0]
+                assertEquals(3, story.suggestedTags.size) // sunset, beach, +
+                assertEquals("sunset", story.suggestedTags[0])
+                assertEquals("beach", story.suggestedTags[1])
+                assertEquals("+", story.suggestedTags[2])
+            }
+
+            // And API should still be called only once (from first load)
+            coVerify(exactly = 1) { mockRecommendRepository.recommendTagFromPhoto("photo1") }
+        }
+
+    @Test
     fun `loadTagsForStory error should silently fail and cache empty list`() =
         runTest {
             // Given - initial stories loaded
@@ -457,23 +514,31 @@ class StoryViewModelTest {
             coEvery { mockRecommendRepository.recommendTagFromPhoto("photo1") } returns
                 RecommendRepository.RecommendResult.NetworkError("Network error")
 
-            // When
+            // When - first attempt fails
             viewModel.loadTagsForStory(storyId = "photo1", photoId = "photo1")
             advanceUntilIdle()
 
-            // Then - state should remain unchanged
+            // Then - story should remain unchanged after error
             viewModel.storyState.test {
                 val state = awaitItem() as StoryState.Success
                 val story = state.stories[0]
                 assertTrue(story.suggestedTags.isEmpty())
             }
 
-            // When - try loading again (should not call API because of cache)
+            // When - try loading again (should use cached empty list without calling API)
             viewModel.loadTagsForStory(storyId = "photo1", photoId = "photo1")
             advanceUntilIdle()
 
             // Then - API should be called only once
             coVerify(exactly = 1) { mockRecommendRepository.recommendTagFromPhoto("photo1") }
+
+            // And story should now have the "+" button from cached empty list
+            viewModel.storyState.test {
+                val state = awaitItem() as StoryState.Success
+                val story = state.stories[0]
+                assertEquals(1, story.suggestedTags.size)
+                assertEquals("+", story.suggestedTags[0])
+            }
         }
 
     @Test

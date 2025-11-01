@@ -170,8 +170,20 @@ class StoryViewModel(
         storyId: String,
         photoId: String,
     ) {
+        val currentState = _storyState.value
+        if (currentState !is StoryState.Success) return
+
+        // Check if story already has tags populated
+        val story = currentState.stories.find { it.id == storyId }
+        if (story != null && story.suggestedTags.isNotEmpty()) {
+            return
+        }
+
         // Check cache first
         if (tagCache.containsKey(storyId)) {
+            // Use cached tags to update the story
+            val cachedTags = tagCache[storyId] ?: emptyList()
+            updateStoryTags(storyId, cachedTags)
             return
         }
 
@@ -180,28 +192,7 @@ class StoryViewModel(
                 is RecommendRepository.RecommendResult.Success -> {
                     val tags = result.data.map { it.tagName }
                     tagCache[storyId] = tags
-
-                    // Update the story's suggestedTags
-                    val currentState = _storyState.value
-                    if (currentState is StoryState.Success) {
-                        val updatedStories =
-                            currentState.stories.map { story ->
-                                if (story.id == storyId) {
-                                    story.copy(suggestedTags = tags + "+")
-                                } else {
-                                    story
-                                }
-                            }
-
-                        // Update currentStories list
-                        currentStories.clear()
-                        currentStories.addAll(updatedStories)
-
-                        _storyState.value =
-                            currentState.copy(
-                                stories = updatedStories,
-                            )
-                    }
+                    updateStoryTags(storyId, tags)
                 }
 
                 is RecommendRepository.RecommendResult.NetworkError,
@@ -213,6 +204,37 @@ class StoryViewModel(
                     tagCache[storyId] = emptyList()
                 }
             }
+        }
+    }
+
+    /**
+     * Update a story's suggested tags in the state
+     * @param storyId Story ID
+     * @param tags List of tag names
+     */
+    private fun updateStoryTags(
+        storyId: String,
+        tags: List<String>,
+    ) {
+        val currentState = _storyState.value
+        if (currentState is StoryState.Success) {
+            val updatedStories =
+                currentState.stories.map { story ->
+                    if (story.id == storyId) {
+                        story.copy(suggestedTags = tags + "+")
+                    } else {
+                        story
+                    }
+                }
+
+            // Update currentStories list
+            currentStories.clear()
+            currentStories.addAll(updatedStories)
+
+            _storyState.value =
+                currentState.copy(
+                    stories = updatedStories,
+                )
         }
     }
 
