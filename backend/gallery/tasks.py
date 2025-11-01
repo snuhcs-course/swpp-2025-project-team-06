@@ -448,7 +448,7 @@ def execute_hybrid_graph_search(
     )
 
     # 정렬 순서 유지를 위해 ID를 키로 하는 딕셔너리 생성
-    points_dict = {point.id: point.payload["photo_path_id"] for point in points}
+    points_dict = {point.id: point.payload.get("photo_path_id") for point in points}
 
     # RWR/AA로 정렬된 순서대로 최종 결과 생성
     final_results = []
