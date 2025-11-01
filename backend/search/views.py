@@ -126,7 +126,7 @@ class SemanticSearchView(APIView):
                         score = point.score
                         if score is None:
                             score = 0.0
-                        semantic_scores[photo_uuid] = point.score
+                        semantic_scores[photo_uuid] = score
 
                 except Exception as e:
                     return Response(
