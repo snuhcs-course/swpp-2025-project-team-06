@@ -394,7 +394,7 @@ def execute_hybrid_graph_search(
 
     # 4. 점수 계산 2: Adamic/Adar Index
     aa_scores = defaultdict(float)
-    target_set = valid_personalization_nodes 
+    target_set = valid_personalization_nodes_set 
     
     try:
         for u, _, score in nx.adamic_adar_index(
