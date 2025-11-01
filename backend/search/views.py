@@ -123,6 +123,9 @@ class SemanticSearchView(APIView):
                         photo_uuid = uuid.UUID(point.id)
                         personalization_nodes.add(photo_uuid)
                         semantic_photo_ids.append(point.id)
+                        score = point.score
+                        if score is None:
+                            score = 0.0
                         semantic_scores[photo_uuid] = point.score
 
                 except Exception as e:
