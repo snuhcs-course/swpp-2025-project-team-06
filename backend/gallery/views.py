@@ -39,6 +39,7 @@ from .tasks import (
     is_valid_uuid,
     recommend_photo_from_tag,
     recommend_photo_from_photo,
+    compute_and_store_rep_vectors,
 )
 
 
@@ -330,14 +331,19 @@ class PhotoDetailView(APIView):
     def delete(self, request, photo_id):
         try:
             client = get_qdrant_client()
-            photo_tag = Photo_Tag.objects.get(photo_id=photo_id, user=request.user)
-            photo_tag.delete()
+            associated_tags = Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).select_related('tag')
+            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_tags]
+
+            associated_tags.delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
                 points_selector=[str(photo_id)],
                 wait=True,
             )
+
+            for tag_id_str in set(tag_ids_to_recompute):
+                compute_and_store_rep_vectors.delay(request.user.id, tag_id_str)
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -384,15 +390,20 @@ class BulkDeletePhotoView(APIView):
 
             # 일단 동작만 하게 해놓음.
             # 여러 API가 동시에 들어와서 중복 삭제하는 등의 문제를 해결하는건 나중에 atomic transaction 등의 방식으로 수정
-            Photo_Tag.objects.filter(
+            associated_tags = Photo_Tag.objects.filter(
                 photo_id__in=photos_to_delete, user=request.user
-            ).delete()
+            ).select_related('tag')
+            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_tags]
+            associated_tags.delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
                 points_selector=[str(photo_id) for photo_id in photos_to_delete],
                 wait=True,
             )
+
+            for tag_id_str in set(tag_ids_to_recompute):
+                compute_and_store_rep_vectors.delay(request.user.id, tag_id_str)
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -533,6 +544,9 @@ class PostPhotoTagsView(APIView):
                 points=[str(photo_id)],
             )
 
+            for tag_id in tag_ids:
+                compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+
             return Response(status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
             return Response(
@@ -596,6 +610,8 @@ class DeletePhotoTagsView(APIView):
                     payload={"isTagged": False},
                     points=[str(photo_id)],
                 )
+
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Tag.DoesNotExist:
@@ -899,8 +915,11 @@ class TagDetailView(APIView):
                     {"error": "Forbidden - you are not the owner of this tag."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+                
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             tag.delete()
+
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response(
