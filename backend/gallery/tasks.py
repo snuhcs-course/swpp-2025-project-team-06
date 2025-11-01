@@ -451,11 +451,13 @@ def execute_hybrid_graph_search(
     points_dict = {point.id: point.payload["photo_path_id"] for point in points}
 
     # RWR/AA로 정렬된 순서대로 최종 결과 생성
-    final_results = [
-        {"photo_id": photo_id, "photo_path_id": points_dict[photo_id]}
-        for photo_id in recommend_photos if photo_id in points_dict
-    ]
-    
+    final_results = []
+    for photo_id in recommend_photos:
+        photo_path_id = points_dict.get(photo_id)
+        if photo_path_id is not None:
+            final_results.append(
+                {"photo_id": photo_id, "photo_path_id": photo_path_id}
+            )
     return final_results
 
 

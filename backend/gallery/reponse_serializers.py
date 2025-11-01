@@ -4,7 +4,7 @@ from .serializers import TagSerializer
 
 class ResPhotoSerializer(serializers.Serializer):
     photo_id = serializers.UUIDField(help_text="사진의 고유 ID")
-    photo_path_id = serializers.IntegerField(help_text="사진 파일의 경로 ID", allow_null=True)
+    photo_path_id = serializers.IntegerField(help_text="사진 파일의 경로 ID")
 
 
 class ResPhotoTagListSerializer(serializers.Serializer):

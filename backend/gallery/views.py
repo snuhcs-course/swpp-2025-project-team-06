@@ -25,7 +25,7 @@ from .request_serializers import (
 )
 
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag, User
+from .models import Photo_Tag, Tag, User, Photo_Caption
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -331,6 +331,7 @@ class PhotoDetailView(APIView):
         try:
             client = get_qdrant_client()
             Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).delete()
+            Photo_Caption.objects.filter(photo_id=photo_id, user=request.user).delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
