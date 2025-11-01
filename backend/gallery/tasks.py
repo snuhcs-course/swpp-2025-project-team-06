@@ -376,17 +376,19 @@ def execute_hybrid_graph_search(
     
     candidates: set[uuid.UUID] = all_photos - personalization_photos
     
-    valid_personalization_nodes = {
+    valid_personalization_nodes_set = {
         node for node in personalization_nodes if node in graph
     }
 
-    if not valid_personalization_nodes:
+    if not valid_personalization_nodes_set:
         return []
+    
+    personalization_dict = {node: 1 for node in valid_personalization_nodes_set}
 
     # 점수 계산 1: Personalized PageRank (RWR)
     rwr_scores = nx.pagerank(
         graph, 
-        personalization=valid_personalization_nodes, 
+        personalization=personalization_dict, 
         weight="weight"
     )
 
