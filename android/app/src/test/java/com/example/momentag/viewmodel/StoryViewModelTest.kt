@@ -41,6 +41,7 @@ class StoryViewModelTest {
     private lateinit var viewModel: StoryViewModel
     private lateinit var mockRecommendRepository: RecommendRepository
     private lateinit var mockLocalRepository: LocalRepository
+    private lateinit var mockRemoteRepository: com.example.momentag.repository.RemoteRepository
 
     @Before
     fun setUp() {
@@ -48,8 +49,9 @@ class StoryViewModelTest {
 
         mockRecommendRepository = mockk(relaxed = true)
         mockLocalRepository = mockk(relaxed = true)
+        mockRemoteRepository = mockk(relaxed = true)
 
-        viewModel = StoryViewModel(mockRecommendRepository, mockLocalRepository)
+        viewModel = StoryViewModel(mockRecommendRepository, mockLocalRepository, mockRemoteRepository)
     }
 
     @After
@@ -638,18 +640,191 @@ class StoryViewModelTest {
         }
 
     @Test
-    fun `submitTagsForStory should handle submission`() =
+    fun `submitTagsForStory should create tags and associate with photo`() =
         runTest {
-            // Given
-            viewModel.toggleTag(storyId = "story1", tag = "sunset")
-            viewModel.toggleTag(storyId = "story1", tag = "beach")
+            // Given - stories loaded
+            val photoResponses =
+                listOf(
+                    PhotoResponse(photoId = "photo1", photoPathId = 1L),
+                )
+            val photos =
+                listOf(
+                    Photo(photoId = "photo1", contentUri = Uri.parse("content://media/1")),
+                )
+
+            coEvery { mockRecommendRepository.getStories(any()) } returns
+                RecommendRepository.RecommendResult.Success(photoResponses)
+            coEvery { mockLocalRepository.toPhotos(photoResponses) } returns photos
+            coEvery { mockLocalRepository.getPhotoDate(any()) } returns "2024-01-01"
+            coEvery { mockLocalRepository.getPhotoLocation(any()) } returns "Seoul, Korea"
+
+            viewModel.loadStories(1)
             advanceUntilIdle()
 
-            // When - no exception should be thrown
+            // Given - tags selected
+            viewModel.toggleTag(storyId = "photo1", tag = "sunset")
+            viewModel.toggleTag(storyId = "photo1", tag = "beach")
+            advanceUntilIdle()
+
+            // Given - mock API responses
+            coEvery { mockRemoteRepository.postTags("sunset") } returns
+                com.example.momentag.repository.RemoteRepository.Result.Success(
+                    com.example.momentag.model
+                        .TagCreateResponse(tagId = "tag1"),
+                )
+            coEvery { mockRemoteRepository.postTags("beach") } returns
+                com.example.momentag.repository.RemoteRepository.Result.Success(
+                    com.example.momentag.model
+                        .TagCreateResponse(tagId = "tag2"),
+                )
+            coEvery { mockRemoteRepository.postTagsToPhoto("photo1", "tag1") } returns
+                com.example.momentag.repository.RemoteRepository.Result
+                    .Success(Unit)
+            coEvery { mockRemoteRepository.postTagsToPhoto("photo1", "tag2") } returns
+                com.example.momentag.repository.RemoteRepository.Result
+                    .Success(Unit)
+
+            // When
+            viewModel.submitTagsForStory("photo1")
+            advanceUntilIdle()
+
+            // Then - verify API calls
+            coVerify { mockRemoteRepository.postTags("sunset") }
+            coVerify { mockRemoteRepository.postTags("beach") }
+            coVerify { mockRemoteRepository.postTagsToPhoto("photo1", "tag1") }
+            coVerify { mockRemoteRepository.postTagsToPhoto("photo1", "tag2") }
+        }
+
+    @Test
+    fun `submitTagsForStory should do nothing when story not found`() =
+        runTest {
+            // Given - stories loaded
+            val photoResponses =
+                listOf(
+                    PhotoResponse(photoId = "photo1", photoPathId = 1L),
+                )
+            val photos =
+                listOf(
+                    Photo(photoId = "photo1", contentUri = Uri.parse("content://media/1")),
+                )
+
+            coEvery { mockRecommendRepository.getStories(any()) } returns
+                RecommendRepository.RecommendResult.Success(photoResponses)
+            coEvery { mockLocalRepository.toPhotos(photoResponses) } returns photos
+            coEvery { mockLocalRepository.getPhotoDate(any()) } returns "2024-01-01"
+            coEvery { mockLocalRepository.getPhotoLocation(any()) } returns "Seoul, Korea"
+
+            viewModel.loadStories(1)
+            advanceUntilIdle()
+
+            // When - submit tags for non-existent story
+            viewModel.submitTagsForStory("nonExistentStory")
+            advanceUntilIdle()
+
+            // Then - no API calls should be made
+            coVerify(exactly = 0) { mockRemoteRepository.postTags(any()) }
+            coVerify(exactly = 0) { mockRemoteRepository.postTagsToPhoto(any(), any()) }
+        }
+
+    @Test
+    fun `submitTagsForStory should do nothing when not in Success state`() =
+        runTest {
+            // Given - state is Idle
+            viewModel.toggleTag(storyId = "story1", tag = "sunset")
+            advanceUntilIdle()
+
+            // When
             viewModel.submitTagsForStory("story1")
             advanceUntilIdle()
 
-            // Then - just verify it doesn't crash (TODO: test actual implementation when available)
+            // Then - no API calls should be made
+            coVerify(exactly = 0) { mockRemoteRepository.postTags(any()) }
+            coVerify(exactly = 0) { mockRemoteRepository.postTagsToPhoto(any(), any()) }
+        }
+
+    @Test
+    fun `submitTagsForStory should stop on tag creation error`() =
+        runTest {
+            // Given - stories loaded
+            val photoResponses =
+                listOf(
+                    PhotoResponse(photoId = "photo1", photoPathId = 1L),
+                )
+            val photos =
+                listOf(
+                    Photo(photoId = "photo1", contentUri = Uri.parse("content://media/1")),
+                )
+
+            coEvery { mockRecommendRepository.getStories(any()) } returns
+                RecommendRepository.RecommendResult.Success(photoResponses)
+            coEvery { mockLocalRepository.toPhotos(photoResponses) } returns photos
+            coEvery { mockLocalRepository.getPhotoDate(any()) } returns "2024-01-01"
+            coEvery { mockLocalRepository.getPhotoLocation(any()) } returns "Seoul, Korea"
+
+            viewModel.loadStories(1)
+            advanceUntilIdle()
+
+            // Given - tags selected
+            viewModel.toggleTag(storyId = "photo1", tag = "sunset")
+            advanceUntilIdle()
+
+            // Given - mock error response
+            coEvery { mockRemoteRepository.postTags("sunset") } returns
+                com.example.momentag.repository.RemoteRepository.Result
+                    .NetworkError("Network error")
+
+            // When
+            viewModel.submitTagsForStory("photo1")
+            advanceUntilIdle()
+
+            // Then - postTagsToPhoto should not be called
+            coVerify { mockRemoteRepository.postTags("sunset") }
+            coVerify(exactly = 0) { mockRemoteRepository.postTagsToPhoto(any(), any()) }
+        }
+
+    @Test
+    fun `submitTagsForStory should stop on photo tagging error`() =
+        runTest {
+            // Given - stories loaded
+            val photoResponses =
+                listOf(
+                    PhotoResponse(photoId = "photo1", photoPathId = 1L),
+                )
+            val photos =
+                listOf(
+                    Photo(photoId = "photo1", contentUri = Uri.parse("content://media/1")),
+                )
+
+            coEvery { mockRecommendRepository.getStories(any()) } returns
+                RecommendRepository.RecommendResult.Success(photoResponses)
+            coEvery { mockLocalRepository.toPhotos(photoResponses) } returns photos
+            coEvery { mockLocalRepository.getPhotoDate(any()) } returns "2024-01-01"
+            coEvery { mockLocalRepository.getPhotoLocation(any()) } returns "Seoul, Korea"
+
+            viewModel.loadStories(1)
+            advanceUntilIdle()
+
+            // Given - tags selected
+            viewModel.toggleTag(storyId = "photo1", tag = "sunset")
+            advanceUntilIdle()
+
+            // Given - mock responses
+            coEvery { mockRemoteRepository.postTags("sunset") } returns
+                com.example.momentag.repository.RemoteRepository.Result.Success(
+                    com.example.momentag.model
+                        .TagCreateResponse(tagId = "tag1"),
+                )
+            coEvery { mockRemoteRepository.postTagsToPhoto("photo1", "tag1") } returns
+                com.example.momentag.repository.RemoteRepository.Result
+                    .NetworkError("Network error")
+
+            // When
+            viewModel.submitTagsForStory("photo1")
+            advanceUntilIdle()
+
+            // Then - both API calls should be made
+            coVerify { mockRemoteRepository.postTags("sunset") }
+            coVerify { mockRemoteRepository.postTagsToPhoto("photo1", "tag1") }
         }
 
     @Test
