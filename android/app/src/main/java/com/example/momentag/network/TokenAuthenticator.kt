@@ -74,7 +74,7 @@ class TokenAuthenticator(
         val retrofit =
             Retrofit
                 .Builder()
-                .baseUrl("http://10.0.2.2:8000/")
+                .baseUrl(RetrofitInstance.BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .client(
                     OkHttpClient
