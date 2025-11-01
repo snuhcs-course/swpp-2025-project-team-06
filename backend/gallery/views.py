@@ -915,10 +915,10 @@ class TagDetailView(APIView):
                     {"error": "Forbidden - you are not the owner of this tag."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+                
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             tag.delete()
-
-            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
