@@ -28,15 +28,22 @@ class PhotoViewModel(
                 val response = remoteRepository.uploadPhotos(photoUploadData)
 
                 // update ui state
-                val message =
-                    when (response.code()) {
-                        202 -> { // Accepted
-                            _uiState.update { it.copy(isUploadSuccess = true) }
-                            "Success"
+                val message: String =
+                    when (response) {
+                        is RemoteRepository.Result.Success -> {
+                            when (response.data) {
+                                202 -> {
+                                    _uiState.update { it.copy(isUploadSuccess = true) }
+                                    "Success"
+                                }
+                                else -> "Upload successful (Code: ${response.data})"
+                            }
                         }
-                        400 -> "Request form mismatch" // Bad Request
-                        401 -> "The refresh token is expired" // Unauthorized
-                        else -> "Unexpected error: ${response.code()}"
+                        is RemoteRepository.Result.BadRequest -> "Request form mismatch"
+                        is RemoteRepository.Result.Unauthorized -> "The refresh token is expired"
+                        is RemoteRepository.Result.Error -> "Unexpected error: ${response.code}"
+                        is RemoteRepository.Result.Exception -> "Unknown error: ${response.e.message}"
+                        is RemoteRepository.Result.NetworkError -> "Network error"
                     }
 
                 _uiState.update { it.copy(isLoading = false, userMessage = message) }

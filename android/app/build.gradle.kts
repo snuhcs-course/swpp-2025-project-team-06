@@ -63,7 +63,11 @@ dependencies {
     implementation(libs.retrofit.converter.gson)
     implementation(libs.datastore.preferences)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.room.ktx)
+
     testImplementation(libs.junit)
+    testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.mockito:mockito-inline:5.2.0")
     testImplementation(libs.robolectric)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.androidx.test.core)

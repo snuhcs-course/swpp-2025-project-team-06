@@ -6,7 +6,11 @@ from celery import shared_task
 from qdrant_client import models
 
 from .vision_service import get_image_embedding, get_image_captions
-from .qdrant_utils import client, IMAGE_COLLECTION_NAME, REPVEC_COLLECTION_NAME
+from .qdrant_utils import (
+    get_qdrant_client,
+    IMAGE_COLLECTION_NAME,
+    REPVEC_COLLECTION_NAME,
+)
 from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
 
 import time
@@ -34,6 +38,7 @@ def process_and_embed_photo(
     image_path, user_id, filename, photo_path_id, created_at, lat, lng
 ):
     try:
+        client = get_qdrant_client()
         # 파일이 실제로 생길 때까지 잠시 대기
         waited = 0
         while not os.path.exists(image_path) and waited < MAX_WAIT:
@@ -105,53 +110,8 @@ def create_query_embedding(query):
     return model.encode(query)
 
 
-# aggregates N similarity queries with Reciprocal Rank Fusion
-def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
-    LIMIT = 40
-    RRF_CONSTANT = 40
-
-    rep_vectors = retrieve_all_rep_vectors_of_tag(user_id, tag_id)
-
-    rrf_scores = defaultdict(float)
-    photo_id_to_path_id = {}
-
-    for rep_vector in rep_vectors:
-        img_points = client.query_points(
-            IMAGE_COLLECTION_NAME,
-            query=rep_vector,
-            with_payload=["photo_id", "photo_path_id"],
-            limit=LIMIT,
-        ).points
-
-        for i, img_point in enumerate(img_points):
-            photo_id = img_point.payload["photo_id"]
-            photo_path_id = img_point.payload["photo_path_id"]
-
-            rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
-            photo_id_to_path_id[photo_id] = photo_path_id
-
-    rrf_sorted = sorted(
-        rrf_scores.items(),
-        key=lambda item: item[1],
-        reverse=True,
-    )
-
-    tagged_photo_ids = (
-        Photo_Tag.objects.filter(user__id=user_id)
-        .filter(tag_id=tag_id)
-        .values_list("photo_id", flat=True)
-    )
-
-    recommendations = [
-        {"photo_id": photo_id, "photo_path_id": photo_id_to_path_id[photo_id]}
-        for (photo_id, _) in rrf_sorted
-        if photo_id not in tagged_photo_ids
-    ][:LIMIT]
-
-    return recommendations
-
-
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
+    client = get_qdrant_client()
     ALPHA = 0.5
     LIMIT = 20
 
@@ -208,10 +168,13 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     ]
 
 
-def tag_recommendation(user_id, photo_id):
+def tag_recommendation(user, photo_id):
+    LIMIT = 10
+    client = get_qdrant_client()
+
     retrieved_points = client.retrieve(
         collection_name=IMAGE_COLLECTION_NAME,
-        ids=[photo_id],
+        ids=[str(photo_id)],
         with_vectors=True,
     )
 
@@ -224,35 +187,81 @@ def tag_recommendation(user_id, photo_id):
         must=[
             models.FieldCondition(
                 key="user_id",
-                match=models.MatchValue(value=user_id),
+                match=models.MatchValue(value=user.id),
             )
         ]
     )
 
-    search_result = client.search(
+    search_results = client.search(
         collection_name=REPVEC_COLLECTION_NAME,
         query_vector=image_vector,
         query_filter=user_filter,
-        limit=1,
+        limit=LIMIT,
         with_payload=True,
     )
 
-    if not search_result:
-        return None, None
+    tag_ids = list(dict.fromkeys(result.payload["tag_id"] for result in search_results))
 
-    most_similar_point = search_result[0]
-    recommended_tag_id = most_similar_point.payload["tag_id"]
+    recommendations = []
 
-    try:
-        tag = Tag.objects.get(tag_id=recommended_tag_id)
-        recommended_tag_name = tag.tag
-    except Tag.DoesNotExist:
-        return None, None
+    for tag_id in tag_ids:
+        try:
+            tag = Tag.objects.get(tag_id=tag_id)
+            recommendations.append(tag)
+        except Tag.DoesNotExist:
+            continue
 
-    return recommended_tag_name, recommended_tag_id
+    return recommendations
 
+
+# aggregates N similarity queries with Reciprocal Rank Fusion
+def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
+    client = get_qdrant_client()
+    LIMIT = 40
+    RRF_CONSTANT = 40
+
+    rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
+
+    rrf_scores = defaultdict(float)
+    photo_id_to_path_id = {}
+
+    for rep_vector in rep_vectors:
+        img_points = client.query_points(
+            IMAGE_COLLECTION_NAME,
+            query=rep_vector,
+            with_payload=["photo_id", "photo_path_id"],
+            limit=LIMIT,
+        ).points
+
+        for i, img_point in enumerate(img_points):
+            photo_id = img_point.payload["photo_id"]
+            photo_path_id = img_point.payload["photo_path_id"]
+
+            rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
+            photo_id_to_path_id[photo_id] = photo_path_id
+
+    rrf_sorted = sorted(
+        rrf_scores.items(),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+
+    tagged_photo_ids = (
+        Photo_Tag.objects.filter(user=user)
+        .filter(tag__tag_id=tag_id)
+        .values_list("photo_id", flat=True)
+    )
+
+    recommendations = [
+        {"photo_id": photo_id, "photo_path_id": photo_id_to_path_id[photo_id]}
+        for (photo_id, _) in rrf_sorted
+        if photo_id not in tagged_photo_ids
+    ][:LIMIT]
+
+    return recommendations
 
 def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
+    client = get_qdrant_client()
     LIMIT = 32  # assert max num of rep vectors <= 32
 
     filters = models.Filter(
