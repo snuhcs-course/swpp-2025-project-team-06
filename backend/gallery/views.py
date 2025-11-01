@@ -392,8 +392,7 @@ class BulkDeletePhotoView(APIView):
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
-                points_selector=[str(photo_id)
-                                 for photo_id in photos_to_delete],
+                points_selector=[str(photo_id) for photo_id in photos_to_delete],
                 wait=True,
             )
 
@@ -454,8 +453,7 @@ class GetPhotosByTagView(APIView):
             response_data = {"photos": photos}
 
             return Response(
-                ResTagAlbumSerializer(
-                    response_data).data, status=status.HTTP_200_OK
+                ResTagAlbumSerializer(response_data).data, status=status.HTTP_200_OK
             )
         except Photo_Tag.DoesNotExist:
             return Response(
@@ -522,10 +520,7 @@ class PostPhotoTagsView(APIView):
                         continue  # Skip if the relationship already exists
 
                     Photo_Tag.objects.create(
-                        pt_id=pt_id, 
-                        photo_id=photo_id, 
-                        tag=tag, 
-                        user=request.user
+                        pt_id=pt_id, photo_id=photo_id, tag=tag, user=request.user
                     )
 
             # now update the metadata isTagged in Qdrant
@@ -814,7 +809,6 @@ class TagView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
-            409: openapi.Response(description="Conflict - Tag already exists"),
         },
         manual_parameters=[
             openapi.Parameter(
@@ -841,15 +835,13 @@ class TagView(APIView):
                 )
 
             if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
-                return Response(
-                    {"detail": f"Tag '{data['tag']}' already exists."},
-                    status=status.HTTP_409_CONFLICT,
-                )
+                tag = Tag.objects.get(tag=data["tag"], user=request.user)
+                response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
 
             new_tag = Tag.objects.create(tag=data["tag"], user=request.user)
 
-            response_serializer = ResTagIdSerializer(
-                {"tag_id": new_tag.tag_id})
+            response_serializer = ResTagIdSerializer({"tag_id": new_tag.tag_id})
 
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
