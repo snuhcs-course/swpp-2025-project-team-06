@@ -61,12 +61,12 @@ def initialize_qdrant():
         except UnexpectedResponse:
             pass
 
-    refvec_indexes = {
+    repvec_indexes = {
         "user_id": models.PayloadSchemaType.INTEGER,
-        "tag_id": models.PayloadSchemaType.INTEGER,
+        "tag_id": models.PayloadSchemaType.KEYWORD,
     }
 
-    for field, schema in refvec_indexes.items():
+    for field, schema in repvec_indexes.items():
         try:
             client.create_payload_index(
                 collection_name=REPVEC_COLLECTION_NAME,

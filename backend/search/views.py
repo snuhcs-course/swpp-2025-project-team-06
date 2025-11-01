@@ -10,6 +10,7 @@ from gallery.tasks import (
     execute_hybrid_graph_search,
 )
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
+from qdrant_client.http import models
 from .response_serializers import PhotoResponseSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi

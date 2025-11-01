@@ -330,8 +330,7 @@ class PhotoDetailView(APIView):
     def delete(self, request, photo_id):
         try:
             client = get_qdrant_client()
-            photo_tag = Photo_Tag.objects.get(photo_id=photo_id, user=request.user)
-            photo_tag.delete()
+            Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
@@ -430,7 +429,7 @@ class GetPhotosByTagView(APIView):
     def get(self, request, tag_id):
         try:
             client = get_qdrant_client()
-            photo_tags = Photo_Tag.objects.filter(tag_id=tag_id)
+            photo_tags = Photo_Tag.objects.filter(user=request.user, tag_id=tag_id)
 
             photo_ids = [str(pt.photo_id) for pt in photo_tags]
 
