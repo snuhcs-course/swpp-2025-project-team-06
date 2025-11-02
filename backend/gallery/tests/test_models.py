@@ -481,7 +481,6 @@ class CaptionModelTest(TestCase):
         # 필드 속성 확인
         caption_field = caption._meta.get_field("caption")
         self.assertEqual(caption_field.max_length, 50)
-        self.assertTrue(caption_field.unique)
 
         caption_id_field = caption._meta.get_field("caption_id")
         self.assertTrue(caption_id_field.primary_key)

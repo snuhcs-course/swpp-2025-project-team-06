@@ -140,7 +140,7 @@ class ImageDetailViewModelTest {
     }
 
     @Test
-    fun `loadImageContextByUri creates standalone context when not in repository`() {
+    fun `loadImageContextByUri creates empty context when not in repository`() {
         // Given
         val uri = Uri.parse("content://standalone/photo")
         whenever(imageBrowserRepository.getPhotoContextByUri(uri)).thenReturn(null)
@@ -160,7 +160,7 @@ class ImageDetailViewModelTest {
     }
 
     @Test
-    fun `loadImageContextByUri prefers repository context over standalone`() {
+    fun `loadImageContextByUri prefers repository context over empty`() {
         // Given
         val uri = Uri.parse("content://media/2")
         val repositoryContext =
@@ -180,7 +180,7 @@ class ImageDetailViewModelTest {
             3,
             viewModel.imageContext.value!!
                 .images.size,
-        ) // Not standalone (which would have 1)
+        ) // Not empty (which would have 0)
     }
 
     // ========== loadPhotoTags Tests ==========
@@ -309,7 +309,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(emptyList<String>(), successState.existingTags)
+            assertEquals(emptyList<Tag>(), successState.existingTags)
             assertEquals(listOf("Nature"), successState.recommendedTags)
         }
 
@@ -650,7 +650,7 @@ class ImageDetailViewModelTest {
         }
 
     @Test
-    fun `workflow - load context by URI (standalone) then skip tags for empty photoId`() {
+    fun `workflow - load context by URI (empty) then skip tags for empty photoId`() {
         // Given
         val uri = Uri.parse("content://standalone/photo")
         whenever(imageBrowserRepository.getPhotoContextByUri(uri)).thenReturn(null)

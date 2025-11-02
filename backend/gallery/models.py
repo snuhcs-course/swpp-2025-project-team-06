@@ -25,8 +25,10 @@ class Photo_Tag(models.Model):
 class Caption(models.Model):
     caption_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    caption = models.CharField(max_length=50)
 
-    caption = models.CharField(max_length=50, unique=True)
+    class Meta:
+        unique_together = ('user', 'caption')
 
     def __str__(self):
         return self.caption

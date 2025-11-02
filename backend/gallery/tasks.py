@@ -4,6 +4,8 @@ import networkx as nx
 from collections import defaultdict
 from celery import shared_task
 from qdrant_client import models
+from django.conf import settings
+from django.core.cache import cache
 
 from .vision_service import get_image_embedding, get_image_captions
 from .qdrant_utils import (
@@ -14,12 +16,14 @@ from .qdrant_utils import (
 from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
 
 import time
-
+import torch
 from sentence_transformers import SentenceTransformer
 
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
+
+SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
 _TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 _text_model = None  # 전역 캐시
@@ -27,13 +31,15 @@ _text_model = None  # 전역 캐시
 MAX_WAIT = 2.0  # 최대 2초 대기
 WAIT_INTERVAL = 0.1
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def get_text_model():
     """Lazy-load text model inside worker"""
     global _text_model
     if _text_model is None:
         print("[INFO] Loading text model inside worker...")
-        _text_model = SentenceTransformer(_TEXT_MODEL_NAME)
+        _text_model = SentenceTransformer(_TEXT_MODEL_NAME, device=DEVICE)
     return _text_model
 
 
@@ -313,6 +319,180 @@ def retrieve_photo_caption_graph(user: User):
         )
 
     return photo_set, caption_set, graph
+
+def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
+    cache_key = f"user_{user.id}_combined_graph"
+    
+    cached_data = cache.get(cache_key)
+    
+    if cached_data:
+        print(f"[INFO] User {user.id} graph loaded from CACHE")
+        return cached_data['photo_set'], cached_data['meta_set'], cached_data['graph']
+
+    print(f"[INFO] User {user.id} graph building from DB...")
+    graph = nx.Graph()
+    photo_set = set()
+    meta_set = set()
+    
+    caption_relations = Photo_Caption.objects.filter(user=user).select_related('caption')
+
+    for photo_caption in caption_relations:
+        photo_id = photo_caption.photo_id
+        caption_obj = photo_caption.caption
+
+        if photo_id not in photo_set:
+            photo_set.add(photo_id)
+            graph.add_node(photo_id, bipartite=0)
+
+        if caption_obj not in meta_set:
+            meta_set.add(caption_obj)
+            graph.add_node(caption_obj, bipartite=1)
+
+        graph.add_edge(
+            photo_id, caption_obj, weight=photo_caption.weight 
+        )
+        
+    tag_relations = Photo_Tag.objects.filter(user=user).select_related('tag')
+
+    for photo_tag in tag_relations:
+        photo_id = photo_tag.photo_id
+        tag_obj = photo_tag.tag 
+
+        if photo_id not in photo_set:
+            photo_set.add(photo_id)
+            graph.add_node(photo_id, bipartite=0)
+
+        if tag_obj not in meta_set:
+            meta_set.add(tag_obj)
+            graph.add_node(tag_obj, bipartite=1)
+
+        graph.add_edge(
+            photo_id, tag_obj, weight=tag_edge_weight
+        )
+        
+    data_to_cache = {
+        'photo_set': photo_set,
+        'meta_set': meta_set,
+        'graph': graph
+    }
+    
+    cache.set(cache_key, data_to_cache, timeout=3600)
+    
+    print(f"[INFO] User {user.id} graph SAVED to cache")
+
+    return photo_set, meta_set, graph
+
+def execute_hybrid_graph_search(
+    user: User, 
+    personalization_nodes: set, 
+    semantic_scores: dict,
+    tag_edge_weight: float = SEARCH_SETTINGS["TAG_EDGE_WEIGHT"],
+    alpha: float = SEARCH_SETTINGS["ALPHA_RWR_VS_AA"],
+    graph_weight: float = SEARCH_SETTINGS["GRAPH_WEIGHT"],
+    semantic_weight: float =SEARCH_SETTINGS["SEMANTIC_WEIGHT"],
+    limit: int = SEARCH_SETTINGS["FINAL_RESULT_LIMIT"],
+):
+    client = get_qdrant_client()
+    
+    # 1. 결합 그래프 생성
+    all_photos, _, graph = retrieve_combined_graph(user, tag_edge_weight)
+    
+    # 2. 후보군 정의
+    # 재시작 집합의 노드 중 '사진' 노드만 분리
+    # (Tag, Caption 객체는 UUID가 아니므로 분리 가능)
+    personalization_photos = {
+        node for node in personalization_nodes if isinstance(node, uuid.UUID)
+    }
+    
+    candidates: set[uuid.UUID] = all_photos - personalization_photos
+    
+    valid_personalization_nodes_set = {
+        node for node in personalization_nodes if node in graph
+    }
+
+    if not valid_personalization_nodes_set:
+        return []
+    
+    personalization_dict = {node: 1 for node in valid_personalization_nodes_set}
+
+    # 점수 계산 1: Personalized PageRank (RWR)
+    rwr_scores = nx.pagerank(
+        graph, 
+        personalization=personalization_dict, 
+        weight="weight"
+    )
+
+    # 4. 점수 계산 2: Adamic/Adar Index
+    aa_scores = defaultdict(float)
+    target_set = valid_personalization_nodes_set 
+    
+    try:
+        for u, _, score in nx.adamic_adar_index(
+            graph, [(c, t) for c in candidates for t in target_set if (c in graph and t in graph)]
+        ):
+            aa_scores[u] += score
+    except Exception as e:
+        print(f"[AdamicAdar Error] {e}")
+        pass
+
+    # 점수 정규화 및 결합
+    def normalize(minv, maxv, v):
+        if maxv == minv:
+            return 0
+        else:
+            return (v - minv) / (maxv - minv)
+
+    max_rwr = max(rwr_scores.values()) if rwr_scores else 0
+    min_rwr = min(rwr_scores.values()) if rwr_scores else 0
+
+    max_aa = max(aa_scores.values()) if aa_scores else 0
+    min_aa = min(aa_scores.values()) if aa_scores else 0
+    
+    max_sem = max(semantic_scores.values()) if semantic_scores else 0
+    min_sem = min(semantic_scores.values()) if semantic_scores else 0
+
+    scores = {}
+    for candidate in candidates:
+        # 그래프 점수 계산
+        norm_rwr = normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0))
+        norm_aa = normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
+        graph_score = alpha * norm_rwr + (1 - alpha) * norm_aa
+
+        # 시맨틱 점수 계산
+        # (시맨틱 검색 결과에 없던 후보는 0점)
+        norm_sem = normalize(min_sem, max_sem, semantic_scores.get(candidate, 0))
+        
+        # ✨ 최종 하이브리드 점수
+        scores[candidate] = (graph_weight * graph_score) + (semantic_weight * norm_sem)
+
+    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+
+    recommend_photos = list(map(lambda t: str(t[0]), sorted_scores[:limit]))
+
+    if not recommend_photos:
+        return []
+
+    # Qdrant에서 최종 정보 조회
+    points = client.retrieve(
+        collection_name=IMAGE_COLLECTION_NAME,
+        ids=recommend_photos,
+        with_payload=["photo_path_id"],
+    )
+
+    # 정렬 순서 유지를 위해 ID를 키로 하는 딕셔너리 생성
+    points_dict = {point.id: point.payload.get("photo_path_id") for point in points}
+
+    # RWR/AA로 정렬된 순서대로 최종 결과 생성
+    final_results = []
+    for photo_id in recommend_photos:
+        photo_path_id = points_dict.get(photo_id)
+        if photo_path_id is not None:
+            final_results.append(
+                {"photo_id": photo_id, "photo_path_id": photo_path_id}
+            )
+    return final_results
+
+
 
 
 def is_valid_uuid(uuid_to_test):

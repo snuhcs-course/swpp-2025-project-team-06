@@ -25,13 +25,14 @@ from .request_serializers import (
 )
 
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag, User
+from .models import Photo_Tag, Tag, User, Photo_Caption
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
+from django.core.cache import cache
 
 from .tasks import (
     process_and_embed_photo,
@@ -143,6 +144,9 @@ class PhotoView(APIView):
             photos_data = serializer.validated_data
 
             fs = FileSystemStorage(location=settings.MEDIA_ROOT)
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             for data in photos_data:
                 image_file = data["photo"]
@@ -331,6 +335,9 @@ class PhotoDetailView(APIView):
     def delete(self, request, photo_id):
         try:
             client = get_qdrant_client()
+            Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).delete()
+            Photo_Caption.objects.filter(photo_id=photo_id, user=request.user).delete()
+            
             associated_tags = Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).select_related('tag')
             tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_tags]
 
@@ -341,6 +348,9 @@ class PhotoDetailView(APIView):
                 points_selector=[str(photo_id)],
                 wait=True,
             )
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             for tag_id_str in set(tag_ids_to_recompute):
                 compute_and_store_rep_vectors.delay(request.user.id, tag_id_str)
@@ -401,6 +411,9 @@ class BulkDeletePhotoView(APIView):
                 points_selector=[str(photo_id) for photo_id in photos_to_delete],
                 wait=True,
             )
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             for tag_id_str in set(tag_ids_to_recompute):
                 compute_and_store_rep_vectors.delay(request.user.id, tag_id_str)
@@ -441,7 +454,7 @@ class GetPhotosByTagView(APIView):
     def get(self, request, tag_id):
         try:
             client = get_qdrant_client()
-            photo_tags = Photo_Tag.objects.filter(tag_id=tag_id)
+            photo_tags = Photo_Tag.objects.filter(user=request.user, tag_id=tag_id)
 
             photo_ids = [str(pt.photo_id) for pt in photo_tags]
 
@@ -543,6 +556,9 @@ class PostPhotoTagsView(APIView):
                 payload={"isTagged": True},
                 points=[str(photo_id)],
             )
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             for tag_id in tag_ids:
                 compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
@@ -610,6 +626,9 @@ class DeletePhotoTagsView(APIView):
                     payload={"isTagged": False},
                     points=[str(photo_id)],
                 )
+                
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 

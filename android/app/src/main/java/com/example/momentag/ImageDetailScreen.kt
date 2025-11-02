@@ -104,7 +104,7 @@ fun ImageDetailScreen(
 
     // Extract photos from ImageContext or create single photo from imageUri
     val photos =
-        imageContext?.images ?: imageUri?.let {
+        imageContext?.images?.takeIf { it.isNotEmpty() } ?: imageUri?.let {
             listOf(
                 Photo(
                     photoId = it.lastPathSegment ?: it.toString(), // Use media ID from URI as fallback
