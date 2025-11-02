@@ -108,4 +108,4 @@ Build android application and install it.
 Run MomenTag application to test features.
 
 ### Demo video
-[Video link](https://drive.google.com/file/d/1WJB-m30L-vLv2m7La7_Y_DP7M5aNsjgm/view?usp=sharing)
+[Video link](https://drive.google.com/file/d/1YTWzfTmbdSTkusysYr-jriLLWG-_Lq1F/view?usp=sharing)
