@@ -248,7 +248,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature", "Forest"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1"), Tag("Forest", "tag2")), successState.existingTags)
             assertEquals(listOf("Sunset"), successState.recommendedTags)
 
             verify(remoteRepository).getPhotoDetail(photoId)
@@ -280,7 +280,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature", "Sunset"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1"), Tag("Sunset", "tag2")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags) // Filtered out
         }
 
@@ -309,7 +309,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(emptyList<String>(), successState.existingTags)
+            assertEquals(emptyList<Tag>(), successState.existingTags)
             assertEquals(listOf("Nature"), successState.recommendedTags)
         }
 
@@ -337,7 +337,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags)
         }
 
@@ -365,7 +365,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags)
         }
 
@@ -393,7 +393,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags)
         }
 
@@ -421,7 +421,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags)
         }
 
@@ -645,7 +645,7 @@ class ImageDetailViewModelTest {
             val tagState = viewModel.photoTagState.value
             assertTrue(tagState is PhotoTagState.Success)
             val successState = tagState as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(listOf("Sunset"), successState.recommendedTags)
         }
 
