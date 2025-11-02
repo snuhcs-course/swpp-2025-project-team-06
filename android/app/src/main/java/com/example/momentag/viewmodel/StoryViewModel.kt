@@ -6,6 +6,7 @@ import com.example.momentag.model.StoryModel
 import com.example.momentag.model.StoryState
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
+import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 class StoryViewModel(
     private val recommendRepository: RecommendRepository,
     private val localRepository: LocalRepository,
+    private val remoteRepository: com.example.momentag.repository.RemoteRepository,
 ) : ViewModel() {
     private val _storyState = MutableStateFlow<StoryState>(StoryState.Idle)
     val storyState = _storyState.asStateFlow()
@@ -170,8 +172,20 @@ class StoryViewModel(
         storyId: String,
         photoId: String,
     ) {
+        val currentState = _storyState.value
+        if (currentState !is StoryState.Success) return
+
+        // Check if story already has tags populated
+        val story = currentState.stories.find { it.id == storyId }
+        if (story != null && story.suggestedTags.isNotEmpty()) {
+            return
+        }
+
         // Check cache first
         if (tagCache.containsKey(storyId)) {
+            // Use cached tags to update the story
+            val cachedTags = tagCache[storyId] ?: emptyList()
+            updateStoryTags(storyId, cachedTags)
             return
         }
 
@@ -180,28 +194,7 @@ class StoryViewModel(
                 is RecommendRepository.RecommendResult.Success -> {
                     val tags = result.data.map { it.tagName }
                     tagCache[storyId] = tags
-
-                    // Update the story's suggestedTags
-                    val currentState = _storyState.value
-                    if (currentState is StoryState.Success) {
-                        val updatedStories =
-                            currentState.stories.map { story ->
-                                if (story.id == storyId) {
-                                    story.copy(suggestedTags = tags + "+")
-                                } else {
-                                    story
-                                }
-                            }
-
-                        // Update currentStories list
-                        currentStories.clear()
-                        currentStories.addAll(updatedStories)
-
-                        _storyState.value =
-                            currentState.copy(
-                                stories = updatedStories,
-                            )
-                    }
+                    updateStoryTags(storyId, tags)
                 }
 
                 is RecommendRepository.RecommendResult.NetworkError,
@@ -213,6 +206,37 @@ class StoryViewModel(
                     tagCache[storyId] = emptyList()
                 }
             }
+        }
+    }
+
+    /**
+     * Update a story's suggested tags in the state
+     * @param storyId Story ID
+     * @param tags List of tag names
+     */
+    private fun updateStoryTags(
+        storyId: String,
+        tags: List<String>,
+    ) {
+        val currentState = _storyState.value
+        if (currentState is StoryState.Success) {
+            val updatedStories =
+                currentState.stories.map { story ->
+                    if (story.id == storyId) {
+                        story.copy(suggestedTags = tags + "+")
+                    } else {
+                        story
+                    }
+                }
+
+            // Update currentStories list
+            currentStories.clear()
+            currentStories.addAll(updatedStories)
+
+            _storyState.value =
+                currentState.copy(
+                    stories = updatedStories,
+                )
         }
     }
 
@@ -249,15 +273,79 @@ class StoryViewModel(
     /**
      * Submit tags for a story (save to backend)
      * This is called when user clicks "Done" on a story
-     * TODO: Implement backend API call to save tags
      * @param storyId Story ID
      */
     fun submitTagsForStory(storyId: String) {
-        val selectedTagsForStory = _selectedTags.value[storyId] ?: emptySet()
+        val selectedTagsForStory = getSelectedTags(storyId)
 
-        // TODO: Call backend API to save tags
-        // For now, just log the tags
-        android.util.Log.d("StoryViewModel", "Submitting tags for story $storyId: $selectedTagsForStory")
+        // Get the story to retrieve photoId
+        val currentState = _storyState.value
+        if (currentState !is StoryState.Success) return
+
+        val story = currentState.stories.find { it.id == storyId }
+        if (story == null) {
+            return
+        }
+
+        val photoId = story.photoId
+
+        viewModelScope.launch {
+            // Process each selected tag
+            for (tagName in selectedTagsForStory) {
+                // First, create the tag (or get existing tag ID)
+                when (val createResult = remoteRepository.postTags(tagName)) {
+                    is RemoteRepository.Result.Success -> {
+                        val tagId = createResult.data.tagId
+
+                        // Then associate the tag with the photo
+                        when (val associateResult = remoteRepository.postTagsToPhoto(photoId, tagId)) {
+                            is RemoteRepository.Result.Success -> {
+                                android.util.Log.d("StoryViewModel", "Successfully tagged photo $photoId with tag $tagName ($tagId)")
+                            }
+                            is RemoteRepository.Result.Error -> {
+                                android.util.Log.e(
+                                    "StoryViewModel",
+                                    "Failed to associate tag $tagName with photo: ${associateResult.message}",
+                                )
+                            }
+                            is RemoteRepository.Result.Unauthorized -> {
+                                android.util.Log.e("StoryViewModel", "Unauthorized: ${associateResult.message}")
+                                return@launch
+                            }
+                            is RemoteRepository.Result.BadRequest -> {
+                                android.util.Log.e("StoryViewModel", "Bad request: ${associateResult.message}")
+                            }
+                            is RemoteRepository.Result.NetworkError -> {
+                                android.util.Log.e("StoryViewModel", "Network error: ${associateResult.message}")
+                                return@launch
+                            }
+                            is RemoteRepository.Result.Exception -> {
+                                android.util.Log.e("StoryViewModel", "Exception: ${associateResult.e.message}")
+                                return@launch
+                            }
+                        }
+                    }
+                    is RemoteRepository.Result.Error -> {
+                        android.util.Log.e("StoryViewModel", "Failed to create tag $tagName: ${createResult.message}")
+                    }
+                    is RemoteRepository.Result.Unauthorized -> {
+                        android.util.Log.e("StoryViewModel", "Unauthorized: ${createResult.message}")
+                        return@launch
+                    }
+                    is RemoteRepository.Result.BadRequest -> {
+                        android.util.Log.e("StoryViewModel", "Bad request: ${createResult.message}")
+                    }
+                    is RemoteRepository.Result.NetworkError -> {
+                        android.util.Log.e("StoryViewModel", "Network error: ${createResult.message}")
+                        return@launch
+                    }
+                    is RemoteRepository.Result.Exception -> {
+                        android.util.Log.e("StoryViewModel", "Exception: ${createResult.e.message}")
+                        return@launch
+                    }
+                }
+            }
+        }
     }
 
     /**

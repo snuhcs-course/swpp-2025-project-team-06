@@ -30,9 +30,8 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,7 +52,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -105,7 +103,6 @@ fun StoryTagSelectionScreen(
     val storyState by viewModel.storyState.collectAsState()
     val selectedTags by viewModel.selectedTags.collectAsState()
 
-    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     var currentTab by remember { mutableStateOf(BottomTab.StoryScreen) }
 
@@ -136,27 +133,20 @@ fun StoryTagSelectionScreen(
         }
         is StoryState.Success -> {
             val stories = state.stories
+            val pagerState = rememberPagerState(pageCount = { stories.size })
 
-            // Lazy-load tags for current visible story
-            val firstVisibleIndex = listState.firstVisibleItemIndex
-            LaunchedEffect(firstVisibleIndex) {
-                if (firstVisibleIndex < stories.size) {
-                    val currentStory = stories[firstVisibleIndex]
+            // Lazy-load tags for current page
+            val currentPage = pagerState.currentPage
+            LaunchedEffect(currentPage) {
+                if (currentPage < stories.size) {
+                    val currentStory = stories[currentPage]
                     viewModel.loadTagsForStory(currentStory.id, currentStory.photoId)
                 }
             }
 
-            // Detect when to load more stories
-            val shouldLoadMore by remember {
-                derivedStateOf {
-                    val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-                    val totalItems = listState.layoutInfo.totalItemsCount
-                    lastVisibleItem != null && lastVisibleItem.index >= totalItems - 2 && totalItems > 0
-                }
-            }
-
-            LaunchedEffect(shouldLoadMore) {
-                if (shouldLoadMore && state.hasMore) {
+            // Detect when to load more stories (when approaching the last page)
+            LaunchedEffect(currentPage) {
+                if (currentPage >= stories.size - 2 && state.hasMore) {
                     viewModel.loadMoreStories(10)
                 }
             }
@@ -177,72 +167,67 @@ fun StoryTagSelectionScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                // 스토리 리스트 (무한 스크롤 반영)
-                LazyColumn(
-                    state = listState,
+                // 스토리 페이저 (페이지 기반 스크롤)
+                VerticalPager(
+                    state = pagerState,
                     modifier =
                         Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                ) {
-                    itemsIndexed(
-                        items = stories,
-                        key = { _, story -> story.id },
-                    ) { index, story ->
-                        val isFirstStory = index == 0
-                        val selectedForThisStory = selectedTags[story.id] ?: emptySet()
+                ) { page ->
+                    val story = stories[page]
+                    val isFirstStory = page == 0
+                    val selectedForThisStory = selectedTags[story.id] ?: emptySet()
 
-                        // 각 스토리 페이지
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillParentMaxHeight()
-                                    .fillMaxWidth(),
+                    // 각 스토리 페이지
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize(),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
+                            // 스토리 컨텐츠 영역
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
                             ) {
-                                // 스토리 컨텐츠 영역
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .weight(1f)
-                                            .fillMaxWidth(),
-                                ) {
-                                    StoryPageFullBlock(
-                                        story = story,
-                                        showScrollHint = isFirstStory,
-                                    )
-                                }
-
-                                // 태그 선택 카드
-                                TagSelectionCard(
-                                    tags = story.suggestedTags,
-                                    selectedTags = selectedForThisStory,
-                                    onTagToggle = { tag ->
-                                        viewModel.toggleTag(story.id, tag)
-                                    },
-                                    onDone = {
-                                        viewModel.submitTagsForStory(story.id)
-
-                                        // Done 누르면 다음 스토리로 자동 스크롤
-                                        coroutineScope.launch {
-                                            if (index < stories.lastIndex) {
-                                                listState.animateScrollToItem(index + 1)
-                                                viewModel.setCurrentIndex(index + 1)
-                                            } else if (!state.hasMore) {
-                                                viewModel.resetState()
-                                                onBack()
-                                            }
-                                        }
-                                    },
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp)
-                                            .padding(bottom = 12.dp),
+                                StoryPageFullBlock(
+                                    story = story,
+                                    showScrollHint = isFirstStory,
                                 )
                             }
+
+                            // 태그 선택 카드
+                            TagSelectionCard(
+                                tags = story.suggestedTags,
+                                selectedTags = selectedForThisStory,
+                                onTagToggle = { tag ->
+                                    viewModel.toggleTag(story.id, tag)
+                                },
+                                onDone = {
+                                    viewModel.submitTagsForStory(story.id)
+
+                                    // Done 누르면 다음 스토리로 자동 스크롤
+                                    coroutineScope.launch {
+                                        if (page < stories.lastIndex) {
+                                            pagerState.animateScrollToPage(page + 1)
+                                            viewModel.setCurrentIndex(page + 1)
+                                        } else if (!state.hasMore) {
+                                            viewModel.resetState()
+                                            onBack()
+                                        }
+                                    }
+                                },
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                        .padding(bottom = 12.dp),
+                            )
                         }
                     }
                 }

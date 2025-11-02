@@ -597,8 +597,9 @@ class TagViewTest(APITestCase):
         payload = {"tag": "여행"}  # 이미 존재하는 태그
         response = self.client.post(self.tag_list_url, payload)
 
-        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertIn("already exists", response.data["error"])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(response.data["tag_id"], str(self.tag1.tag_id))
 
     def test_create_tag_invalid_data(self):
         """잘못된 데이터로 태그 생성 시도 테스트"""

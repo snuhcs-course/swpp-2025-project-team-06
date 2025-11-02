@@ -1,6 +1,7 @@
 package com.example.momentag.network
 
 import android.content.Context
+import com.example.momentag.R
 import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
@@ -142,16 +143,13 @@ interface ApiService {
  * - TokenAuthenticator: 401 시 자동 리프레시 → 재시도
  */
 object RetrofitInstance {
-    const val BASE_URL = "http://10.0.2.2:8000/"
-//  const val BASE_URL = "http://10.213.116.234:8000/"
-
     private var apiService: ApiService? = null
 
     fun getApiService(context: Context): ApiService {
         if (apiService == null) {
             val sessionStore = SessionManager.getInstance(context.applicationContext)
             val authInterceptor = AuthInterceptor(sessionStore)
-            val tokenAuthenticator = TokenAuthenticator(sessionStore)
+            val tokenAuthenticator = TokenAuthenticator(context.applicationContext, sessionStore)
 
             val okHttpClient =
                 OkHttpClient
@@ -166,7 +164,7 @@ object RetrofitInstance {
             val retrofit =
                 Retrofit
                     .Builder()
-                    .baseUrl(BASE_URL)
+                    .baseUrl(context.getString(R.string.API_BASE_URL))
                     .client(okHttpClient)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()

@@ -829,7 +829,6 @@ class TagView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
-            409: openapi.Response(description="Conflict - Tag already exists"),
         },
         manual_parameters=[
             openapi.Parameter(
@@ -856,10 +855,9 @@ class TagView(APIView):
                 )
 
             if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
-                return Response(
-                    {"error": f"Tag {data['tag']} already exists"},
-                    status=status.HTTP_409_CONFLICT,
-                )
+                tag = Tag.objects.get(tag=data["tag"], user=request.user)
+                response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
 
             new_tag = Tag.objects.create(tag=data["tag"], user=request.user)
 

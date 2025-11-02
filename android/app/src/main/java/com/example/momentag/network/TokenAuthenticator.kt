@@ -1,5 +1,7 @@
 package com.example.momentag.network
 
+import android.content.Context
+import com.example.momentag.R
 import com.example.momentag.data.SessionStore
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
@@ -21,6 +23,7 @@ import retrofit2.converter.gson.GsonConverterFactory
  * - 재귀 호출 방지를 위해 별도 OkHttpClient 사용
  */
 class TokenAuthenticator(
+    private val context: Context,
     private val sessionStore: SessionStore,
 ) : Authenticator {
     override fun authenticate(
@@ -74,7 +77,7 @@ class TokenAuthenticator(
         val retrofit =
             Retrofit
                 .Builder()
-                .baseUrl(RetrofitInstance.BASE_URL)
+                .baseUrl(context.getString(R.string.API_BASE_URL))
                 .addConverterFactory(GsonConverterFactory.create())
                 .client(
                     OkHttpClient
