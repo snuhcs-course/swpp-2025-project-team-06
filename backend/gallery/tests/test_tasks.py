@@ -66,9 +66,9 @@ class TaskFunctionsTest(TestCase):
         first_uuid = uuid.uuid4()
 
         mock_points = [
-            MagicMock(payload={"photo_id": str(first_uuid), "photo_path_id": 1}),
-            MagicMock(payload={"photo_id": str(uuid.uuid4()), "photo_path_id": 2}),
-            MagicMock(payload={"photo_id": str(uuid.uuid4()), "photo_path_id": 3}),
+            MagicMock(id =str(first_uuid), payload={"photo_path_id": 1}),
+            MagicMock(id=str(uuid.uuid4()), payload={"photo_path_id": 2}),
+            MagicMock(id=str(uuid.uuid4()), payload={"photo_path_id": 3}),
         ]
         mock_get_client.return_value.search.return_value = mock_points
 
@@ -95,9 +95,9 @@ class TaskFunctionsTest(TestCase):
         third_uuid = uuid.uuid4()
 
         mock_points = [
-            MagicMock(payload={"photo_id": str(first_uuid), "photo_path_id": 1}),
-            MagicMock(payload={"photo_id": str(self.photo_id), "photo_path_id": 2}),
-            MagicMock(payload={"photo_id": str(third_uuid), "photo_path_id": 3}),
+            MagicMock(id=str(first_uuid), payload={"photo_path_id": 1}),
+            MagicMock(id=str(self.photo_id), payload={"photo_path_id": 2}),
+            MagicMock(id=str(third_uuid), payload={"photo_path_id": 3}),
         ]
         mock_get_client.return_value.search.return_value = mock_points
 
@@ -125,16 +125,16 @@ class TaskFunctionsTest(TestCase):
 
         # First query returns photo1, photo2, photo3
         mock_points_1 = [
-            MagicMock(payload={"photo_id": str(uuids[0]), "photo_path_id": 1}),
-            MagicMock(payload={"photo_id": str(uuids[1]), "photo_path_id": 2}),
-            MagicMock(payload={"photo_id": str(uuids[2]), "photo_path_id": 3}),
+            MagicMock(id=str(uuids[0]), payload={"photo_path_id": 1}),
+            MagicMock(id=str(uuids[1]), payload={"photo_path_id": 2}),
+            MagicMock(id=str(uuids[2]), payload={"photo_path_id": 3}),
         ]
 
         # Second query returns photo2, photo1, photo4
         mock_points_2 = [
-            MagicMock(payload={"photo_id": str(uuids[1]), "photo_path_id": 2}),
-            MagicMock(payload={"photo_id": str(uuids[3]), "photo_path_id": 4}),
-            MagicMock(payload={"photo_id": str(uuids[0]), "photo_path_id": 1}),
+            MagicMock(id=str(uuids[1]), payload={"photo_path_id": 2}),
+            MagicMock(id=str(uuids[3]), payload={"photo_path_id": 4}),
+            MagicMock(id=str(uuids[0]), payload={"photo_path_id": 1}),
         ]
 
         mock_get_client.return_value.search.side_effect = [
