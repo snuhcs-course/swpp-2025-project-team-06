@@ -392,7 +392,7 @@ private fun StoryPageFullBlock(
 // =============== Scroll Hint ===============
 
 @Composable
-private fun ScrollHintOverlay(modifier: Modifier = Modifier) {
+internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
     val infinite = rememberInfiniteTransition(label = "scrollbounce")
     val offsetY by infinite.animateFloat(
         initialValue = 0f,
@@ -444,7 +444,7 @@ private fun ScrollHintOverlay(modifier: Modifier = Modifier) {
 // =============== TagSelectionCard ===============
 
 @Composable
-private fun TagSelectionCard(
+internal fun TagSelectionCard(
     tags: List<String>,
     selectedTags: Set<String>,
     onTagToggle: (String) -> Unit,
@@ -521,7 +521,7 @@ private fun TagSelectionCard(
 }
 
 @Composable
-private fun AddTagChip(onClick: () -> Unit) {
+internal fun AddTagChip(onClick: () -> Unit) {
     Box(
         modifier =
             Modifier
@@ -545,7 +545,7 @@ private fun AddTagChip(onClick: () -> Unit) {
 }
 
 @Composable
-private fun GradientPillButton(
+internal fun GradientPillButton(
     text: String,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -588,7 +588,7 @@ private fun GradientPillButton(
 }
 
 @Composable
-private fun FlowRow(
+internal fun FlowRow(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {

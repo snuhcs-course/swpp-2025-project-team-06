@@ -151,7 +151,9 @@ class ImageDetailViewModelTest {
         // Then
         val context = viewModel.imageContext.value
         assertNotNull(context)
-        assertEquals(0, context!!.images.size)
+        assertEquals(1, context!!.images.size)
+        assertEquals(uri, context.images[0].contentUri)
+        assertEquals("photo", context.images[0].photoId) // lastPathSegment from "content://standalone/photo"
         assertEquals(0, context.currentIndex)
         assertEquals(ImageContext.ContextType.GALLERY, context.contextType)
         verify(imageBrowserRepository).getPhotoContextByUri(uri)
@@ -659,7 +661,7 @@ class ImageDetailViewModelTest {
         // Then
         val context = viewModel.imageContext.value
         assertNotNull(context)
-        assertEquals(0, context!!.images.size)
+        assertEquals("photo", context!!.images[0].photoId) // lastPathSegment from "content://standalone/photo"
 
         // When - try to load tags with empty photoId
         viewModel.loadPhotoTags("")
