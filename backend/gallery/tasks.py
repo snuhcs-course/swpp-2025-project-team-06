@@ -19,10 +19,11 @@ import time
 import torch
 from sentence_transformers import SentenceTransformer
 
-SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
+
+SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
 _TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 _text_model = None  # 전역 캐시
