@@ -96,20 +96,22 @@ class ImageDetailViewModel(
             _photoTagState.value = PhotoTagState.Loading
 
             // If photoId is numeric (photo_path_id from local album), find the actual UUID
-            val actualPhotoId = if (photoId.toLongOrNull() != null) {
-                // This is a photo_path_id, need to find the actual UUID
-                findPhotoIdByPathId(photoId.toLong())
-            } else {
-                // Already a UUID
-                photoId
-            }
+            val actualPhotoId =
+                if (photoId.toLongOrNull() != null) {
+                    // This is a photo_path_id, need to find the actual UUID
+                    findPhotoIdByPathId(photoId.toLong())
+                } else {
+                    // Already a UUID
+                    photoId
+                }
 
             if (actualPhotoId == null) {
                 // Photo not found in backend (not uploaded yet)
-                _photoTagState.value = PhotoTagState.Success(
-                    existingTags = emptyList(),
-                    recommendedTags = emptyList(),
-                )
+                _photoTagState.value =
+                    PhotoTagState.Success(
+                        existingTags = emptyList(),
+                        recommendedTags = emptyList(),
+                    )
                 return@launch
             }
 
@@ -189,11 +191,12 @@ class ImageDetailViewModel(
             _tagDeleteState.value = TagDeleteState.Loading
 
             // If photoId is numeric (photo_path_id from local album), find the actual UUID
-            val actualPhotoId = if (photoId.toLongOrNull() != null) {
-                findPhotoIdByPathId(photoId.toLong())
-            } else {
-                photoId
-            }
+            val actualPhotoId =
+                if (photoId.toLongOrNull() != null) {
+                    findPhotoIdByPathId(photoId.toLong())
+                } else {
+                    photoId
+                }
 
             if (actualPhotoId == null) {
                 _tagDeleteState.value = TagDeleteState.Error("Photo not found in backend")
@@ -238,8 +241,8 @@ class ImageDetailViewModel(
      * @param photoPathId 로컬 미디어 ID
      * @return 백엔드에 업로드된 photo_id (UUID), 없으면 null
      */
-    private suspend fun findPhotoIdByPathId(photoPathId: Long): String? {
-        return try {
+    private suspend fun findPhotoIdByPathId(photoPathId: Long): String? =
+        try {
             val allPhotosResult = remoteRepository.getAllPhotos()
             when (allPhotosResult) {
                 is RemoteRepository.Result.Success -> {
@@ -251,7 +254,6 @@ class ImageDetailViewModel(
         } catch (e: Exception) {
             null
         }
-    }
 
     /**
      * 이미지 컨텍스트 초기화
