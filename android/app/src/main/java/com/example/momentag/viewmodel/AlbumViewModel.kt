@@ -72,7 +72,7 @@ class AlbumViewModel(
                             photos,
                         )
                     imageBrowserRepository.setTagAlbum(photos, tagName)
-                    
+
                     // Auto-load recommendations after album loads
                     loadRecommendations(tagId)
                 }

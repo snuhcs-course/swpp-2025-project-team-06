@@ -64,7 +64,7 @@ class LocalViewModel(
         val photos =
             uris.map { uri ->
                 Photo(
-                    photoId = "", // Local images don't have backend photoId
+                    photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
                     contentUri = uri,
                 )
             }
@@ -82,7 +82,7 @@ class LocalViewModel(
         val photos =
             uris.map { uri ->
                 Photo(
-                    photoId = "", // Local images don't have backend photoId
+                    photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
                     contentUri = uri,
                 )
             }
@@ -97,7 +97,7 @@ class LocalViewModel(
         val photos =
             uris.map { uri ->
                 Photo(
-                    photoId = "", // Local images don't have backend photoId
+                    photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
                     contentUri = uri,
                 )
             }

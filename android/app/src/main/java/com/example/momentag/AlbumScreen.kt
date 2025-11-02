@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,8 +45,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -171,61 +166,6 @@ fun AlbumScreen(
 }
 
 @Composable
-private fun ColorBoxItem(
-    colorIndex: Int,
-    modifier: Modifier = Modifier,
-    isSelectionMode: Boolean = false,
-    isSelected: Boolean = false,
-    onClick: () -> Unit = {},
-) {
-    val colors = listOf(
-        Color(0xFFFF6B6B), // Red
-        Color(0xFFFFD93D), // Yellow
-        Color(0xFF6BCF7F), // Green
-        Color(0xFF4D96FF), // Blue
-        Color(0xFFB084CC), // Purple
-        Color(0xFFFF8C42), // Orange
-        Color(0xFFFF6BDB), // Pink
-        Color(0xFF95E1D3), // Mint
-        Color(0xFFFFAA64), // Peach
-    )
-    
-    Box(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .padding(top = 0.dp)
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(colors[colorIndex % colors.size])
-                .clickable(onClick = onClick)
-                .alpha(if (isSelectionMode && isSelected) 0.5f else 1f)
-        )
-        
-        if (isSelectionMode) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 0.dp)
-                    .aspectRatio(1f)
-                    .background(
-                        if (isSelected) Color.Black.copy(alpha = 0.4f) else Color.Transparent
-                    )
-            )
-            
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Selected",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(48.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun AlbumContent(
     albumLoadState: AlbumViewModel.AlbumLoadingState,
     recommendLoadState: AlbumViewModel.RecommendLoadingState,
@@ -250,7 +190,7 @@ private fun AlbumContent(
             is AlbumViewModel.AlbumLoadingState.Success -> {
                 val photos = albumLoadState.photos
 
-                 LazyVerticalGrid(
+                LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -300,8 +240,7 @@ private fun AlbumContent(
                             val newOffset = recommendOffsetY + dragAmount
                             recommendOffsetY = newOffset.coerceIn(minOffset, maxOffset)
                         }
-                    }
-                    .background(Background, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    }.background(Background, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .padding(16.dp),
         ) {
             Column {
@@ -464,304 +403,3 @@ private fun AlbumContent(
     }
 }
 
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-@Composable
-private fun AlbumContentPreview() {
-    var isRecommendSelectionMode by remember { mutableStateOf(false) }
-    var selectedIndices by remember { mutableStateOf(setOf(0, 2)) }
-    
-    com.example.momentag.ui.theme.momenTagTheme {
-        Box(modifier = Modifier.fillMaxSize().background(Background)) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "# home",
-                    fontSize = 28.sp,
-                    fontFamily = FontFamily.Serif,
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-                    color = Color.Black.copy(alpha = 0.5f),
-                )
-                
-                Box(modifier = Modifier.fillMaxSize()) {
-                    // Tag Album Grid
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 650.dp),
-                    ) {
-                        items(12) { index ->
-                            ColorBoxItem(colorIndex = index)
-                        }
-                    }
-                    
-                    // AI Recommend Section
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
-                            .offset { IntOffset(0, 600) }
-                            .background(
-                                Background,
-                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                            )
-                            .padding(16.dp)
-                    ) {
-                        Column {
-                            // Drag handle
-                            Box(
-                                modifier = Modifier
-                                    .width(40.dp)
-                                    .height(4.dp)
-                                    .background(Color.Gray.copy(alpha = 0.4f), shape = CircleShape)
-                                    .align(Alignment.CenterHorizontally)
-                            )
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            // AI Recommend Badge
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .background(Purple80, shape = RoundedCornerShape(16.dp))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = "AI",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "AI Recommend",
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                
-                                Spacer(modifier = Modifier.weight(1f))
-                                
-                                Button(
-                                    onClick = {
-                                        isRecommendSelectionMode = !isRecommendSelectionMode
-                                        if (!isRecommendSelectionMode) {
-                                            selectedIndices = emptySet()
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isRecommendSelectionMode) Button else Color.LightGray
-                                    ),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                                ) {
-                                    Text(
-                                        text = if (isRecommendSelectionMode) "취소" else "선택",
-                                        fontSize = 14.sp,
-                                        color = if (isRecommendSelectionMode) Color.White else Color.Black
-                                    )
-                                }
-                            }
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            // Recommendations Grid
-                            Column {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(3),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.height(300.dp)
-                                ) {
-                                    items(9) { index ->
-                                        ColorBoxItem(
-                                            colorIndex = index + 3,
-                                            isSelectionMode = isRecommendSelectionMode,
-                                            isSelected = selectedIndices.contains(index),
-                                            onClick = {
-                                                if (isRecommendSelectionMode) {
-                                                    selectedIndices = if (selectedIndices.contains(index)) {
-                                                        selectedIndices - index
-                                                    } else {
-                                                        selectedIndices + index
-                                                    }
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                                
-                                // Add to Album button
-                                if (isRecommendSelectionMode && selectedIndices.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Button(
-                                        onClick = {},
-                                        colors = ButtonDefaults.buttonColors(containerColor = Button),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Text(
-                                            text = "Add to Album (${selectedIndices.size})",
-                                            color = Color.White,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(vertical = 4.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Expanded View")
-@Composable
-private fun AlbumContentExpandedPreview() {
-    var isRecommendSelectionMode by remember { mutableStateOf(true) }
-    var selectedIndices by remember { mutableStateOf(setOf(0, 2, 5)) }
-    
-    com.example.momentag.ui.theme.momenTagTheme {
-        Box(modifier = Modifier.fillMaxSize().background(Background)) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "# home",
-                    fontSize = 28.sp,
-                    fontFamily = FontFamily.Serif,
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-                    color = Color.Black.copy(alpha = 0.5f),
-                )
-                
-                Box(modifier = Modifier.fillMaxSize()) {
-                    // AI Recommend Section (Expanded)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
-                            .offset { IntOffset(0, 0) }
-                            .background(
-                                Background,
-                                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                            )
-                            .padding(16.dp)
-                    ) {
-                        Column {
-                            // Drag handle
-                            Box(
-                                modifier = Modifier
-                                    .width(40.dp)
-                                    .height(4.dp)
-                                    .background(Color.Gray.copy(alpha = 0.4f), shape = CircleShape)
-                                    .align(Alignment.CenterHorizontally)
-                            )
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            // AI Recommend Badge
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .background(Purple80, shape = RoundedCornerShape(16.dp))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = "AI",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "AI Recommend",
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                
-                                Spacer(modifier = Modifier.weight(1f))
-                                
-                                Button(
-                                    onClick = {},
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Button
-                                    ),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                                ) {
-                                    Text(
-                                        text = "취소",
-                                        fontSize = 14.sp,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            // Recommendations Grid with more items
-                            Column {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(3),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.height(500.dp)
-                                ) {
-                                    items(15) { index ->
-                                        ColorBoxItem(
-                                            colorIndex = index,
-                                            isSelectionMode = isRecommendSelectionMode,
-                                            isSelected = selectedIndices.contains(index),
-                                            onClick = {}
-                                        )
-                                    }
-                                }
-                                
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = {},
-                                    colors = ButtonDefaults.buttonColors(containerColor = Button),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Text(
-                                        text = "Add to Album (${selectedIndices.size})",
-                                        color = Color.White,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}

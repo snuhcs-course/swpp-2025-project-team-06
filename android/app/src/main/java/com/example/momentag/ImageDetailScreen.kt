@@ -107,7 +107,7 @@ fun ImageDetailScreen(
         imageContext?.images ?: imageUri?.let {
             listOf(
                 Photo(
-                    photoId = "", // No backend photoId for standalone images
+                    photoId = it.lastPathSegment ?: it.toString(), // Use media ID from URI as fallback
                     contentUri = it,
                 ),
             )
