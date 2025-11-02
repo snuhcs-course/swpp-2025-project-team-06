@@ -135,12 +135,12 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
         search_result = client.search(
             IMAGE_COLLECTION_NAME,
             query_vector=rep_vector,
-            with_payload=["photo_id", "photo_path_id"],
+            with_payload=["photo_path_id"],
             limit=LIMIT,
         )
 
         for i, img_point in enumerate(search_result):
-            photo_id = img_point.payload["photo_id"]
+            photo_id = img_point.id
             photo_path_id = img_point.payload["photo_path_id"]
 
             rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
