@@ -3,6 +3,7 @@ package com.example.momentag.ui.search.components
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class SearchLoadingStateTest {
