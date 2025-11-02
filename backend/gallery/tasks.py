@@ -20,6 +20,9 @@ import torch
 from sentence_transformers import SentenceTransformer
 
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
+import numpy as np
+from sklearn.ensemble import IsolationForest
+from sklearn.cluster import KMeans
 
 _TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 _text_model = None  # 전역 캐시
@@ -114,6 +117,53 @@ def process_and_embed_photo(
 def create_query_embedding(query):
     model = get_text_model()  # lazy-load
     return model.encode(query)
+
+
+# aggregates N similarity queries with Reciprocal Rank Fusion
+def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
+    client = get_qdrant_client()
+    LIMIT = 40
+    RRF_CONSTANT = 40
+
+    rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
+
+    rrf_scores = defaultdict(float)
+    photo_id_to_path_id = {}
+
+    for rep_vector in rep_vectors:
+        search_result = client.search(
+            IMAGE_COLLECTION_NAME,
+            query_vector=rep_vector,
+            with_payload=["photo_id", "photo_path_id"],
+            limit=LIMIT,
+        )
+
+        for i, img_point in enumerate(search_result):
+            photo_id = img_point.payload["photo_id"]
+            photo_path_id = img_point.payload["photo_path_id"]
+
+            rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
+            photo_id_to_path_id[photo_id] = photo_path_id
+
+    rrf_sorted = sorted(
+        rrf_scores.items(),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+
+    tagged_photo_ids = set(
+        str(pid) for pid in Photo_Tag.objects.filter(user=user)
+        .filter(tag_id=tag_id)
+        .values_list("photo_id", flat=True)
+    )
+
+    recommendations = [
+        {"photo_id": photo_id, "photo_path_id": photo_id_to_path_id[photo_id]}
+        for (photo_id, _) in rrf_sorted
+        if photo_id not in tagged_photo_ids
+    ][:LIMIT]
+
+    return recommendations
 
 
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
@@ -220,52 +270,6 @@ def tag_recommendation(user, photo_id):
     return recommendations
 
 
-# aggregates N similarity queries with Reciprocal Rank Fusion
-def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
-    client = get_qdrant_client()
-    LIMIT = 40
-    RRF_CONSTANT = 40
-
-    rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
-
-    rrf_scores = defaultdict(float)
-    photo_id_to_path_id = {}
-
-    for rep_vector in rep_vectors:
-        img_points = client.query_points(
-            IMAGE_COLLECTION_NAME,
-            query=rep_vector,
-            with_payload=["photo_id", "photo_path_id"],
-            limit=LIMIT,
-        ).points
-
-        for i, img_point in enumerate(img_points):
-            photo_id = img_point.payload["photo_id"]
-            photo_path_id = img_point.payload["photo_path_id"]
-
-            rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
-            photo_id_to_path_id[photo_id] = photo_path_id
-
-    rrf_sorted = sorted(
-        rrf_scores.items(),
-        key=lambda item: item[1],
-        reverse=True,
-    )
-
-    tagged_photo_ids = (
-        Photo_Tag.objects.filter(user=user)
-        .filter(tag__tag_id=tag_id)
-        .values_list("photo_id", flat=True)
-    )
-
-    recommendations = [
-        {"photo_id": photo_id, "photo_path_id": photo_id_to_path_id[photo_id]}
-        for (photo_id, _) in rrf_sorted
-        if photo_id not in tagged_photo_ids
-    ][:LIMIT]
-
-    return recommendations
-
 def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
     client = get_qdrant_client()
     LIMIT = 32  # assert max num of rep vectors <= 32
@@ -303,13 +307,14 @@ def retrieve_photo_caption_graph(user: User):
         if photo_caption.photo_id not in photo_set:
             photo_set.add(photo_caption.photo_id)
             graph.add_node(photo_caption.photo_id, bipartite=0)
-
-        if photo_caption.caption.caption_id not in caption_set:
-            caption_set.add(photo_caption.caption.caption_id)
-            graph.add_node(photo_caption.caption, bipartite=1)
+            
+        caption_id = photo_caption.caption.caption_id
+        if caption_id not in caption_set:
+            caption_set.add(caption_id)
+            graph.add_node(caption_id, bipartite=1)
 
         graph.add_edge(
-            photo_caption.photo_id, photo_caption.caption, weight=photo_caption.weight
+            photo_caption.photo_id, caption_id, weight=photo_caption.weight
         )
 
     return photo_set, caption_set, graph
@@ -495,3 +500,103 @@ def is_valid_uuid(uuid_to_test):
     except ValueError:
         return False
     return True
+
+
+@shared_task
+def compute_and_store_rep_vectors(user_id: int, tag_id: str):
+    client = get_qdrant_client()
+    K_CLUSTERS = 3           # 기본 코드의 k = 3
+    OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
+    MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수 (기본 코드 기준)
+
+    print(f"[Task Start] RepVec computation for User: {user_id}, Tag: {tag_id}")
+
+    try:
+        photo_tags = Photo_Tag.objects.filter(user_id=user_id, tag_id=tag_id)
+        photo_ids = [str(pt.photo_id) for pt in photo_tags]
+
+        delete_filter = models.Filter(
+            must=[
+                models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
+                models.FieldCondition(key="tag_id", match=models.MatchValue(value=str(tag_id))) 
+            ]
+        )
+        client.delete(
+            collection_name=REPVEC_COLLECTION_NAME,
+            points_selector=models.FilterSelector(filter=delete_filter),
+            wait=True
+        )
+        print(f"[Task Info] Deleted old repvecs for Tag: {tag_id}.")
+
+        if not photo_ids:
+            print(f"[Task Info] No photos found for Tag: {tag_id}. RepVecs deleted. Task finished.")
+            return
+
+        points = client.retrieve(
+            collection_name=IMAGE_COLLECTION_NAME,
+            ids=photo_ids,
+            with_vectors=True
+        )
+        
+        selected_vecs = np.array([point.vector for point in points if point.vector])
+
+        if len(selected_vecs) == 0:
+            print(f"[Task Info] No vectors found in Qdrant for Tag: {tag_id}. Skipping.")
+            return
+
+        if len(selected_vecs) < MIN_SAMPLES_FOR_ML:
+            final_representatives = selected_vecs
+        else:
+            iso_forest = IsolationForest(contamination=OUTLIER_FRACTION, random_state=42)
+            preds = iso_forest.fit_predict(selected_vecs)
+            
+            outlier_vecs = selected_vecs[preds == -1]
+            inlier_vecs = selected_vecs[preds == 1]
+            
+            kmeans_centers = np.array([])
+            if len(inlier_vecs) >= K_CLUSTERS:
+                kmeans = KMeans(n_clusters=K_CLUSTERS, random_state=42, n_init='auto')
+                kmeans.fit(inlier_vecs)
+                kmeans_centers = kmeans.cluster_centers_
+            elif len(inlier_vecs) > 0:
+                kmeans_centers = inlier_vecs
+                
+            final_representatives_list = []
+            if len(outlier_vecs) > 0:
+                final_representatives_list.append(outlier_vecs)
+            if len(kmeans_centers) > 0:
+                final_representatives_list.append(kmeans_centers)
+
+            if not final_representatives_list:
+                print(f"[Task Info] No representative vectors generated for Tag: {tag_id}.")
+                return
+
+            final_representatives = np.vstack(final_representatives_list)
+
+        points_to_upsert = []
+        for vec in final_representatives:
+            point_id = str(uuid.uuid4())
+            payload = {
+                "user_id": user_id,
+                "tag_id": str(tag_id)
+            }
+            points_to_upsert.append(
+                models.PointStruct(
+                    id=point_id,
+                    vector=vec.tolist(),
+                    payload=payload
+                )
+            )
+
+        if points_to_upsert:
+            client.upsert(
+                collection_name=REPVEC_COLLECTION_NAME,
+                points=points_to_upsert,
+                wait=True
+            )
+            print(f"[Task Success] Upserted {len(points_to_upsert)} new repvecs for Tag: {tag_id}.")
+        else:
+            print(f"[Task Info] No new repvecs to upsert for Tag: {tag_id}.")
+
+    except Exception as e:
+        print(f"[Task Exception] Error processing Tag {tag_id}: {str(e)}")

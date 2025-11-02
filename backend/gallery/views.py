@@ -40,6 +40,7 @@ from .tasks import (
     is_valid_uuid,
     recommend_photo_from_tag,
     recommend_photo_from_photo,
+    compute_and_store_rep_vectors,
 )
 
 
@@ -336,6 +337,11 @@ class PhotoDetailView(APIView):
             client = get_qdrant_client()
             Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).delete()
             Photo_Caption.objects.filter(photo_id=photo_id, user=request.user).delete()
+            
+            associated_tags = Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).select_related('tag')
+            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_tags]
+
+            associated_tags.delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
@@ -345,6 +351,9 @@ class PhotoDetailView(APIView):
             
             print(f"[INFO] Invalidating graph cache for user {request.user.id}")
             cache.delete(f"user_{request.user.id}_combined_graph")
+
+            for tag_id_str in set(tag_ids_to_recompute):
+                compute_and_store_rep_vectors.delay(request.user.id, tag_id_str)
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -391,9 +400,11 @@ class BulkDeletePhotoView(APIView):
 
             # 일단 동작만 하게 해놓음.
             # 여러 API가 동시에 들어와서 중복 삭제하는 등의 문제를 해결하는건 나중에 atomic transaction 등의 방식으로 수정
-            Photo_Tag.objects.filter(
+            associated_tags = Photo_Tag.objects.filter(
                 photo_id__in=photos_to_delete, user=request.user
-            ).delete()
+            ).select_related('tag')
+            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_tags]
+            associated_tags.delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
@@ -403,6 +414,9 @@ class BulkDeletePhotoView(APIView):
             
             print(f"[INFO] Invalidating graph cache for user {request.user.id}")
             cache.delete(f"user_{request.user.id}_combined_graph")
+
+            for tag_id_str in set(tag_ids_to_recompute):
+                compute_and_store_rep_vectors.delay(request.user.id, tag_id_str)
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -546,6 +560,9 @@ class PostPhotoTagsView(APIView):
             print(f"[INFO] Invalidating graph cache for user {request.user.id}")
             cache.delete(f"user_{request.user.id}_combined_graph")
 
+            for tag_id in tag_ids:
+                compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+
             return Response(status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
             return Response(
@@ -612,6 +629,8 @@ class DeletePhotoTagsView(APIView):
                 
             print(f"[INFO] Invalidating graph cache for user {request.user.id}")
             cache.delete(f"user_{request.user.id}_combined_graph")
+
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Tag.DoesNotExist:
@@ -829,7 +848,6 @@ class TagView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
-            409: openapi.Response(description="Conflict - Tag already exists"),
         },
         manual_parameters=[
             openapi.Parameter(
@@ -856,10 +874,9 @@ class TagView(APIView):
                 )
 
             if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
-                return Response(
-                    {"error": f"Tag {data['tag']} already exists"},
-                    status=status.HTTP_409_CONFLICT,
-                )
+                tag = Tag.objects.get(tag=data["tag"], user=request.user)
+                response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
 
             new_tag = Tag.objects.create(tag=data["tag"], user=request.user)
 
@@ -915,8 +932,11 @@ class TagDetailView(APIView):
                     {"error": "Forbidden - you are not the owner of this tag."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+                
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             tag.delete()
+
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response(

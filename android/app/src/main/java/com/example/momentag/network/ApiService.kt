@@ -1,6 +1,7 @@
 package com.example.momentag.network
 
 import android.content.Context
+import com.example.momentag.R
 import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
@@ -11,6 +12,7 @@ import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
+import com.example.momentag.model.StoryResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagCreateRequest
 import com.example.momentag.model.TagCreateResponse
@@ -122,6 +124,11 @@ interface ApiService {
         @Path("tag_id") tagId: String,
     ): Response<List<PhotoResponse>>
 
+    @GET("api/stories/")
+    suspend fun getStories(
+        @Query("size") size: Int,
+    ): Response<StoryResponse>
+
     @POST("api/photos/recommendation/")
     suspend fun recommendPhotosFromPhotos(
         @Body photoIds: PhotoToPhotoRequest,
@@ -136,16 +143,13 @@ interface ApiService {
  * - TokenAuthenticator: 401 시 자동 리프레시 → 재시도
  */
 object RetrofitInstance {
-//    private const val BASE_URL = "http://10.0.2.2:8000/"
-    private const val BASE_URL = "http://192.168.58.234:8000/"
-
     private var apiService: ApiService? = null
 
     fun getApiService(context: Context): ApiService {
         if (apiService == null) {
             val sessionStore = SessionManager.getInstance(context.applicationContext)
             val authInterceptor = AuthInterceptor(sessionStore)
-            val tokenAuthenticator = TokenAuthenticator(sessionStore)
+            val tokenAuthenticator = TokenAuthenticator(context.applicationContext, sessionStore)
 
             val okHttpClient =
                 OkHttpClient
@@ -160,7 +164,7 @@ object RetrofitInstance {
             val retrofit =
                 Retrofit
                     .Builder()
-                    .baseUrl(BASE_URL)
+                    .baseUrl(context.getString(R.string.API_BASE_URL))
                     .client(okHttpClient)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
