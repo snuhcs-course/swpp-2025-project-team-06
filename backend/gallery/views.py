@@ -32,6 +32,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
+from django.core.cache import cache
 
 from .tasks import (
     process_and_embed_photo,
@@ -142,6 +143,9 @@ class PhotoView(APIView):
             photos_data = serializer.validated_data
 
             fs = FileSystemStorage(location=settings.MEDIA_ROOT)
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             for data in photos_data:
                 image_file = data["photo"]
@@ -338,6 +342,9 @@ class PhotoDetailView(APIView):
                 points_selector=[str(photo_id)],
                 wait=True,
             )
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -393,6 +400,9 @@ class BulkDeletePhotoView(APIView):
                 points_selector=[str(photo_id) for photo_id in photos_to_delete],
                 wait=True,
             )
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -532,6 +542,9 @@ class PostPhotoTagsView(APIView):
                 payload={"isTagged": True},
                 points=[str(photo_id)],
             )
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             return Response(status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
@@ -596,6 +609,9 @@ class DeletePhotoTagsView(APIView):
                     payload={"isTagged": False},
                     points=[str(photo_id)],
                 )
+                
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Tag.DoesNotExist:

@@ -5,6 +5,7 @@ from collections import defaultdict
 from celery import shared_task
 from qdrant_client import models
 from django.conf import settings
+from django.core.cache import cache
 
 from .vision_service import get_image_embedding, get_image_captions
 from .qdrant_utils import (
@@ -314,13 +315,22 @@ def retrieve_photo_caption_graph(user: User):
     return photo_set, caption_set, graph
 
 def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
+    cache_key = f"user_{user.id}_combined_graph"
+    
+    cached_data = cache.get(cache_key)
+    
+    if cached_data:
+        print(f"[INFO] User {user.id} graph loaded from CACHE")
+        return cached_data['photo_set'], cached_data['meta_set'], cached_data['graph']
+
+    print(f"[INFO] User {user.id} graph building from DB...")
     graph = nx.Graph()
     photo_set = set()
+    meta_set = set()
     
-    # meta_set은 캡션 '객체'와 태그 '객체'를 모두 담습니다.
-    meta_set = set() 
+    caption_relations = Photo_Caption.objects.filter(user=user).select_related('caption')
 
-    for photo_caption in Photo_Caption.objects.filter(user=user):
+    for photo_caption in caption_relations:
         photo_id = photo_caption.photo_id
         caption_obj = photo_caption.caption
 
@@ -334,9 +344,11 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
 
         graph.add_edge(
             photo_id, caption_obj, weight=photo_caption.weight 
-        ) 
+        )
+        
+    tag_relations = Photo_Tag.objects.filter(user=user).select_related('tag')
 
-    for photo_tag in Photo_Tag.objects.filter(user=user):
+    for photo_tag in tag_relations:
         photo_id = photo_tag.photo_id
         tag_obj = photo_tag.tag 
 
@@ -351,6 +363,16 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
         graph.add_edge(
             photo_id, tag_obj, weight=tag_edge_weight
         )
+        
+    data_to_cache = {
+        'photo_set': photo_set,
+        'meta_set': meta_set,
+        'graph': graph
+    }
+    
+    cache.set(cache_key, data_to_cache, timeout=3600)
+    
+    print(f"[INFO] User {user.id} graph SAVED to cache")
 
     return photo_set, meta_set, graph
 

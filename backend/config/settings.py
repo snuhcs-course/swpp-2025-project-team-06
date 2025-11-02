@@ -211,3 +211,10 @@ HYBRID_SEARCH_SETTINGS = {
     # (tasks.py) 최종 반환할 사진 개수
     "FINAL_RESULT_LIMIT": 20,
 }
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "combined_graph",
+    }
+}
