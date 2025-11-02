@@ -66,20 +66,18 @@ class TaskFunctionsTest(TestCase):
         first_uuid = uuid.uuid4()
 
         mock_points = [
-            MagicMock(payload={"photo_id": first_uuid, "photo_path_id": 1}),
-            MagicMock(payload={"photo_id": uuid.uuid4(), "photo_path_id": 2}),
-            MagicMock(payload={"photo_id": uuid.uuid4(), "photo_path_id": 3}),
+            MagicMock(payload={"photo_id": str(first_uuid), "photo_path_id": 1}),
+            MagicMock(payload={"photo_id": str(uuid.uuid4()), "photo_path_id": 2}),
+            MagicMock(payload={"photo_id": str(uuid.uuid4()), "photo_path_id": 3}),
         ]
-        mock_get_client.return_value.query_points.return_value = MagicMock(
-            points=mock_points
-        )
+        mock_get_client.return_value.search.return_value = mock_points
 
         # Execute
         result = recommend_photo_from_tag(self.user, self.tag_id)
 
         # Assert
         self.assertEqual(len(result), 3)
-        self.assertEqual(result[0]["photo_id"], first_uuid)
+        self.assertEqual(result[0]["photo_id"], str(first_uuid))
         self.assertEqual(result[0]["photo_path_id"], 1)
         mock_retrieve.assert_called_once_with(self.user, self.tag_id)
 
@@ -97,13 +95,11 @@ class TaskFunctionsTest(TestCase):
         third_uuid = uuid.uuid4()
 
         mock_points = [
-            MagicMock(payload={"photo_id": first_uuid, "photo_path_id": 1}),
-            MagicMock(payload={"photo_id": self.photo_id, "photo_path_id": 2}),
-            MagicMock(payload={"photo_id": third_uuid, "photo_path_id": 3}),
+            MagicMock(payload={"photo_id": str(first_uuid), "photo_path_id": 1}),
+            MagicMock(payload={"photo_id": str(self.photo_id), "photo_path_id": 2}),
+            MagicMock(payload={"photo_id": str(third_uuid), "photo_path_id": 3}),
         ]
-        mock_get_client.return_value.query_points.return_value = MagicMock(
-            points=mock_points
-        )
+        mock_get_client.return_value.search.return_value = mock_points
 
         # Execute
         result = recommend_photo_from_tag(self.user, self.tag_id)
@@ -111,9 +107,9 @@ class TaskFunctionsTest(TestCase):
         # Assert
         self.assertEqual(len(result), 2)
         photo_ids = [r["photo_id"] for r in result]
-        self.assertIn(first_uuid, photo_ids)
-        self.assertIn(third_uuid, photo_ids)
-        self.assertNotIn(self.photo_id, photo_ids)
+        self.assertIn(str(first_uuid), photo_ids)
+        self.assertIn(str(third_uuid), photo_ids)
+        self.assertNotIn(str(self.photo_id), photo_ids)
 
     @patch("gallery.tasks.get_qdrant_client")
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
@@ -129,21 +125,21 @@ class TaskFunctionsTest(TestCase):
 
         # First query returns photo1, photo2, photo3
         mock_points_1 = [
-            MagicMock(payload={"photo_id": uuids[0], "photo_path_id": 1}),
-            MagicMock(payload={"photo_id": uuids[1], "photo_path_id": 2}),
-            MagicMock(payload={"photo_id": uuids[2], "photo_path_id": 3}),
+            MagicMock(payload={"photo_id": str(uuids[0]), "photo_path_id": 1}),
+            MagicMock(payload={"photo_id": str(uuids[1]), "photo_path_id": 2}),
+            MagicMock(payload={"photo_id": str(uuids[2]), "photo_path_id": 3}),
         ]
 
         # Second query returns photo2, photo1, photo4
         mock_points_2 = [
-            MagicMock(payload={"photo_id": uuids[1], "photo_path_id": 2}),
-            MagicMock(payload={"photo_id": uuids[3], "photo_path_id": 4}),
-            MagicMock(payload={"photo_id": uuids[0], "photo_path_id": 1}),
+            MagicMock(payload={"photo_id": str(uuids[1]), "photo_path_id": 2}),
+            MagicMock(payload={"photo_id": str(uuids[3]), "photo_path_id": 4}),
+            MagicMock(payload={"photo_id": str(uuids[0]), "photo_path_id": 1}),
         ]
 
-        mock_get_client.return_value.query_points.side_effect = [
-            MagicMock(points=mock_points_1),
-            MagicMock(points=mock_points_2),
+        mock_get_client.return_value.search.side_effect = [
+            mock_points_1,
+            mock_points_2,
         ]
 
         # Execute
@@ -152,8 +148,8 @@ class TaskFunctionsTest(TestCase):
         # Assert
         # photo2 should rank highest (appears 2nd and 1st in each query)
         # photo1 should rank second (appears 1st and 3rd)
-        self.assertEqual(result[0]["photo_id"], uuids[1])
-        self.assertEqual(result[1]["photo_id"], uuids[0])
+        self.assertEqual(result[0]["photo_id"], str(uuids[1]))
+        self.assertEqual(result[1]["photo_id"], str(uuids[0]))
 
     @patch("gallery.tasks.get_qdrant_client")
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
@@ -167,7 +163,7 @@ class TaskFunctionsTest(TestCase):
 
         # Assert
         self.assertEqual(len(result), 0)
-        mock_get_client.return_value.query_points.assert_not_called()
+        mock_get_client.return_value.search.assert_not_called()
 
     @patch("gallery.tasks.Tag.objects.get")
     @patch("gallery.tasks.get_qdrant_client")
@@ -266,11 +262,11 @@ class RetrievePhotoCaptionGraphTest(TestCase):
 
         # Verify bipartite attributes
         self.assertEqual(graph.nodes[photo_id]["bipartite"], 0)
-        self.assertEqual(graph.nodes[caption]["bipartite"], 1)
+        self.assertEqual(graph.nodes[caption.caption_id]["bipartite"], 1)
 
         # Verify edge weight
-        self.assertTrue(graph.has_edge(photo_id, caption))
-        self.assertEqual(graph[photo_id][caption]["weight"], 5)
+        self.assertTrue(graph.has_edge(photo_id, caption.caption_id))
+        self.assertEqual(graph[photo_id][caption.caption_id]["weight"], 5)
 
     def test_multiple_photos_shared_captions(self):
         """Test graph where multiple photos share the same captions"""
@@ -316,13 +312,13 @@ class RetrievePhotoCaptionGraphTest(TestCase):
         for photo_id in [photo_id1, photo_id2, photo_id3]:
             self.assertEqual(graph.nodes[photo_id]["bipartite"], 0)
         for caption in [caption_beach, caption_sunset]:
-            self.assertEqual(graph.nodes[caption]["bipartite"], 1)
+            self.assertEqual(graph.nodes[caption.caption_id]["bipartite"], 1)
 
         # Verify specific edges and weights
-        self.assertEqual(graph[photo_id1][caption_beach]["weight"], 3)
-        self.assertEqual(graph[photo_id1][caption_sunset]["weight"], 2)
-        self.assertEqual(graph[photo_id2][caption_beach]["weight"], 5)
-        self.assertEqual(graph[photo_id3][caption_sunset]["weight"], 1)
+        self.assertEqual(graph[photo_id1][caption_beach.caption_id]["weight"], 3)
+        self.assertEqual(graph[photo_id1][caption_sunset.caption_id]["weight"], 2)
+        self.assertEqual(graph[photo_id2][caption_beach.caption_id]["weight"], 5)
+        self.assertEqual(graph[photo_id3][caption_sunset.caption_id]["weight"], 1)
 
     def test_multiple_photos_unique_captions(self):
         """Test graph where each photo has unique captions"""
@@ -477,7 +473,7 @@ class RetrievePhotoCaptionGraphTest(TestCase):
         _, _, graph = retrieve_photo_caption_graph(self.user1)
 
         # Verify weight is preserved
-        self.assertEqual(graph[photo_id][caption]["weight"], weight_value)
+        self.assertEqual(graph[photo_id][caption.caption_id]["weight"], weight_value)
 
     def test_zero_weight(self):
         """Test that zero weight edges are handled correctly"""
@@ -491,8 +487,8 @@ class RetrievePhotoCaptionGraphTest(TestCase):
         _, _, graph = retrieve_photo_caption_graph(self.user1)
 
         # Verify edge exists with zero weight
-        self.assertTrue(graph.has_edge(photo_id, caption))
-        self.assertEqual(graph[photo_id][caption]["weight"], 0)
+        self.assertTrue(graph.has_edge(photo_id, caption.caption_id))
+        self.assertEqual(graph[photo_id][caption.caption_id]["weight"], 0)
 
     def test_duplicate_photo_caption_pairs(self):
         """Test that duplicate photo-caption pairs don't create duplicate nodes"""
