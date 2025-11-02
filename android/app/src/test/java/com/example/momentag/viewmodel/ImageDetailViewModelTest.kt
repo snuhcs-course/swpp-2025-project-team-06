@@ -153,7 +153,7 @@ class ImageDetailViewModelTest {
         assertNotNull(context)
         assertEquals(1, context!!.images.size)
         assertEquals(uri, context.images[0].contentUri)
-        assertEquals("", context.images[0].photoId)
+        assertEquals("photo", context.images[0].photoId) // lastPathSegment from "content://standalone/photo"
         assertEquals(0, context.currentIndex)
         assertEquals(ImageContext.ContextType.GALLERY, context.contextType)
         verify(imageBrowserRepository).getPhotoContextByUri(uri)
@@ -248,7 +248,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature", "Forest"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1"), Tag("Forest", "tag2")), successState.existingTags)
             assertEquals(listOf("Sunset"), successState.recommendedTags)
 
             verify(remoteRepository).getPhotoDetail(photoId)
@@ -280,7 +280,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature", "Sunset"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1"), Tag("Sunset", "tag2")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags) // Filtered out
         }
 
@@ -337,7 +337,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags)
         }
 
@@ -365,7 +365,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags)
         }
 
@@ -393,7 +393,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags)
         }
 
@@ -421,7 +421,7 @@ class ImageDetailViewModelTest {
             val state = viewModel.photoTagState.value
             assertTrue(state is PhotoTagState.Success)
             val successState = state as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(emptyList<String>(), successState.recommendedTags)
         }
 
@@ -645,7 +645,7 @@ class ImageDetailViewModelTest {
             val tagState = viewModel.photoTagState.value
             assertTrue(tagState is PhotoTagState.Success)
             val successState = tagState as PhotoTagState.Success
-            assertEquals(listOf("Nature"), successState.existingTags)
+            assertEquals(listOf(Tag("Nature", "tag1")), successState.existingTags)
             assertEquals(listOf("Sunset"), successState.recommendedTags)
         }
 
@@ -661,7 +661,7 @@ class ImageDetailViewModelTest {
         // Then
         val context = viewModel.imageContext.value
         assertNotNull(context)
-        assertEquals("", context!!.images[0].photoId)
+        assertEquals("photo", context!!.images[0].photoId) // lastPathSegment from "content://standalone/photo"
 
         // When - try to load tags with empty photoId
         viewModel.loadPhotoTags("")
