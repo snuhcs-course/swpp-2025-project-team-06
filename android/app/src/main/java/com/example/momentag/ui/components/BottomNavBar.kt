@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -64,14 +63,14 @@ fun BottomNavBar(
             BottomNavItem(
                 icon = Icons.Default.Search,
                 label = "Search",
-                isSelected = currentTab == BottomTab.SearchScreen,
-            ) { onTabSelected(BottomTab.SearchScreen) }
+                isSelected = currentTab == BottomTab.SearchResultScreen,
+            ) { onTabSelected(BottomTab.SearchResultScreen) }
 
             BottomNavItem(
                 icon = Icons.AutoMirrored.Filled.Label, // or Icons.Default.AddCircle
                 label = "Tag",
-                isSelected = currentTab == BottomTab.TagScreen,
-            ) { onTabSelected(BottomTab.TagScreen) }
+                isSelected = currentTab == BottomTab.AddTagScreen,
+            ) { onTabSelected(BottomTab.AddTagScreen) }
 
             BottomNavItem(
                 icon = Icons.Default.AutoStories, // or Icons.Default.Collections
@@ -82,11 +81,17 @@ fun BottomNavBar(
     }
 }
 
-// 어떤 탭이 선택돼 있는지 표현할 enum
+/**
+ * 어떤 탭이 선택돼 있는지 표현할 enum
+ * HomeScreen - 홈 화면
+ * SearchResultScreen - 검색 결과 화면
+ * AddTagScreen - 태그 추가 화면
+ * StoryScreen - 스토리 화면
+ */
 enum class BottomTab {
     HomeScreen,
-    SearchScreen,
-    TagScreen,
+    SearchResultScreen,
+    AddTagScreen,
     StoryScreen,
 }
 

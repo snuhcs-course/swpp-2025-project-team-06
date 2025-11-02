@@ -7,9 +7,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,6 +51,8 @@ import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.BottomNavBar
+import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.SearchBarControlledCustom
@@ -80,6 +87,7 @@ fun SearchResultScreen(
     val semanticSearchState by searchViewModel.searchState.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
+    var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
@@ -158,6 +166,24 @@ fun SearchResultScreen(
             }
         },
         navController = navController,
+        currentTab = currentTab,
+        onTabSelected = { tab ->
+            currentTab = tab
+            when (tab) {
+                BottomTab.HomeScreen -> {
+                    navController.navigate(Screen.Home.route)
+                }
+                BottomTab.SearchResultScreen -> {
+                    // 이미 Search 화면
+                }
+                BottomTab.AddTagScreen -> {
+                    navController.navigate(Screen.AddTag.route)
+                }
+                BottomTab.StoryScreen -> {
+                    navController.navigate(Screen.Story.route)
+                }
+            }
+        },
     )
 }
 
@@ -181,6 +207,8 @@ fun SearchResultScreenUi(
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    currentTab: BottomTab,
+    onTabSelected: (BottomTab) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -190,6 +218,20 @@ fun SearchResultScreenUi(
                 BackTopBar(
                     title = "Search Results",
                     onBackClick = onBackClick,
+                )
+            },
+            bottomBar = {
+                BottomNavBar(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                WindowInsets.navigationBars
+                                    .only(WindowInsetsSides.Bottom)
+                                    .asPaddingValues(),
+                            ),
+                    currentTab = currentTab,
+                    onTabSelected = onTabSelected,
                 )
             },
         ) { paddingValues ->

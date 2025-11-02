@@ -72,7 +72,7 @@ class ImageDetailViewModel(
                     images =
                         listOf(
                             Photo(
-                                photoId = "", // Standalone image has no backend ID
+                                photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
                                 contentUri = uri,
                             ),
                         ),
@@ -84,7 +84,7 @@ class ImageDetailViewModel(
 
     /**
      * photoId를 기반으로 사진의 태그와 추천 태그를 로드
-     * @param photoId 사진 ID
+     * @param photoId 사진 ID (로컬 사진의 경우 photo_path_id일 수 있음)
      */
     fun loadPhotoTags(photoId: String) {
         if (photoId.isEmpty()) {
@@ -95,8 +95,28 @@ class ImageDetailViewModel(
         viewModelScope.launch {
             _photoTagState.value = PhotoTagState.Loading
 
+            // If photoId is numeric (photo_path_id from local album), find the actual UUID
+            val actualPhotoId =
+                if (photoId.toLongOrNull() != null) {
+                    // This is a photo_path_id, need to find the actual UUID
+                    findPhotoIdByPathId(photoId.toLong())
+                } else {
+                    // Already a UUID
+                    photoId
+                }
+
+            if (actualPhotoId == null) {
+                // Photo not found in backend (not uploaded yet)
+                _photoTagState.value =
+                    PhotoTagState.Success(
+                        existingTags = emptyList(),
+                        recommendedTags = emptyList(),
+                    )
+                return@launch
+            }
+
             // Load existing tags from photo detail
-            val photoDetailResult = remoteRepository.getPhotoDetail(photoId)
+            val photoDetailResult = remoteRepository.getPhotoDetail(actualPhotoId)
 
             when (photoDetailResult) {
                 is RemoteRepository.Result.Success -> {
@@ -105,7 +125,7 @@ class ImageDetailViewModel(
                     val existingTagNames = existingTags.map { it.tagName }
 
                     // Load recommended tags
-                    val recommendResult = recommendRepository.recommendTagFromPhoto(photoId)
+                    val recommendResult = recommendRepository.recommendTagFromPhoto(actualPhotoId)
 
                     when (recommendResult) {
                         is RecommendRepository.RecommendResult.Success -> {
@@ -170,7 +190,20 @@ class ImageDetailViewModel(
         viewModelScope.launch {
             _tagDeleteState.value = TagDeleteState.Loading
 
-            when (val result = remoteRepository.removeTagFromPhoto(photoId, tagId)) {
+            // If photoId is numeric (photo_path_id from local album), find the actual UUID
+            val actualPhotoId =
+                if (photoId.toLongOrNull() != null) {
+                    findPhotoIdByPathId(photoId.toLong())
+                } else {
+                    photoId
+                }
+
+            if (actualPhotoId == null) {
+                _tagDeleteState.value = TagDeleteState.Error("Photo not found in backend")
+                return@launch
+            }
+
+            when (val result = remoteRepository.removeTagFromPhoto(actualPhotoId, tagId)) {
                 is RemoteRepository.Result.Success -> {
                     _tagDeleteState.value = TagDeleteState.Success
                 }
@@ -202,6 +235,25 @@ class ImageDetailViewModel(
     fun resetDeleteState() {
         _tagDeleteState.value = TagDeleteState.Idle
     }
+
+    /**
+     * photo_path_id로 실제 photo_id (UUID)를 찾는 함수
+     * @param photoPathId 로컬 미디어 ID
+     * @return 백엔드에 업로드된 photo_id (UUID), 없으면 null
+     */
+    private suspend fun findPhotoIdByPathId(photoPathId: Long): String? =
+        try {
+            val allPhotosResult = remoteRepository.getAllPhotos()
+            when (allPhotosResult) {
+                is RemoteRepository.Result.Success -> {
+                    val photo = allPhotosResult.data.find { it.photoPathId == photoPathId }
+                    photo?.photoId
+                }
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
+        }
 
     /**
      * 이미지 컨텍스트 초기화

@@ -217,19 +217,15 @@ fun HomeScreen(navController: NavController) {
 
                     when (tab) {
                         BottomTab.HomeScreen -> {
-                            // 이미 홈이면 유지. 필요하면 navController.navigate(Screen.Home.route)
+                            // 이미 홈 화면
                         }
-                        BottomTab.SearchScreen -> {
-                            // 예: 검색 화면으로 이동
+                        BottomTab.SearchResultScreen -> {
                             navController.navigate(Screen.SearchResult.route)
                         }
-                        BottomTab.TagScreen -> {
-                            // 예: 태그 생성 / 업로드 등
-                            navController.navigate(Screen.Album.route)
-                            // TODO : 여기도 Tag 화면으로 이동
+                        BottomTab.AddTagScreen -> {
+                            navController.navigate(Screen.AddTag.route)
                         }
                         BottomTab.StoryScreen -> {
-                            // ✅ 여기서 스토리 화면으로 이동하면 돼
                             navController.navigate(Screen.Story.route)
                         }
                     }

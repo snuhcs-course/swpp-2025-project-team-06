@@ -65,7 +65,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
@@ -105,7 +104,7 @@ fun StoryTagSelectionScreen(
     val selectedTags by viewModel.selectedTags.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
-    var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
+    var currentTab by remember { mutableStateOf(BottomTab.StoryScreen) }
 
     // Load initial stories
     LaunchedEffect(Unit) {
@@ -250,11 +249,11 @@ fun StoryTagSelectionScreen(
                             BottomTab.HomeScreen -> {
                                 navController.navigate(Screen.Home.route)
                             }
-                            BottomTab.SearchScreen -> {
+                            BottomTab.SearchResultScreen -> {
                                 navController.navigate(Screen.SearchResult.route)
                             }
-                            BottomTab.TagScreen -> {
-                                navController.navigate(Screen.Album.route)
+                            BottomTab.AddTagScreen -> {
+                                navController.navigate(Screen.AddTag.route)
                             }
                             BottomTab.StoryScreen -> {
                                 // 이미 Story 화면

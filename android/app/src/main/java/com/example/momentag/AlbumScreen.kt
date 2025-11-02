@@ -4,18 +4,33 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -23,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -30,17 +46,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
+import com.example.momentag.ui.theme.Button
+import com.example.momentag.ui.theme.Purple80
 import com.example.momentag.viewmodel.AlbumViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,39 +151,250 @@ fun AlbumScreen(
                         Text("이미지 접근 권한을 허용해주세요.")
                     }
                 } else {
-                    when (imageLoadState) {
-                        is AlbumViewModel.AlbumLoadingState.Loading -> {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                        is AlbumViewModel.AlbumLoadingState.Success -> {
-                            val photos = (imageLoadState as AlbumViewModel.AlbumLoadingState.Success).photos
+                    AlbumContent(
+                        albumLoadState = imageLoadState,
+                        recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
+                        selectedRecommendPhotos = albumViewModel.selectedRecommendPhotos.collectAsState().value,
+                        navController = navController,
+                        onToggleRecommendPhoto = { photo -> albumViewModel.toggleRecommendPhoto(photo) },
+                        onResetSelection = { albumViewModel.resetRecommendSelection() },
+                    )
+                }
+            }
+        }
+    }
+}
 
-                            LazyVerticalGrid(
-                                columns = GridCells.Fixed(3),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(
-                                    count = photos.size,
-                                    key = { index -> index },
-                                ) { index ->
-                                    ImageGridUriItem(
-                                        photo = photos[index],
-                                        navController = navController,
-                                        cornerRadius = 12.dp,
-                                        topPadding = 0.dp,
-                                    )
+@Composable
+private fun AlbumContent(
+    albumLoadState: AlbumViewModel.AlbumLoadingState,
+    recommendLoadState: AlbumViewModel.RecommendLoadingState,
+    selectedRecommendPhotos: List<com.example.momentag.model.Photo>,
+    navController: NavController,
+    onToggleRecommendPhoto: (com.example.momentag.model.Photo) -> Unit,
+    onResetSelection: () -> Unit,
+) {
+    var isRecommendSelectionMode by remember { mutableStateOf(false) }
+    var recommendOffsetY by remember { mutableFloatStateOf(600f) }
+    val minOffset = 0f
+    val maxOffset = 600f
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Tag Album Grid
+        when (albumLoadState) {
+            is AlbumViewModel.AlbumLoadingState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            is AlbumViewModel.AlbumLoadingState.Success -> {
+                val photos = albumLoadState.photos
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 650.dp), // Space for AI Recommend section
+                ) {
+                    items(
+                        count = photos.size,
+                        key = { index -> index },
+                    ) { index ->
+                        ImageGridUriItem(
+                            photo = photos[index],
+                            navController = navController,
+                            cornerRadius = 12.dp,
+                            topPadding = 0.dp,
+                        )
+                    }
+                }
+            }
+            is AlbumViewModel.AlbumLoadingState.Error -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("사진을 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.")
+                }
+            }
+            is AlbumViewModel.AlbumLoadingState.Idle -> {
+            }
+        }
+
+        // AI Recommend Section (draggable)
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .offset { IntOffset(0, recommendOffsetY.roundToInt()) }
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onDragEnd = {
+                                // Snap to closest position
+                                recommendOffsetY =
+                                    if (recommendOffsetY < (minOffset + maxOffset) / 2) {
+                                        minOffset
+                                    } else {
+                                        maxOffset
+                                    }
+                            },
+                        ) { _, dragAmount ->
+                            val newOffset = recommendOffsetY + dragAmount
+                            recommendOffsetY = newOffset.coerceIn(minOffset, maxOffset)
+                        }
+                    }.background(Background, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .padding(16.dp),
+        ) {
+            Column {
+                // Drag handle
+                Box(
+                    modifier =
+                        Modifier
+                            .width(40.dp)
+                            .height(4.dp)
+                            .background(Color.Gray.copy(alpha = 0.4f), shape = CircleShape)
+                            .align(Alignment.CenterHorizontally),
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // AI Recommend Badge
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                            Modifier
+                                .background(Purple80, shape = RoundedCornerShape(16.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "AI",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "AI Recommend",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Selection mode toggle (only show when recommendations loaded)
+                    if (recommendLoadState is AlbumViewModel.RecommendLoadingState.Success && recommendLoadState.photos.isNotEmpty()) {
+                        Button(
+                            onClick = {
+                                isRecommendSelectionMode = !isRecommendSelectionMode
+                                if (!isRecommendSelectionMode) {
+                                    onResetSelection()
+                                }
+                            },
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor =
+                                        if (isRecommendSelectionMode) {
+                                            Button
+                                        } else {
+                                            Color.LightGray
+                                        },
+                                ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                text = if (isRecommendSelectionMode) "취소" else "선택",
+                                fontSize = 14.sp,
+                                color = if (isRecommendSelectionMode) Color.White else Color.Black,
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // AI Recommendations Grid
+                when (recommendLoadState) {
+                    is AlbumViewModel.RecommendLoadingState.Loading -> {
+                        Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    is AlbumViewModel.RecommendLoadingState.Success -> {
+                        val recommendPhotos = recommendLoadState.photos
+
+                        if (recommendPhotos.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
+                                Text("추천 사진이 없습니다.", color = Color.Gray)
+                            }
+                        } else {
+                            Column {
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(3),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.height(300.dp),
+                                ) {
+                                    items(
+                                        count = recommendPhotos.size,
+                                        key = { index -> index },
+                                    ) { index ->
+                                        ImageGridUriItem(
+                                            photo = recommendPhotos[index],
+                                            navController = navController,
+                                            isSelectionMode = isRecommendSelectionMode,
+                                            isSelected = selectedRecommendPhotos.contains(recommendPhotos[index]),
+                                            onToggleSelection = {
+                                                onToggleRecommendPhoto(recommendPhotos[index])
+                                            },
+                                            onLongPress = {
+                                                isRecommendSelectionMode = true
+                                            },
+                                            cornerRadius = 12.dp,
+                                            topPadding = 0.dp,
+                                        )
+                                    }
+                                }
+
+                                // Add to Album button
+                                if (isRecommendSelectionMode && selectedRecommendPhotos.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Button(
+                                        onClick = {
+                                            // Navigate to AddTag screen with selected photos
+                                            // TODO: Store selected photos in DraftTagRepository first
+                                            navController.navigate(Screen.AddTag.route)
+                                            isRecommendSelectionMode = false
+                                            onResetSelection()
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Button),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                    ) {
+                                        Text(
+                                            text = "Add to Album (${selectedRecommendPhotos.size})",
+                                            color = Color.White,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(vertical = 4.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
-                        is AlbumViewModel.AlbumLoadingState.Error -> {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("사진을 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.")
-                            }
+                    }
+                    is AlbumViewModel.RecommendLoadingState.Error -> {
+                        Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
+                            Text("추천 사진을 불러오지 못했습니다.", color = Color.Gray)
                         }
-                        is AlbumViewModel.AlbumLoadingState.Idle -> {
+                    }
+                    is AlbumViewModel.RecommendLoadingState.Idle -> {
+                        Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
                         }
                     }
                 }
