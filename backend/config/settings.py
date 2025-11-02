@@ -195,9 +195,9 @@ HYBRID_SEARCH_SETTINGS = {
     # 1. search/views.py 용
     # --------------------------
     # (views.py) 태그의 가중치 (캡션보다 얼마나 중요한가)
-    "TAG_EDGE_WEIGHT": 10.0,
+    "TAG_EDGE_WEIGHT": 20.0,
     # (views.py) 그래프에 넣을 시맨틱 검색 후보 수
-    "SEMANTIC_LIMIT_FOR_GRAPH": 20,
+    "SEMANTIC_LIMIT_FOR_GRAPH": 10,
 
     # 2. gallery/tasks.py 용
     # --------------------------
