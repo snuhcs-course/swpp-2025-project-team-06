@@ -2,14 +2,20 @@ package com.example.momentag
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -17,6 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.ui.theme.TagColor
@@ -39,6 +48,9 @@ sealed interface TagVariant {
         val isDeleteMode: Boolean,
         val onDismiss: () -> Unit,
     ) : TagVariant
+
+    /** 추천 태그 (투명도 적용) */
+    data object Recommended : TagVariant
 }
 
 /**
@@ -52,8 +64,9 @@ private fun tagContainer(
     Row(
         modifier =
             modifier
+                .height(32.dp)
                 .background(color = TagColor, shape = RoundedCornerShape(50))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp), // vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -68,7 +81,9 @@ fun tagChip(
     variant: TagVariant = TagVariant.Plain,
     modifier: Modifier = Modifier,
 ) {
-    tagContainer(modifier = modifier) {
+    val alpha = if (variant is TagVariant.Recommended) 0.5f else 1f
+
+    tagContainer(modifier = modifier.alpha(alpha)) {
         Text(text = text, fontSize = 14.sp, color = Word)
         Spacer(modifier = Modifier.width(4.dp))
 
@@ -94,6 +109,8 @@ fun tagChip(
                     }
                 }
             }
+
+            is TagVariant.Recommended -> Unit
         }
     }
 }
@@ -127,3 +144,55 @@ fun tagXMode(
     variant = TagVariant.CloseWhen(isDeleteMode, onDismiss),
     modifier = modifier,
 )
+
+/** 추천 태그 (투명도가 적용된 태그) */
+@Composable
+fun tagRecommended(
+    text: String,
+    modifier: Modifier = Modifier,
+) = tagChip(text = text, variant = TagVariant.Recommended, modifier = modifier)
+
+@Composable
+fun StoryTagChip(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .clickable { onClick() },
+        // 전체 칩 클릭 가능하게
+        contentAlignment = Alignment.CenterStart, // 기본 칩은 왼쪽부터 배치되니까 큰 의미는 없음
+    ) {
+        // 1) 원래 tagChip 그대로 그린다 (스타일 건드리지 않음)
+        tagChip(
+            text = text,
+            variant = TagVariant.Plain,
+            modifier = Modifier, // 여기선 아무 커스텀 x
+        )
+
+        // 2) 선택된 경우에만 우상단 체크 뱃지 오버레이
+        if (isSelected) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd) // tagChip의 영역 기준 우상단
+                        .offset(x = 4.dp, y = (-4).dp) // 살짝 밖으로 튀어나오게 보이게
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4CAF50)),
+                // 초록 동그라미
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected",
+                    tint = Color.White,
+                    modifier = Modifier.size(12.dp),
+                )
+            }
+        }
+    }
+}

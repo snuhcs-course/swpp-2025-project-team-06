@@ -1,23 +1,69 @@
 package com.example.momentag.model
 
 import android.net.Uri
+import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 
 data class Tag(
+    @SerializedName("tag")
     val tagName: String,
-    val thumbnailId: Long,
+    @SerializedName("tag_id")
+    val tagId: String,
+)
+
+data class TagItem(
+    val tagName: String,
+    val coverImageId: Long?,
+    val tagId: String,
+)
+
+data class TagCreateRequest(
+    @SerializedName("tag")
+    val name: String,
+)
+
+data class PhotoDetailResponse(
+    @SerializedName("photo_path_id") val photoPathId: Long,
+    val tags: List<Tag>,
+)
+
+data class PhotoResponse(
+    @SerializedName("photo_id") val photoId: String,
+    @SerializedName("photo_path_id") val photoPathId: Long,
 )
 
 data class Photo(
-    val photoId: Long,
-    val tags: List<String>,
+    val photoId: String,
+    val contentUri: Uri,
+)
+
+data class Photos(
+    val photos: List<Photo>,
+)
+
+data class TagIdRequest(
+    @SerializedName("tag_id")
+    val tagId: String,
+)
+
+data class TagCreateResponse(
+    @SerializedName("tag_id")
+    val tagId: String,
+)
+
+data class PhotoTag(
+    val ptId: Long,
 )
 
 data class Album(
     val albumId: Long,
     val albumName: String,
     val thumbnailUri: Uri,
+)
+
+data class PhotoToPhotoRequest(
+    val photos: List<String>,
 )
 
 data class LoginRequest(
@@ -49,15 +95,11 @@ data class RefreshResponse(
     val access_token: String,
 )
 
-// ========== Semantic Search Models ==========
-
-/**
- * Semantic Search 응답 모델
- * Backend: {"photos": [1, 2, 3, ...]}
- */
-data class SemanticSearchResponse(
-    val photos: List<Int>,
+data class StoryResponse(
+    val recs: List<PhotoResponse>,
 )
+
+// ========== Upload Models ==========
 
 data class PhotoMeta(
     val filename: String,
@@ -70,4 +112,14 @@ data class PhotoMeta(
 data class PhotoUploadData(
     val photo: List<MultipartBody.Part>,
     val metadata: RequestBody,
+)
+
+// ========== Story Models =================
+data class StoryModel(
+    val id: String,
+    val photoId: String,
+    val images: List<String>,
+    val date: String,
+    val location: String,
+    val suggestedTags: List<String>,
 )

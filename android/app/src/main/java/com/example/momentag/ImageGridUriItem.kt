@@ -1,6 +1,5 @@
 package com.example.momentag
 
-import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,18 +23,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.momentag.model.ImageContext
-import com.example.momentag.viewmodel.ImageDetailViewModel
+import com.example.momentag.model.Photo
 
 /**
  * 이미지 그리드 아이템 - 일반 모드와 선택 모드를 모두 지원
  *
- * @param imageUri 이미지 URI
+ * ImageContext는 ImageBrowserRepository를 통해 자동으로 관리됩니다.
+ * UI는 단순히 navigate만 하면 됩니다.
+ *
+ * @param photo Photo 객체 (photoId + contentUri)
  * @param navController 네비게이션 컨트롤러
  * @param modifier Modifier
- * @param imageDetailViewModel 이미지 상세 뷰모델 (선택사항)
- * @param allImages 전체 이미지 리스트 (스와이프용)
- * @param contextType 이미지 컨텍스트 타입
  * @param isSelectionMode 선택 모드 활성화 여부 (기본: false)
  * @param isSelected 현재 선택 여부 (기본: false)
  * @param onToggleSelection 선택/해제 콜백 (선택사항)
@@ -46,12 +44,9 @@ import com.example.momentag.viewmodel.ImageDetailViewModel
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ImageGridUriItem(
-    imageUri: Uri,
+    photo: Photo,
     navController: NavController,
     modifier: Modifier = Modifier,
-    imageDetailViewModel: ImageDetailViewModel? = null,
-    allImages: List<Uri>? = null,
-    contextType: ImageContext.ContextType = ImageContext.ContextType.GALLERY,
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
@@ -70,7 +65,7 @@ fun ImageGridUriItem(
                 .alpha(if (isSelectionMode && isSelected) 0.5f else 1f)
 
         AsyncImage(
-            model = imageUri,
+            model = photo.contentUri,
             contentDescription = null,
             modifier =
                 if (isSelectionMode || onLongPress != null) {
@@ -80,13 +75,8 @@ fun ImageGridUriItem(
                             if (isSelectionMode && onToggleSelection != null) {
                                 onToggleSelection()
                             } else {
-                                navigateToImageDetail(
-                                    imageUri = imageUri,
-                                    navController = navController,
-                                    imageDetailViewModel = imageDetailViewModel,
-                                    allImages = allImages,
-                                    contextType = contextType,
-                                )
+                                // Just navigate - ImageContext loaded from Repository
+                                navController.navigate(Screen.Image.createRoute(photo.contentUri, photo.photoId))
                             }
                         },
                         onLongClick = {
@@ -99,13 +89,8 @@ fun ImageGridUriItem(
                 } else {
                     // 일반 클릭만 지원
                     imageModifier.clickable {
-                        navigateToImageDetail(
-                            imageUri = imageUri,
-                            navController = navController,
-                            imageDetailViewModel = imageDetailViewModel,
-                            allImages = allImages,
-                            contextType = contextType,
-                        )
+                        // Just navigate - ImageContext loaded from Repository
+                        navController.navigate(Screen.Image.createRoute(photo.contentUri, photo.photoId))
                     }
                 },
             contentScale = ContentScale.Crop,
@@ -141,28 +126,4 @@ fun ImageGridUriItem(
             }
         }
     }
-}
-
-/**
- * 이미지 상세 화면으로 네비게이션 (내부 헬퍼 함수)
- */
-private fun navigateToImageDetail(
-    imageUri: Uri,
-    navController: NavController,
-    imageDetailViewModel: ImageDetailViewModel?,
-    allImages: List<Uri>?,
-    contextType: ImageContext.ContextType,
-) {
-    // 이미지 컨텍스트 설정
-    if (imageDetailViewModel != null && allImages != null) {
-        val index = allImages.indexOf(imageUri)
-        imageDetailViewModel.setImageContext(
-            ImageContext(
-                images = allImages,
-                currentIndex = index.coerceAtLeast(0),
-                contextType = contextType,
-            ),
-        )
-    }
-    navController.navigate(Screen.Image.createRoute(imageUri))
 }

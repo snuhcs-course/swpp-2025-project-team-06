@@ -1,5 +1,6 @@
 package com.example.momentag.repository
 
+import com.example.momentag.model.PhotoResponse
 import com.example.momentag.network.ApiService
 import java.io.IOException
 
@@ -19,7 +20,7 @@ class SearchRepository(
      */
     sealed class SearchResult {
         data class Success(
-            val photoIds: List<Int>,
+            val photos: List<PhotoResponse>,
         ) : SearchResult()
 
         data class Empty(
@@ -66,12 +67,11 @@ class SearchRepository(
 
             when {
                 response.isSuccessful && response.body() != null -> {
-                    val searchResponse = response.body()!!
-                    val photoIds = searchResponse.photos
-                    if (photoIds.isEmpty()) {
+                    val photos = response.body()!!
+                    if (photos.isEmpty()) {
                         SearchResult.Empty(query)
                     } else {
-                        SearchResult.Success(photoIds)
+                        SearchResult.Success(photos)
                     }
                 }
 

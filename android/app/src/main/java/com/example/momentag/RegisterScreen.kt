@@ -62,7 +62,7 @@ import com.example.momentag.viewmodel.ViewModelFactory
 @Composable
 fun RegisterScreen(navController: NavController) {
     val context = LocalContext.current
-    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory(context))
+    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val registerState by authViewModel.registerState.collectAsState()
 
     var email by remember { mutableStateOf("") }
