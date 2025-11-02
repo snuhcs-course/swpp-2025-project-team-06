@@ -190,3 +190,31 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN': 'access_token',  # Access Token의 이름 지정
     'REFRESH_TOKEN': 'refresh_token',  # Refresh Token의 이름 지정
 }
+
+HYBRID_SEARCH_SETTINGS = {
+    # 1. search/views.py 용
+    # --------------------------
+    # (views.py) 태그의 가중치 (캡션보다 얼마나 중요한가)
+    "TAG_EDGE_WEIGHT": 20.0,
+    # (views.py) 그래프에 넣을 시맨틱 검색 후보 수
+    "SEMANTIC_LIMIT_FOR_GRAPH": 10,
+
+    # 2. gallery/tasks.py 용
+    # --------------------------
+    # (tasks.py) 그래프 점수 vs 시맨틱 점수 최종 비중
+    "GRAPH_WEIGHT": 0.6,
+    "SEMANTIC_WEIGHT": 0.4,
+    
+    # (tasks.py) 그래프 점수 내부 (RWR vs Adamic/Adar) 비중
+    "ALPHA_RWR_VS_AA": 0.5,
+    
+    # (tasks.py) 최종 반환할 사진 개수
+    "FINAL_RESULT_LIMIT": 20,
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "combined_graph",
+    }
+}
