@@ -115,17 +115,11 @@ def create_query_embedding(query):
 
 
 # aggregates N similarity queries with Reciprocal Rank Fusion
-def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
+def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     client = get_qdrant_client()
     LIMIT = 40
     RRF_CONSTANT = 40
 
-    try:
-        user = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        print(f"[Error] User {user_id} not found.")
-        return []
-    
     rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
 
     rrf_scores = defaultdict(float)
@@ -153,7 +147,7 @@ def recommend_photo_from_tag(user_id: int, tag_id: uuid.UUID):
     )
 
     tagged_photo_ids = set(
-        str(pid) for pid in Photo_Tag.objects.filter(user__id=user_id)
+        str(pid) for pid in Photo_Tag.objects.filter(user=user)
         .filter(tag_id=tag_id)
         .values_list("photo_id", flat=True)
     )

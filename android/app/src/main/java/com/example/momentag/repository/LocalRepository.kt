@@ -444,4 +444,66 @@ class LocalRepository(
             }
         }
     }
+
+    /**
+     * Extract formatted date from MediaStore for a given photo path ID
+     * @param photoPathId MediaStore ID
+     * @return Formatted date string (e.g., "2024.10.15") or "Unknown date"
+     */
+    fun getPhotoDate(photoPathId: Long): String {
+        return try {
+            val contentUri =
+                ContentUris.withAppendedId(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    photoPathId,
+                )
+
+            val projection = arrayOf(MediaStore.Images.Media.DATE_TAKEN)
+            context.contentResolver
+                .query(contentUri, projection, null, null, null)
+                ?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val dateTakenIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)
+                        if (dateTakenIndex != -1) {
+                            val dateTaken = cursor.getLong(dateTakenIndex)
+                            val date = Date(dateTaken)
+                            val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
+                            return sdf.format(date)
+                        }
+                    }
+                    "Unknown date"
+                } ?: "Unknown date"
+        } catch (e: Exception) {
+            "Unknown date"
+        }
+    }
+
+    /**
+     * Extract GPS location from EXIF data for a given photo path ID
+     * @param photoPathId MediaStore ID
+     * @return Formatted location string (e.g., "37.123, 127.456") or "Unknown location"
+     */
+    fun getPhotoLocation(photoPathId: Long): String =
+        try {
+            val contentUri =
+                ContentUris.withAppendedId(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    photoPathId,
+                )
+
+            context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
+                val exif = ExifInterface(inputStream)
+                val latLong = FloatArray(2)
+
+                if (exif.getLatLong(latLong)) {
+                    val lat = String.format(Locale.US, "%.3f", latLong[0])
+                    val lng = String.format(Locale.US, "%.3f", latLong[1])
+                    "$lat, $lng"
+                } else {
+                    "Unknown location"
+                }
+            } ?: "Unknown location"
+        } catch (e: Exception) {
+            "Unknown location"
+        }
 }

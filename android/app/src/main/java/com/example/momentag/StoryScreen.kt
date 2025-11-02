@@ -30,9 +30,8 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,8 +40,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,7 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,12 +75,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.StoryTagChip
 import com.example.momentag.model.StoryModel
+import com.example.momentag.model.StoryState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -88,175 +89,211 @@ import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Pink80
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
+import com.example.momentag.viewmodel.StoryViewModel
 import kotlinx.coroutines.launch
 
 // =============== Screen ===============
 
 @Composable
 fun StoryTagSelectionScreen(
-    stories: List<StoryModel>,
-    selectedTags: Map<String, Set<String>>, // storyId -> Set<tag>
-    onTagToggle: (storyId: String, tag: String) -> Unit,
-    onDone: (storyId: String) -> Unit,
-    onComplete: () -> Unit,
+    viewModel: StoryViewModel,
     onBack: () -> Unit,
-    onLoadMore: () -> Unit = {}, // 더 많은 스토리 로드 (기본값: no-op)
-    isLoading: Boolean = false, // 로딩 상태
-    hasMore: Boolean = true, // 더 로드할 스토리 있는지 확인용
-    modifier: Modifier = Modifier,
     navController: NavController,
+    modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
+    val storyState by viewModel.storyState.collectAsState()
+    val selectedTags by viewModel.selectedTags.collectAsState()
+
     val coroutineScope = rememberCoroutineScope()
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
-    // 스크롤이 끝에 가까워지면 감지!! (뒤에서 2번째가 보일 때)
-    val shouldLoadMore by remember {
-        derivedStateOf {
-            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-            val totalItems = listState.layoutInfo.totalItemsCount
-            lastVisibleItem != null && lastVisibleItem.index >= totalItems - 2 && totalItems > 0
+    // Load initial stories
+    LaunchedEffect(Unit) {
+        if (storyState is StoryState.Idle) {
+            viewModel.loadStories(10)
         }
     }
 
-    // 스크롤이 끝에 가까워지면 더 로드
-    LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore && !isLoading && hasMore) {
-            onLoadMore()
+    // Handle different states
+    when (val state = storyState) {
+        is StoryState.Idle -> {
+            // Show nothing while idle
         }
-    }
+        is StoryState.Loading -> {
+            // Show loading screen
+            Box(
+                modifier = modifier.fillMaxSize().background(Background),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("추억을 불러오는 중...", color = Word)
+                }
+            }
+        }
+        is StoryState.Success -> {
+            val stories = state.stories
+            val pagerState = rememberPagerState(pageCount = { stories.size })
 
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .background(Background),
-    ) {
-        // 상단 앱바
-        BackTopBar(
-            title = "Moment",
-            onBackClick = onBack,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        // 스토리 리스트 (무한 스크롤 반영)
-        LazyColumn(
-            state = listState,
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-        ) {
-            itemsIndexed(
-                items = stories,
-                key = { _, story -> story.id }, // 중요: 각 아이템에 고유 키가 필수
-            ) { index, story ->
-                val isFirstStory = index == 0
-                val selectedForThisStory = selectedTags[story.id] ?: emptySet()
-
-                // 각 스토리 페이지
-                Box(
-                    modifier =
-                        Modifier
-                            .fillParentMaxHeight() // LazyColumn의 전체 높이를 차지
-                            .fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        // 스토리 컨텐츠 영역
-                        Box(
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth(),
-                        ) {
-                            StoryPageFullBlock(
-                                story = story,
-                                showScrollHint = isFirstStory,
-                            )
-                        }
-
-                        // 태그 선택 카드
-                        TagSelectionCard(
-                            tags = story.suggestedTags,
-                            selectedTags = selectedForThisStory,
-                            onTagToggle = { tag ->
-                                onTagToggle(story.id, tag)
-                            },
-                            onDone = {
-                                onDone(story.id)
-
-                                // Done 누르면 다음 스토리로 자동 스크롤
-                                coroutineScope.launch {
-                                    if (index < stories.lastIndex) {
-                                        // 다음 아이템으로 부드럽게 스크롤
-                                        listState.animateScrollToItem(index + 1)
-                                    } else if (!hasMore) {
-                                        // 마지막 스토리이고 더 이상 로드할 것이 없으면 완료
-                                        onComplete()
-                                    }
-                                }
-                            },
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                                    .padding(bottom = 12.dp),
-                        )
-                    }
+            // Lazy-load tags for current page
+            val currentPage = pagerState.currentPage
+            LaunchedEffect(currentPage) {
+                if (currentPage < stories.size) {
+                    val currentStory = stories[currentPage]
+                    viewModel.loadTagsForStory(currentStory.id, currentStory.photoId)
                 }
             }
 
-            // 로딩 인디케이터
-            if (isLoading) {
-                item {
+            // Detect when to load more stories (when approaching the last page)
+            LaunchedEffect(currentPage) {
+                if (currentPage >= stories.size - 2 && state.hasMore) {
+                    viewModel.loadMoreStories(10)
+                }
+            }
+
+            Column(
+                modifier =
+                    modifier
+                        .fillMaxSize()
+                        .background(Background),
+            ) {
+                // 상단 앱바
+                BackTopBar(
+                    title = "Moment",
+                    onBackClick = {
+                        viewModel.resetState()
+                        onBack()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // 스토리 페이저 (페이지 기반 스크롤)
+                VerticalPager(
+                    state = pagerState,
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                ) { page ->
+                    val story = stories[page]
+                    val isFirstStory = page == 0
+                    val selectedForThisStory = selectedTags[story.id] ?: emptySet()
+
+                    // 각 스토리 페이지
                     Box(
                         modifier =
                             Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        contentAlignment = Alignment.Center,
+                                .fillMaxSize(),
                     ) {
-                        Text(
-                            text = "더 많은 추억을 불러오는 중...",
-                            color = Temp_word,
-                            fontSize = 14.sp,
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            // 스토리 컨텐츠 영역
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                            ) {
+                                StoryPageFullBlock(
+                                    story = story,
+                                    showScrollHint = isFirstStory,
+                                )
+                            }
+
+                            // 태그 선택 카드
+                            TagSelectionCard(
+                                tags = story.suggestedTags,
+                                selectedTags = selectedForThisStory,
+                                onTagToggle = { tag ->
+                                    viewModel.toggleTag(story.id, tag)
+                                },
+                                onDone = {
+                                    viewModel.submitTagsForStory(story.id)
+
+                                    // Done 누르면 다음 스토리로 자동 스크롤
+                                    coroutineScope.launch {
+                                        if (page < stories.lastIndex) {
+                                            pagerState.animateScrollToPage(page + 1)
+                                            viewModel.setCurrentIndex(page + 1)
+                                        } else if (!state.hasMore) {
+                                            viewModel.resetState()
+                                            onBack()
+                                        }
+                                    }
+                                },
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                        .padding(bottom = 12.dp),
+                            )
+                        }
+                    }
+                }
+
+                // 하단 네비게이션 바
+                BottomNavBar(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                WindowInsets.navigationBars
+                                    .only(WindowInsetsSides.Bottom)
+                                    .asPaddingValues(),
+                            ),
+                    currentTab = currentTab,
+                    onTabSelected = { tab ->
+                        currentTab = tab
+                        when (tab) {
+                            BottomTab.HomeScreen -> {
+                                navController.navigate(Screen.Home.route)
+                            }
+                            BottomTab.SearchScreen -> {
+                                navController.navigate(Screen.SearchResult.route)
+                            }
+                            BottomTab.TagScreen -> {
+                                navController.navigate(Screen.Album.route)
+                            }
+                            BottomTab.StoryScreen -> {
+                                // 이미 Story 화면
+                            }
+                        }
+                    },
+                )
+            }
+        }
+        is StoryState.Error -> {
+            // Show error screen
+            Box(
+                modifier = modifier.fillMaxSize().background(Background),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Error: ${state.message}", color = Word)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { viewModel.loadStories(10) }) {
+                        Text("Retry")
                     }
                 }
             }
         }
-
-        // 하단 네비게이션 바
-        BottomNavBar(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        WindowInsets.navigationBars
-                            .only(WindowInsetsSides.Bottom)
-                            .asPaddingValues(),
-                    ),
-            currentTab = currentTab,
-            onTabSelected = { tab ->
-                currentTab = tab
-                when (tab) {
-                    BottomTab.HomeScreen -> {
-                        navController.navigate(Screen.Home.route)
-                    }
-                    BottomTab.SearchScreen -> {
-                        navController.navigate(Screen.SearchResult.route)
-                    }
-                    BottomTab.TagScreen -> {
-                        navController.navigate(Screen.Album.route)
-                    }
-                    BottomTab.StoryScreen -> {
-                        // 이미 Story 화면
+        is StoryState.NetworkError -> {
+            // Show network error screen
+            Box(
+                modifier = modifier.fillMaxSize().background(Background),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Network Error: ${state.message}", color = Word)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { viewModel.loadStories(10) }) {
+                        Text("Retry")
                     }
                 }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -626,47 +663,12 @@ private fun FlowRow(
 
 // =============== Model & Preview ===============
 
-@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
-@Composable
-private fun Preview_StoryTagSelectionScreen() {
-    val sampleStories =
-        listOf(
-            StoryModel(
-                id = "1",
-                images = listOf("https://images.unsplash.com/photo-1504674900247-0877df9cc836"),
-                date = "2024.10.15",
-                location = "강남 맛집",
-                suggestedTags = listOf("#food", "#맛집", "#행복", "+"),
-            ),
-            StoryModel(
-                id = "2",
-                images = listOf("https://images.unsplash.com/photo-1501594907352-04cda38ebc29"),
-                date = "2024.09.22",
-                location = "제주도 여행",
-                suggestedTags = listOf("#여행", "#바다", "#힐링", "+"),
-            ),
-        )
-
-    val selectedTags = remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
-
-    StoryTagSelectionScreen(
-        stories = sampleStories,
-        selectedTags = selectedTags.value,
-        onTagToggle = { storyId: String, tag: String ->
-            // Preview에서는 실제 업데이트 하지 않음
-        },
-        onDone = { storyId: String ->
-            // Preview에서는 아무것도 안함
-        },
-        onComplete = {
-            // Preview에서는 아무것도 안함
-        },
-        onBack = {
-            // Preview에서는 아무것도 안함
-        },
-        navController = rememberNavController(),
-    )
-}
+// Preview disabled - requires ViewModel instantiation
+// @Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
+// @Composable
+// private fun Preview_StoryTagSelectionScreen() {
+//     // Preview would require ViewModel setup
+// }
 
 @Composable
 private fun StoryPageFullBlockPreviewContent(

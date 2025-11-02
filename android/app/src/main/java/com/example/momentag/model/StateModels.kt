@@ -82,6 +82,26 @@ data class HomeScreenUiState(
     val isUploadSuccess: Boolean = false,
 )
 
+sealed interface StoryState {
+    object Idle : StoryState
+
+    object Loading : StoryState
+
+    data class Success(
+        val stories: List<StoryModel>,
+        val currentIndex: Int = 0,
+        val hasMore: Boolean = true,
+    ) : StoryState
+
+    data class Error(
+        val message: String,
+    ) : StoryState
+
+    data class NetworkError(
+        val message: String,
+    ) : StoryState
+}
+
 sealed class PhotoTagState {
     object Idle : PhotoTagState()
 

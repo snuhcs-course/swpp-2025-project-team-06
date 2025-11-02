@@ -31,6 +31,26 @@ class RecommendRepository(
         ) : RecommendResult<T>()
     }
 
+    suspend fun recommendTagFromPhoto(photoId: String): RecommendResult<List<Tag>> =
+        try {
+            val response = apiService.recommendTagFromPhoto(photoId)
+
+            if (response.isSuccessful) {
+                val tags = response.body()!!
+                RecommendResult.Success(tags)
+            } else {
+                when (response.code()) {
+                    401 -> RecommendResult.Unauthorized("Authentication failed")
+                    400 -> RecommendResult.BadRequest("Bad request")
+                    else -> RecommendResult.Error("An unknown error occurred: ${response.message()}")
+                }
+            }
+        } catch (e: IOException) {
+            RecommendResult.NetworkError("Network error: ${e.message}")
+        } catch (e: Exception) {
+            RecommendResult.Error("An unexpected error occurred: ${e.message}")
+        }
+
     suspend fun recommendPhotosFromTag(tagId: String): RecommendResult<List<PhotoResponse>> =
         try {
             val response = apiService.recommendPhotosFromTag(tagId)
@@ -51,13 +71,12 @@ class RecommendRepository(
             RecommendResult.Error("An unexpected error occurred: ${e.message}")
         }
 
-    suspend fun recommendTagFromPhoto(photoId: String): RecommendResult<List<Tag>> =
+    suspend fun recommendPhotosFromPhotos(photoIds: List<String>): RecommendResult<List<PhotoResponse>> =
         try {
-            val response = apiService.recommendTagFromPhoto(photoId)
-
+            val response = apiService.recommendPhotosFromPhotos(PhotoToPhotoRequest(photoIds))
             if (response.isSuccessful) {
-                val tag = response.body()!!
-                RecommendResult.Success(tag)
+                val photos = response.body()!!
+                RecommendResult.Success(photos)
             } else {
                 when (response.code()) {
                     401 -> RecommendResult.Unauthorized("Authentication failed")
@@ -71,12 +90,13 @@ class RecommendRepository(
             RecommendResult.Error("An unexpected error occurred: ${e.message}")
         }
 
-    suspend fun recommendPhotosFromPhotos(photoIds: List<String>): RecommendResult<List<PhotoResponse>> =
+    suspend fun getStories(size: Int): RecommendResult<List<PhotoResponse>> =
         try {
-            val response = apiService.recommendPhotosFromPhotos(PhotoToPhotoRequest(photoIds))
+            val response = apiService.getStories(size)
+
             if (response.isSuccessful) {
-                val photos = response.body()!!
-                RecommendResult.Success(photos)
+                val resp = response.body()!!
+                RecommendResult.Success(resp.recs)
             } else {
                 when (response.code()) {
                     401 -> RecommendResult.Unauthorized("Authentication failed")

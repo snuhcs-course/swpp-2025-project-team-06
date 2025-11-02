@@ -95,6 +95,10 @@ data class RefreshResponse(
     val access_token: String,
 )
 
+data class StoryResponse(
+    val recs: List<PhotoResponse>,
+)
+
 // ========== Upload Models ==========
 
 data class PhotoMeta(
@@ -113,6 +117,7 @@ data class PhotoUploadData(
 // ========== Story Models =================
 data class StoryModel(
     val id: String,
+    val photoId: String,
     val images: List<String>,
     val date: String,
     val location: String,
