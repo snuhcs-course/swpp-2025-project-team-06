@@ -7,21 +7,14 @@ classDiagram
         class Navigation {
             <<Composable>>
             +NavHostController navController
-            +authViewModel AuthViewModel
-            +photoViewModel PhotoViewModel
-            +localViewModel LocalViewModel
-            +serverViewModel ServerViewModel
-            +searchViewModel SearchViewModel
-            +imageDetailViewModel ImageDetailViewModel
             +setupNavGraph()
         }
     namespace View {
         class HomeScreen {
             <<Composable>>
             +navController NavController
-            +authViewModel AuthViewModel
+            +homeViewModel HomeViewModel
             +photoViewModel PhotoViewModel
-            +localViewModel LocalViewModel
             +render()
         }
         class LoginScreen {
@@ -40,7 +33,7 @@ classDiagram
             <<Composable>>
             +tagName String
             +navController NavController
-            +serverViewModel ServerViewModel
+            +albumViewModel AlbumViewModel
             +render()
         }
         class LocalGalleryScreen {
@@ -57,9 +50,10 @@ classDiagram
             +localViewModel LocalViewModel
             +render()
         }
-        class ImageScreen {
+        class ImageDetailScreen {
             <<Composable>>
             +photoPathId Long
+            +navController NavController
             +imageDetailViewModel ImageDetailViewModel
             +render()
         }
@@ -68,6 +62,24 @@ classDiagram
             +initialQuery String
             +navController NavController
             +searchViewModel SearchViewModel
+            +render()
+        }
+        class AddTagScreen {
+            <<Composable>>
+            +navController NavController
+            +addTagViewModel AddTagViewModel
+            +render()
+        }
+        class SelectImageScreen {
+            <<Composable>>
+            +navController NavController
+            +selectImageViewModel SelectImageViewModel
+            +render()
+        }
+        class StoryScreen {
+            <<Composable>>
+            +navController NavController
+            +storyViewModel StoryViewModel
             +render()
         }
     }
@@ -89,38 +101,43 @@ classDiagram
             +resetRefreshState()
             +resetLogoutState()
         }
-        class PhotoViewModel {
+        class HomeViewModel {
             -RemoteRepository remoteRepository
             -LocalRepository localRepository
+            -PhotoViewModel photoViewModel
             +StateFlow~HomeScreenUiState~ uiState
+            +StateFlow~List~Tag~~ allTags
+            +getAllTags()
             +uploadPhotos()
             +userMessageShown()
         }
+        class PhotoViewModel {
+            -RemoteRepository remoteRepository
+            -LocalRepository localRepository
+            +uploadPhotos(photos)
+        }
+        class AlbumViewModel {
+            -RemoteRepository remoteRepository
+            +StateFlow~List~Photo~~ photoByTag
+            +getPhotoByTag(tagName)
+        }
         class LocalViewModel {
             -LocalRepository localRepository
-            +StateFlow~List~Uri~~ image
+            +StateFlow~List~Uri~~ images
             +StateFlow~List~Album~~ albums
             +StateFlow~List~Uri~~ imagesInAlbum
             +getImages()
             +getAlbums()
             +getImagesForAlbum(albumId)
         }
-        class ServerViewModel {
-            -RemoteRepository remoteRepository
-            +StateFlow~List~Tag~~ allTags
-            +StateFlow~List~Photo~~ photoByTag
-            +getAllTags()
-            +getPhotoByTag(tagName)
-        }
         class SearchViewModel {
             -SearchRepository searchRepository
-            -Context context
             +StateFlow~SemanticSearchState~ searchState
             +search(query, offset)
             +resetSearchState()
         }
         class ImageDetailViewModel {
-            -LocalRepository localRepository
+            -ImageBrowserRepository imageBrowserRepository
             +StateFlow~Uri?~ imageUri
             +StateFlow~ImageContext?~ imageContext
             +loadImage(photoPathId)
@@ -128,15 +145,43 @@ classDiagram
             +clearImageContext()
             +setSingleImage(uri)
         }
+        class AddTagViewModel {
+            -DraftTagRepository draftTagRepository
+            -RecommendRepository recommendRepository
+            -RemoteRepository remoteRepository
+            +StateFlow~String~ tagName
+            +StateFlow~List~Photo~~ selectedPhotos
+            +StateFlow~RecommendState~ recommendState
+            +StateFlow~SaveState~ saveState
+            +updateTagName(name)
+            +togglePhoto(photo)
+            +getRecommendedPhotos()
+            +saveTag()
+        }
+        class SelectImageViewModel {
+            -DraftTagRepository draftTagRepository
+            -RemoteRepository remoteRepository
+            +StateFlow~String~ tagName
+            +StateFlow~List~Photo~~ selectedPhotos
+            +StateFlow~List~Photo~~ allPhotos
+            +getAllPhotos()
+            +togglePhoto(photo)
+        }
+        class StoryViewModel {
+            -RemoteRepository remoteRepository
+            +StateFlow~StoryState~ storyState
+            +getStoryByTag(tagId)
+            +likeStory(storyId)
+        }
     }
     namespace Model {
         class Tag {
+            +String tagId
             +String tagName
-            +Long thumbnailId
         }
         class Photo {
-            +Long photoId
-            +List~String~ tags
+            +String photoId
+            +Uri contentUri
         }
         class Album {
             +Long albumId
@@ -154,6 +199,11 @@ classDiagram
             +List~Uri~ images
             +Int currentIndex
             +ContextType contextType
+        }
+        class StoryModel {
+            +String storyId
+            +String title
+            +List~Photo~ photos
         }
         class SessionStore {
             <<interface>>
@@ -186,6 +236,9 @@ classDiagram
             +logout(logoutRequest) Response~Unit~
             +uploadPhotos(photo, metadata) Response~Unit~
             +semanticSearch(query, offset) Response~SemanticSearchResponse~
+            +getRecommendedPhotos(tagId) Response~List~Photo~~
+            +saveTag(tagRequest) Response~Unit~
+            +getStoryByTag(tagId) Response~StoryModel~
         }
         class RetrofitInstance {
             -String BASE_URL
@@ -206,6 +259,8 @@ classDiagram
             +getAllTags() List~Tag~
             +getPhotosByTag(tagName) List~Photo~
             +uploadPhotos(photoUploadData) Response~Unit~
+            +saveTag(tagRequest) Response~Unit~
+            +getAllPhotos() List~Photo~
         }
         class LocalRepository {
             -Context context
@@ -228,6 +283,28 @@ classDiagram
             -ApiService apiService
             +semanticSearch(query, offset) SearchResult
         }
+        class DraftTagRepository {
+            -MutableStateFlow~String~ _tagName
+            -MutableStateFlow~List~Photo~~ _selectedPhotos
+            +StateFlow~String~ tagName
+            +StateFlow~List~Photo~~ selectedPhotos
+            +initialize(tagName, photos)
+            +updateTagName(name)
+            +addPhoto(photo)
+            +removePhoto(photo)
+            +togglePhoto(photo)
+            +clear()
+            +hasChanges() Boolean
+        }
+        class RecommendRepository {
+            -ApiService apiService
+            +getRecommendedPhotos(tagId) List~Photo~
+        }
+        class ImageBrowserRepository {
+            -LocalRepository localRepository
+            +getImageUri(photoPathId) Uri?
+            +getImageContext() ImageContext?
+        }
     }
     SessionStore <|.. SessionManager
     LocalRepository ..> PhotoMeta : creates
@@ -241,17 +318,23 @@ classDiagram
     TokenRepository --> ApiService : uses
     TokenRepository --> SessionStore : uses
     SearchRepository --> ApiService : uses
+    RecommendRepository --> ApiService : uses
+    DraftTagRepository ..> Photo : manages
+    ImageBrowserRepository --> LocalRepository : uses
     AuthViewModel --> TokenRepository : uses
-    PhotoViewModel --> RemoteRepository : uses
-    PhotoViewModel --> LocalRepository : uses
+    HomeViewModel --> RemoteRepository : uses
+    HomeViewModel --> TokenRepository : uses
+    AlbumViewModel --> RemoteRepository : uses
     LocalViewModel --> LocalRepository : uses
     LocalViewModel ..> Album : manages
-    ServerViewModel --> RemoteRepository : uses
-    ServerViewModel ..> Tag : manages
-    ServerViewModel ..> Photo : manages
     SearchViewModel --> SearchRepository : uses
-    ImageDetailViewModel --> LocalRepository : uses
+    ImageDetailViewModel --> ImageBrowserRepository : uses
     ImageDetailViewModel ..> ImageContext : manages
+    AddTagViewModel --> DraftTagRepository : uses
+    AddTagViewModel --> RemoteRepository : uses
+    SelectImageViewModel --> LocalRepository : uses
+    SelectImageViewModel --> RecommendRepository : uses
+    StoryViewModel --> RemoteRepository : uses
     MainActivity ..> Navigation : creates
     Navigation --> HomeScreen : routes to
     Navigation --> LoginScreen : routes to
@@ -259,16 +342,21 @@ classDiagram
     Navigation --> AlbumScreen : routes to
     Navigation --> LocalGalleryScreen : routes to
     Navigation --> LocalAlbumScreen : routes to
-    Navigation --> ImageScreen : routes to
+    Navigation --> ImageDetailScreen : routes to
     Navigation --> SearchResultScreen : routes to
-    HomeScreen --> AuthViewModel : observes
+    Navigation --> AddTagScreen : routes to
+    Navigation --> SelectImageScreen : routes to
+    Navigation --> StoryScreen : routes to
+    HomeScreen --> HomeViewModel : observes
     HomeScreen --> PhotoViewModel : observes
-    HomeScreen --> LocalViewModel : observes
     LoginScreen --> AuthViewModel : observes
     RegisterScreen --> AuthViewModel : observes
-    AlbumScreen --> ServerViewModel : observes
+    AlbumScreen --> AlbumViewModel : observes
     LocalGalleryScreen --> LocalViewModel : observes
     LocalAlbumScreen --> LocalViewModel : observes
-    ImageScreen --> ImageDetailViewModel : observes
+    ImageDetailScreen --> ImageDetailViewModel : observes
     SearchResultScreen --> SearchViewModel : observes
+    AddTagScreen --> AddTagViewModel : observes
+    SelectImageScreen --> SelectImageViewModel : observes
+    StoryScreen --> StoryViewModel : observes
     ```
