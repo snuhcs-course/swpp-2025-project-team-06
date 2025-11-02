@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.ImageContext
-import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoTagState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.RecommendRepository
@@ -66,16 +65,10 @@ class ImageDetailViewModel(
             // Found in browsing session
             _imageContext.value = context
         } else {
-            // Not in session - create standalone context for single image
+            // Not in session - create empty context
             _imageContext.value =
                 ImageContext(
-                    images =
-                        listOf(
-                            Photo(
-                                photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
-                                contentUri = uri,
-                            ),
-                        ),
+                    images = emptyList(),
                     currentIndex = 0,
                     contextType = ImageContext.ContextType.GALLERY,
                 )

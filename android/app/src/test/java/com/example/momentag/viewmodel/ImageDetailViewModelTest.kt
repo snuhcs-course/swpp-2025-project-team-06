@@ -140,7 +140,7 @@ class ImageDetailViewModelTest {
     }
 
     @Test
-    fun `loadImageContextByUri creates standalone context when not in repository`() {
+    fun `loadImageContextByUri creates empty context when not in repository`() {
         // Given
         val uri = Uri.parse("content://standalone/photo")
         whenever(imageBrowserRepository.getPhotoContextByUri(uri)).thenReturn(null)
@@ -151,16 +151,14 @@ class ImageDetailViewModelTest {
         // Then
         val context = viewModel.imageContext.value
         assertNotNull(context)
-        assertEquals(1, context!!.images.size)
-        assertEquals(uri, context.images[0].contentUri)
-        assertEquals("", context.images[0].photoId)
+        assertEquals(0, context!!.images.size)
         assertEquals(0, context.currentIndex)
         assertEquals(ImageContext.ContextType.GALLERY, context.contextType)
         verify(imageBrowserRepository).getPhotoContextByUri(uri)
     }
 
     @Test
-    fun `loadImageContextByUri prefers repository context over standalone`() {
+    fun `loadImageContextByUri prefers repository context over empty`() {
         // Given
         val uri = Uri.parse("content://media/2")
         val repositoryContext =
@@ -180,7 +178,7 @@ class ImageDetailViewModelTest {
             3,
             viewModel.imageContext.value!!
                 .images.size,
-        ) // Not standalone (which would have 1)
+        ) // Not empty (which would have 0)
     }
 
     // ========== loadPhotoTags Tests ==========
@@ -650,7 +648,7 @@ class ImageDetailViewModelTest {
         }
 
     @Test
-    fun `workflow - load context by URI (standalone) then skip tags for empty photoId`() {
+    fun `workflow - load context by URI (empty) then skip tags for empty photoId`() {
         // Given
         val uri = Uri.parse("content://standalone/photo")
         whenever(imageBrowserRepository.getPhotoContextByUri(uri)).thenReturn(null)
@@ -661,7 +659,7 @@ class ImageDetailViewModelTest {
         // Then
         val context = viewModel.imageContext.value
         assertNotNull(context)
-        assertEquals("", context!!.images[0].photoId)
+        assertEquals(0, context!!.images.size)
 
         // When - try to load tags with empty photoId
         viewModel.loadPhotoTags("")
