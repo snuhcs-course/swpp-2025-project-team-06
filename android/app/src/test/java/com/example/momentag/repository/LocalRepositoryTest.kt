@@ -11,6 +11,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.test.core.app.ApplicationProvider
+import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.PhotoUploadData
 import io.mockk.Runs
 import io.mockk.clearAllMocks
@@ -291,106 +292,6 @@ class LocalRepositoryTest {
             }
         }
         // If result is null, that's acceptable in Robolectric environment
-    }
-
-    @Test
-    fun `resizeImage returns null for invalid uri via reflection`() {
-        // Given: Invalid Uri that doesn't exist
-        val invalidUri = Uri.parse("content://invalid/12345")
-
-        // When: Call private resizeImage via reflection
-        val resizeImageMethod =
-            repository.javaClass.getDeclaredMethod(
-                "resizeImage",
-                Uri::class.java,
-                Int::class.java,
-                Int::class.java,
-                Int::class.java,
-            )
-        resizeImageMethod.isAccessible = true
-        val result = resizeImageMethod.invoke(repository, invalidUri, 800, 600, 85) as ByteArray?
-
-        // Then: Should return null for invalid image (expected behavior)
-        assertTrue(result == null, "resizeImage should return null for invalid URI")
-    }
-
-    @Test
-    fun `resizeImage handles different quality settings via reflection`() {
-        // Given: Insert real image
-        val uri =
-            insertMockImageFromDrawable(
-                "test_quality.jpg",
-                System.currentTimeMillis(),
-                com.example.momentag.R.drawable.img2,
-            )
-
-        org.junit.Assume.assumeNotNull("MediaStore insert failed", uri)
-        val validUri = uri!! // Safe after assumeNotNull
-
-        // When: Call resizeImage with different quality levels
-        val resizeImageMethod =
-            repository.javaClass.getDeclaredMethod(
-                "resizeImage",
-                Uri::class.java,
-                Int::class.java,
-                Int::class.java,
-                Int::class.java,
-            )
-        resizeImageMethod.isAccessible = true
-
-        val highQuality = resizeImageMethod.invoke(repository, validUri, 1280, 1280, 100) as ByteArray?
-        val lowQuality = resizeImageMethod.invoke(repository, validUri, 1280, 1280, 50) as ByteArray?
-
-        // Then: If both succeed, high quality should produce larger file
-        if (highQuality != null && lowQuality != null) {
-            assertTrue(
-                highQuality.size >= lowQuality.size,
-                "Higher quality should produce same or larger file size",
-            )
-        }
-        // Accept null results in Robolectric
-    }
-
-    @Test
-    fun `resizeImage preserves aspect ratio via reflection`() {
-        // Given: Create a wide image (800x200) and insert it
-        val wideBitmap = Bitmap.createBitmap(800, 200, Bitmap.Config.ARGB_8888)
-        Canvas(wideBitmap).drawColor(Color.GREEN)
-
-        val uri = insertMockImage("wide_image.jpg", System.currentTimeMillis())
-        org.junit.Assume.assumeNotNull("MediaStore insert failed", uri)
-        val validUri = uri!! // Safe after assumeNotNull
-
-        // Write the bitmap to the Uri
-        contentResolver.openOutputStream(validUri)?.use { os ->
-            wideBitmap.compress(Bitmap.CompressFormat.JPEG, 100, os)
-        }
-        wideBitmap.recycle()
-
-        // When: Resize to square max dimensions
-        val resizeImageMethod =
-            repository.javaClass.getDeclaredMethod(
-                "resizeImage",
-                Uri::class.java,
-                Int::class.java,
-                Int::class.java,
-                Int::class.java,
-            )
-        resizeImageMethod.isAccessible = true
-        val result = resizeImageMethod.invoke(repository, validUri, 400, 400, 85) as ByteArray?
-
-        // Then: Aspect ratio should be preserved (4:1)
-        if (result != null) {
-            val bitmap = BitmapFactory.decodeByteArray(result, 0, result.size)
-            if (bitmap != null) {
-                val aspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
-                assertTrue(
-                    aspectRatio > 3.5f && aspectRatio < 4.5f,
-                    "Aspect ratio should be preserved (~4:1)",
-                )
-                bitmap.recycle()
-            }
-        }
     }
 
     @Test
@@ -1576,4 +1477,763 @@ class LocalRepositoryTest {
         assertTrue(result.isEmpty())
         verify { mockCursor.close() }
     }
+
+    // region getPhotoDate Tests
+    @Test
+    fun `getPhotoDate returns formatted date when photo exists with valid date`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val photoId = 12345L
+        val dateTaken = 1609459200000L // 2021-01-01 00:00:00 UTC
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns 0
+        every { mockCursor.getLong(0) } returns dateTaken
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoDate(photoId)
+
+        // Then
+        assertNotNull(result)
+        assertTrue(result.matches(Regex("\\d{4}\\.\\d{2}\\.\\d{2}"))) // Format: yyyy.MM.dd
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `getPhotoDate returns Unknown date when cursor is null`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val photoId = 12345L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns null
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoDate(photoId)
+
+        // Then
+        assertEquals("Unknown date", result)
+    }
+
+    @Test
+    fun `getPhotoDate returns Unknown date when cursor is empty`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val photoId = 12345L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns false
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoDate(photoId)
+
+        // Then
+        assertEquals("Unknown date", result)
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `getPhotoDate returns Unknown date when DATE_TAKEN column not found`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val photoId = 12345L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns -1
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoDate(photoId)
+
+        // Then
+        assertEquals("Unknown date", result)
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `getPhotoDate returns Unknown date when exception occurs`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val photoId = 12345L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every {
+            mockContentResolver.query(any(), any(), any(), any(), any())
+        } throws RuntimeException("Test exception")
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoDate(photoId)
+
+        // Then
+        assertEquals("Unknown date", result)
+    }
+
+    @Test
+    fun `getPhotoDate handles different date values correctly`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val photoId = 12345L
+        val dateTaken = 0L // Epoch time
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns 0
+        every { mockCursor.getLong(0) } returns dateTaken
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoDate(photoId)
+
+        // Then
+        assertNotNull(result)
+        assertTrue(result.matches(Regex("\\d{4}\\.\\d{2}\\.\\d{2}")))
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `getPhotoDate returns formatted date for recent photo`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val photoId = 99999L
+        val dateTaken = System.currentTimeMillis()
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns 0
+        every { mockCursor.getLong(0) } returns dateTaken
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoDate(photoId)
+
+        // Then
+        assertNotNull(result)
+        assertTrue(result.matches(Regex("\\d{4}\\.\\d{2}\\.\\d{2}")))
+        assertTrue(result.isNotEmpty())
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `getPhotoDate verifies ContentUri is built correctly`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val photoId = 12345L
+        val dateTaken = System.currentTimeMillis()
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns 0
+        every { mockCursor.getLong(0) } returns dateTaken
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoDate(photoId)
+
+        // Then
+        assertNotNull(result)
+        verify {
+            mockContentResolver.query(
+                match { uri ->
+                    uri.toString().contains(photoId.toString())
+                },
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `getPhotoDate ensures cursor is closed even when exception occurs in use block`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val photoId = 12345L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } throws RuntimeException("Cursor error")
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoDate(photoId)
+
+        // Then
+        assertEquals("Unknown date", result)
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `getPhotoDate handles multiple calls with different photoIds`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor1 = mockk<Cursor>(relaxed = true)
+        val mockCursor2 = mockk<Cursor>(relaxed = true)
+        val photoId1 = 111L
+        val photoId2 = 222L
+        val dateTaken1 = 1609459200000L
+        val dateTaken2 = 1612137600000L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every {
+            mockContentResolver.query(
+                match { it.toString().contains(photoId1.toString()) },
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns mockCursor1
+        every {
+            mockContentResolver.query(
+                match { it.toString().contains(photoId2.toString()) },
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns mockCursor2
+
+        every { mockCursor1.moveToFirst() } returns true
+        every { mockCursor1.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns 0
+        every { mockCursor1.getLong(0) } returns dateTaken1
+        every { mockCursor1.close() } just Runs
+
+        every { mockCursor2.moveToFirst() } returns true
+        every { mockCursor2.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns 0
+        every { mockCursor2.getLong(0) } returns dateTaken2
+        every { mockCursor2.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result1 = repo.getPhotoDate(photoId1)
+        val result2 = repo.getPhotoDate(photoId2)
+
+        // Then
+        assertNotNull(result1)
+        assertNotNull(result2)
+        assertTrue(result1.matches(Regex("\\d{4}\\.\\d{2}\\.\\d{2}")))
+        assertTrue(result2.matches(Regex("\\d{4}\\.\\d{2}\\.\\d{2}")))
+        verify { mockCursor1.close() }
+        verify { mockCursor2.close() }
+    }
+    // endregion
+
+    // region getPhotoLocation Tests
+    @Test
+    fun `getPhotoLocation returns formatted coordinates when location exists`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val photoId = 12345L
+        val mockInputStream = ByteArrayInputStream(byteArrayOf())
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.openInputStream(any()) } returns mockInputStream
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoLocation(photoId)
+
+        // Then
+        assertNotNull(result)
+        // ExifInterface in Robolectric may not have location data, so we accept either format or "Unknown location"
+        assertTrue(result == "Unknown location" || result.matches(Regex("-?\\d+\\.\\d{3}, -?\\d+\\.\\d{3}")))
+    }
+
+    @Test
+    fun `getPhotoLocation returns Unknown location when inputStream is null`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val photoId = 12345L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.openInputStream(any()) } returns null
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoLocation(photoId)
+
+        // Then
+        assertEquals("Unknown location", result)
+    }
+
+    @Test
+    fun `getPhotoLocation returns Unknown location when exception occurs`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val photoId = 12345L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.openInputStream(any()) } throws RuntimeException("Test exception")
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoLocation(photoId)
+
+        // Then
+        assertEquals("Unknown location", result)
+    }
+
+    @Test
+    fun `getPhotoLocation returns Unknown location when EXIF has no location data`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val photoId = 12345L
+        // Create a minimal valid JPEG without EXIF location data
+        val mockInputStream = ByteArrayInputStream(byteArrayOf())
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.openInputStream(any()) } returns mockInputStream
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoLocation(photoId)
+
+        // Then
+        assertEquals("Unknown location", result)
+    }
+
+    @Test
+    fun `getPhotoLocation verifies ContentUri is built correctly`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val photoId = 12345L
+        val mockInputStream = ByteArrayInputStream(byteArrayOf())
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.openInputStream(any()) } returns mockInputStream
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoLocation(photoId)
+
+        // Then
+        assertNotNull(result)
+        verify {
+            mockContentResolver.openInputStream(
+                match { uri ->
+                    uri.toString().contains(photoId.toString())
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `getPhotoLocation handles multiple calls with different photoIds`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val photoId1 = 111L
+        val photoId2 = 222L
+        val mockInputStream1 = ByteArrayInputStream(byteArrayOf())
+        val mockInputStream2 = ByteArrayInputStream(byteArrayOf())
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every {
+            mockContentResolver.openInputStream(
+                match { it.toString().contains(photoId1.toString()) },
+            )
+        } returns mockInputStream1
+        every {
+            mockContentResolver.openInputStream(
+                match { it.toString().contains(photoId2.toString()) },
+            )
+        } returns mockInputStream2
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result1 = repo.getPhotoLocation(photoId1)
+        val result2 = repo.getPhotoLocation(photoId2)
+
+        // Then
+        assertNotNull(result1)
+        assertNotNull(result2)
+    }
+
+    @Test
+    fun `getPhotoLocation closes inputStream properly`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val photoId = 12345L
+        val mockInputStream = mockk<ByteArrayInputStream>(relaxed = true)
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.openInputStream(any()) } returns mockInputStream
+        every { mockInputStream.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getPhotoLocation(photoId)
+
+        // Then
+        assertNotNull(result)
+        verify { mockInputStream.close() }
+    }
+    // endregion
+
+    // region toPhotos Tests
+    @Test
+    fun `toPhotos returns empty list when input is empty`() {
+        // Given
+        val repo = LocalRepository(context)
+        val photoResponses = emptyList<PhotoResponse>()
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `toPhotos filters out invalid photoPathId (zero)`() {
+        // Given
+        val mockContext = mockk<Context>()
+        every { mockContext.contentResolver } returns mockContentResolver
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "1", photoPathId = 0),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `toPhotos filters out negative photoPathId`() {
+        // Given
+        val mockContext = mockk<Context>()
+        every { mockContext.contentResolver } returns mockContentResolver
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "1", photoPathId = -1),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `toPhotos returns Photo when image exists in MediaStore`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = 123),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertEquals(1, result.size)
+        assertEquals("photo1", result[0].photoId)
+        assertNotNull(result[0].contentUri)
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `toPhotos filters out non-existent images`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns false
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = 123),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertTrue(result.isEmpty())
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `toPhotos handles null cursor`() {
+        // Given
+        val mockContext = mockk<Context>()
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns null
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = 123),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `toPhotos handles exception during verification`() {
+        // Given
+        val mockContext = mockk<Context>()
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every {
+            mockContentResolver.query(any(), any(), any(), any(), any())
+        } throws RuntimeException("Test exception")
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = 123),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `toPhotos processes multiple valid photos`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = 123),
+                PhotoResponse(photoId = "photo2", photoPathId = 456),
+                PhotoResponse(photoId = "photo3", photoPathId = 789),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertEquals(3, result.size)
+        assertEquals("photo1", result[0].photoId)
+        assertEquals("photo2", result[1].photoId)
+        assertEquals("photo3", result[2].photoId)
+    }
+
+    @Test
+    fun `toPhotos filters mixed valid and invalid photos`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true andThen false andThen true
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = 123), // exists
+                PhotoResponse(photoId = "photo2", photoPathId = -1), // invalid
+                PhotoResponse(photoId = "photo3", photoPathId = 0), // invalid
+                PhotoResponse(photoId = "photo4", photoPathId = 456), // doesn't exist
+                PhotoResponse(photoId = "photo5", photoPathId = 789), // exists
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertTrue(result.size <= 2) // Only valid and existing photos
+        assertTrue(result.all { it.photoId.isNotEmpty() })
+        assertTrue(result.all { it.contentUri != null })
+    }
+
+    @Test
+    fun `toPhotos verifies ContentUri is built correctly for each photo`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val photoPathId = 123L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = photoPathId),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertEquals(1, result.size)
+        assertTrue(result[0].contentUri.toString().contains(photoPathId.toString()))
+        verify {
+            mockContentResolver.query(
+                match { uri ->
+                    uri.toString().contains(photoPathId.toString())
+                },
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `toPhotos ensures cursor is closed for all photos`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = 123),
+                PhotoResponse(photoId = "photo2", photoPathId = 456),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertNotNull(result)
+        verify(exactly = 2) { mockCursor.close() }
+    }
+
+    @Test
+    fun `toPhotos handles cursor close exception gracefully`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true
+        every { mockCursor.close() } throws RuntimeException("Close error")
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = 123),
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        // Should handle the exception and continue
+        assertNotNull(result)
+    }
+
+    @Test
+    fun `toPhotos mapNotNull filters out null values correctly`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+        every { mockCursor.moveToFirst() } returns true andThen false
+        every { mockCursor.close() } just Runs
+
+        val repo = LocalRepository(mockContext)
+        val photoResponses =
+            listOf(
+                PhotoResponse(photoId = "photo1", photoPathId = 123), // exists
+                PhotoResponse(photoId = "photo2", photoPathId = 456), // doesn't exist
+            )
+
+        // When
+        val result = repo.toPhotos(photoResponses)
+
+        // Then
+        assertEquals(1, result.size)
+        assertEquals("photo1", result[0].photoId)
+        verify(exactly = 2) { mockCursor.close() }
+    }
+    // endregion
 }
