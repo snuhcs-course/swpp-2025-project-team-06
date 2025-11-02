@@ -39,7 +39,10 @@ class TaskFunctionsTest(TestCase):
         mock_point2 = MagicMock()
         mock_point2.vector = [0.2] * 512
 
-        mock_get_client.return_value.scroll.return_value = ([mock_point1, mock_point2], None)
+        mock_get_client.return_value.scroll.return_value = (
+            [mock_point1, mock_point2],
+            None,
+        )
 
         expected = [
             [0.1] * 512,
@@ -50,7 +53,9 @@ class TaskFunctionsTest(TestCase):
 
         self.assertEqual(results, expected)
 
-    @patch("gallery.tasks.get_qdrant_client")  # adjust patch path to where client is imported
+    @patch(
+        "gallery.tasks.get_qdrant_client"
+    )  # adjust patch path to where client is imported
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
     def test_recommend_photo_basic(self, mock_retrieve, mock_get_client):
         """Test basic recommendation flow with single representative vector"""
@@ -65,7 +70,9 @@ class TaskFunctionsTest(TestCase):
             MagicMock(payload={"photo_id": uuid.uuid4(), "photo_path_id": 2}),
             MagicMock(payload={"photo_id": uuid.uuid4(), "photo_path_id": 3}),
         ]
-        mock_get_client.return_value.query_points.return_value = MagicMock(points=mock_points)
+        mock_get_client.return_value.query_points.return_value = MagicMock(
+            points=mock_points
+        )
 
         # Execute
         result = recommend_photo_from_tag(self.user, self.tag_id)
@@ -78,7 +85,9 @@ class TaskFunctionsTest(TestCase):
 
     @patch("gallery.tasks.get_qdrant_client")
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_filters_tagged_photos(self, mock_retrieve, mock_get_client):
+    def test_recommend_photo_filters_tagged_photos(
+        self, mock_retrieve, mock_get_client
+    ):
         """Test that already tagged photos are filtered out"""
         # Setup
         rep_vector = [0.1] * 512
@@ -92,7 +101,9 @@ class TaskFunctionsTest(TestCase):
             MagicMock(payload={"photo_id": self.photo_id, "photo_path_id": 2}),
             MagicMock(payload={"photo_id": third_uuid, "photo_path_id": 3}),
         ]
-        mock_get_client.return_value.query_points.return_value = MagicMock(points=mock_points)
+        mock_get_client.return_value.query_points.return_value = MagicMock(
+            points=mock_points
+        )
 
         # Execute
         result = recommend_photo_from_tag(self.user, self.tag_id)
@@ -170,33 +181,36 @@ class TaskFunctionsTest(TestCase):
             id=str(uuid.uuid4()),
             version=1,
             score=0.95,
-            payload={"user_id": self.user_id, "tag_id": self.tag.tag_id},
+            payload={"user_id": self.user_id, "tag_id": str(self.tag.tag_id)},
             vector=None,
         )
         mock_get_client.return_value.search.return_value = [mock_search_result_point]
 
         mock_tag_get.return_value = self.tag
 
-        tag_name, tag_id = tag_recommendation(self.user_id, self.photo_id)
+        recommendations = tag_recommendation(self.user, self.photo_id)
 
-        self.assertEqual(tag_name, "test")
-        self.assertEqual(tag_id, self.tag.tag_id)
+        self.assertIsInstance(recommendations, list)
+        self.assertEqual(len(recommendations), 1)
+        self.assertEqual(recommendations[0], self.tag)
+        self.assertEqual(recommendations[0].tag, "test")
+        self.assertEqual(recommendations[0].tag_id, self.tag.tag_id)
 
         mock_get_client.return_value.retrieve.assert_called_once_with(
             collection_name="my_image_collection",
-            ids=[self.photo_id],
+            ids=[str(self.photo_id)],
             with_vectors=True,
         )
 
         mock_get_client.return_value.search.assert_called_once()
         call_args, call_kwargs = mock_get_client.return_value.search.call_args
         self.assertEqual(call_kwargs["collection_name"], "my_repvec_collection")
-        self.assertEqual(call_kwargs["limit"], 1)
+        self.assertEqual(call_kwargs["limit"], 10)
         np.testing.assert_array_equal(
             call_kwargs["query_vector"], mock_retrieve_point.vector
         )
 
-        mock_tag_get.assert_called_once_with(tag_id=self.tag.tag_id)
+        mock_tag_get.assert_called_once_with(tag_id=str(self.tag.tag_id))
 
     @patch("gallery.tasks.get_qdrant_client")
     def test_tag_recommendation_no_similar_tag_found(self, mock_get_client):
@@ -206,9 +220,10 @@ class TaskFunctionsTest(TestCase):
         mock_get_client.return_value.retrieve.return_value = [mock_retrieve_point]
         mock_get_client.return_value.search.return_value = []
 
-        tag_name, tag_id = tag_recommendation(self.user_id, self.photo_id)
+        recommendations = tag_recommendation(self.user, self.photo_id)
 
-        self.assertIsNone(tag_name)
+        self.assertIsInstance(recommendations, list)
+        self.assertEqual(len(recommendations), 0)
 
 
 class RetrievePhotoCaptionGraphTest(TestCase):

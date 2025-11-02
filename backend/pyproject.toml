@@ -26,6 +26,8 @@ dependencies = [
     "faiss-cpu",
     "pymysql>=1.1.2",
     "cryptography>=46.0.3",
+    "scikit-learn",
+    "networkx"
 ]
 
 [tool.coverage.run]

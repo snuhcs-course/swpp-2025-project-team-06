@@ -56,6 +56,11 @@ interface ApiService {
         @Path("tag_id") tagId: String,
     ): Response<Unit>
 
+    @DELETE("api/tags/{tag_id}/")
+    suspend fun removeTag(
+        @Path("tag_id") tagId: String,
+    ): Response<Unit>
+
     @POST("api/photos/{photo_id}/tags/")
     suspend fun postTagsToPhoto(
         @Path("photo_id") photoId: String,
@@ -137,10 +142,8 @@ interface ApiService {
  * - TokenAuthenticator: 401 시 자동 리프레시 → 재시도
  */
 object RetrofitInstance {
-    // Android 에뮬레이터: 10.0.2.2 = 호스트 머신의 localhost
-    const val BASE_URL = "http://10.0.2.2:8000/"
-    // 실제 디바이스나 다른 기기에서 접속할 때는 아래 주석 해제
-//    const val BASE_URL = "http://10.213.116.234:8000/"
+//    private const val BASE_URL = "http://10.0.2.2:8000/"
+    private const val BASE_URL = "http://192.168.58.234:8000/"
 
     private var apiService: ApiService? = null
 

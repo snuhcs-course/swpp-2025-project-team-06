@@ -20,10 +20,14 @@ sealed class Screen(
         }
     }
 
-    object Image : Screen("image_screen/{imageUri}") {
-        fun createRoute(uri: Uri): String {
+    object Image : Screen("image_screen/{imageId}/{imageUri}") {
+        fun createRoute(
+            uri: Uri,
+            imageId: String,
+        ): String {
             val encodedUri = Uri.encode(uri.toString())
-            return "image_screen/$encodedUri"
+            val encodedImageId = URLEncoder.encode(imageId, StandardCharsets.UTF_8.toString())
+            return "image_screen/$encodedImageId/$encodedUri"
         }
     }
 
