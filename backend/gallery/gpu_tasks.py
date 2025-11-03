@@ -1,10 +1,10 @@
 """
-GPU-dependent Celery tasks and vision models.
+GPU-dependent Celery tasks for image processing.
 
 This module contains:
-- Vision model loading and inference (CLIP, BLIP)
-- Celery tasks for image processing and embeddings
-- All GPU-dependent code in one place
+- Vision model loading (CLIP for embeddings, BLIP for captions)
+- Image inference functions
+- Async Celery task: process_and_embed_photo
 
 These require GPU-enabled Celery workers.
 
@@ -33,10 +33,6 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 _image_model = None
 _caption_processor = None
 _caption_model = None
-_text_model = None
-
-# Model names
-_TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 
 # Stop words for caption processing
 STOP_WORDS = {
@@ -80,15 +76,6 @@ def get_caption_model():
             dtype=torch.float16,
         )
     return _caption_model
-
-
-def get_text_model():
-    """Lazy-load CLIP text model for query embeddings"""
-    global _text_model
-    if _text_model is None:
-        print("[INFO] Loading CLIP text model inside worker...")
-        _text_model = SentenceTransformer(_TEXT_MODEL_NAME, device=DEVICE)
-    return _text_model
 
 
 # ============================================================================
@@ -279,19 +266,3 @@ def process_and_embed_photo(
         delete_photo(storage_key)
 
 
-@shared_task
-def create_query_embedding(query):
-    """
-    GPU Task: Generate text embedding for search queries.
-
-    Uses CLIP multilingual text encoder to convert search queries into vectors
-    for semantic search against image embeddings.
-
-    Args:
-        query: Search query string
-
-    Returns:
-        Embedding vector as list of floats
-    """
-    model = get_text_model()  # lazy-load
-    return model.encode(query).tolist()
