@@ -30,16 +30,18 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -73,12 +75,10 @@ import com.example.momentag.model.LogoutState
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
+import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
-import com.example.momentag.ui.components.HomeTopBar
 import com.example.momentag.ui.components.SearchBar
-import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Picture
-import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
@@ -104,12 +104,14 @@ fun HomeScreen(navController: NavController) {
     val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
     val homeDeleteState by homeViewModel.homeDeleteState.collectAsState()
     val uiState by photoViewModel.uiState.collectAsState()
+    val selectedPhotos by homeViewModel.selectedPhotos.collectAsState() // draftTagRepository에서 가져옴!
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
     var onlyTag by remember { mutableStateOf(false) }
     var showAllPhotos by remember { mutableStateOf(false) }
     var localPhotos by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isDeleteMode by remember { mutableStateOf(false) }
+    var isSelectionMode by remember { mutableStateOf(false) }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -195,52 +197,122 @@ fun HomeScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            HomeTopBar(
+            CommonTopBar(
+                title = "#MomenTag",
                 onTitleClick = {
                     navController.navigate(Screen.LocalGallery.route)
                 },
+                titleFontFamily = FontFamily.Serif,
+                titleFontSize = 28,
+                showLogout = true,
                 onLogoutClick = { authViewModel.logout() },
                 isLogoutLoading = logoutState is LogoutState.Loading,
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            BottomNavBar(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            WindowInsets.navigationBars
-                                .only(WindowInsetsSides.Bottom)
-                                .asPaddingValues(),
-                        ),
-                currentTab = currentTab,
-                onTabSelected = { tab ->
-                    currentTab = tab
+                actions = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (isSelectionMode) {
+                            // Cancel button when in selection mode
+                            IconButton(
+                                onClick = {
+                                    isSelectionMode = false
+                                    homeViewModel.resetSelection() // draftRepository 초기화!
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cancel",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
 
-                    when (tab) {
-                        BottomTab.HomeScreen -> {
-                            // 이미 홈 화면
-                        }
-                        BottomTab.SearchResultScreen -> {
-                            navController.navigate(Screen.SearchResult.route)
-                        }
-                        BottomTab.AddTagScreen -> {
-                            navController.navigate(Screen.AddTag.route)
-                        }
-                        BottomTab.StoryScreen -> {
-                            navController.navigate(Screen.Story.route)
+                        IconButton(
+                            onClick = {
+                                if (isSelectionMode) {
+                                    // Share action
+                                    if (selectedPhotos.isEmpty()) {
+                                        Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Share ${selectedPhotos.size} items", Toast.LENGTH_SHORT).show()
+                                        // TODO: Implement share functionality
+                                    }
+                                } else {
+                                    // Enter selection mode
+                                    isSelectionMode = true
+                                    homeViewModel.resetSelection() // 진입 시 초기화
+                                }
+                            },
+                        ) {
+                            Icon(
+                                imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Default.Edit,
+                                contentDescription = if (isSelectionMode) "Share" else "Edit",
+                                tint = Color.Black,
+                                modifier = Modifier.size(20.dp),
+                            )
                         }
                     }
                 },
             )
         },
-        containerColor = Background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // Selection Count Indicator (Center)
+                if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                    Text(
+                        text = "${selectedPhotos.size} selected",
+                        fontSize = 14.sp,
+                        color = Color.Black,
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopCenter)
+                                .background(
+                                    Color(0xFFFBC4AB).copy(alpha = 0.9f),
+                                    RoundedCornerShape(12.dp),
+                                ).padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+
+                BottomNavBar(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                WindowInsets.navigationBars
+                                    .only(WindowInsetsSides.Bottom)
+                                    .asPaddingValues(),
+                            ),
+                    currentTab = currentTab,
+                    onTabSelected = { tab ->
+                        currentTab = tab
+
+                        when (tab) {
+                            BottomTab.HomeScreen -> {
+                                // 이미 홈 화면
+                            }
+                            BottomTab.SearchResultScreen -> {
+                                navController.navigate(Screen.SearchResult.route)
+                            }
+                            BottomTab.AddTagScreen -> {
+                                navController.navigate(Screen.AddTag.route)
+                            }
+                            BottomTab.StoryScreen -> {
+                                navController.navigate(Screen.Story.route)
+                            }
+                        }
+                    },
+                )
+            }
+        },
+        containerColor = Color.White,
         floatingActionButton = {
             CreateTagButton(
                 modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
-                text = "Create Tag",
+                text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Create with ${selectedPhotos.size}" else "Create Tag",
                 onClick = {
+                    // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
+                    // SearchResultScreen과 동일한 패턴
+                    isSelectionMode = false
                     navController.navigate(Screen.AddTag.route)
                 },
             )
@@ -263,20 +335,44 @@ fun HomeScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                        .padding(horizontal = 16.dp),
             ) {
-                Spacer(modifier = Modifier.height(24.dp))
-                SearchHeader()
-
                 Spacer(modifier = Modifier.height(8.dp))
-                SearchBar(
-                    onSearch = { query ->
-                        if (query.isNotEmpty()) {
-                            navController.navigate(Screen.SearchResult.createRoute(query))
-                        }
-                    },
-                )
+
+                // Search Bar with Filter Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SearchBar(
+                        onSearch = { query ->
+                            if (query.isNotEmpty()) {
+                                navController.navigate(Screen.SearchResult.createRoute(query))
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(
+                        onClick = {
+                            // TODO: Show filter dialog
+                            Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier =
+                            Modifier
+                                .size(48.dp)
+                                .background(
+                                    color = Color(0xFFFBC4AB),
+                                    shape = RoundedCornerShape(12.dp),
+                                ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Filter",
+                            tint = Color.White,
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
                 ViewToggle(
@@ -285,6 +381,10 @@ fun HomeScreen(navController: NavController) {
                     onToggle = { tagOnly, allPhotos ->
                         onlyTag = tagOnly
                         showAllPhotos = allPhotos
+                        if (isSelectionMode) {
+                            isSelectionMode = false
+                            homeViewModel.resetSelection() // draftRepository 초기화
+                        }
                     },
                 )
 
@@ -304,8 +404,21 @@ fun HomeScreen(navController: NavController) {
                         onDeleteClick = { },
                         modifier = Modifier.weight(1f),
                         isDeleteMode = false,
-                        onEnterDeleteMode = { },
+                        onEnterDeleteMode = {
+                            isSelectionMode = true
+                        },
                         onExitDeleteMode = { },
+                        isSelectionMode = isSelectionMode,
+                        selectedItems = selectedPhotos.map { it.photoId }.toSet(), // Photo -> photoId
+                        onItemSelectionToggle = { uriString ->
+                            // URI String을 Photo 객체로 변환해서 togglePhoto 호출
+                            val photo =
+                                com.example.momentag.model.Photo(
+                                    photoId = uriString, // URI를 photoId로 사용
+                                    contentUri = Uri.parse(uriString),
+                                )
+                            homeViewModel.togglePhoto(photo)
+                        },
                     )
                 } else {
                     when (homeLoadingState) {
@@ -322,8 +435,25 @@ fun HomeScreen(navController: NavController) {
                                 },
                                 modifier = Modifier.weight(1f),
                                 isDeleteMode = isDeleteMode,
-                                onEnterDeleteMode = { isDeleteMode = true },
+                                onEnterDeleteMode = {
+                                    if (!isDeleteMode) {
+                                        isSelectionMode = true
+                                    } else {
+                                        isDeleteMode = true
+                                    }
+                                },
                                 onExitDeleteMode = { isDeleteMode = false },
+                                isSelectionMode = isSelectionMode,
+                                selectedItems = selectedPhotos.map { it.photoId }.toSet(), // Photo -> photoId
+                                onItemSelectionToggle = { uriString ->
+                                    // URI String을 Photo 객체로 변환해서 togglePhoto 호출
+                                    val photo =
+                                        com.example.momentag.model.Photo(
+                                            photoId = uriString, // URI를 photoId로 사용
+                                            contentUri = Uri.parse(uriString),
+                                        )
+                                    homeViewModel.togglePhoto(photo)
+                                },
                             )
                         }
 
@@ -352,19 +482,6 @@ fun HomeScreen(navController: NavController) {
 }
 
 // -------------------- Helpers --------------------
-@Composable
-private fun SearchHeader() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = "Search for Photo", fontSize = 18.sp, fontFamily = FontFamily.Serif)
-        Spacer(modifier = Modifier.width(8.dp))
-        Icon(imageVector = Icons.Default.PhotoCamera, contentDescription = "Camera Icon")
-    }
-}
-
-// SearchBar는 이제 ui.components.SearchBar로 이동됨
 
 @Composable
 private fun ViewToggle(
@@ -379,7 +496,7 @@ private fun ViewToggle(
         Box(
             modifier =
                 Modifier
-                    .background(Semi_background, RoundedCornerShape(8.dp))
+                    .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
                     .padding(4.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -387,43 +504,36 @@ private fun ViewToggle(
                 Box(
                     modifier =
                         Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { onToggle(false, false) }
-                            .padding(4.dp),
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(
+                                if (!onlyTag && !showAllPhotos) Color.Black else Color.Transparent,
+                            ).clickable { onToggle(false, false) }
+                            .padding(8.dp),
                 ) {
                     Icon(
                         Icons.Default.CollectionsBookmark,
                         contentDescription = "Tag Albums",
                         tint = if (!onlyTag && !showAllPhotos) Color.White else Color.Gray,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
                 // All Photos (Grid)
                 Box(
                     modifier =
                         Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { onToggle(false, true) }
-                            .padding(4.dp),
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(
+                                if (showAllPhotos) Color.Black else Color.Transparent,
+                            ).clickable { onToggle(false, true) }
+                            .padding(8.dp),
                 ) {
                     Icon(
                         Icons.Default.Photo,
                         contentDescription = "All Photos",
                         tint = if (showAllPhotos) Color.White else Color.Gray,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
-                // Tag List (주석처리)
-//                Box(
-//                    modifier = Modifier
-//                        .clip(RoundedCornerShape(4.dp))
-//                        .clickable { onToggle(true, false) }
-//                        .padding(4.dp)
-//                ) {
-//                    Icon(
-//                        Icons.AutoMirrored.Filled.ViewList,
-//                        contentDescription = "Tag List",
-//                        tint = if (onlyTag) Color.White else Color.Gray,
-//                    )
-//                }
             }
         }
     }
@@ -442,6 +552,9 @@ private fun MainContent(
     isDeleteMode: Boolean,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
+    isSelectionMode: Boolean,
+    selectedItems: Set<String>,
+    onItemSelectionToggle: (String) -> Unit,
 ) {
     when {
         onlyTag -> {
@@ -470,18 +583,68 @@ private fun MainContent(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(localPhotos.size) { index ->
-                    AsyncImage(
-                        model = localPhotos[index],
-                        contentDescription = "Photo ${index + 1}",
-                        modifier =
-                            Modifier
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable {
-                                    // TODO: Navigate to photo detail or gallery
-                                },
-                        contentScale = ContentScale.Crop,
-                    )
+                    val photoId = localPhotos[index].toString()
+                    val isSelected = selectedItems.contains(photoId)
+
+                    Box(modifier = Modifier.aspectRatio(1f)) {
+                        AsyncImage(
+                            model = localPhotos[index],
+                            contentDescription = "Photo ${index + 1}",
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .combinedClickable(
+                                        onClick = {
+                                            if (isSelectionMode) {
+                                                onItemSelectionToggle(photoId)
+                                            } else {
+                                                // TODO: Navigate to photo detail or gallery
+                                            }
+                                        },
+                                        onLongClick = {
+                                            if (!isSelectionMode) {
+                                                onEnterDeleteMode()
+                                                onItemSelectionToggle(photoId)
+                                            }
+                                        },
+                                    ),
+                            contentScale = ContentScale.Crop,
+                        )
+
+                        if (isSelectionMode) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            if (isSelected) Color.Black.copy(alpha = 0.3f) else Color.Transparent,
+                                        ),
+                            )
+
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .size(24.dp)
+                                        .background(
+                                            if (isSelected) Color(0xFFFBC4AB) else Color.White.copy(alpha = 0.8f),
+                                            RoundedCornerShape(12.dp),
+                                        ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -503,6 +666,9 @@ private fun MainContent(
                         isDeleteMode = isDeleteMode,
                         onEnterDeleteMode = onEnterDeleteMode,
                         onExitDeleteMode = onExitDeleteMode,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedItems.contains(item.tagId),
+                        onSelectionToggle = { onItemSelectionToggle(item.tagId) },
                     )
                 }
             }
@@ -527,6 +693,9 @@ fun TagGridItem(
     isDeleteMode: Boolean,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onSelectionToggle: () -> Unit = {},
 ) {
     val imageUri: Uri? =
         remember(imageId) {
@@ -551,14 +720,17 @@ fun TagGridItem(
                         .align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
-                                if (isDeleteMode) {
-                                    onExitDeleteMode()
-                                } else {
-                                    navController.navigate(Screen.Album.createRoute(tagId, tagName))
+                                when {
+                                    isSelectionMode -> onSelectionToggle()
+                                    isDeleteMode -> onExitDeleteMode()
+                                    else -> navController.navigate(Screen.Album.createRoute(tagId, tagName))
                                 }
                             },
                             onLongClick = {
-                                onEnterDeleteMode()
+                                if (!isSelectionMode && !isDeleteMode) {
+                                    onEnterDeleteMode()
+                                    onSelectionToggle()
+                                }
                             },
                         ),
                 contentScale = ContentScale.Crop,
@@ -575,18 +747,58 @@ fun TagGridItem(
                         ).align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
-                                if (isDeleteMode) {
-                                    onExitDeleteMode()
-                                } else {
-                                    navController.navigate(Screen.Album.createRoute(tagId, tagName))
+                                when {
+                                    isSelectionMode -> onSelectionToggle()
+                                    isDeleteMode -> onExitDeleteMode()
+                                    else -> navController.navigate(Screen.Album.createRoute(tagId, tagName))
                                 }
                             },
                             onLongClick = {
-                                onEnterDeleteMode()
+                                if (!isSelectionMode && !isDeleteMode) {
+                                    onEnterDeleteMode()
+                                    onSelectionToggle()
+                                }
                             },
                         ),
             )
         }
+
+        // Selection overlay
+        if (isSelectionMode) {
+            Box(
+                modifier =
+                    Modifier
+                        .padding(top = 12.dp)
+                        .aspectRatio(1f)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            if (isSelected) Color.Black.copy(alpha = 0.3f) else Color.Transparent,
+                        ),
+            )
+
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 16.dp, end = 4.dp)
+                        .size(24.dp)
+                        .background(
+                            if (isSelected) Color(0xFFFBC4AB) else Color.White.copy(alpha = 0.8f),
+                            RoundedCornerShape(12.dp),
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
+
         Text(
             text = tagName,
             color = Word,

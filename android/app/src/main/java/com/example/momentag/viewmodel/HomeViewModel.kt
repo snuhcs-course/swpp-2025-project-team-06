@@ -2,16 +2,20 @@ package com.example.momentag.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.momentag.model.Photo
 import com.example.momentag.model.TagItem
+import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
+    private val draftTagRepository: DraftTagRepository,
 ) : ViewModel() {
     sealed class HomeLoadingState {
         object Idle : HomeLoadingState()
@@ -44,6 +48,17 @@ class HomeViewModel(
 
     private val _homeDeleteState = MutableStateFlow<HomeDeleteState>(HomeDeleteState.Idle)
     val homeDeleteState = _homeDeleteState.asStateFlow()
+
+    // Photo selection management (같은 패턴으로 SearchViewModel 처럼!)
+    val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
+
+    fun togglePhoto(photo: Photo) {
+        draftTagRepository.togglePhoto(photo)
+    }
+
+    fun resetSelection() {
+        draftTagRepository.clear()
+    }
 
     fun loadServerTags() {
         viewModelScope.launch {

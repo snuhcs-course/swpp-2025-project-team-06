@@ -88,7 +88,7 @@ class ViewModelFactory private constructor(
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
         when {
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
-                HomeViewModel(localRepository, remoteRepository) as T
+                HomeViewModel(localRepository, remoteRepository, draftTagRepository) as T
             }
             modelClass.isAssignableFrom(LocalViewModel::class.java) -> {
                 LocalViewModel(localRepository, imageBrowserRepository) as T
