@@ -42,6 +42,7 @@ from .tasks import (
     recommend_photo_from_photo,
     compute_and_store_rep_vectors,
 )
+from .storage_service import upload_photo
 
 
 from django.db import transaction
@@ -143,20 +144,17 @@ class PhotoView(APIView):
 
             photos_data = serializer.validated_data
 
-            fs = FileSystemStorage(location=settings.MEDIA_ROOT)
-            
             print(f"[INFO] Invalidating graph cache for user {request.user.id}")
             cache.delete(f"user_{request.user.id}_combined_graph")
 
             for data in photos_data:
                 image_file = data["photo"]
 
-                temp_filename = f"{uuid.uuid4()}_{image_file.name}"
-                saved_path = fs.save(temp_filename, image_file)
-                full_path = fs.path(saved_path)
+                # Upload to shared storage (MinIO or local) - storage key is UUID-based
+                storage_key = upload_photo(image_file)
 
                 process_and_embed_photo.delay(
-                    image_path=full_path,
+                    storage_key=storage_key,
                     user_id=request.user.id,
                     filename=data["filename"],
                     photo_path_id=data["photo_path_id"],
