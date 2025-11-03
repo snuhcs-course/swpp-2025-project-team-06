@@ -22,6 +22,7 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
+import math
 
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
@@ -335,7 +336,27 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
     meta_set = set()
     
     caption_relations = Photo_Caption.objects.filter(user=user).select_related('caption')
+    tag_relations = Photo_Tag.objects.filter(user=user).select_related('tag')
 
+    all_photo_ids = set()
+    caption_doc_freq = defaultdict(set)
+    
+    for pc in caption_relations:
+        all_photo_ids.add(pc.photo_id)
+        caption_doc_freq[pc.caption].add(pc.photo_id)
+
+    for pt in tag_relations:
+        all_photo_ids.add(pt.photo_id)
+    
+    N = len(all_photo_ids)
+    if N == 0:
+        N = 1
+    
+    idf_scores = {}
+    for caption_obj, photo_ids_set in caption_doc_freq.items():
+        df = len(photo_ids_set)
+        idf_scores[caption_obj] = math.log(N / (1 + df))
+    
     for photo_caption in caption_relations:
         photo_id = photo_caption.photo_id
         caption_obj = photo_caption.caption
@@ -348,12 +369,16 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
             meta_set.add(caption_obj)
             graph.add_node(caption_obj, bipartite=1)
 
+        tf = photo_caption.weight
+        
+        idf = idf_scores.get(caption_obj, 0.0) 
+        
+        new_weight = tf * (1 + idf)
+
         graph.add_edge(
-            photo_id, caption_obj, weight=photo_caption.weight 
+            photo_id, caption_obj, weight=new_weight 
         )
         
-    tag_relations = Photo_Tag.objects.filter(user=user).select_related('tag')
-
     for photo_tag in tag_relations:
         photo_id = photo_tag.photo_id
         tag_obj = photo_tag.tag 
@@ -400,11 +425,7 @@ def execute_hybrid_graph_search(
     # 2. 후보군 정의
     # 재시작 집합의 노드 중 '사진' 노드만 분리
     # (Tag, Caption 객체는 UUID가 아니므로 분리 가능)
-    personalization_photos = {
-        node for node in personalization_nodes if isinstance(node, uuid.UUID)
-    }
-    
-    candidates: set[uuid.UUID] = all_photos - personalization_photos
+    candidates: set[uuid.UUID] = all_photos
     
     valid_personalization_nodes_set = {
         node for node in personalization_nodes if node in graph
@@ -435,34 +456,51 @@ def execute_hybrid_graph_search(
         print(f"[AdamicAdar Error] {e}")
         pass
 
-    # 점수 정규화 및 결합
-    def normalize(minv, maxv, v):
-        if maxv == minv:
-            return 0
-        else:
-            return (v - minv) / (maxv - minv)
+    def z_score_sigmoid_normalize(score_dict, candidates):
+        # 1. 후보군에 해당하는 점수 리스트 생성
+        scores_array = np.array([score_dict.get(c, 0.0) for c in candidates])
+        
+        # 2. Z-Score 계산
+        mean = np.mean(scores_array)
+        std = np.std(scores_array)
+        
+        if std == 0:
+            # 모든 점수가 0이거나 동일함
+            return {c: 0.5 for c in candidates} # Sigmoid(0) = 0.5
 
-    max_rwr = max(rwr_scores.values()) if rwr_scores else 0
-    min_rwr = min(rwr_scores.values()) if rwr_scores else 0
+        z_scores = (scores_array - mean) / std
+        
+        # 3. Sigmoid 적용 (0.0 ~ 1.0 사이로 압축)
+        #    numpy의 'vectorize'를 사용하지 않고 math.exp를 루프로 돌리는 것이
+        #    오버헤드가 적어 더 빠릅니다.
+        final_scores = {}
+        for candidate, z in zip(candidates, z_scores):
+            try:
+                final_scores[candidate] = 1 / (1 + math.exp(-z))
+            except OverflowError:
+                # z가 너무 작으면 (e.g., -1000) exp(-z)가 오버플로우
+                # z가 너무 크면 (e.g., +1000) exp(-z)가 0
+                final_scores[candidate] = 0.0 if z < 0 else 1.0
+                
+        return final_scores
 
-    max_aa = max(aa_scores.values()) if aa_scores else 0
-    min_aa = min(aa_scores.values()) if aa_scores else 0
+    # 3대 점수 모두 정규화
+    norm_rwr_dict = z_score_sigmoid_normalize(rwr_scores, candidates)
+    norm_aa_dict = z_score_sigmoid_normalize(aa_scores, candidates)
+    norm_sem_dict = z_score_sigmoid_normalize(semantic_scores, candidates)
     
-    max_sem = max(semantic_scores.values()) if semantic_scores else 0
-    min_sem = min(semantic_scores.values()) if semantic_scores else 0
-
     scores = {}
     for candidate in candidates:
         # 그래프 점수 계산
-        norm_rwr = normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0))
-        norm_aa = normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
+        norm_rwr = norm_rwr_dict.get(candidate, 0.5)
+        norm_aa = norm_aa_dict.get(candidate, 0.5)
         graph_score = alpha * norm_rwr + (1 - alpha) * norm_aa
 
         # 시맨틱 점수 계산
-        # (시맨틱 검색 결과에 없던 후보는 0점)
-        norm_sem = normalize(min_sem, max_sem, semantic_scores.get(candidate, 0))
+        # (시맨틱 검색 결과에 없던 후보는 0점 -> Z-Score 후에도 평균 이하 점수 -> Sigmoid 후 0.5 미만)
+        norm_sem = norm_sem_dict.get(candidate, 0.5)
         
-        # ✨ 최종 하이브리드 점수
+        # 최종 하이브리드 점수
         scores[candidate] = (graph_weight * graph_score) + (semantic_weight * norm_sem)
 
     sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
@@ -491,8 +529,6 @@ def execute_hybrid_graph_search(
                 {"photo_id": photo_id, "photo_path_id": photo_path_id}
             )
     return final_results
-
-
 
 
 def is_valid_uuid(uuid_to_test):

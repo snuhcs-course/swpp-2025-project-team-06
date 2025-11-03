@@ -12,6 +12,9 @@ _caption_processor = None
 _caption_model = None
 _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+_TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1" #
+_text_model = None #
+
 
 def get_image_model():
     """Lazy-load image model once per worker"""
@@ -45,6 +48,12 @@ def get_caption_model():
         )
     return _caption_model
 
+def get_sync_text_model():
+    global _text_model
+    if _text_model is None:
+        print("[INFO] Loading SYNC text model for API worker...")
+        _text_model = SentenceTransformer(_TEXT_MODEL_NAME, device=_DEVICE)
+    return _text_model
 
 def get_image_embedding(image_path):
     try:

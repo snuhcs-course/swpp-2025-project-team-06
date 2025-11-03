@@ -4,11 +4,9 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import re
-from gallery.models import Tag, Photo_Tag
-from gallery.tasks import (
-    create_query_embedding,
-    execute_hybrid_graph_search,
-)
+from gallery.models import Tag, Photo_Tag, Caption
+from gallery.vision_service import phrase_to_words, get_sync_text_model
+from gallery.tasks import execute_hybrid_graph_search
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from qdrant_client.http import models
 from .response_serializers import PhotoResponseSerializer
@@ -20,6 +18,8 @@ from django.conf import settings
 TAG_REGEX = re.compile(r"\{([^}]+)\}")
 
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
+
+TEXT_MODEL = get_sync_text_model()
 
 
 class SemanticSearchView(APIView):
@@ -84,7 +84,8 @@ class SemanticSearchView(APIView):
             semantic_query = ""
             
             if text_only_query:
-                semantic_query = TAG_REGEX.sub("something", query).strip()
+                # semantic_query = TAG_REGEX.sub("something", query).strip()    # for test
+                semantic_query = text_only_query
             
             personalization_nodes = set()
 
@@ -100,7 +101,7 @@ class SemanticSearchView(APIView):
             semantic_scores = {}
             if semantic_query:
                 try:
-                    query_vector = create_query_embedding(semantic_query)
+                    query_vector = TEXT_MODEL.encode(semantic_query)
 
                     user_filter = models.Filter(
                         must=[
@@ -177,13 +178,22 @@ class SemanticSearchView(APIView):
                     ]
 
             elif semantic_query and valid_tags:
-                # (C) 하이브리드 검색 
+                # (C) 하이브리드 검색
+                processed_words = phrase_to_words(semantic_query)
+                
+                matching_captions = set(Caption.objects.filter(
+                    user=request.user,
+                    caption__in=processed_words
+                ))
+                
+                personalization_nodes = set(valid_tags).union(semantic_scores.keys()).union(matching_captions)
+                
                 final_results = execute_hybrid_graph_search(
                     user=user,
                     personalization_nodes=personalization_nodes,
                     semantic_scores=semantic_scores,
                     tag_edge_weight=TAG_EDGE_WEIGHT,
-                ) #
+                )
 
             else:
                 # (D) 쿼리가 비어있거나, 유효한 태그가 하나도 없는 경우
