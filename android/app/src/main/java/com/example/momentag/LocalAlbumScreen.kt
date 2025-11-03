@@ -132,11 +132,11 @@ fun LocalAlbumScreen(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
                     color = Color.Black.copy(alpha = 0.5f),
                 )
-                // Convert Uri list to Photo list (local images have empty photoId)
+                // Convert Uri list to Photo list (use URI's last path segment as photoId)
                 val photos =
                     imageUris.map { uri ->
                         com.example.momentag.model.Photo(
-                            photoId = "", // Local images don't have backend photoId
+                            photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
                             contentUri = uri,
                         )
                     }

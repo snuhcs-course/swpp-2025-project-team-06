@@ -377,8 +377,45 @@ class CaptionModelTest(TestCase):
         self.user.delete()
         
         # 캡션도 함께 삭제되었는지 확인
-        with self.assertRaises(Caption.DoesNotExist):
-            Caption.objects.get(caption_id=caption_id)
+        self.assertFalse(Caption.objects.filter(caption_id=caption_id).exists())
+
+    def test_caption_special_characters(self):
+        """특수문자 포함 캡션 테스트"""
+        special_captions = [
+            "한글 캡션",
+            "English Caption",
+            "캡션123",
+            "캡션!@#$%",
+            "キャプション",  # 일본어
+            "字幕",  # 중국어
+            "🏖️🎵 이모지 캡션",
+        ]
+
+        for i, caption_text in enumerate(special_captions):
+            # unique 제약 때문에 각각 다른 텍스트 사용
+            unique_caption_text = f"{caption_text}_{i}"
+            caption = Caption.objects.create(
+                caption=unique_caption_text, user=self.user
+            )
+            self.assertEqual(caption.caption, unique_caption_text)
+
+    def test_caption_model_fields(self):
+        """Caption 모델 필드 속성 테스트"""
+        import models
+        caption = Caption.objects.create(caption="필드테스트", user=self.user)
+
+        # 필드 타입 확인
+        self.assertIsInstance(caption._meta.get_field("caption_id"), models.UUIDField)
+        self.assertIsInstance(caption._meta.get_field("caption"), models.CharField)
+        self.assertIsInstance(caption._meta.get_field("user"), models.ForeignKey)
+
+        # 필드 속성 확인
+        caption_field = caption._meta.get_field("caption")
+        self.assertEqual(caption_field.max_length, 50)
+
+        caption_id_field = caption._meta.get_field("caption_id")
+        self.assertTrue(caption_id_field.primary_key)
+        self.assertFalse(caption_id_field.editable)
 
 
 class PhotoCaptionModelTest(TestCase):
@@ -422,6 +459,7 @@ class PhotoCaptionModelTest(TestCase):
             user=self.user
         )
         self.assertEqual(photo_caption.weight, 0)
+
 
     def test_photo_caption_string_representation(self):
         """Photo_Caption 문자열 표현 테스트"""
@@ -539,6 +577,7 @@ class ModelIntegrationTest(TestCase):
         self.user2 = User.objects.create_user(
             username="user2", email="user2@example.com", password="testpass123"
         )
+
 
     def test_complete_photo_workflow(self):
         """완전한 사진 워크플로우 테스트"""

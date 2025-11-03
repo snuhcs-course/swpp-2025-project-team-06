@@ -284,16 +284,16 @@ class ReqPhotoBulkDeleteSerializerTest(TestCase):
     def test_req_photo_bulk_delete_serializer_valid_data(self):
         """유효한 데이터로 ReqPhotoBulkDeleteSerializer 테스트"""
         photo_ids = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
-        data = {
-            "photos": [{"photo_id": pid} for pid in photo_ids]
-        }
+        data = {"photos": [{"photo_id": pid} for pid in photo_ids]}
 
         serializer = ReqPhotoBulkDeleteSerializer(data=data)
         self.assertTrue(serializer.is_valid())
         self.assertEqual(len(serializer.validated_data["photos"]), 3)
 
         # 각 photo_id가 올바르게 검증되었는지 확인
-        validated_photo_ids = [item["photo_id"] for item in serializer.validated_data["photos"]]
+        validated_photo_ids = [
+            item["photo_id"] for item in serializer.validated_data["photos"]
+        ]
         for original_id in photo_ids:
             self.assertIn(original_id, validated_photo_ids)
 
@@ -308,10 +308,7 @@ class ReqPhotoBulkDeleteSerializerTest(TestCase):
     def test_req_photo_bulk_delete_serializer_invalid_photo_ids(self):
         """잘못된 photo_id들로 테스트"""
         data = {
-            "photos": [
-                {"photo_id": "invalid-uuid-1"},
-                {"photo_id": "invalid-uuid-2"}
-            ]
+            "photos": [{"photo_id": "invalid-uuid-1"}, {"photo_id": "invalid-uuid-2"}]
         }
 
         serializer = ReqPhotoBulkDeleteSerializer(data=data)
@@ -329,9 +326,7 @@ class ReqPhotoBulkDeleteSerializerTest(TestCase):
     def test_req_photo_bulk_delete_serializer_large_list(self):
         """대량 삭제 테스트 (성능 고려)"""
         photo_ids = [uuid.uuid4() for _ in range(100)]  # 100개
-        data = {
-            "photos": [{"photo_id": pid} for pid in photo_ids]
-        }
+        data = {"photos": [{"photo_id": pid} for pid in photo_ids]}
 
         serializer = ReqPhotoBulkDeleteSerializer(data=data)
         self.assertTrue(serializer.is_valid())
@@ -497,7 +492,7 @@ class ResStorySerializerTest(TestCase):
         photos_data = [
             {"photo_id": uuid.uuid4(), "photo_path_id": 123},
             {"photo_id": uuid.uuid4(), "photo_path_id": 456},
-            {"photo_id": uuid.uuid4(), "photo_path_id": 789}
+            {"photo_id": uuid.uuid4(), "photo_path_id": 789},
         ]
         data = {"recs": photos_data}
 
@@ -506,7 +501,7 @@ class ResStorySerializerTest(TestCase):
 
         self.assertIn("recs", serialized_data)
         self.assertEqual(len(serialized_data["recs"]), 3)
-        
+
         # 각 사진 데이터 구조 확인
         for photo in serialized_data["recs"]:
             self.assertIn("photo_id", photo)
@@ -528,29 +523,25 @@ class ResStorySerializerTest(TestCase):
         """페이지네이션 시나리오 테스트"""
         # 첫 번째 페이지 (50개)
         first_page_photos = [
-            {"photo_id": uuid.uuid4(), "photo_path_id": i} 
-            for i in range(1, 51)
+            {"photo_id": uuid.uuid4(), "photo_path_id": i} for i in range(1, 51)
         ]
         first_page_data = {"recs": first_page_photos}
-        
+
         serializer = ResStorySerializer(first_page_data)
         self.assertEqual(len(serializer.data["recs"]), 50)
 
         # 마지막 페이지 (부분적 - 23개)
         last_page_photos = [
-            {"photo_id": uuid.uuid4(), "photo_path_id": i} 
-            for i in range(1, 24)
+            {"photo_id": uuid.uuid4(), "photo_path_id": i} for i in range(1, 24)
         ]
         last_page_data = {"recs": last_page_photos}
-        
+
         serializer = ResStorySerializer(last_page_data)
         self.assertEqual(len(serializer.data["recs"]), 23)
 
     def test_res_story_serializer_single_photo(self):
         """단일 사진 스토리 테스트"""
-        data = {
-            "recs": [{"photo_id": uuid.uuid4(), "photo_path_id": 999}]
-        }
+        data = {"recs": [{"photo_id": uuid.uuid4(), "photo_path_id": 999}]}
 
         serializer = ResStorySerializer(data)
         serialized_data = serializer.data
@@ -572,8 +563,12 @@ class ResStorySerializerTest(TestCase):
         # 원본 데이터와 직렬화된 데이터의 일관성 확인
         for i, original_photo in enumerate(original_photos):
             serialized_photo = serialized_data["recs"][i]
-            self.assertEqual(str(original_photo["photo_id"]), serialized_photo["photo_id"])
-            self.assertEqual(original_photo["photo_path_id"], serialized_photo["photo_path_id"])
+            self.assertEqual(
+                str(original_photo["photo_id"]), serialized_photo["photo_id"]
+            )
+            self.assertEqual(
+                original_photo["photo_path_id"], serialized_photo["photo_path_id"]
+            )
 
 
 class ResTagAlbumSerializerTest(TestCase):
@@ -584,7 +579,7 @@ class ResTagAlbumSerializerTest(TestCase):
         photos_data = [
             {"photo_id": uuid.uuid4(), "photo_path_id": 101},
             {"photo_id": uuid.uuid4(), "photo_path_id": 102},
-            {"photo_id": uuid.uuid4(), "photo_path_id": 103}
+            {"photo_id": uuid.uuid4(), "photo_path_id": 103},
         ]
         data = {"photos": photos_data}
 
@@ -593,7 +588,7 @@ class ResTagAlbumSerializerTest(TestCase):
 
         self.assertIn("photos", serialized_data)
         self.assertEqual(len(serialized_data["photos"]), 3)
-        
+
         # 각 사진에 필요한 필드가 있는지 확인
         for photo in serialized_data["photos"]:
             self.assertIn("photo_id", photo)
@@ -614,7 +609,7 @@ class ResTagAlbumSerializerTest(TestCase):
     def test_res_tag_album_serializer_large_album(self):
         """대용량 태그 앨범 테스트"""
         photos_data = [
-            {"photo_id": uuid.uuid4(), "photo_path_id": i} 
+            {"photo_id": uuid.uuid4(), "photo_path_id": i}
             for i in range(1, 501)  # 500개
         ]
         data = {"photos": photos_data}
@@ -623,7 +618,7 @@ class ResTagAlbumSerializerTest(TestCase):
         serialized_data = serializer.data
 
         self.assertEqual(len(serialized_data["photos"]), 500)
-        
+
         # 데이터 무결성 확인 (중복 없음)
         photo_ids = [photo["photo_id"] for photo in serialized_data["photos"]]
         self.assertEqual(len(set(photo_ids)), 500)  # 모든 ID가 고유함
@@ -631,9 +626,7 @@ class ResTagAlbumSerializerTest(TestCase):
     def test_res_tag_album_serializer_single_photo(self):
         """단일 사진 앨범 테스트"""
         test_id = uuid.uuid4()
-        data = {
-            "photos": [{"photo_id": test_id, "photo_path_id": 42}]
-        }
+        data = {"photos": [{"photo_id": test_id, "photo_path_id": 42}]}
 
         serializer = ResTagAlbumSerializer(data)
         serialized_data = serializer.data
@@ -657,7 +650,9 @@ class ResTagAlbumSerializerTest(TestCase):
         # 원본 순서가 보존되는지 확인
         for i, original_photo in enumerate(photos_data):
             serialized_photo = serialized_data["photos"][i]
-            self.assertEqual(original_photo["photo_path_id"], serialized_photo["photo_path_id"])
+            self.assertEqual(
+                original_photo["photo_path_id"], serialized_photo["photo_path_id"]
+            )
 
     def test_res_tag_album_serializer_various_path_ids(self):
         """다양한 photo_path_id 값 테스트"""
@@ -672,9 +667,11 @@ class ResTagAlbumSerializerTest(TestCase):
         serialized_data = serializer.data
 
         self.assertEqual(len(serialized_data["photos"]), len(extreme_values))
-        
+
         # 각 값이 올바르게 직렬화되었는지 확인
-        serialized_path_ids = [photo["photo_path_id"] for photo in serialized_data["photos"]]
+        serialized_path_ids = [
+            photo["photo_path_id"] for photo in serialized_data["photos"]
+        ]
         for original_value in extreme_values:
             self.assertIn(original_value, serialized_path_ids)
 

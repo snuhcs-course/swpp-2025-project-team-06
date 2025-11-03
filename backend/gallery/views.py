@@ -22,24 +22,31 @@ from .request_serializers import (
     ReqPhotoDetailSerializer,
     ReqTagNameSerializer,
     ReqTagIdSerializer,
+    ReqPhotoListSerializer,
     ReqPhotoBulkDeleteSerializer,
 )
 
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag, Photo
-from .qdrant_utils import client, IMAGE_COLLECTION_NAME
+from .models import Photo_Tag, Tag, User, Photo_Caption, Photo
+from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
+from django.core.cache import cache
 
 from .tasks import (
     process_and_embed_photo,
     tag_recommendation,
     is_valid_uuid,
     recommend_photo_from_tag,
+    recommend_photo_from_photo,
+    compute_and_store_rep_vectors,
 )
+
+
+from django.db import transaction
 
 
 class PhotoView(APIView):
@@ -139,11 +146,13 @@ class PhotoView(APIView):
             photos_data = serializer.validated_data
 
             fs = FileSystemStorage(location=settings.MEDIA_ROOT)
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
 
             for data in photos_data:
                 photo_id = uuid.uuid4()
                 image_file = data['photo']
-
                 temp_filename = f"{photo_id}_{image_file.name}"
                 saved_path = fs.save(temp_filename, image_file)
                 full_path = fs.path(saved_path)
@@ -201,6 +210,7 @@ class PhotoView(APIView):
         ],
     )
     def get(self, request):
+        client = get_qdrant_client()
         try:
             photos = Photo.objects.filter(user=request.user)
             serializer = ResPhotoSerializer(photos, many=True)
@@ -260,11 +270,12 @@ class PhotoDetailView(APIView):
             serializer = ResPhotoTagListSerializer(photo_data)
 
             return Response(serializer.data, status=status.HTTP_200_OK)
-        
+
         except Photo.DoesNotExist:
             return Response(
                 {"error": "Photo not found"}, status=status.HTTP_404_NOT_FOUND
             )
+
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -291,6 +302,11 @@ class PhotoDetailView(APIView):
     )
     def delete(self, request, photo_id):
         try:
+            client = get_qdrant_client()
+
+            associated_photo_tags = Photo_Tag.objects.filter(photo__photo_id=photo_id, user=request.user)
+            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_photo_tags]
+
             Photo.objects.filter(photo_id=photo_id, user=request.user).delete()
 
             client.delete(
@@ -298,6 +314,12 @@ class PhotoDetailView(APIView):
                 points_selector=[str(photo_id)],
                 wait=True,
             )
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
+
+            for tag_id in tag_ids_to_recompute:
+                compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -332,22 +354,35 @@ class BulkDeletePhotoView(APIView):
     )
     def post(self, request):
         try:
+            client = get_qdrant_client()
             serializer = ReqPhotoBulkDeleteSerializer(data=request.data)
 
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            photos_data = serializer.validated_data['photos']
+            photos_raw_data = serializer.validated_data["photos"]
 
-            photos_to_delete = [data['photo_id'] for data in photos_data]
+            photo_ids_to_delete = [data["photo_id"] for data in photos_raw_data]
 
-            Photo.objects.filter(photo_id__in=photos_to_delete, user=request.user).delete()
+            associated_photo_tags = Photo_Tag.objects.filter(
+                photo__photo_id__in=photo_ids_to_delete, user=request.user
+            )
+
+            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_photo_tags]
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
-                points_selector=[str(photo_id) for photo_id in photos_to_delete],
+                points_selector=[str(photo_id) for photo_id in photo_ids_to_delete],
                 wait=True,
             )
+            
+            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+            cache.delete(f"user_{request.user.id}_combined_graph")
+
+            for tag_id in tag_ids_to_recompute:
+                compute_and_store_rep_vectors.delay(request.user.id, tag_id)
+
+            Photo.objects.filter(photo_id__in=photo_ids_to_delete, user=request.user).delete()
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -366,7 +401,7 @@ class GetPhotosByTagView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success", schema=ResTagAlbumSerializer()
+                description="Success", schema=ResPhotoSerializer(many=True)
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -407,6 +442,7 @@ class GetPhotosByTagView(APIView):
             }
 
             return Response(ResTagAlbumSerializer(response_data).data, status=status.HTTP_200_OK)
+        
         except Tag.DoesNotExist:
             return Response(
                 {"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND
@@ -472,6 +508,11 @@ class PostPhotoTagsView(APIView):
                 photo.is_tagged = True
                 photo.save()
 
+                print(f"[INFO] Invalidating graph cache for user {request.user.id}")
+                cache.delete(f"user_{request.user.id}_combined_graph")
+
+                compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+
             return Response(status=status.HTTP_200_OK)
         except Photo.DoesNotExist:
             return Response(
@@ -529,6 +570,8 @@ class DeletePhotoTagsView(APIView):
                 photo.is_tagged = False
                 photo.save()
 
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+
             return Response(status=status.HTTP_204_NO_CONTENT)
         except (Photo.DoesNotExist, Tag.DoesNotExist):
             return Response(
@@ -539,6 +582,7 @@ class DeletePhotoTagsView(APIView):
                 {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            print(str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -553,7 +597,9 @@ class GetRecommendTagView(APIView):
         operation_description="Get recommended tag about a photo.",
         request_body=None,
         responses={
-            200: openapi.Response(description="Success", schema=TagSerializer()),
+            200: openapi.Response(
+                description="Success", schema=TagSerializer(many=True)
+            ),
             400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -573,6 +619,7 @@ class GetRecommendTagView(APIView):
     )
     def get(self, request, photo_id, *args, **kwargs):
         try:
+            client = get_qdrant_client()
             if not is_valid_uuid(photo_id):
                 return Response(
                     {"error": "Request form mismatch."},
@@ -587,14 +634,13 @@ class GetRecommendTagView(APIView):
                     {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-            tag, tag_id = tag_recommendation(request.user.id, photo_id)
+            tags = tag_recommendation(request.user, photo_id)
 
-            tag = {"tag_id": tag_id, "tag": tag}
-            response_serializer = TagSerializer(tag)
+            serializer = TagSerializer(tags, many=True)
 
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
+            print(str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -632,13 +678,13 @@ class PhotoRecommendationView(APIView):
     )
     def get(self, request, tag_id, *args, **kwargs):
         try:
-            if not Tag.objects.filter(tag_id=tag_id, user__id=request.user.id).exists():
+            if not Tag.objects.filter(tag_id=tag_id, user=request.user).exists():
                 return Response(
                     {"error": f"No tag with id {tag_id}"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            photos = recommend_photo_from_tag(request.user.id, tag_id)
+            photos = recommend_photo_from_tag(request.user, tag_id)
 
             return Response(photos, status=status.HTTP_200_OK)
 
@@ -646,6 +692,46 @@ class PhotoRecommendationView(APIView):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class PhotoToPhotoRecommendationView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Recommended Photos of Given Photos",
+        operation_description="Get recommended photos based on a list of input photos using bipartite graph analysis.",
+        request_body=ReqPhotoListSerializer,
+        responses={
+            200: openapi.Response(
+                description="Success",
+                schema=ResPhotoSerializer(many=True),
+            ),
+            400: openapi.Response(description="Bad Request - Request form mismatch"),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
+    )
+    def post(self, request):
+        serializer = ReqPhotoListSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        photo_ids = serializer.validated_data["photos"]
+        user = request.user
+
+        photos = recommend_photo_from_photo(user, photo_ids)
+
+        return Response(photos, status=status.HTTP_200_OK)
 
 
 class TagView(APIView):
@@ -702,7 +788,6 @@ class TagView(APIView):
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
-            409: openapi.Response(description="Conflict - Tag already exists"),
         },
         manual_parameters=[
             openapi.Parameter(
@@ -729,10 +814,9 @@ class TagView(APIView):
                 )
 
             if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
-                return Response(
-                    {"detail": f"Tag '{data['tag']}' already exists."},
-                    status=status.HTTP_409_CONFLICT,
-                )
+                tag = Tag.objects.get(tag=data["tag"], user=request.user)
+                response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
 
             new_tag = Tag.objects.create(tag=data["tag"], user=request.user)
 
@@ -788,8 +872,11 @@ class TagDetailView(APIView):
                     {"error": "Forbidden - you are not the owner of this tag."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+                
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             tag.delete()
+
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response(
@@ -897,7 +984,9 @@ class TagDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class StoryView(APIView):
@@ -909,17 +998,17 @@ class StoryView(APIView):
         operation_description="Get stories generated from user's photos with pagination",
         request_body=None,
         responses={
-            200: openapi.Response(
-                description="Success",
-                schema=ResStorySerializer()
-            ),
+            200: openapi.Response(description="Success", schema=ResStorySerializer()),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
         },
         manual_parameters=[
             openapi.Parameter(
-                "Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
             ),
             openapi.Parameter(
                 "size", openapi.IN_QUERY, description="number of photos", type=openapi.TYPE_INTEGER
@@ -970,5 +1059,6 @@ class StoryView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

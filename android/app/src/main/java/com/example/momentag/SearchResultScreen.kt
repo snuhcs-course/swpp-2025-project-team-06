@@ -1,6 +1,5 @@
 package com.example.momentag
 
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,9 +7,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,10 +46,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.BottomNavBar
+import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.SearchBarControlledCustom
@@ -72,19 +79,15 @@ fun SearchResultScreen(
     initialQuery: String,
     navController: NavController,
     onNavigateBack: () -> Unit,
-    searchViewModel: SearchViewModel =
-        viewModel(
-            factory = ViewModelFactory.getInstance(LocalContext.current),
-        ),
 ) {
     val context = LocalContext.current
-    val addTagViewModel: com.example.momentag.viewmodel.AddTagViewModel =
-        viewModel(factory = ViewModelFactory.getInstance(context))
+    val searchViewModel: SearchViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
     var searchText by remember { mutableStateOf(initialQuery) }
     val semanticSearchState by searchViewModel.searchState.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
-    var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
+    var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
@@ -132,21 +135,16 @@ fun SearchResultScreen(
         },
         uiState = uiState,
         isSelectionMode = isSelectionMode,
-        selectedImages = selectedImages,
+        selectedPhotos = selectedPhotos,
         onBackClick = onNavigateBack,
         onToggleSelectionMode = {
             isSelectionMode = !isSelectionMode
             if (!isSelectionMode) {
-                selectedImages = emptyList()
+                searchViewModel.resetSelection()
             }
         },
-        onToggleImageSelection = { uri ->
-            selectedImages =
-                if (selectedImages.contains(uri)) {
-                    selectedImages - uri
-                } else {
-                    selectedImages + uri
-                }
+        onToggleImageSelection = { photo ->
+            searchViewModel.togglePhoto(photo)
         },
         onImageLongPress = {
             if (!isSelectionMode) {
@@ -157,16 +155,9 @@ fun SearchResultScreen(
             // Get the current search results
             val currentState = uiState as? SearchUiState.Success
             if (currentState != null) {
-                // Filter selected photos from search results
-                val selectedPhotos =
-                    currentState.results
-                        .map { it.photo }
-                        .filter { selectedImages.contains(it.contentUri) }
-                // Initialize DraftTagRepository with selected photos
-                addTagViewModel.initialize(null, selectedPhotos)
-                navController.navigate(Screen.AddTag.route)
+                // photo selection already stored in draftRepository
                 isSelectionMode = false
-                selectedImages = emptyList()
+                navController.navigate(Screen.AddTag.route)
             }
         },
         onRetry = {
@@ -175,6 +166,24 @@ fun SearchResultScreen(
             }
         },
         navController = navController,
+        currentTab = currentTab,
+        onTabSelected = { tab ->
+            currentTab = tab
+            when (tab) {
+                BottomTab.HomeScreen -> {
+                    navController.navigate(Screen.Home.route)
+                }
+                BottomTab.SearchResultScreen -> {
+                    // 이미 Search 화면
+                }
+                BottomTab.AddTagScreen -> {
+                    navController.navigate(Screen.AddTag.route)
+                }
+                BottomTab.StoryScreen -> {
+                    navController.navigate(Screen.Story.route)
+                }
+            }
+        },
     )
 }
 
@@ -190,14 +199,16 @@ fun SearchResultScreenUi(
     onSearchSubmit: () -> Unit,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
-    selectedImages: List<Uri>,
+    selectedPhotos: List<Photo>,
     onBackClick: () -> Unit,
     onToggleSelectionMode: () -> Unit,
-    onToggleImageSelection: (Uri) -> Unit,
+    onToggleImageSelection: (Photo) -> Unit,
     onImageLongPress: () -> Unit,
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    currentTab: BottomTab,
+    onTabSelected: (BottomTab) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -207,6 +218,20 @@ fun SearchResultScreenUi(
                 BackTopBar(
                     title = "Search Results",
                     onBackClick = onBackClick,
+                )
+            },
+            bottomBar = {
+                BottomNavBar(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                WindowInsets.navigationBars
+                                    .only(WindowInsetsSides.Bottom)
+                                    .asPaddingValues(),
+                            ),
+                    currentTab = currentTab,
+                    onTabSelected = onTabSelected,
                 )
             },
         ) { paddingValues ->
@@ -221,8 +246,7 @@ fun SearchResultScreenUi(
                 onSearchSubmit = onSearchSubmit,
                 uiState = uiState,
                 isSelectionMode = isSelectionMode,
-                selectedImages = selectedImages,
-                onBackClick = onBackClick,
+                selectedPhotos = selectedPhotos,
                 onToggleSelectionMode = onToggleSelectionMode,
                 onToggleImageSelection = onToggleImageSelection,
                 onImageLongPress = onImageLongPress,
@@ -256,10 +280,9 @@ private fun SearchResultContent(
     onSearchSubmit: () -> Unit,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
-    selectedImages: List<Uri>,
-    onBackClick: () -> Unit,
+    selectedPhotos: List<Photo>,
     onToggleSelectionMode: () -> Unit,
-    onToggleImageSelection: (Uri) -> Unit,
+    onToggleImageSelection: (Photo) -> Unit,
     onImageLongPress: () -> Unit,
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
@@ -341,7 +364,7 @@ private fun SearchResultContent(
                         .weight(1f),
                 uiState = uiState,
                 isSelectionMode = isSelectionMode,
-                selectedImages = selectedImages,
+                selectedPhotos = selectedPhotos,
                 onToggleImageSelection = onToggleImageSelection,
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
@@ -366,11 +389,11 @@ private fun SearchResultContent(
                             .align(Alignment.BottomEnd)
                             .padding(start = 16.dp),
                     text = "Create Tag",
-                    enabled = !isSelectionMode || selectedImages.isNotEmpty(),
+                    enabled = !isSelectionMode || selectedPhotos.isNotEmpty(),
                     onClick = {
                         if (!isSelectionMode) {
                             onToggleSelectionMode()
-                        } else if (selectedImages.isNotEmpty()) {
+                        } else if (selectedPhotos.isNotEmpty()) {
                             onCreateTagClick()
                         }
                     },
@@ -397,14 +420,13 @@ private fun SearchResultContent(
 /**
  * UI 상태에 따라 적절한 검색 결과를 표시
  */
-@Suppress("ktlint:standard:function-naming")
 @Composable
 private fun SearchResultsFromState(
     modifier: Modifier,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
-    selectedImages: List<Uri>,
-    onToggleImageSelection: (Uri) -> Unit,
+    selectedPhotos: List<Photo>,
+    onToggleImageSelection: (Photo) -> Unit,
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
@@ -446,11 +468,11 @@ private fun SearchResultsFromState(
                             photo = photo,
                             navController = navController,
                             isSelectionMode = isSelectionMode,
-                            isSelected = selectedImages.contains(photo.contentUri),
-                            onToggleSelection = { onToggleImageSelection(photo.contentUri) },
+                            isSelected = selectedPhotos.contains(photo),
+                            onToggleSelection = { onToggleImageSelection(photo) },
                             onLongPress = {
                                 onImageLongPress()
-                                onToggleImageSelection(photo.contentUri)
+                                onToggleImageSelection(photo)
                             },
                             cornerRadius = 12.dp,
                             topPadding = 0.dp,

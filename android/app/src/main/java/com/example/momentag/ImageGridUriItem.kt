@@ -76,7 +76,7 @@ fun ImageGridUriItem(
                                 onToggleSelection()
                             } else {
                                 // Just navigate - ImageContext loaded from Repository
-                                navController.navigate(Screen.Image.createRoute(photo.contentUri))
+                                navController.navigate(Screen.Image.createRoute(photo.contentUri, photo.photoId))
                             }
                         },
                         onLongClick = {
@@ -90,7 +90,7 @@ fun ImageGridUriItem(
                     // 일반 클릭만 지원
                     imageModifier.clickable {
                         // Just navigate - ImageContext loaded from Repository
-                        navController.navigate(Screen.Image.createRoute(photo.contentUri))
+                        navController.navigate(Screen.Image.createRoute(photo.contentUri, photo.photoId))
                     }
                 },
             contentScale = ContentScale.Crop,

@@ -6,16 +6,19 @@ from qdrant_client.http.exceptions import UnexpectedResponse
 QDRANT_URL = settings.QDRANT_CLUSTER_URL
 QDRANT_API_KEY = settings.QDRANT_API_KEY
 
-client = QdrantClient(
-    url=QDRANT_URL,
-    api_key=QDRANT_API_KEY,
-)
 
+def get_qdrant_client():
+    return QdrantClient(
+        url=QDRANT_URL,
+        api_key=QDRANT_API_KEY,
+    )
+    
 IMAGE_COLLECTION_NAME = "my_image_collection"
 REPVEC_COLLECTION_NAME = "my_repvec_collection"
 
 
 def initialize_qdrant():
+    client = get_qdrant_client()
     try:
         client.get_collection(collection_name=IMAGE_COLLECTION_NAME)
     except (UnexpectedResponse, ValueError):
@@ -47,6 +50,7 @@ def initialize_qdrant():
         "lng": models.PayloadSchemaType.FLOAT,
         "isTagged": models.PayloadSchemaType.BOOL,   
     }
+
     for field, schema in image_indexes.items():
         try:
             client.create_payload_index(
@@ -57,11 +61,12 @@ def initialize_qdrant():
         except UnexpectedResponse:
             pass
 
-    refvec_indexes = {
+    repvec_indexes = {
         "user_id": models.PayloadSchemaType.INTEGER,
-        "tag_id": models.PayloadSchemaType.INTEGER,
+        "tag_id": models.PayloadSchemaType.KEYWORD,
     }
-    for field, schema in refvec_indexes.items():
+
+    for field, schema in repvec_indexes.items():
         try:
             client.create_payload_index(
                 collection_name=REPVEC_COLLECTION_NAME,
