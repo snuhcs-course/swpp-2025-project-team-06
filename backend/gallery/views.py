@@ -210,7 +210,6 @@ class PhotoView(APIView):
         ],
     )
     def get(self, request):
-        client = get_qdrant_client()
         try:
             photos = Photo.objects.filter(user=request.user)
             serializer = ResPhotoSerializer(photos, many=True)
@@ -872,6 +871,16 @@ class TagDetailView(APIView):
                     {"error": "Forbidden - you are not the owner of this tag."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+            
+            # 태그 삭제시 영향받는 사진들 is_tagged 필드 업데이트
+            affected_photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user)
+            affected_photo_ids = [pt.photo.photo_id for pt in affected_photo_tags]
+            for affected_photo_id in affected_photo_ids:
+                affected_photo = Photo.objects.get(photo_id=affected_photo_id, user=request.user)
+                affected_photo_tags_count = Photo_Tag.objects.filter(photo=affected_photo, user=request.user).count()
+                if affected_photo_tags_count <= 1:
+                    affected_photo.is_tagged = False
+                    affected_photo.save()
                 
             compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
@@ -1016,9 +1025,7 @@ class StoryView(APIView):
         ]
     )
     def get(self, request):
-        try:
-            import random
-            
+        try:   
             # 페이지네이션 파라미터 가져오기 및 검증
             try:
                 size = int(request.GET.get('size', 20))
