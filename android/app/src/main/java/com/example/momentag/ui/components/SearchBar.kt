@@ -38,32 +38,35 @@ import com.example.momentag.ui.theme.Word
 fun SearchBar(
     onSearch: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Search Anything...",
+    placeholder: String = "Search Photos",
 ) {
     var searchText by remember { mutableStateOf("") }
 
     TextField(
         value = searchText,
         onValueChange = { searchText = it },
-        placeholder = { Text(placeholder, color = Temp_word) },
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        placeholder = { Text(placeholder, color = Color.Gray) },
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
         colors =
             TextFieldDefaults.colors(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = Semi_background,
-                unfocusedContainerColor = Semi_background,
-                unfocusedTextColor = Word,
-                disabledTextColor = Word,
+                focusedContainerColor = Color(0xFFFBC4AB).copy(alpha = 0.3f),
+                unfocusedContainerColor = Color(0xFFFBC4AB).copy(alpha = 0.3f),
+                unfocusedTextColor = Color.Black,
+                focusedTextColor = Color.Black,
+                disabledTextColor = Color.Black,
             ),
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch(searchText) }),
-        trailingIcon = {
-            IconButton(onClick = { onSearch(searchText) }) {
-                Icon(imageVector = Icons.Default.Search, contentDescription = "검색 실행")
-            }
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
+                tint = Color.Gray,
+            )
         },
     )
 }
