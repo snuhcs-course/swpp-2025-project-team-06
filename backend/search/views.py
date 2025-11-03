@@ -5,10 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import re
 from gallery.models import Tag, Photo_Tag
-from gallery.tasks import (
-    create_query_embedding,
-    execute_hybrid_graph_search,
-)
+from gallery.gpu_tasks import create_query_embedding  # GPU-dependent task
+from gallery.tasks import execute_hybrid_graph_search  # CPU task
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from qdrant_client.http import models
 from .response_serializers import PhotoResponseSerializer

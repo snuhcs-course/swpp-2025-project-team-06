@@ -30,18 +30,17 @@ from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 from django.core.cache import cache
 
 from .tasks import (
-    process_and_embed_photo,
     tag_recommendation,
     is_valid_uuid,
     recommend_photo_from_tag,
     recommend_photo_from_photo,
     compute_and_store_rep_vectors,
 )
+from .gpu_tasks import process_and_embed_photo  # GPU-dependent task
 from .storage_service import upload_photo
 
 
