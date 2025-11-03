@@ -152,9 +152,11 @@ object RetrofitInstance {
             val tokenAuthenticator = TokenAuthenticator(context.applicationContext, sessionStore)
 
             val okHttpClient =
-                OkHttpClient
-                    .Builder()
-                    .addInterceptor(authInterceptor)
+                SslHelper
+                    .configureToTrustCertificate(
+                        OkHttpClient.Builder(),
+                        context.applicationContext,
+                    ).addInterceptor(authInterceptor)
                     .authenticator(tokenAuthenticator)
 //                    .connectTimeout(30, TimeUnit.SECONDS)
 //                    .readTimeout(30, TimeUnit.SECONDS)
