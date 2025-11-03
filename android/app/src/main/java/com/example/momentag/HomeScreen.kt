@@ -36,9 +36,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.CollectionsBookmark
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -107,6 +107,8 @@ fun HomeScreen(navController: NavController) {
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
     var onlyTag by remember { mutableStateOf(false) }
+    var showAllPhotos by remember { mutableStateOf(false) }
+    var localPhotos by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isDeleteMode by remember { mutableStateOf(false) }
 
     val permissionLauncher =
@@ -143,6 +145,7 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
             homeViewModel.loadServerTags()
+            localPhotos = loadLocalPhotos(context)
 
             val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED", false)
             if (!hasAlreadyUploaded) {
@@ -278,7 +281,11 @@ fun HomeScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(16.dp))
                 ViewToggle(
                     onlyTag = onlyTag,
-                    onToggle = { onlyTag = it },
+                    showAllPhotos = showAllPhotos,
+                    onToggle = { tagOnly, allPhotos ->
+                        onlyTag = tagOnly
+                        showAllPhotos = allPhotos
+                    },
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -286,13 +293,29 @@ fun HomeScreen(navController: NavController) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
                     }
+                } else if (showAllPhotos) {
+                    // All Photos 모드: 서버 상태와 관계없이 로컬 사진 표시
+                    MainContent(
+                        onlyTag = false,
+                        showAllPhotos = true,
+                        tagItems = emptyList(),
+                        localPhotos = localPhotos,
+                        navController = navController,
+                        onDeleteClick = { },
+                        modifier = Modifier.weight(1f),
+                        isDeleteMode = false,
+                        onEnterDeleteMode = { },
+                        onExitDeleteMode = { },
+                    )
                 } else {
                     when (homeLoadingState) {
                         is HomeViewModel.HomeLoadingState.Success -> {
                             val tagItems = (homeLoadingState as HomeViewModel.HomeLoadingState.Success).tags
                             MainContent(
                                 onlyTag = onlyTag,
+                                showAllPhotos = showAllPhotos,
                                 tagItems = tagItems,
+                                localPhotos = localPhotos,
                                 navController = navController,
                                 onDeleteClick = { tagId ->
                                     homeViewModel.deleteTag(tagId)
@@ -346,7 +369,8 @@ private fun SearchHeader() {
 @Composable
 private fun ViewToggle(
     onlyTag: Boolean,
-    onToggle: (Boolean) -> Unit,
+    showAllPhotos: Boolean,
+    onToggle: (tagOnly: Boolean, allPhotos: Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -358,19 +382,48 @@ private fun ViewToggle(
                     .background(Semi_background, RoundedCornerShape(8.dp))
                     .padding(4.dp),
         ) {
-            Row {
-                Icon(
-                    Icons.Default.GridView,
-                    contentDescription = "Grid View",
-                    tint = if (!onlyTag) Color.White else Color.Gray,
-                    modifier = Modifier.clickable { onToggle(false) },
-                )
-                Icon(
-                    Icons.AutoMirrored.Filled.ViewList,
-                    contentDescription = "List View",
-                    tint = if (onlyTag) Color.White else Color.Gray,
-                    modifier = Modifier.clickable { onToggle(true) },
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Tag Albums (Grid)
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onToggle(false, false) }
+                            .padding(4.dp),
+                ) {
+                    Icon(
+                        Icons.Default.CollectionsBookmark,
+                        contentDescription = "Tag Albums",
+                        tint = if (!onlyTag && !showAllPhotos) Color.White else Color.Gray,
+                    )
+                }
+                // All Photos (Grid)
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onToggle(false, true) }
+                            .padding(4.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Photo,
+                        contentDescription = "All Photos",
+                        tint = if (showAllPhotos) Color.White else Color.Gray,
+                    )
+                }
+                // Tag List (주석처리)
+//                Box(
+//                    modifier = Modifier
+//                        .clip(RoundedCornerShape(4.dp))
+//                        .clickable { onToggle(true, false) }
+//                        .padding(4.dp)
+//                ) {
+//                    Icon(
+//                        Icons.AutoMirrored.Filled.ViewList,
+//                        contentDescription = "Tag List",
+//                        tint = if (onlyTag) Color.White else Color.Gray,
+//                    )
+//                }
             }
         }
     }
@@ -380,7 +433,9 @@ private fun ViewToggle(
 @Composable
 private fun MainContent(
     onlyTag: Boolean,
+    showAllPhotos: Boolean,
     tagItems: List<TagItem>,
+    localPhotos: List<Uri>,
     navController: NavController,
     onDeleteClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -388,39 +443,68 @@ private fun MainContent(
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
 ) {
-    if (!onlyTag) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            modifier = modifier,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            items(tagItems) { item ->
-                TagGridItem(
-                    tagId = item.tagId,
-                    tagName = item.tagName,
-                    imageId = item.coverImageId,
-                    navController = navController,
-                    onDeleteClick = onDeleteClick,
-                    isDeleteMode = isDeleteMode,
-                    onEnterDeleteMode = onEnterDeleteMode,
-                    onExitDeleteMode = onExitDeleteMode,
-                )
+    when {
+        onlyTag -> {
+            // Tag List View
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                tagItems.forEach { item ->
+                    tagX(
+                        text = item.tagName,
+                        onDismiss = {
+                            onDeleteClick(item.tagId)
+                        },
+                    )
+                }
             }
         }
-    } else {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            tagItems.forEach { item ->
-                tagX(
-                    text = item.tagName,
-                    onDismiss = {
-                        onDeleteClick(item.tagId)
-                    },
-                )
+        showAllPhotos -> {
+            // All Photos Grid View
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                items(localPhotos.size) { index ->
+                    AsyncImage(
+                        model = localPhotos[index],
+                        contentDescription = "Photo ${index + 1}",
+                        modifier =
+                            Modifier
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable {
+                                    // TODO: Navigate to photo detail or gallery
+                                },
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+            }
+        }
+        else -> {
+            // Tag Albums Grid View
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                items(tagItems) { item ->
+                    TagGridItem(
+                        tagId = item.tagId,
+                        tagName = item.tagName,
+                        imageId = item.coverImageId,
+                        navController = navController,
+                        onDeleteClick = onDeleteClick,
+                        isDeleteMode = isDeleteMode,
+                        onEnterDeleteMode = onEnterDeleteMode,
+                        onExitDeleteMode = onExitDeleteMode,
+                    )
+                }
             }
         }
     }
@@ -537,4 +621,39 @@ fun TagGridItem(
             }
         }
     }
+}
+
+// Helper function to load all local photos
+private fun loadLocalPhotos(context: Context): List<Uri> {
+    val photos = mutableListOf<Uri>()
+    val projection =
+        arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATE_TAKEN,
+        )
+    val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+
+    val cursor =
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            sortOrder,
+        )
+
+    cursor?.use {
+        val idColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+        while (it.moveToNext()) {
+            val id = it.getLong(idColumn)
+            val uri =
+                ContentUris.withAppendedId(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    id,
+                )
+            photos.add(uri)
+        }
+    }
+
+    return photos
 }
