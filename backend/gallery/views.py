@@ -1,12 +1,10 @@
 import uuid
-import random
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from qdrant_client import models
 
 
 from .reponse_serializers import (
@@ -27,7 +25,7 @@ from .request_serializers import (
 )
 
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag, User, Photo_Caption, Photo
+from .models import Photo_Tag, Tag, Photo
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -45,8 +43,6 @@ from .tasks import (
     compute_and_store_rep_vectors,
 )
 
-
-from django.db import transaction
 
 
 class PhotoView(APIView):

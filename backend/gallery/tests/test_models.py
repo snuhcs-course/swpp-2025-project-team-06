@@ -634,8 +634,8 @@ class ModelIntegrationTest(TestCase):
             photo_path_id=111,
             filename="user1_photo.jpg"
         )
-        tag1 = Tag.objects.create(tag="user1태그", user=self.user1)
-        caption1 = Caption.objects.create(caption="user1 캡션", user=self.user1)
+        Tag.objects.create(tag="user1태그", user=self.user1)
+        Caption.objects.create(caption="user1 캡션", user=self.user1)
 
         # User2의 데이터
         photo2 = Photo.objects.create(
@@ -643,8 +643,8 @@ class ModelIntegrationTest(TestCase):
             photo_path_id=222,
             filename="user2_photo.jpg"
         )
-        tag2 = Tag.objects.create(tag="user2태그", user=self.user2)
-        caption2 = Caption.objects.create(caption="user2 캡션", user=self.user2)
+        Tag.objects.create(tag="user2태그", user=self.user2)
+        Caption.objects.create(caption="user2 캡션", user=self.user2)
 
         # 각 사용자는 자신의 데이터만 조회
         user1_photos = Photo.objects.filter(user=self.user1)

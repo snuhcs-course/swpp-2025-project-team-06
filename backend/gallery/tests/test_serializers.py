@@ -384,7 +384,7 @@ class ResPhotoSerializerTest(TestCase):
     def test_res_photo_serializer_serialization(self):
         """ResPhotoSerializer 직렬화 테스트"""
         test_uuid = uuid.uuid4()
-        test_datetime = datetime.now()
+        datetime.now()
         data = {
             "photo_id": test_uuid, 
             "photo_path_id": 456,
