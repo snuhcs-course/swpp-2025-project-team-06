@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.ImageContext
+import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoTagState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.RecommendRepository
@@ -65,13 +66,27 @@ class ImageDetailViewModel(
             // Found in browsing session
             _imageContext.value = context
         } else {
-            // Not in session - create empty context
-            _imageContext.value =
-                ImageContext(
-                    images = emptyList(),
-                    currentIndex = 0,
-                    contextType = ImageContext.ContextType.GALLERY,
-                )
+            // Not in session - create standalone context from URI if valid
+            // URI 유효성은 UI 레이어에서 검증되어야 하지만,
+            // 여기서도 최소한의 방어 코드 추가
+            val photoId = uri.lastPathSegment
+            if (photoId != null && photoId.isNotEmpty()) {
+                val photo = Photo(photoId = photoId, contentUri = uri)
+                _imageContext.value =
+                    ImageContext(
+                        images = listOf(photo),
+                        currentIndex = 0,
+                        contextType = ImageContext.ContextType.GALLERY,
+                    )
+            } else {
+                // Invalid URI - create empty context
+                _imageContext.value =
+                    ImageContext(
+                        images = emptyList(),
+                        currentIndex = 0,
+                        contextType = ImageContext.ContextType.GALLERY,
+                    )
+            }
         }
     }
 
