@@ -849,38 +849,3 @@ fun TagGridItem(
         }
     }
 }
-
-// Helper function to load all local photos
-private fun loadLocalPhotos(context: Context): List<Uri> {
-    val photos = mutableListOf<Uri>()
-    val projection =
-        arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DATE_TAKEN,
-        )
-    val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
-
-    val cursor =
-        context.contentResolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            null,
-            null,
-            sortOrder,
-        )
-
-    cursor?.use {
-        val idColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-        while (it.moveToNext()) {
-            val id = it.getLong(idColumn)
-            val uri =
-                ContentUris.withAppendedId(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    id,
-                )
-            photos.add(uri)
-        }
-    }
-
-    return photos
-}
