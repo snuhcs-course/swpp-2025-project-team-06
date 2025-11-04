@@ -27,7 +27,8 @@ dependencies = [
     "pymysql>=1.1.2",
     "cryptography>=46.0.3",
     "scikit-learn",
-    "networkx"
+    "networkx",
+    "boto3>=1.40.64",
 ]
 
 [tool.coverage.run]

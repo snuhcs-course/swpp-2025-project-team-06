@@ -1,4 +1,12 @@
-import os
+"""
+CPU-only Celery tasks and helper functions.
+
+This module contains recommendation algorithms, graph-based computations,
+and other CPU-bound tasks that don't require GPU acceleration.
+
+For GPU-dependent tasks (image processing, embeddings), see gpu_tasks.py
+"""
+
 import uuid
 import networkx as nx
 from collections import defaultdict
@@ -8,16 +16,14 @@ from django.conf import settings
 from django.core.cache import cache
 
 from .vision_service import get_image_embedding, get_image_captions
+
 from .qdrant_utils import (
     get_qdrant_client,
     IMAGE_COLLECTION_NAME,
     REPVEC_COLLECTION_NAME,
 )
-from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
+from .models import User, Photo_Caption, Caption, Photo_Tag, Tag, Photo
 
-import time
-import torch
-from sentence_transformers import SentenceTransformer
 
 import numpy as np
 from sklearn.ensemble import IsolationForest
@@ -25,100 +31,6 @@ from sklearn.cluster import KMeans
 import math
 
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
-
-_TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
-_text_model = None  # 전역 캐시
-
-MAX_WAIT = 2.0  # 최대 2초 대기
-WAIT_INTERVAL = 0.1
-
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-
-def get_text_model():
-    """Lazy-load text model inside worker"""
-    global _text_model
-    if _text_model is None:
-        print("[INFO] Loading text model inside worker...")
-        _text_model = SentenceTransformer(_TEXT_MODEL_NAME, device=DEVICE)
-    return _text_model
-
-
-@shared_task
-def process_and_embed_photo(
-    image_path, user_id, filename, photo_path_id, created_at, lat, lng
-):
-    try:
-        client = get_qdrant_client()
-        # 파일이 실제로 생길 때까지 잠시 대기
-        waited = 0
-        while not os.path.exists(image_path) and waited < MAX_WAIT:
-            time.sleep(WAIT_INTERVAL)
-            waited += WAIT_INTERVAL
-
-        if not os.path.exists(image_path):
-            print(
-                f"[Celery Task Error] File not found even after waiting: {image_path}"
-            )
-            return
-
-        embedding = get_image_embedding(image_path)
-
-        if embedding is None:
-            print(f"[Celery Task Error] Failed to create embedding for {filename}")
-            if os.path.exists(image_path):
-                os.remove(image_path)
-            return
-
-        photo_id = uuid.uuid4()
-        point_to_upsert = models.PointStruct(
-            id=str(photo_id),
-            vector=embedding,
-            payload={
-                "user_id": user_id,
-                "filename": filename,
-                "photo_path_id": photo_path_id,
-                "created_at": created_at,
-                "lat": lat,
-                "lng": lng,
-                "isTagged": False,
-            },
-        )
-
-        client.upsert(
-            collection_name=IMAGE_COLLECTION_NAME, points=[point_to_upsert], wait=True
-        )
-        captions = get_image_captions(image_path)
-
-        # asserts that user id has checked
-        user = User.objects.get(id=user_id)
-
-        for word, count in captions.items():
-            caption, _ = Caption.objects.get_or_create(
-                user=user,
-                caption=word,
-            )
-
-            _ = Photo_Caption.objects.create(
-                user=user,
-                photo_id=photo_id,
-                caption=caption,
-                weight=count,
-            )
-
-        print(f"[Celery Task Success] Processed and upserted photo {filename}")
-
-    except Exception as e:
-        print(f"[Celery Task Exception] Error processing {filename}: {str(e)}")
-    finally:
-        if os.path.exists(image_path):
-            os.remove(image_path)
-
-
-@shared_task
-def create_query_embedding(query):
-    model = get_text_model()  # lazy-load
-    return model.encode(query)
 
 
 # aggregates N similarity queries with Reciprocal Rank Fusion
@@ -154,9 +66,8 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     )
 
     tagged_photo_ids = set(
-        str(pid) for pid in Photo_Tag.objects.filter(user=user)
-        .filter(tag_id=tag_id)
-        .values_list("photo_id", flat=True)
+        Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id)
+        .values_list("photo__photo_id", flat=True)
     )
 
     recommendations = [
@@ -306,9 +217,10 @@ def retrieve_photo_caption_graph(user: User):
     caption_set = set()
 
     for photo_caption in Photo_Caption.objects.filter(user=user):
-        if photo_caption.photo_id not in photo_set:
-            photo_set.add(photo_caption.photo_id)
-            graph.add_node(photo_caption.photo_id, bipartite=0)
+        photo_id = photo_caption.photo.photo_id
+        if photo_id not in photo_set:
+            photo_set.add(photo_id)
+            graph.add_node(photo_id, bipartite=0)
             
         caption_id = photo_caption.caption.caption_id
         if caption_id not in caption_set:
@@ -316,7 +228,7 @@ def retrieve_photo_caption_graph(user: User):
             graph.add_node(caption_id, bipartite=1)
 
         graph.add_edge(
-            photo_caption.photo_id, caption_id, weight=photo_caption.weight
+            photo_id, caption_id, weight=photo_caption.weight
         )
 
     return photo_set, caption_set, graph
@@ -358,7 +270,7 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
         idf_scores[caption_obj] = math.log(N / (1 + df))
     
     for photo_caption in caption_relations:
-        photo_id = photo_caption.photo_id
+        photo_id = photo_caption.photo.photo_id
         caption_obj = photo_caption.caption
 
         if photo_id not in photo_set:
@@ -380,7 +292,7 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
         )
         
     for photo_tag in tag_relations:
-        photo_id = photo_tag.photo_id
+        photo_id = photo_tag.photo.photo_id
         tag_obj = photo_tag.tag 
 
         if photo_id not in photo_set:
@@ -540,7 +452,7 @@ def is_valid_uuid(uuid_to_test):
 
 
 @shared_task
-def compute_and_store_rep_vectors(user_id: int, tag_id: str):
+def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
     client = get_qdrant_client()
     K_CLUSTERS = 3           # 기본 코드의 k = 3
     OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
@@ -549,8 +461,8 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: str):
     print(f"[Task Start] RepVec computation for User: {user_id}, Tag: {tag_id}")
 
     try:
-        photo_tags = Photo_Tag.objects.filter(user_id=user_id, tag_id=tag_id)
-        photo_ids = [str(pt.photo_id) for pt in photo_tags]
+        photo_tags = Photo_Tag.objects.filter(user__id=user_id, tag__tag_id=tag_id)
+        photo_ids = [str(pt.photo.photo_id) for pt in photo_tags]
 
         delete_filter = models.Filter(
             must=[

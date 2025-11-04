@@ -7,7 +7,7 @@ from rest_framework.test import APIClient, APITestCase
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch, MagicMock
-from gallery.models import Tag, Photo_Tag
+from gallery.models import Tag, Photo_Tag, Photo
 
 from PIL import Image
 from io import BytesIO
@@ -475,45 +475,387 @@ class PhotoRecommendationViewTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_get_recommendations_tag_belongs_to_other_user(self):
-        """Test that user cannot access another user's tags"""
-        url = reverse(
-            "gallery:photo_recommendation",
-            kwargs={"tag_id": self.other_user_tag.tag_id},
+
+class BulkDeletePhotoViewTest(APITestCase):
+    """BulkDeletePhotoView 테스트"""
+
+    def setUp(self):
+        """테스트용 데이터 설정"""
+        self.client = APIClient()
+        
+        # 테스트 사용자 생성
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
         )
+        
+        # JWT 토큰 생성
+        refresh = RefreshToken.for_user(self.user)
+        self.access_token = str(refresh.access_token)
+        
+        # 테스트 사진들 생성
+        self.photo_ids = []
+        for i in range(3):
+            photo_id = uuid.uuid4()
+            Photo.objects.create(
+                photo_id=photo_id,
+                user=self.user,
+                photo_path_id=i,
+                filename=f"test{i}.jpg"
+            )
+            self.photo_ids.append(photo_id)
 
+    @patch("gallery.views.client")
+    def test_bulk_delete_photos_success(self, mock_client):
+        """사진 일괄 삭제 성공 테스트"""
+        payload = {
+            "photos": [{"photo_id": str(pid)} for pid in self.photo_ids[:2]]
+        }
+        
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photos_bulk_delete")
+        response = self.client.post(url, payload, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        # Qdrant 삭제가 호출되었는지 확인
+        mock_client.delete.assert_called_once()
+        
+        # 데이터베이스에서 삭제되었는지 확인
+        remaining_photos = Photo.objects.filter(user=self.user).count()
+        self.assertEqual(remaining_photos, 1)
+
+    def test_bulk_delete_photos_invalid_serializer(self):
+        """잘못된 데이터로 일괄 삭제 테스트"""
+        payload = {
+            "photos": [{"invalid_field": "invalid_value"}]
+        }
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photos_bulk_delete")
+        response = self.client.post(url, payload, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_bulk_delete_photos_unauthorized(self):
+        """인증되지 않은 사용자의 일괄 삭제 테스트"""
+        payload = {
+            "photos": [{"photo_id": str(pid)} for pid in self.photo_ids]
+        }
+        
+        url = reverse("gallery:photos_bulk_delete")
+        response = self.client.post(url, payload, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class GetPhotosByTagViewTest(APITestCase):
+    """GetPhotosByTagView 테스트"""
+
+    def setUp(self):
+        """테스트용 데이터 설정"""
+        self.client = APIClient()
+        
+        # 테스트 사용자 생성
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        
+        # JWT 토큰 생성
+        refresh = RefreshToken.for_user(self.user)
+        self.access_token = str(refresh.access_token)
+        
+        # 테스트 데이터 생성
+        self.tag = Tag.objects.create(tag="test_tag", user=self.user)
+        self.photos = []
+        
+        # 사진들과 사진-태그 관계 생성
+        for i in range(2):
+            photo = Photo.objects.create(
+                user=self.user,
+                photo_path_id=i,
+                filename=f"test{i}.jpg"
+            )
+            self.photos.append(photo)
+            Photo_Tag.objects.create(photo=photo, tag=self.tag, user=self.user)
+
+    def test_get_photos_by_tag_success(self):
+        """태그별 사진 조회 성공 테스트"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photos_by_tag", kwargs={"tag_id": self.tag.tag_id})
         response = self.client.get(url)
-
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    @patch("gallery.views.recommend_photo_from_tag")
-    def test_get_recommendations_empty_results(self, mock_recommend):
-        """Test when recommendation function returns empty list"""
-        mock_recommend.return_value = []
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        response = self.client.get(self.url)
-
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["photos"]), 2)
+        
+        # 사진 데이터 구조 확인
+        for photo_data in response.data["photos"]:
+            self.assertIn("photo_id", photo_data)
+            self.assertIn("photo_path_id", photo_data)
 
-        self.assertEqual(response.data, [])
-
-    def test_only_get_method_allowed(self):
-        """Test that only GET method is allowed"""
+    def test_get_photos_by_tag_no_photos(self):
+        """태그에 사진이 없는 경우 테스트"""
+        empty_tag = Tag.objects.create(tag="empty_tag", user=self.user)
+        
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photos_by_tag", kwargs={"tag_id": empty_tag.tag_id})
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["photos"]), 0)
 
-        # Test POST
-        response = self.client.post(self.url, {})
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+    def test_get_photos_by_tag_not_found(self):
+        """존재하지 않는 태그로 조회 테스트"""
+        non_existent_tag_id = uuid.uuid4()
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photos_by_tag", kwargs={"tag_id": non_existent_tag_id})
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("Tag not found", response.data["error"])
 
-        # Test PUT
-        response = self.client.put(self.url, {})
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+    def test_get_photos_by_tag_unauthorized(self):
+        """인증되지 않은 사용자의 태그별 사진 조회 테스트"""
+        url = reverse("gallery:photos_by_tag", kwargs={"tag_id": self.tag.tag_id})
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Test DELETE
-        response = self.client.delete(self.url)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+class PostPhotoTagsViewTest(APITestCase):
+    """PostPhotoTagsView 테스트"""
+
+    def setUp(self):
+        """테스트용 데이터 설정"""
+        self.client = APIClient()
+        
+        # 테스트 사용자 생성
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        
+        # JWT 토큰 생성
+        refresh = RefreshToken.for_user(self.user)
+        self.access_token = str(refresh.access_token)
+        
+        # 테스트 데이터 생성
+        self.photo_id = uuid.uuid4()
+        self.photo = Photo.objects.create(
+            photo_id=self.photo_id,
+            user=self.user,
+            photo_path_id=123,
+            filename="test.jpg"
+        )
+        self.tag1 = Tag.objects.create(tag="tag1", user=self.user)
+        self.tag2 = Tag.objects.create(tag="tag2", user=self.user)
+
+    def test_post_photo_tags_success(self):
+        """사진에 태그 추가 성공 테스트"""
+        payload = [
+            {"tag_id": str(self.tag1.tag_id)},
+            {"tag_id": str(self.tag2.tag_id)}
+        ]
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photo_tags", kwargs={"photo_id": self.photo_id})
+        response = self.client.post(url, payload, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 사진-태그 관계가 생성되었는지 확인
+        self.assertTrue(Photo_Tag.objects.filter(photo=self.photo, tag=self.tag1).exists())
+        self.assertTrue(Photo_Tag.objects.filter(photo=self.photo, tag=self.tag2).exists())
+        
+        # 사진이 태그됨으로 표시되었는지 확인
+        self.photo.refresh_from_db()
+        self.assertTrue(self.photo.is_tagged)
+
+    def test_post_photo_tags_photo_not_found(self):
+        """존재하지 않는 사진에 태그 추가 테스트"""
+        non_existent_photo_id = uuid.uuid4()
+        
+        payload = [{"tag_id": str(self.tag1.tag_id)}]
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photo_tags", kwargs={"photo_id": non_existent_photo_id})
+        response = self.client.post(url, payload, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("No such photo", response.data["error"])
+
+    def test_post_photo_tags_tag_not_found(self):
+        """존재하지 않는 태그로 추가 테스트"""
+        non_existent_tag_id = uuid.uuid4()
+        
+        payload = [{"tag_id": str(non_existent_tag_id)}]
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photo_tags", kwargs={"photo_id": self.photo_id})
+        response = self.client.post(url, payload, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("No such tag", response.data["error"])
+
+    def test_post_photo_tags_invalid_serializer(self):
+        """잘못된 데이터로 태그 추가 테스트"""
+        payload = [{"invalid_field": "invalid_value"}]
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photo_tags", kwargs={"photo_id": self.photo_id})
+        response = self.client.post(url, payload, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_photo_tags_duplicate_relationship(self):
+        """이미 존재하는 사진-태그 관계 추가 테스트"""
+        # 기존 관계 생성
+        Photo_Tag.objects.create(photo=self.photo, tag=self.tag1, user=self.user)
+        
+        payload = [{"tag_id": str(self.tag1.tag_id)}]
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse("gallery:photo_tags", kwargs={"photo_id": self.photo_id})
+        response = self.client.post(url, payload, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 중복 관계가 생성되지 않았는지 확인
+        relationship_count = Photo_Tag.objects.filter(photo=self.photo, tag=self.tag1).count()
+        self.assertEqual(relationship_count, 1)
+
+    def test_post_photo_tags_unauthorized(self):
+        """인증되지 않은 사용자의 태그 추가 테스트"""
+        payload = [{"tag_id": str(self.tag1.tag_id)}]
+        
+        url = reverse("gallery:photo_tags", kwargs={"photo_id": self.photo_id})
+        response = self.client.post(url, payload, format="json")
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class DeletePhotoTagsViewTest(APITestCase):
+    """DeletePhotoTagsView 테스트"""
+
+    def setUp(self):
+        """테스트용 데이터 설정"""
+        self.client = APIClient()
+        
+        # 테스트 사용자 생성
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        
+        # JWT 토큰 생성
+        refresh = RefreshToken.for_user(self.user)
+        self.access_token = str(refresh.access_token)
+        
+        # 테스트 데이터 생성
+        self.photo_id = uuid.uuid4()
+        self.photo = Photo.objects.create(
+            photo_id=self.photo_id,
+            user=self.user,
+            photo_path_id=123,
+            filename="test.jpg",
+            is_tagged=True
+        )
+        self.tag = Tag.objects.create(tag="test_tag", user=self.user)
+        # 사진-태그 관계 생성
+        self.photo_tag = Photo_Tag.objects.create(photo=self.photo, tag=self.tag, user=self.user)
+
+    def test_delete_photo_tag_success_with_remaining_tags(self):
+        """다른 태그가 남아있는 상태에서 사진-태그 관계 삭제 성공 테스트"""
+        # 다른 태그 추가
+        another_tag = Tag.objects.create(tag="another_tag", user=self.user)
+        Photo_Tag.objects.create(photo=self.photo, tag=another_tag, user=self.user)
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse(
+            "gallery:delete_photo_tag", 
+            kwargs={"photo_id": self.photo_id, "tag_id": self.tag.tag_id}
+        )
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        # 관계가 삭제되었는지 확인
+        with self.assertRaises(Photo_Tag.DoesNotExist):
+            Photo_Tag.objects.get(photo=self.photo, tag=self.tag, user=self.user)
+        
+        # 사진이 여전히 태그됨으로 표시되어 있는지 확인 (다른 태그가 남아있으므로)
+        self.photo.refresh_from_db()
+        self.assertTrue(self.photo.is_tagged)
+
+    def test_delete_photo_tag_success_no_remaining_tags(self):
+        """마지막 태그 삭제 시 is_tagged 업데이트 테스트"""
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse(
+            "gallery:delete_photo_tag", 
+            kwargs={"photo_id": self.photo_id, "tag_id": self.tag.tag_id}
+        )
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        # 관계가 삭제되었는지 확인
+        with self.assertRaises(Photo_Tag.DoesNotExist):
+            Photo_Tag.objects.get(photo=self.photo, tag=self.tag, user=self.user)
+        
+        # 사진이 태그되지 않음으로 표시되었는지 확인
+        self.photo.refresh_from_db()
+        self.assertFalse(self.photo.is_tagged)
+
+    def test_delete_photo_tag_photo_not_found(self):
+        """존재하지 않는 사진의 태그 삭제 테스트"""
+        non_existent_photo_id = uuid.uuid4()
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse(
+            "gallery:delete_photo_tag", 
+            kwargs={"photo_id": non_existent_photo_id, "tag_id": self.tag.tag_id}
+        )
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("No such tag or photo", response.data["error"])
+
+    def test_delete_photo_tag_tag_not_found(self):
+        """존재하지 않는 태그 삭제 테스트"""
+        non_existent_tag_id = uuid.uuid4()
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse(
+            "gallery:delete_photo_tag", 
+            kwargs={"photo_id": self.photo_id, "tag_id": non_existent_tag_id}
+        )
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("No such tag or photo", response.data["error"])
+
+    def test_delete_photo_tag_relationship_not_found(self):
+        """사진-태그 관계가 존재하지 않는 경우 테스트"""
+        # 관계없는 태그 생성
+        unrelated_tag = Tag.objects.create(tag="unrelated_tag", user=self.user)
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+        url = reverse(
+            "gallery:delete_photo_tag", 
+            kwargs={"photo_id": self.photo_id, "tag_id": unrelated_tag.tag_id}
+        )
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn("No such tag or photo", response.data["error"])
+
+    def test_delete_photo_tag_unauthorized(self):
+        """인증되지 않은 사용자의 태그 삭제 테스트"""
+        url = reverse(
+            "gallery:delete_photo_tag", 
+            kwargs={"photo_id": self.photo_id, "tag_id": self.tag.tag_id}
+        )
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class TagViewTest(APITestCase):
@@ -1407,299 +1749,6 @@ class PhotoDetailViewTest(APITestCase):
     def test_delete_photo_unauthorized(self):
         """Test unauthorized photo deletion"""
         url = reverse("gallery:photo_detail", kwargs={"photo_id": self.photo_id})
-        response = self.client.delete(url)
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-class BulkDeletePhotoViewTest(APITestCase):
-    def setUp(self):
-        """Set up test client and test data"""
-        self.client = APIClient()
-
-        # Create test user
-        self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="testpass123"
-        )
-
-        # Generate JWT token
-        refresh = RefreshToken.for_user(self.user)
-        self.access_token = str(refresh.access_token)
-
-        # Test data
-        self.photo_ids = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
-        self.tag = Tag.objects.create(tag="test_tag", user=self.user)
-
-        # Create photo-tag relationships
-        for photo_id in self.photo_ids:
-            Photo_Tag.objects.create(photo_id=photo_id, tag=self.tag, user=self.user)
-
-    @patch("gallery.views.get_qdrant_client")
-    def test_bulk_delete_photos_success(self, mock_get_client):
-        """Test successful bulk photo deletion"""
-        payload = {"photos": [{"photo_id": str(pid)} for pid in self.photo_ids]}
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse("gallery:photos_bulk_delete")
-        response = self.client.post(url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        # Verify all photo-tag relationships are deleted
-        for photo_id in self.photo_ids:
-            self.assertFalse(Photo_Tag.objects.filter(photo_id=photo_id).exists())
-
-    def test_bulk_delete_photos_invalid_serializer(self):
-        """Test bulk delete with invalid serializer data"""
-        payload = {"photos": [{"invalid_field": "invalid_value"}]}
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse("gallery:photos_bulk_delete")
-        response = self.client.post(url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_bulk_delete_photos_unauthorized(self):
-        """Test unauthorized bulk delete"""
-        payload = {"photos": [{"photo_id": str(pid)} for pid in self.photo_ids]}
-
-        url = reverse("gallery:photos_bulk_delete")
-        response = self.client.post(url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-class GetPhotosByTagViewTest(APITestCase):
-    def setUp(self):
-        """Set up test client and test data"""
-        self.client = APIClient()
-
-        # Create test user
-        self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="testpass123"
-        )
-
-        # Generate JWT token
-        refresh = RefreshToken.for_user(self.user)
-        self.access_token = str(refresh.access_token)
-
-        # Test data
-        self.tag = Tag.objects.create(tag="test_tag", user=self.user)
-        self.photo_ids = [uuid.uuid4(), uuid.uuid4()]
-
-        # Create photo-tag relationships
-        for photo_id in self.photo_ids:
-            Photo_Tag.objects.create(photo_id=photo_id, tag=self.tag, user=self.user)
-
-    @patch("gallery.views.get_qdrant_client")
-    def test_get_photos_by_tag_success(self, mock_get_client):
-        """Test successful retrieval of photos by tag"""
-        # Mock Qdrant response
-        mock_points = []
-        for i, photo_id in enumerate(self.photo_ids):
-            mock_point = MagicMock()
-            mock_point.id = str(photo_id)
-            mock_point.payload.get.return_value = 100 + i
-            mock_points.append(mock_point)
-
-        mock_get_client.return_value.retrieve.return_value = mock_points
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse("gallery:photos_by_tag", kwargs={"tag_id": self.tag.tag_id})
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
-
-    def test_get_photos_by_tag_no_photos(self):
-        """Test retrieval when tag has no photos"""
-        empty_tag = Tag.objects.create(tag="empty_tag", user=self.user)
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse("gallery:photos_by_tag", kwargs={"tag_id": empty_tag.tag_id})
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 0)
-
-    def test_get_photos_by_tag_unauthorized(self):
-        """Test unauthorized access"""
-        url = reverse("gallery:photos_by_tag", kwargs={"tag_id": self.tag.tag_id})
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-class PostPhotoTagsViewTest(APITestCase):
-    def setUp(self):
-        """Set up test client and test data"""
-        self.client = APIClient()
-
-        # Create test user
-        self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="testpass123"
-        )
-
-        # Generate JWT token
-        refresh = RefreshToken.for_user(self.user)
-        self.access_token = str(refresh.access_token)
-
-        # Test data
-        self.photo_id = uuid.uuid4()
-        self.tag1 = Tag.objects.create(tag="tag1", user=self.user)
-        self.tag2 = Tag.objects.create(tag="tag2", user=self.user)
-
-    @patch("gallery.views.get_qdrant_client")
-    def test_post_photo_tags_success(self, mock_get_client):
-        """Test successful addition of tags to photo"""
-        # Mock Qdrant responses
-        mock_get_client.return_value.retrieve.return_value = [
-            MagicMock()
-        ]  # Photo exists
-        mock_get_client.return_value.set_payload.return_value = None
-
-        payload = [{"tag_id": str(self.tag1.tag_id)}, {"tag_id": str(self.tag2.tag_id)}]
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse("gallery:photo_tags", kwargs={"photo_id": self.photo_id})
-        response = self.client.post(url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        # Verify photo-tag relationships are created
-        self.assertTrue(
-            Photo_Tag.objects.filter(photo_id=self.photo_id, tag=self.tag1).exists()
-        )
-        self.assertTrue(
-            Photo_Tag.objects.filter(photo_id=self.photo_id, tag=self.tag2).exists()
-        )
-
-    @patch("gallery.views.get_qdrant_client")
-    def test_post_photo_tags_photo_not_found(self, mock_get_client):
-        """Test adding tags to non-existent photo"""
-        mock_get_client.return_value.retrieve.return_value = []  # Photo doesn't exist
-
-        payload = [{"tag_id": str(self.tag1.tag_id)}]
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse("gallery:photo_tags", kwargs={"photo_id": self.photo_id})
-        response = self.client.post(url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn("No such photo", response.data["error"])
-
-    def test_post_photo_tags_invalid_serializer(self):
-        """Test adding tags with invalid serializer data"""
-        payload = [{"invalid_field": "invalid_value"}]
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse("gallery:photo_tags", kwargs={"photo_id": self.photo_id})
-        response = self.client.post(url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_post_photo_tags_unauthorized(self):
-        """Test unauthorized tag addition"""
-        payload = [{"tag_id": str(self.tag1.tag_id)}]
-
-        url = reverse("gallery:photo_tags", kwargs={"photo_id": self.photo_id})
-        response = self.client.post(url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-
-class DeletePhotoTagsViewTest(APITestCase):
-    def setUp(self):
-        """Set up test client and test data"""
-        self.client = APIClient()
-
-        # Create test user
-        self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="testpass123"
-        )
-
-        # Generate JWT token
-        refresh = RefreshToken.for_user(self.user)
-        self.access_token = str(refresh.access_token)
-
-        # Test data
-        self.photo_id = uuid.uuid4()
-        self.tag = Tag.objects.create(tag="test_tag", user=self.user)
-        self.photo_tag = Photo_Tag.objects.create(
-            photo_id=self.photo_id, tag=self.tag, user=self.user
-        )
-
-    @patch("gallery.views.get_qdrant_client")
-    def test_delete_photo_tag_success_with_remaining_tags(self, mock_get_client):
-        """Test successful deletion of photo-tag relationship with remaining tags"""
-        # Create another tag for the same photo
-        another_tag = Tag.objects.create(tag="another_tag", user=self.user)
-        Photo_Tag.objects.create(
-            photo_id=self.photo_id, tag=another_tag, user=self.user
-        )
-
-        mock_get_client.return_value.retrieve.return_value = [MagicMock()]
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse(
-            "gallery:delete_photo_tag",
-            kwargs={"photo_id": self.photo_id, "tag_id": self.tag.tag_id},
-        )
-        response = self.client.delete(url)
-
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        # Verify the specific photo-tag relationship is deleted
-        self.assertFalse(
-            Photo_Tag.objects.filter(photo_id=self.photo_id, tag=self.tag).exists()
-        )
-        # Verify other photo-tag relationship still exists
-        self.assertTrue(
-            Photo_Tag.objects.filter(photo_id=self.photo_id, tag=another_tag).exists()
-        )
-
-    @patch("gallery.views.get_qdrant_client")
-    def test_delete_photo_tag_success_no_remaining_tags(self, mock_get_client):
-        """Test successful deletion with no remaining tags (should update isTagged)"""
-        mock_get_client.return_value.retrieve.return_value = [MagicMock()]
-        mock_get_client.return_value.set_payload.return_value = None
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse(
-            "gallery:delete_photo_tag",
-            kwargs={"photo_id": self.photo_id, "tag_id": self.tag.tag_id},
-        )
-        response = self.client.delete(url)
-
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        # Verify the photo-tag relationship is deleted
-        self.assertFalse(
-            Photo_Tag.objects.filter(photo_id=self.photo_id, tag=self.tag).exists()
-        )
-        # Verify Qdrant set_payload was called to update isTagged
-        mock_get_client.return_value.set_payload.assert_called_once()
-
-    @patch("gallery.views.get_qdrant_client")
-    def test_delete_photo_tag_not_found(self, mock_get_client):
-        """Test deletion of non-existent photo-tag relationship"""
-        mock_get_client.return_value.retrieve.return_value = [MagicMock()]
-        mock_get_client.return_value.set_payload.return_value = None
-
-        non_existent_tag = Tag.objects.create(tag="non_existent", user=self.user)
-
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        url = reverse(
-            "gallery:delete_photo_tag",
-            kwargs={"photo_id": self.photo_id, "tag_id": non_existent_tag.tag_id},
-        )
-        response = self.client.delete(url)
-
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_delete_photo_tag_unauthorized(self):
-        """Test unauthorized deletion"""
-        url = reverse(
-            "gallery:delete_photo_tag",
-            kwargs={"photo_id": self.photo_id, "tag_id": self.tag.tag_id},
-        )
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

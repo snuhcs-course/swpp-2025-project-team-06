@@ -218,3 +218,14 @@ CACHES = {
         "LOCATION": "combined_graph",
     }
 }
+
+# Storage backend configuration
+STORAGE_BACKEND = env('STORAGE_BACKEND', default='local')  # 'local' or 'minio'
+
+# MinIO settings (only needed when STORAGE_BACKEND='minio')
+MINIO_ENDPOINT_URL = env('MINIO_ENDPOINT_URL', default='http://localhost:9000')
+MINIO_ACCESS_KEY = env('MINIO_ACCESS_KEY', default='')
+MINIO_SECRET_KEY = env('MINIO_SECRET_KEY', default='')
+MINIO_BUCKET_NAME = env('MINIO_BUCKET_NAME', default='momentag-photos')
+MINIO_PREFIX = env('MINIO_PREFIX', default='temp-photos')  # Optional folder prefix
+MINIO_REGION = env('MINIO_REGION', default='us-east-1')  # S3 compatibility
