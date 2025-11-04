@@ -68,13 +68,23 @@ class HomeViewModel(
                 is RemoteRepository.Result.Success -> {
                     val tags = result.data
 
-                    _homeLoadingState.value =
-                        HomeLoadingState.Success(
-                            tags =
-                                tags.map {
-                                    TagItem(it.tagName, null, it.tagId)
-                                },
-                        )
+                    // 각 태그의 첫 번째 사진을 썸네일로 가져오기
+                    val tagItems =
+                        tags.map { tag ->
+                            // 각 태그의 사진 목록을 가져와서 첫 번째 사진의 photoPathId를 사용
+                            val photosResult = remoteRepository.getPhotosByTag(tag.tagId)
+                            val coverImageId =
+                                when (photosResult) {
+                                    is RemoteRepository.Result.Success -> {
+                                        photosResult.data.firstOrNull()?.photoPathId
+                                    }
+                                    else -> null
+                                }
+
+                            TagItem(tag.tagName, coverImageId, tag.tagId)
+                        }
+
+                    _homeLoadingState.value = HomeLoadingState.Success(tags = tagItems)
                 }
 
                 is RemoteRepository.Result.Error -> {
