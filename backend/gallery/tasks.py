@@ -41,22 +41,24 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
 
     rrf_scores = defaultdict(float)
-    photo_id_to_path_id = {}
+    all_photo_ids = set()
 
     for rep_vector in rep_vectors:
         search_result = client.search(
             IMAGE_COLLECTION_NAME,
             query_vector=rep_vector,
-            with_payload=["photo_path_id"],
             limit=LIMIT,
         )
 
         for i, img_point in enumerate(search_result):
             photo_id = img_point.id
-            photo_path_id = img_point.payload["photo_path_id"]
-
+            all_photo_ids.add(photo_id)
             rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
-            photo_id_to_path_id[photo_id] = photo_path_id
+
+    # Fetch photo_path_id from Photo model instead of Qdrant
+    photo_uuids = [uuid.UUID(pid) for pid in all_photo_ids]
+    photos = Photo.objects.filter(photo_id__in=photo_uuids).values('photo_id', 'photo_path_id')
+    photo_id_to_path_id = {str(p['photo_id']): p['photo_path_id'] for p in photos}
 
     rrf_sorted = sorted(
         rrf_scores.items(),
@@ -124,15 +126,16 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
 
     recommend_photos = list(map(lambda t: str(t[0]), sorted_scores[:LIMIT]))
 
-    points = client.retrieve(
-        collection_name=IMAGE_COLLECTION_NAME,
-        ids=recommend_photos,
-        with_payload=["photo_path_id"],
-    )
+    # Fetch photo_path_id from Photo model instead of Qdrant
+    photo_uuids = [uuid.UUID(pid) for pid in recommend_photos]
+    photos = Photo.objects.filter(photo_id__in=photo_uuids).values('photo_id', 'photo_path_id')
+    id_to_path = {str(p['photo_id']): p['photo_path_id'] for p in photos}
 
+    # Maintain order from sorted scores
     return [
-        {"photo_id": point.id, "photo_path_id": point.payload["photo_path_id"]}
-        for point in points
+        {"photo_id": pid, "photo_path_id": id_to_path[pid]}
+        for pid in recommend_photos
+        if pid in id_to_path
     ]
 
 
@@ -384,24 +387,19 @@ def execute_hybrid_graph_search(
     if not recommend_photos:
         return []
 
-    # Qdrant에서 최종 정보 조회
-    points = client.retrieve(
-        collection_name=IMAGE_COLLECTION_NAME,
-        ids=recommend_photos,
-        with_payload=["photo_path_id"],
-    )
+    # Fetch photo_path_id from Photo model instead of Qdrant
+    photo_uuids = [uuid.UUID(pid) for pid in recommend_photos]
+    photos = Photo.objects.filter(photo_id__in=photo_uuids).values('photo_id', 'photo_path_id')
 
-    # 정렬 순서 유지를 위해 ID를 키로 하는 딕셔너리 생성
-    points_dict = {point.id: point.payload.get("photo_path_id") for point in points}
+    # Build lookup dict to maintain order
+    id_to_path = {str(p['photo_id']): p['photo_path_id'] for p in photos}
 
-    # RWR/AA로 정렬된 순서대로 최종 결과 생성
-    final_results = []
-    for photo_id in recommend_photos:
-        photo_path_id = points_dict.get(photo_id)
-        if photo_path_id is not None:
-            final_results.append(
-                {"photo_id": photo_id, "photo_path_id": photo_path_id}
-            )
+    # RWR/AA로 정렬된 순서대로 최종 결과 생성 (maintain order from sorted scores)
+    final_results = [
+        {"photo_id": photo_id, "photo_path_id": id_to_path[photo_id]}
+        for photo_id in recommend_photos
+        if photo_id in id_to_path
+    ]
     return final_results
 
 

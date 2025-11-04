@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import re
-from gallery.models import Tag, Photo_Tag
+from gallery.models import Tag, Photo_Tag, Photo
 from .embedding_service import create_query_embedding
 from gallery.tasks import execute_hybrid_graph_search
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
@@ -143,35 +143,40 @@ class SemanticSearchView(APIView):
                 tag_ids = [tag.tag_id for tag in valid_tags]
 
                 photo_tags = Photo_Tag.objects.filter(
-                    user=user, 
+                    user=user,
                     tag_id__in=tag_ids
                 ).values_list('photo_id', flat=True).distinct()
 
-                photo_ids_str = [str(pid) for pid in photo_tags]
+                if photo_tags:
+                    # Fetch photo_path_id from Photo model instead of Qdrant
+                    photos = Photo.objects.filter(
+                        photo_id__in=photo_tags
+                    ).values('photo_id', 'photo_path_id')
 
-                if photo_ids_str:
-                    points = client.retrieve(
-                        collection_name=IMAGE_COLLECTION_NAME,
-                        ids=photo_ids_str,
-                        with_payload=["photo_path_id"],
-                    )
-                    
                     final_results = [
-                        {"photo_id": point.id, "photo_path_id": point.payload["photo_path_id"]}
-                        for point in points
+                        {"photo_id": str(p['photo_id']), "photo_path_id": p['photo_path_id']}
+                        for p in photos
                     ]
 
             elif semantic_query and not valid_tags:
                 # (B) 시맨틱 쿼리만 있는 경우 (기존 검색과 동일)
                 if semantic_photo_ids:
-                    points = client.retrieve(
-                        collection_name=IMAGE_COLLECTION_NAME,
-                        ids=semantic_photo_ids,
-                        with_payload=["photo_path_id"],
-                    )
+                    # Convert string IDs to UUIDs for Photo model query
+                    photo_uuids = [uuid.UUID(pid) for pid in semantic_photo_ids]
+
+                    # Fetch photo_path_id from Photo model instead of Qdrant
+                    photos = Photo.objects.filter(
+                        photo_id__in=photo_uuids
+                    ).values('photo_id', 'photo_path_id')
+
+                    # Build lookup dict to maintain order
+                    id_to_path = {str(p['photo_id']): p['photo_path_id'] for p in photos}
+
+                    # Maintain order from semantic search results
                     final_results = [
-                        {"photo_id": point.id, "photo_path_id": point.payload["photo_path_id"]}
-                        for point in points
+                        {"photo_id": pid, "photo_path_id": id_to_path[pid]}
+                        for pid in semantic_photo_ids
+                        if pid in id_to_path
                     ]
 
             elif semantic_query and valid_tags:
