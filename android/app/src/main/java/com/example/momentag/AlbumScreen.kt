@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
@@ -97,6 +98,7 @@ fun AlbumScreen(
     val imageLoadState by albumViewModel.albumLoadingState.collectAsState()
     val tagDeleteState by albumViewModel.tagDeleteState.collectAsState()
     val tagRenameState by albumViewModel.tagRenameState.collectAsState()
+    val tagAddState by albumViewModel.tagAddState.collectAsState()
 
     // State for main album delete mode
     var isAlbumDeleteMode by remember { mutableStateOf(false) }
@@ -117,7 +119,6 @@ fun AlbumScreen(
         isAlbumDeleteMode = false
     }
 
-    // Handle delete success/error
     LaunchedEffect(tagDeleteState) {
         when (val state = tagDeleteState) {
             is AlbumViewModel.TagDeleteState.Success -> {
@@ -132,7 +133,6 @@ fun AlbumScreen(
         }
     }
 
-    // Handle rename success/error
     LaunchedEffect(tagRenameState) {
         when (val state = tagRenameState) {
             is AlbumViewModel.TagRenameState.Success -> {
@@ -144,6 +144,21 @@ fun AlbumScreen(
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
                 editableTagName = currentTagName // reset the text field to the last known good name
                 albumViewModel.resetRenameState()
+            }
+            else -> Unit // Idle, Loading
+        }
+    }
+
+    // Handle Add Photos state (success/error toast)
+    LaunchedEffect(tagAddState) {
+        when (val state = tagAddState) {
+            is AlbumViewModel.TagAddState.Success -> {
+                Toast.makeText(context, "Photos added to album", Toast.LENGTH_SHORT).show()
+                albumViewModel.resetAddState()
+            }
+            is AlbumViewModel.TagAddState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                albumViewModel.resetAddState()
             }
             else -> Unit // Idle, Loading
         }
@@ -308,6 +323,9 @@ fun AlbumScreen(
                         onDeleteTagFromPhoto = { photoId, tagIdValue ->
                             albumViewModel.deleteTagFromPhoto(photoId, tagIdValue)
                         },
+                        onAddPhotosToAlbum = { photos ->
+                            albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId)
+                        }
                     )
                 }
             }
@@ -319,14 +337,15 @@ fun AlbumScreen(
 private fun AlbumContent(
     albumLoadState: AlbumViewModel.AlbumLoadingState,
     recommendLoadState: AlbumViewModel.RecommendLoadingState,
-    selectedRecommendPhotos: List<com.example.momentag.model.Photo>,
+    selectedRecommendPhotos: List<Photo>,
     navController: NavController,
-    onToggleRecommendPhoto: (com.example.momentag.model.Photo) -> Unit,
+    onToggleRecommendPhoto: (Photo) -> Unit,
     onResetSelection: () -> Unit,
     tagId: String,
     isAlbumDeleteMode: Boolean,
     onEnterAlbumDeleteMode: () -> Unit,
     onDeleteTagFromPhoto: (String, String) -> Unit,
+    onAddPhotosToAlbum: (List<Photo>) -> Unit
 ) {
     var isRecommendSelectionMode by remember { mutableStateOf(false) }
     var recommendOffsetY by remember { mutableFloatStateOf(600f) }
@@ -526,9 +545,10 @@ private fun AlbumContent(
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Button(
                                         onClick = {
-                                            // Navigate to AddTag screen with selected photos
-                                            // TODO: Store selected photos in DraftTagRepository first
-                                            navController.navigate(Screen.AddTag.route)
+                                            // Call the new lambda from ViewModel
+                                            onAddPhotosToAlbum(selectedRecommendPhotos)
+
+                                            // Reset UI state
                                             isRecommendSelectionMode = false
                                             onResetSelection()
                                         },

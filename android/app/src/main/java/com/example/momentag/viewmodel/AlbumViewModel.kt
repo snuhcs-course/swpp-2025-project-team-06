@@ -8,6 +8,7 @@ import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
+import com.example.momentag.viewmodel.AddTagViewModel.SaveState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,6 +74,18 @@ class AlbumViewModel(
         ) : TagRenameState()
     }
 
+    sealed class TagAddState {
+        object Idle : TagAddState()
+
+        object Loading : TagAddState()
+
+        object Success : TagAddState()
+
+        data class Error(
+            val message: String
+        ) : TagAddState()
+    }
+
     private val _albumLoadingState = MutableStateFlow<AlbumLoadingState>(AlbumLoadingState.Idle)
     val albumLoadingState = _albumLoadingState.asStateFlow()
 
@@ -87,6 +100,9 @@ class AlbumViewModel(
 
     private val _tagRenameState = MutableStateFlow<TagRenameState>(TagRenameState.Idle)
     val tagRenameState = _tagRenameState.asStateFlow()
+
+    private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
+    val tagAddState = _tagAddState.asStateFlow()
 
     fun loadAlbum(
         tagId: String,
@@ -278,8 +294,7 @@ class AlbumViewModel(
                 }
 
                 is RemoteRepository.Result.Exception -> {
-                    _tagRenameState.value =
-                        TagRenameState.Error(result.e.message ?: "Unknown error")
+                    _tagRenameState.value = TagRenameState.Error(result.e.message ?: "Unknown error")
                 }
             }
         }
@@ -287,5 +302,69 @@ class AlbumViewModel(
 
     fun resetRenameState() {
         _tagRenameState.value = TagRenameState.Idle
+    }
+
+    fun addRecommendedPhotosToTagAlbum(photos: List<Photo>, tagId: String) {
+        viewModelScope.launch {
+            _tagAddState.value = TagAddState.Loading
+
+            val addedPhotos = mutableListOf<Photo>()
+
+            for (photo in photos) {
+                val actualPhotoId =
+                    if (photo.photoId.toLongOrNull() != null) {
+                        findPhotoIdByPathId(photo.photoId.toLong())
+                    } else {
+                        photo.photoId
+                    }
+
+                if (actualPhotoId == null) {
+                    _tagAddState.value = TagAddState.Error("Convert Photo Id Error")
+                    continue
+                }
+
+                when (val result = remoteRepository.postTagsToPhoto(actualPhotoId, tagId)) {
+                    is RemoteRepository.Result.Success -> {
+                        addedPhotos.add(photo)
+                        (_albumLoadingState.value as? AlbumLoadingState.Success)?.let {
+                            val updatedPhotos = (it.photos + photo).distinct()
+                            _albumLoadingState.value = AlbumLoadingState.Success(updatedPhotos)
+                        }
+                    }
+
+                    is RemoteRepository.Result.Error -> {
+                        _tagAddState.value = TagAddState.Error(result.message)
+                    }
+
+                    is RemoteRepository.Result.Unauthorized -> {
+                        _tagAddState.value = TagAddState.Error(result.message)
+                    }
+
+                    is RemoteRepository.Result.BadRequest -> {
+                        _tagAddState.value = TagAddState.Error(result.message)
+                    }
+
+                    is RemoteRepository.Result.NetworkError -> {
+                        _tagAddState.value = TagAddState.Error(result.message)
+                    }
+
+                    is RemoteRepository.Result.Exception -> {
+                        _tagAddState.value = TagAddState.Error(result.e.message ?: "Unknown error")
+                    }
+                }
+            }
+
+            if (_tagAddState.value == TagAddState.Loading) {
+                _tagAddState.value = TagAddState.Success
+
+                _recommendLoadingState.value = RecommendLoadingState.Loading
+                kotlinx.coroutines.delay(3000L) // to prevent racing
+                loadRecommendations(tagId)
+            }
+        }
+    }
+
+    fun resetAddState() {
+        _tagAddState.value = TagAddState.Idle
     }
 }
