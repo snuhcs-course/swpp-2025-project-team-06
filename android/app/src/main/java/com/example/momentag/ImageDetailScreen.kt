@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -308,9 +307,8 @@ fun ImageDetailScreen(
                     state = pagerState,
                     modifier =
                         Modifier
-                            .padding(top = 50.dp)
-                            .aspectRatio(0.7f)
-                            .align(Alignment.BottomCenter),
+                            .fillMaxSize()
+                            .align(Alignment.Center),
                 ) { page ->
                     val photo = photos.getOrNull(page)
                     AsyncImage(
@@ -322,7 +320,7 @@ fun ImageDetailScreen(
                                 .clickable {
                                     if (isDeleteMode) isDeleteMode = false
                                 },
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                     )
                 }
 
