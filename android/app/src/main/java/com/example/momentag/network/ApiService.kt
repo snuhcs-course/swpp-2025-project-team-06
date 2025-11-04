@@ -192,9 +192,11 @@ object RetrofitInstance {
             val customSslSocketFactory = createCustomSslSocketFactory(customTrustManager)
 
             val okHttpClient =
-                OkHttpClient
-                    .Builder()
-                    .addInterceptor(authInterceptor)
+                SslHelper
+                    .configureToTrustCertificate(
+                        OkHttpClient.Builder(),
+                        context.applicationContext,
+                    ).addInterceptor(authInterceptor)
                     .authenticator(tokenAuthenticator)
                     .sslSocketFactory(customSslSocketFactory, customTrustManager)
                     .hostnameVerifier { _, _ -> true }
