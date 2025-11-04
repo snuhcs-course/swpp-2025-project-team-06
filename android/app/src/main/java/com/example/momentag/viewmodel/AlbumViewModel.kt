@@ -3,12 +3,10 @@ package com.example.momentag.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
-import com.example.momentag.model.TagId
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
-import com.example.momentag.viewmodel.AddTagViewModel.SaveState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,7 +80,7 @@ class AlbumViewModel(
         object Success : TagAddState()
 
         data class Error(
-            val message: String
+            val message: String,
         ) : TagAddState()
     }
 
@@ -304,7 +302,10 @@ class AlbumViewModel(
         _tagRenameState.value = TagRenameState.Idle
     }
 
-    fun addRecommendedPhotosToTagAlbum(photos: List<Photo>, tagId: String) {
+    fun addRecommendedPhotosToTagAlbum(
+        photos: List<Photo>,
+        tagId: String,
+    ) {
         viewModelScope.launch {
             _tagAddState.value = TagAddState.Loading
 

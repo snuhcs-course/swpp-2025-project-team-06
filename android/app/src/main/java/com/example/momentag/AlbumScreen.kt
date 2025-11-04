@@ -6,7 +6,6 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Indication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -256,23 +255,26 @@ fun AlbumScreen(
                     BasicTextField(
                         value = editableTagName,
                         onValueChange = { editableTagName = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp)
-                            .onFocusChanged { focusState ->
-                                isFocused = focusState.isFocused
-                            },
-                        textStyle = TextStyle(
-                            fontSize = 28.sp,
-                            fontFamily = FontFamily.Serif,
-                            color = LocalContentColor.current,
-                        ),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                                .onFocusChanged { focusState ->
+                                    isFocused = focusState.isFocused
+                                },
+                        textStyle =
+                            TextStyle(
+                                fontSize = 28.sp,
+                                fontFamily = FontFamily.Serif,
+                                color = LocalContentColor.current,
+                            ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                submitAndClearFocus()
-                            },
-                        ),
+                        keyboardActions =
+                            KeyboardActions(
+                                onDone = {
+                                    submitAndClearFocus()
+                                },
+                            ),
                         singleLine = true,
                     )
 
@@ -325,7 +327,7 @@ fun AlbumScreen(
                         },
                         onAddPhotosToAlbum = { photos ->
                             albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId)
-                        }
+                        },
                     )
                 }
             }
@@ -345,7 +347,7 @@ private fun AlbumContent(
     isAlbumDeleteMode: Boolean,
     onEnterAlbumDeleteMode: () -> Unit,
     onDeleteTagFromPhoto: (String, String) -> Unit,
-    onAddPhotosToAlbum: (List<Photo>) -> Unit
+    onAddPhotosToAlbum: (List<Photo>) -> Unit,
 ) {
     var isRecommendSelectionMode by remember { mutableStateOf(false) }
     var recommendOffsetY by remember { mutableFloatStateOf(600f) }

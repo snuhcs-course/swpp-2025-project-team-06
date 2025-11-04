@@ -4,8 +4,8 @@ import com.example.momentag.model.PhotoDetailResponse
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.model.Tag
-import com.example.momentag.model.TagName
 import com.example.momentag.model.TagId
+import com.example.momentag.model.TagName
 import com.example.momentag.network.ApiService
 import retrofit2.HttpException
 import java.io.IOException
@@ -249,7 +249,10 @@ class RemoteRepository(
             Result.Exception(e)
         }
 
-    suspend fun renameTag(tagId: String, tagName: String): Result<TagId> =
+    suspend fun renameTag(
+        tagId: String,
+        tagName: String,
+    ): Result<TagId> =
         try {
             val request = TagName(name = tagName)
             val response = apiService.renameTag(tagId, request)
