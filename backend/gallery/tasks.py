@@ -41,7 +41,7 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
 
     rrf_scores = defaultdict(float)
-    all_photo_ids = set()
+    photo_uuids= set()
 
     for rep_vector in rep_vectors:
         search_result = client.search(
@@ -51,14 +51,9 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         )
 
         for i, img_point in enumerate(search_result):
-            photo_id = img_point.id
-            all_photo_ids.add(photo_id)
+            photo_id = uuid.UUID(img_point.id)
+            photo_uuids.add(photo_id)
             rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
-
-    # Fetch photo_path_id from Photo model instead of Qdrant
-    photo_uuids = [uuid.UUID(pid) for pid in all_photo_ids]
-    photos = Photo.objects.filter(photo_id__in=photo_uuids).values('photo_id', 'photo_path_id')
-    photo_id_to_path_id = {p['photo_id']: p['photo_path_id'] for p in photos}
 
     rrf_sorted = sorted(
         rrf_scores.items(),
@@ -71,11 +66,18 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         .values_list("photo__photo_id", flat=True)
     )
 
-    recommendations = [
-        {"photo_id": photo_id, "photo_path_id": photo_id_to_path_id[photo_id]}
-        for (photo_id, _) in rrf_sorted
-        if photo_id not in tagged_photo_ids
-    ][:LIMIT]
+    recommendations = []
+
+    for i, (photo_id, _) in enumerate(rrf_sorted):
+        if i >= LIMIT:
+            break
+
+        if photo_id not in tagged_photo_ids:
+            try:
+                photo = Photo.objects.get(photo_id=photo_id)
+                recommendations.append(photo)
+            except Photo.DoesNotExist:
+                continue
 
     return recommendations
 
