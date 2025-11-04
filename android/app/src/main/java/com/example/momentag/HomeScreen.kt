@@ -197,6 +197,13 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
+    // Show snackbar when selection count changes
+    LaunchedEffect(selectedPhotos.size, isSelectionMode) {
+        if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+            snackbarHostState.showSnackbar("${selectedPhotos.size}개 선택됨")
+        }
+    }
+
     Scaffold(
         topBar = {
             CommonTopBar(
@@ -256,55 +263,59 @@ fun HomeScreen(navController: NavController) {
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                snackbar = { data ->
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = data.visuals.message,
+                            fontSize = 14.sp,
+                            color = Color.White,
+                            modifier =
+                                Modifier
+                                    .background(
+                                        Color.Black.copy(alpha = 0.8f),
+                                        RoundedCornerShape(20.dp),
+                                    ).padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                },
+            )
+        },
         bottomBar = {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                // Selection Count Indicator (Center)
-                if (isSelectionMode && selectedPhotos.isNotEmpty()) {
-                    Text(
-                        text = "${selectedPhotos.size} selected",
-                        fontSize = 14.sp,
-                        color = Color.Black,
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopCenter)
-                                .background(
-                                    Color(0xFFFBC4AB).copy(alpha = 0.9f),
-                                    RoundedCornerShape(12.dp),
-                                ).padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
+            BottomNavBar(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            WindowInsets.navigationBars
+                                .only(WindowInsetsSides.Bottom)
+                                .asPaddingValues(),
+                        ),
+                currentTab = currentTab,
+                onTabSelected = { tab ->
+                    currentTab = tab
 
-                BottomNavBar(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                WindowInsets.navigationBars
-                                    .only(WindowInsetsSides.Bottom)
-                                    .asPaddingValues(),
-                            ),
-                    currentTab = currentTab,
-                    onTabSelected = { tab ->
-                        currentTab = tab
-
-                        when (tab) {
-                            BottomTab.HomeScreen -> {
-                                // 이미 홈 화면
-                            }
-                            BottomTab.SearchResultScreen -> {
-                                navController.navigate(Screen.SearchResult.route)
-                            }
-                            BottomTab.AddTagScreen -> {
-                                navController.navigate(Screen.AddTag.route)
-                            }
-                            BottomTab.StoryScreen -> {
-                                navController.navigate(Screen.Story.route)
-                            }
+                    when (tab) {
+                        BottomTab.HomeScreen -> {
+                            // 이미 홈 화면
                         }
-                    },
-                )
-            }
+                        BottomTab.SearchResultScreen -> {
+                            navController.navigate(Screen.SearchResult.route)
+                        }
+                        BottomTab.AddTagScreen -> {
+                            navController.navigate(Screen.AddTag.route)
+                        }
+                        BottomTab.StoryScreen -> {
+                            navController.navigate(Screen.Story.route)
+                        }
+                    }
+                },
+            )
         },
         containerColor = Color.White,
         floatingActionButton = {
