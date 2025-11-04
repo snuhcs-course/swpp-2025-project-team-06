@@ -19,6 +19,7 @@ robolectric = "4.13"
 mockitoKotlin = "5.3.1"
 androidxTestCore = "1.5.0"
 mockitoCore = "5.11.0"
+mockitoInline = "5.2.0"
 coroutinesTest = "1.7.1"
 turbine = "1.0.0"
 archCoreTesting = "2.2.0"
@@ -61,10 +62,11 @@ mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", versio
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test" }
 mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockitoCore" }
+mockito-inline = { group = "org.mockito", name = "mockito-inline", version.ref = "mockitoInline" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 arch-core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "archCoreTesting" }
-mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+mockk =  { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
 
 [plugins]

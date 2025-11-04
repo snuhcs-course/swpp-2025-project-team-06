@@ -24,6 +24,7 @@ class HomeViewModelTest {
     // Mocks
     private lateinit var localRepository: LocalRepository
     private lateinit var remoteRepository: RemoteRepository
+    private lateinit var draftTagRepository: com.example.momentag.repository.DraftTagRepository
 
     // System Under Test
     private lateinit var viewModel: HomeViewModel
@@ -38,7 +39,8 @@ class HomeViewModelTest {
     fun setUp() {
         localRepository = mock()
         remoteRepository = mock()
-        viewModel = HomeViewModel(localRepository, remoteRepository)
+        draftTagRepository = mock()
+        viewModel = HomeViewModel(localRepository, remoteRepository, draftTagRepository)
     }
 
     // region loadServerTags Tests
