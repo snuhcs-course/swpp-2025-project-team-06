@@ -423,6 +423,7 @@ fun HomeScreen(navController: NavController) {
                                 val photo = allPhotos.find { it.photoId == photoId }
                                 photo?.let { homeViewModel.togglePhoto(it) }
                             },
+                            homeViewModel = homeViewModel,
                         )
                     }
                 } else {
@@ -459,6 +460,7 @@ fun HomeScreen(navController: NavController) {
                                         )
                                     homeViewModel.togglePhoto(photo)
                                 },
+                                homeViewModel = homeViewModel,
                             )
                         }
 
@@ -560,6 +562,7 @@ private fun MainContent(
     isSelectionMode: Boolean,
     selectedItems: Set<String>,
     onItemSelectionToggle: (String) -> Unit,
+    homeViewModel: HomeViewModel? = null,
 ) {
     when {
         onlyTag -> {
@@ -604,6 +607,8 @@ private fun MainContent(
                                             if (isSelectionMode) {
                                                 onItemSelectionToggle(photo.photoId)
                                             } else {
+                                                // Set browsing session before navigating
+                                                homeViewModel?.setGalleryBrowsingSession()
                                                 navController.navigate(
                                                     Screen.Image.createRoute(
                                                         uri = photo.contentUri,

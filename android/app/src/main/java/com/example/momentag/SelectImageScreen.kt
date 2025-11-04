@@ -23,11 +23,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,6 +66,7 @@ import com.example.momentag.viewmodel.ViewModelFactory
 @Composable
 fun SelectImageScreen(navController: NavController) {
     var hasPermission by remember { mutableStateOf(false) }
+    var isSelectionMode by remember { mutableStateOf(false) }
 
     // TODO: GET /api/photos/
     val context = LocalContext.current
@@ -97,7 +100,18 @@ fun SelectImageScreen(navController: NavController) {
     }
 
     val onPhotoClick: (Photo) -> Unit = { photo ->
-        selectImageViewModel.togglePhoto(photo)
+        if (isSelectionMode) {
+            selectImageViewModel.togglePhoto(photo)
+        } else {
+            // Set browsing session before navigating
+            selectImageViewModel.setGalleryBrowsingSession()
+            navController.navigate(
+                Screen.Image.createRoute(
+                    uri = photo.contentUri,
+                    imageId = photo.photoId,
+                ),
+            )
+        }
     }
 
     LaunchedEffect(hasPermission) {
@@ -149,13 +163,33 @@ fun SelectImageScreen(navController: NavController) {
                 color = Word,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Choose more than 5 pictures",
-                fontSize = 21.sp,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                color = Word,
-            )
+
+            // Header with selection mode toggle
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = "Choose more than 5 pictures",
+                    fontSize = 21.sp,
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
+                    color = Word,
+                    modifier = Modifier.align(Alignment.CenterStart),
+                )
+
+                IconButton(
+                    onClick = { isSelectionMode = !isSelectionMode },
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = if (isSelectionMode) "Exit Selection Mode" else "Enter Selection Mode",
+                        tint = if (isSelectionMode) Button else Word,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             if (isLoading) {
@@ -190,8 +224,8 @@ fun SelectImageScreen(navController: NavController) {
                                 modifier = Modifier.fillMaxSize(),
                             )
 
-                            // Dark overlay when selected
-                            if (isSelected) {
+                            // Dark overlay when selected (only in selection mode)
+                            if (isSelectionMode && isSelected) {
                                 Box(
                                     modifier =
                                         Modifier
@@ -200,26 +234,28 @@ fun SelectImageScreen(navController: NavController) {
                                 )
                             }
 
-                            // Checkbox indicator
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(8.dp)
-                                        .size(24.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(
-                                            if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
-                                        ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = Color.Black,
-                                        modifier = Modifier.size(16.dp),
-                                    )
+                            // Checkbox indicator (only in selection mode)
+                            if (isSelectionMode) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(8.dp)
+                                            .size(24.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(
+                                                if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
+                                            ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
 import com.example.momentag.repository.DraftTagRepository
+import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ class SelectImageViewModel(
     private val draftTagRepository: DraftTagRepository,
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
+    private val imageBrowserRepository: ImageBrowserRepository,
 ) : ViewModel() {
     // Expose repository state as read-only flows
     val tagName: StateFlow<String> = draftTagRepository.tagName
@@ -77,4 +79,11 @@ class SelectImageViewModel(
      * Check if a photo is selected
      */
     fun isPhotoSelected(photo: Photo): Boolean = selectedPhotos.value.any { it.photoId == photo.photoId }
+
+    /**
+     * Set gallery browsing session for image navigation
+     */
+    fun setGalleryBrowsingSession() {
+        imageBrowserRepository.setGallery(_allPhotos.value)
+    }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
 import com.example.momentag.model.TagItem
 import com.example.momentag.repository.DraftTagRepository
+import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ class HomeViewModel(
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
     private val draftTagRepository: DraftTagRepository,
+    private val imageBrowserRepository: ImageBrowserRepository,
 ) : ViewModel() {
     sealed class HomeLoadingState {
         object Idle : HomeLoadingState()
@@ -81,6 +83,10 @@ class HomeViewModel(
             }
             _isLoadingPhotos.value = false
         }
+    }
+
+    fun setGalleryBrowsingSession() {
+        imageBrowserRepository.setGallery(_allPhotos.value)
     }
 
     fun loadServerTags() {
