@@ -58,7 +58,7 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     # Fetch photo_path_id from Photo model instead of Qdrant
     photo_uuids = [uuid.UUID(pid) for pid in all_photo_ids]
     photos = Photo.objects.filter(photo_id__in=photo_uuids).values('photo_id', 'photo_path_id')
-    photo_id_to_path_id = {str(p['photo_id']): p['photo_path_id'] for p in photos}
+    photo_id_to_path_id = {p['photo_id']: p['photo_path_id'] for p in photos}
 
     rrf_sorted = sorted(
         rrf_scores.items(),
