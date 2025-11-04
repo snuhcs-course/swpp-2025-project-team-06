@@ -101,13 +101,14 @@ fun ImageDetailScreen(
         }
     }
 
-    // Extract photos from ImageContext or create single photo from imageUri
+    // Extract photos from ImageContext or create single photo using backend imageId with provided imageUri
+    // Important: Do NOT derive backend photoId from local media URI; always use backend-provided imageId
     val photos =
-        imageContext?.images?.takeIf { it.isNotEmpty() } ?: imageUri?.let {
+        imageContext?.images?.takeIf { it.isNotEmpty() } ?: imageUri?.let { uri ->
             listOf(
                 Photo(
-                    photoId = it.lastPathSegment ?: it.toString(), // Use media ID from URI as fallback
-                    contentUri = it,
+                    photoId = imageId, // backend photo_id must be used
+                    contentUri = uri,
                 ),
             )
         } ?: emptyList()
