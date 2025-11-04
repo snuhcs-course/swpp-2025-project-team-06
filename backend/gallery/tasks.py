@@ -8,12 +8,14 @@ from django.conf import settings
 from django.core.cache import cache
 
 from .vision_service import get_image_embedding, get_image_captions
+
 from .qdrant_utils import (
     get_qdrant_client,
     IMAGE_COLLECTION_NAME,
     REPVEC_COLLECTION_NAME,
 )
-from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
+from .models import User, Photo_Caption, Caption, Photo_Tag, Tag, Photo
+
 
 import time
 import torch
@@ -45,7 +47,7 @@ def get_text_model():
 
 @shared_task
 def process_and_embed_photo(
-    image_path, user_id, filename, photo_path_id, created_at, lat, lng
+    photo_id, image_path, user_id, filename, photo_path_id, created_at, lat, lng
 ):
     try:
         client = get_qdrant_client()
@@ -69,7 +71,6 @@ def process_and_embed_photo(
                 os.remove(image_path)
             return
 
-        photo_id = uuid.uuid4()
         point_to_upsert = models.PointStruct(
             id=str(photo_id),
             vector=embedding,
@@ -87,10 +88,11 @@ def process_and_embed_photo(
         client.upsert(
             collection_name=IMAGE_COLLECTION_NAME, points=[point_to_upsert], wait=True
         )
-        captions = get_image_captions(image_path)
 
         # asserts that user id has checked
         user = User.objects.get(id=user_id)
+
+        captions = get_image_captions(image_path)
 
         for word, count in captions.items():
             caption, _ = Caption.objects.get_or_create(
@@ -98,9 +100,11 @@ def process_and_embed_photo(
                 caption=word,
             )
 
+            photo = Photo.objects.get(photo_id=photo_id)
+
             _ = Photo_Caption.objects.create(
                 user=user,
-                photo_id=photo_id,
+                photo=photo,
                 caption=caption,
                 weight=count,
             )
@@ -153,9 +157,8 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     )
 
     tagged_photo_ids = set(
-        str(pid) for pid in Photo_Tag.objects.filter(user=user)
-        .filter(tag_id=tag_id)
-        .values_list("photo_id", flat=True)
+        Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id)
+        .values_list("photo__photo_id", flat=True)
     )
 
     recommendations = [
