@@ -428,13 +428,10 @@ class GetPhotosByTagView(APIView):
                     "photo_path_id": photo.photo_path_id
                 } for photo in photos
             ]
-            
-            response_data = {
-                "photos": photos_data
-            }
 
-            return Response(ResTagAlbumSerializer(response_data).data, status=status.HTTP_200_OK)
-        
+            serializer = ResPhotoSerializer(photos_data, many=True)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
             return Response(
                 {"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND
