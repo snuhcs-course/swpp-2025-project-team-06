@@ -1,4 +1,5 @@
 import uuid
+from django.db.models import Exists, OuterRef
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -489,14 +490,11 @@ class PostPhotoTagsView(APIView):
                     continue  # Skip if the relationship already exists
 
                 Photo_Tag.objects.create(
-                    pt_id=uuid.uuid4(), 
-                    photo=photo, 
-                    tag=tag, 
+                    pt_id=uuid.uuid4(),
+                    photo=photo,
+                    tag=tag,
                     user=request.user
                 )
-
-                photo.is_tagged = True
-                photo.save()
 
                 print(f"[INFO] Invalidating graph cache for user {request.user.id}")
                 cache.delete(f"user_{request.user.id}_combined_graph")
@@ -552,13 +550,6 @@ class DeletePhotoTagsView(APIView):
             )
 
             photo_tag.delete()
-
-            # Check if any tags remain for the photo
-            remaining_tags = Photo_Tag.objects.filter(photo=photo, user=request.user)
-
-            if not remaining_tags.exists():
-                photo.is_tagged = False
-                photo.save()
 
             compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
@@ -862,17 +853,7 @@ class TagDetailView(APIView):
                     {"error": "Forbidden - you are not the owner of this tag."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            
-            # 태그 삭제시 영향받는 사진들 is_tagged 필드 업데이트
-            affected_photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user)
-            affected_photo_ids = [pt.photo.photo_id for pt in affected_photo_tags]
-            for affected_photo_id in affected_photo_ids:
-                affected_photo = Photo.objects.get(photo_id=affected_photo_id, user=request.user)
-                affected_photo_tags_count = Photo_Tag.objects.filter(photo=affected_photo, user=request.user).count()
-                if affected_photo_tags_count <= 1:
-                    affected_photo.is_tagged = False
-                    affected_photo.save()
-                
+
             compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             tag.delete()
@@ -1033,9 +1014,15 @@ class StoryView(APIView):
                 )
 
             # 랜덤 정렬로 매번 다른 순서 보장
+            # Filter photos that don't have any Photo_Tag relations
+            has_tags = Photo_Tag.objects.filter(
+                photo=OuterRef('pk'),
+                user=request.user
+            )
             photos_queryset = Photo.objects.filter(
-                user=request.user,
-                is_tagged=False
+                user=request.user
+            ).exclude(
+                Exists(has_tags)
             ).order_by('?')[:size]  # 랜덤 정렬 + 슬라이싱
             
             # QuerySet을 유지하면서 데이터 직렬화

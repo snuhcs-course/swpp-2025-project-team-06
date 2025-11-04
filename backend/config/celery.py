@@ -11,6 +11,11 @@ Running Workers:
 import os
 from celery import Celery
 
+# Apply socket patching for Tailscale SOCKS5 proxy routing
+# This must be done BEFORE any network connections are made
+from config.socket_patcher import patch_socket
+patch_socket()
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 app = Celery('config')
 app.config_from_object('django.conf:settings', namespace='CELERY')

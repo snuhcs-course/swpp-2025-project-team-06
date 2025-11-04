@@ -218,9 +218,8 @@ def process_and_embed_photo(
             print(f"[Celery Task Error] Failed to create embedding for {filename}")
             return
 
-        photo_id = uuid.uuid4()
         point_to_upsert = models.PointStruct(
-            id=str(photo_id),
+            id=str(storage_key),
             vector=embedding,
             payload={
                 "user_id": user_id,
@@ -229,14 +228,13 @@ def process_and_embed_photo(
                 "created_at": created_at,
                 "lat": lat,
                 "lng": lng,
-                "isTagged": False,
             },
         )
 
         # asserts that user id has checked
         user = User.objects.get(id=user_id)
 
-        photo = Photo.objects.get(storage_key)
+        photo = Photo.objects.get(photo_id=storage_key)
 
         client.upsert(
             collection_name=IMAGE_COLLECTION_NAME, points=[point_to_upsert], wait=True
