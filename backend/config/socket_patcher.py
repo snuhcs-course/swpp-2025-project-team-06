@@ -69,14 +69,22 @@ class SelectiveProxySocket(_socket.socket):
             except Exception:
                 pass
 
-            # Replace our socket's file descriptor with the SOCKS socket
-            # This is a bit of a hack, but it works
-            self.close()
-            self.__class__ = socks_socket.__class__
-            self.__dict__ = socks_socket.__dict__
+            # Connect through the SOCKS proxy first
+            socks_socket.connect((host, port))
 
-            # Now connect through the SOCKS proxy
-            return super(SelectiveProxySocket, self).connect((host, port))
+            # Replace our socket's file descriptor with the SOCKS socket's FD
+            # This preserves the original FD number that clients expect
+            old_fd = self.fileno()
+            new_fd = socks_socket.fileno()
+
+            # Duplicate the SOCKS socket's FD onto our original FD
+            os.dup2(new_fd, old_fd)
+
+            # Close the temporary SOCKS socket object (its FD is now duplicated)
+            socks_socket.close()
+
+            # Mark this socket as proxy-enabled for any future operations
+            self._proxy_enabled = True
         else:
             # Direct connection
             return super().connect(address)
