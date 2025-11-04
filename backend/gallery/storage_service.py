@@ -63,11 +63,7 @@ class LocalStorageBackend(StorageBackend):
         """Upload file to local filesystem."""
         # Use UUID only for storage key (secure, no user input)
         storage_key = str(uuid.uuid4())
-<<<<<<< HEAD
         file_path = os.path.join(self.base_path, f"{storage_key}.jpg")
-=======
-        file_path = os.path.join(self.base_path, storage_key)
->>>>>>> feat/celery-worker-decoupling
 
         with open(file_path, 'wb') as f:
             for chunk in file_obj.chunks():
@@ -157,11 +153,7 @@ class MinIOStorageBackend(StorageBackend):
         """Upload file to MinIO."""
         # Use UUID only for storage key (secure, no user input)
         storage_key = str(uuid.uuid4())
-<<<<<<< HEAD
         object_key = self._get_object_key(f"{storage_key}.jpg")
-=======
-        object_key = self._get_object_key(storage_key)
->>>>>>> feat/celery-worker-decoupling
 
         try:
             # Read file content
