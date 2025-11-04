@@ -29,8 +29,11 @@ from .models import User, Photo_Caption, Caption, Photo
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+_IMAGE_MODEL_NAME = "clip-ViT-B-32"
+
 # Global model caches (lazy-loaded)
 _image_model = None
+
 _caption_processor = None
 _caption_model = None
 
@@ -50,8 +53,8 @@ def get_image_model():
     """Lazy-load CLIP image model once per worker"""
     global _image_model
     if _image_model is None:
-        print("[INFO] Loading CLIP image model inside worker...")
-        _image_model = SentenceTransformer("clip-ViT-B-32")
+        print(f"[INFO] Loading CLIP image model ({_IMAGE_MODEL_NAME}) on {DEVICE}...")
+        _image_model = SentenceTransformer(_IMAGE_MODEL_NAME, device=DEVICE)
     return _image_model
 
 
@@ -93,7 +96,7 @@ def get_image_embedding(image_data: BytesIO):
         Image embedding vector or None on error
     """
     try:
-        print(f"[INFO] Generating embedding from image data ...", flush=True)
+        print("[INFO] Generating embedding from image data ...", flush=True)
 
         image = Image.open(image_data).convert("RGB")
         model = get_image_model()
@@ -101,7 +104,7 @@ def get_image_embedding(image_data: BytesIO):
         with torch.no_grad():
             embedding = model.encode(image)
 
-        print(f"[DONE] Finished image embedding\n", flush=True)
+        print("[DONE] Finished image embedding\n", flush=True)
         return embedding
 
     except Exception as e:
@@ -144,7 +147,7 @@ def get_image_captions(image_data: BytesIO) -> dict[str, int]:
         list(chain.from_iterable((phrase_to_words(phrase) for phrase in phrases)))
     )
 
-    print(f"[DONE] Finished caption generation\n", flush=True)
+    print("[DONE] Finished caption generation\n", flush=True)
     return dict(counter)
 
 

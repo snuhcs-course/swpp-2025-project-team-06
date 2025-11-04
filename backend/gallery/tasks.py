@@ -15,14 +15,12 @@ from qdrant_client import models
 from django.conf import settings
 from django.core.cache import cache
 
-from .vision_service import get_image_embedding, get_image_captions
-
 from .qdrant_utils import (
     get_qdrant_client,
     IMAGE_COLLECTION_NAME,
     REPVEC_COLLECTION_NAME,
 )
-from .models import User, Photo_Caption, Caption, Photo_Tag, Tag, Photo
+from .models import User, Photo_Caption, Photo_Tag, Tag
 
 
 import numpy as np

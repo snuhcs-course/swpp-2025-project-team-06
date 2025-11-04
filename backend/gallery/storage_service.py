@@ -104,7 +104,6 @@ class MinIOStorageBackend(StorageBackend):
     def __init__(self):
         try:
             import boto3
-            from botocore.exceptions import ClientError
         except ImportError:
             raise ImportError(
                 "boto3 is required for MinIO storage. Install with: uv add boto3"

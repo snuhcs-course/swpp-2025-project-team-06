@@ -30,7 +30,6 @@ from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-from django.conf import settings
 from django.core.cache import cache
 
 from .tasks import (
