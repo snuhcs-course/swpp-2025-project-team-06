@@ -62,7 +62,7 @@ class LocalStorageBackend(StorageBackend):
     def upload(self, file_obj: BinaryIO) -> str:
         """Upload file to local filesystem."""
         # Use UUID only for storage key (secure, no user input)
-        storage_key = f"{uuid.uuid4()}.jpg"
+        storage_key = str(uuid.uuid4())
         file_path = os.path.join(self.base_path, storage_key)
 
         with open(file_path, 'wb') as f:
@@ -153,7 +153,7 @@ class MinIOStorageBackend(StorageBackend):
     def upload(self, file_obj: BinaryIO) -> str:
         """Upload file to MinIO."""
         # Use UUID only for storage key (secure, no user input)
-        storage_key = f"{uuid.uuid4()}.jpg"
+        storage_key = str(uuid.uuid4())
         object_key = self._get_object_key(storage_key)
 
         try:
