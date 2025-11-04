@@ -62,8 +62,8 @@ class LocalStorageBackend(StorageBackend):
     def upload(self, file_obj: BinaryIO) -> str:
         """Upload file to local filesystem."""
         # Use UUID only for storage key (secure, no user input)
-        storage_key = f"{uuid.uuid4()}.jpg"
-        file_path = os.path.join(self.base_path, storage_key)
+        storage_key = str(uuid.uuid4())
+        file_path = os.path.join(self.base_path, f"{storage_key}.jpg")
 
         with open(file_path, 'wb') as f:
             for chunk in file_obj.chunks():
@@ -74,7 +74,7 @@ class LocalStorageBackend(StorageBackend):
 
     def download(self, storage_key: str) -> BytesIO:
         """Read file from local filesystem into memory."""
-        file_path = os.path.join(self.base_path, storage_key)
+        file_path = os.path.join(self.base_path, f"{storage_key}.jpg")
 
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -89,7 +89,7 @@ class LocalStorageBackend(StorageBackend):
 
     def delete(self, storage_key: str) -> None:
         """Delete file from local filesystem."""
-        file_path = os.path.join(self.base_path, storage_key)
+        file_path = os.path.join(self.base_path, f"{storage_key}.jpg")
 
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -152,8 +152,8 @@ class MinIOStorageBackend(StorageBackend):
     def upload(self, file_obj: BinaryIO) -> str:
         """Upload file to MinIO."""
         # Use UUID only for storage key (secure, no user input)
-        storage_key = f"{uuid.uuid4()}.jpg"
-        object_key = self._get_object_key(storage_key)
+        storage_key = str(uuid.uuid4())
+        object_key = self._get_object_key(f"{storage_key}.jpg")
 
         try:
             # Read file content
@@ -176,7 +176,7 @@ class MinIOStorageBackend(StorageBackend):
 
     def download(self, storage_key: str) -> BytesIO:
         """Download file from MinIO to memory."""
-        object_key = self._get_object_key(storage_key)
+        object_key = self._get_object_key(f"{storage_key}.jpg")
 
         file_obj = BytesIO()
 
@@ -197,7 +197,7 @@ class MinIOStorageBackend(StorageBackend):
 
     def delete(self, storage_key: str) -> None:
         """Delete file from MinIO."""
-        object_key = self._get_object_key(storage_key)
+        object_key = self._get_object_key(f"{storage_key}.jpg")
 
         try:
             self.s3_client.delete_object(

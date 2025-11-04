@@ -17,7 +17,7 @@ class Photo(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     photo_path_id = models.IntegerField()
     filename = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField()
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
     is_tagged = models.BooleanField(default=False)
