@@ -20,6 +20,13 @@ import com.example.momentag.model.TagIdRequest
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
+import java.io.InputStream
+import java.security.KeyStore
+import java.security.cert.CertificateFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -145,17 +152,52 @@ interface ApiService {
 object RetrofitInstance {
     private var apiService: ApiService? = null
 
+    private fun createCustomTrustManager(context: Context): X509TrustManager {
+        val resourceId = context.resources.getIdentifier(
+            "myclass",
+            "raw",
+            context.packageName
+        )
+        val certInputStream: InputStream = context.resources.openRawResource(resourceId)
+
+        val certificateFactory = CertificateFactory.getInstance("X.509")
+        val certificate = certificateFactory.generateCertificate(certInputStream)
+        certInputStream.close()
+
+        val keyStoreType = KeyStore.getDefaultType()
+        val keyStore = KeyStore.getInstance(keyStoreType)
+        keyStore.load(null, null)
+        keyStore.setCertificateEntry("ca", certificate)
+
+        val tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm()
+        val tmf = TrustManagerFactory.getInstance(tmfAlgorithm)
+        tmf.init(keyStore)
+
+        return tmf.trustManagers[0] as X509TrustManager
+    }
+
+    private fun createCustomSslSocketFactory(trustManager: X509TrustManager): SSLSocketFactory {
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf(trustManager), null)
+        return sslContext.socketFactory
+    }
+
     fun getApiService(context: Context): ApiService {
         if (apiService == null) {
             val sessionStore = SessionManager.getInstance(context.applicationContext)
             val authInterceptor = AuthInterceptor(sessionStore)
             val tokenAuthenticator = TokenAuthenticator(context.applicationContext, sessionStore)
 
+            val customTrustManager = createCustomTrustManager(context.applicationContext)
+            val customSslSocketFactory = createCustomSslSocketFactory(customTrustManager)
+
             val okHttpClient =
                 OkHttpClient
                     .Builder()
                     .addInterceptor(authInterceptor)
                     .authenticator(tokenAuthenticator)
+                    .sslSocketFactory(customSslSocketFactory, customTrustManager)
+                    .hostnameVerifier { _, _ -> true }
 //                    .connectTimeout(30, TimeUnit.SECONDS)
 //                    .readTimeout(30, TimeUnit.SECONDS)
 //                    .writeTimeout(30, TimeUnit.SECONDS)
