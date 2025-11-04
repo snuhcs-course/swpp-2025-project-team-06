@@ -15,7 +15,7 @@ from qdrant_client import models
 from django.conf import settings
 from django.core.cache import cache
 
-from .vision_service import get_image_embedding, get_image_captions
+from .gpu_tasks import get_image_embedding, get_image_captions
 
 from .qdrant_utils import (
     get_qdrant_client,
