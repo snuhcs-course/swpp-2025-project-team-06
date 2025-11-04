@@ -72,6 +72,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.LogoutState
+import com.example.momentag.model.Photo
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -105,11 +106,12 @@ fun HomeScreen(navController: NavController) {
     val homeDeleteState by homeViewModel.homeDeleteState.collectAsState()
     val uiState by photoViewModel.uiState.collectAsState()
     val selectedPhotos by homeViewModel.selectedPhotos.collectAsState() // draftTagRepository에서 가져옴!
+    val allPhotos by homeViewModel.allPhotos.collectAsState() // 서버에서 가져온 사진들
+    val isLoadingPhotos by homeViewModel.isLoadingPhotos.collectAsState()
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
     var onlyTag by remember { mutableStateOf(false) }
     var showAllPhotos by remember { mutableStateOf(false) }
-    var localPhotos by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isDeleteMode by remember { mutableStateOf(false) }
     var isSelectionMode by remember { mutableStateOf(false) }
 
@@ -147,7 +149,7 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
             homeViewModel.loadServerTags()
-            localPhotos = loadLocalPhotos(context)
+            homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
 
             val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED", false)
             if (!hasAlreadyUploaded) {
@@ -319,11 +321,12 @@ fun HomeScreen(navController: NavController) {
         },
     ) { paddingValues ->
         PullToRefreshBox(
-            isRefreshing = homeLoadingState is HomeViewModel.HomeLoadingState.Loading,
+            isRefreshing = homeLoadingState is HomeViewModel.HomeLoadingState.Loading || isLoadingPhotos,
             onRefresh = {
                 if (hasPermission) {
                     isDeleteMode = false
                     homeViewModel.loadServerTags()
+                    homeViewModel.loadAllPhotos() // 서버 사진도 새로고침
                 }
             },
             modifier =
@@ -394,32 +397,34 @@ fun HomeScreen(navController: NavController) {
                         Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
                     }
                 } else if (showAllPhotos) {
-                    // All Photos 모드: 서버 상태와 관계없이 로컬 사진 표시
-                    MainContent(
-                        onlyTag = false,
-                        showAllPhotos = true,
-                        tagItems = emptyList(),
-                        localPhotos = localPhotos,
-                        navController = navController,
-                        onDeleteClick = { },
-                        modifier = Modifier.weight(1f),
-                        isDeleteMode = false,
-                        onEnterDeleteMode = {
-                            isSelectionMode = true
-                        },
-                        onExitDeleteMode = { },
-                        isSelectionMode = isSelectionMode,
-                        selectedItems = selectedPhotos.map { it.photoId }.toSet(), // Photo -> photoId
-                        onItemSelectionToggle = { uriString ->
-                            // URI String을 Photo 객체로 변환해서 togglePhoto 호출
-                            val photo =
-                                com.example.momentag.model.Photo(
-                                    photoId = uriString, // URI를 photoId로 사용
-                                    contentUri = Uri.parse(uriString),
-                                )
-                            homeViewModel.togglePhoto(photo)
-                        },
-                    )
+                    // All Photos 모드: 서버에서 가져온 사진 표시
+                    if (isLoadingPhotos) {
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        MainContent(
+                            onlyTag = false,
+                            showAllPhotos = true,
+                            tagItems = emptyList(),
+                            serverPhotos = allPhotos,
+                            navController = navController,
+                            onDeleteClick = { },
+                            modifier = Modifier.weight(1f),
+                            isDeleteMode = false,
+                            onEnterDeleteMode = {
+                                isSelectionMode = true
+                            },
+                            onExitDeleteMode = { },
+                            isSelectionMode = isSelectionMode,
+                            selectedItems = selectedPhotos.map { it.photoId }.toSet(), // Photo -> photoId
+                            onItemSelectionToggle = { photoId ->
+                                // photoId로 Photo 객체 찾아서 togglePhoto 호출
+                                val photo = allPhotos.find { it.photoId == photoId }
+                                photo?.let { homeViewModel.togglePhoto(it) }
+                            },
+                        )
+                    }
                 } else {
                     when (homeLoadingState) {
                         is HomeViewModel.HomeLoadingState.Success -> {
@@ -428,7 +433,7 @@ fun HomeScreen(navController: NavController) {
                                 onlyTag = onlyTag,
                                 showAllPhotos = showAllPhotos,
                                 tagItems = tagItems,
-                                localPhotos = localPhotos,
+                                serverPhotos = emptyList(), // 태그 앨범 뷰에서는 사용 안함
                                 navController = navController,
                                 onDeleteClick = { tagId ->
                                     homeViewModel.deleteTag(tagId)
@@ -545,7 +550,7 @@ private fun MainContent(
     onlyTag: Boolean,
     showAllPhotos: Boolean,
     tagItems: List<TagItem>,
-    localPhotos: List<Uri>,
+    serverPhotos: List<Photo> = emptyList(),
     navController: NavController,
     onDeleteClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -575,20 +580,20 @@ private fun MainContent(
             }
         }
         showAllPhotos -> {
-            // All Photos Grid View
+            // All Photos Grid View - 서버에서 가져온 사진들
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = modifier,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(localPhotos.size) { index ->
-                    val photoId = localPhotos[index].toString()
-                    val isSelected = selectedItems.contains(photoId)
+                items(serverPhotos.size) { index ->
+                    val photo = serverPhotos[index]
+                    val isSelected = selectedItems.contains(photo.photoId)
 
                     Box(modifier = Modifier.aspectRatio(1f)) {
                         AsyncImage(
-                            model = localPhotos[index],
+                            model = photo.contentUri,
                             contentDescription = "Photo ${index + 1}",
                             modifier =
                                 Modifier
@@ -597,15 +602,20 @@ private fun MainContent(
                                     .combinedClickable(
                                         onClick = {
                                             if (isSelectionMode) {
-                                                onItemSelectionToggle(photoId)
+                                                onItemSelectionToggle(photo.photoId)
                                             } else {
-                                                // TODO: Navigate to photo detail or gallery
+                                                navController.navigate(
+                                                    Screen.Image.createRoute(
+                                                        uri = photo.contentUri,
+                                                        imageId = photo.photoId,
+                                                    ),
+                                                )
                                             }
                                         },
                                         onLongClick = {
                                             if (!isSelectionMode) {
                                                 onEnterDeleteMode()
-                                                onItemSelectionToggle(photoId)
+                                                onItemSelectionToggle(photo.photoId)
                                             }
                                         },
                                     ),

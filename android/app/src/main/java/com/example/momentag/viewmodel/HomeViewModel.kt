@@ -52,12 +52,35 @@ class HomeViewModel(
     // Photo selection management (같은 패턴으로 SearchViewModel 처럼!)
     val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
 
+    // Server photos for All Photos view
+    private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
+    val allPhotos = _allPhotos.asStateFlow()
+
+    private val _isLoadingPhotos = MutableStateFlow(false)
+    val isLoadingPhotos = _isLoadingPhotos.asStateFlow()
+
     fun togglePhoto(photo: Photo) {
         draftTagRepository.togglePhoto(photo)
     }
 
     fun resetSelection() {
         draftTagRepository.clear()
+    }
+
+    fun loadAllPhotos() {
+        viewModelScope.launch {
+            _isLoadingPhotos.value = true
+            when (val result = remoteRepository.getAllPhotos()) {
+                is RemoteRepository.Result.Success -> {
+                    val serverPhotos = localRepository.toPhotos(result.data)
+                    _allPhotos.value = serverPhotos
+                }
+                else -> {
+                    _allPhotos.value = emptyList()
+                }
+            }
+            _isLoadingPhotos.value = false
+        }
     }
 
     fun loadServerTags() {
