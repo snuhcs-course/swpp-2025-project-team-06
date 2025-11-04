@@ -14,8 +14,6 @@ import socket as _socket
 import socks
 import ipaddress
 import os
-from typing import Tuple, Optional
-
 
 class SelectiveProxySocket(_socket.socket):
     """

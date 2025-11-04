@@ -20,7 +20,7 @@ from .qdrant_utils import (
     IMAGE_COLLECTION_NAME,
     REPVEC_COLLECTION_NAME,
 )
-from .models import User, Photo_Caption, Photo_Tag, Tag
+from .models import User, Photo_Caption, Photo_Tag, Tag, Photo
 
 
 import numpy as np
@@ -80,7 +80,6 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
 
 
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
-    client = get_qdrant_client()
     ALPHA = 0.5
     LIMIT = 20
 
@@ -330,8 +329,6 @@ def execute_hybrid_graph_search(
     semantic_weight: float =SEARCH_SETTINGS["SEMANTIC_WEIGHT"],
     limit: int = SEARCH_SETTINGS["FINAL_RESULT_LIMIT"],
 ):
-    client = get_qdrant_client()
-    
     # 1. 결합 그래프 생성
     all_photos, _, graph = retrieve_combined_graph(user, tag_edge_weight)
     

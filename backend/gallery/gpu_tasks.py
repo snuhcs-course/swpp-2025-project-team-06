@@ -12,7 +12,6 @@ To run workers:
     celery -A config worker --loglevel=info
 """
 
-import uuid
 import re
 import torch
 from io import BytesIO

@@ -4,9 +4,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import re
-from gallery.models import Tag, Photo_Tag, Caption
+from gallery.models import Tag, Photo_Tag, Caption, Photo
 from gallery.gpu_tasks import phrase_to_words
-from gallery.models import Tag, Photo_Tag, Photo
 from .embedding_service import create_query_embedding
 from gallery.tasks import execute_hybrid_graph_search
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
