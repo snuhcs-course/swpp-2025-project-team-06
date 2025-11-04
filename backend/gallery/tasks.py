@@ -15,12 +15,15 @@ from qdrant_client import models
 from django.conf import settings
 from django.core.cache import cache
 
+from .vision_service import get_image_embedding, get_image_captions
+
 from .qdrant_utils import (
     get_qdrant_client,
     IMAGE_COLLECTION_NAME,
     REPVEC_COLLECTION_NAME,
 )
-from .models import User, Photo_Caption, Caption, Photo_Tag, Tag
+from .models import User, Photo_Caption, Caption, Photo_Tag, Tag, Photo
+
 
 import numpy as np
 from sklearn.ensemble import IsolationForest
@@ -62,9 +65,8 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     )
 
     tagged_photo_ids = set(
-        str(pid) for pid in Photo_Tag.objects.filter(user=user)
-        .filter(tag_id=tag_id)
-        .values_list("photo_id", flat=True)
+        Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id)
+        .values_list("photo__photo_id", flat=True)
     )
 
     recommendations = [
@@ -214,9 +216,10 @@ def retrieve_photo_caption_graph(user: User):
     caption_set = set()
 
     for photo_caption in Photo_Caption.objects.filter(user=user):
-        if photo_caption.photo_id not in photo_set:
-            photo_set.add(photo_caption.photo_id)
-            graph.add_node(photo_caption.photo_id, bipartite=0)
+        photo_id = photo_caption.photo.photo_id
+        if photo_id not in photo_set:
+            photo_set.add(photo_id)
+            graph.add_node(photo_id, bipartite=0)
             
         caption_id = photo_caption.caption.caption_id
         if caption_id not in caption_set:
@@ -224,7 +227,7 @@ def retrieve_photo_caption_graph(user: User):
             graph.add_node(caption_id, bipartite=1)
 
         graph.add_edge(
-            photo_caption.photo_id, caption_id, weight=photo_caption.weight
+            photo_id, caption_id, weight=photo_caption.weight
         )
 
     return photo_set, caption_set, graph
@@ -246,7 +249,7 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
     caption_relations = Photo_Caption.objects.filter(user=user).select_related('caption')
 
     for photo_caption in caption_relations:
-        photo_id = photo_caption.photo_id
+        photo_id = photo_caption.photo.photo_id
         caption_obj = photo_caption.caption
 
         if photo_id not in photo_set:
@@ -264,7 +267,7 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
     tag_relations = Photo_Tag.objects.filter(user=user).select_related('tag')
 
     for photo_tag in tag_relations:
-        photo_id = photo_tag.photo_id
+        photo_id = photo_tag.photo.photo_id
         tag_obj = photo_tag.tag 
 
         if photo_id not in photo_set:
@@ -413,7 +416,7 @@ def is_valid_uuid(uuid_to_test):
 
 
 @shared_task
-def compute_and_store_rep_vectors(user_id: int, tag_id: str):
+def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
     client = get_qdrant_client()
     K_CLUSTERS = 3           # 기본 코드의 k = 3
     OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
@@ -422,8 +425,8 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: str):
     print(f"[Task Start] RepVec computation for User: {user_id}, Tag: {tag_id}")
 
     try:
-        photo_tags = Photo_Tag.objects.filter(user_id=user_id, tag_id=tag_id)
-        photo_ids = [str(pt.photo_id) for pt in photo_tags]
+        photo_tags = Photo_Tag.objects.filter(user__id=user_id, tag__tag_id=tag_id)
+        photo_ids = [str(pt.photo.photo_id) for pt in photo_tags]
 
         delete_filter = models.Filter(
             must=[

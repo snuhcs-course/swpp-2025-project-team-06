@@ -25,7 +25,7 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
 
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
-from .models import User, Photo_Caption, Caption
+from .models import User, Photo_Caption, Caption, Photo
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -230,6 +230,11 @@ def process_and_embed_photo(
             },
         )
 
+        # asserts that user id has checked
+        user = User.objects.get(id=user_id)
+
+        photo = Photo.objects.get(storage_key)
+
         client.upsert(
             collection_name=IMAGE_COLLECTION_NAME, points=[point_to_upsert], wait=True
         )
@@ -238,8 +243,6 @@ def process_and_embed_photo(
         image_data.seek(0)
         captions = get_image_captions(image_data)
 
-        # asserts that user id has checked
-        user = User.objects.get(id=user_id)
 
         for word, count in captions.items():
             caption, _ = Caption.objects.get_or_create(
@@ -249,7 +252,7 @@ def process_and_embed_photo(
 
             _ = Photo_Caption.objects.create(
                 user=user,
-                photo_id=photo_id,
+                photo=photo,
                 caption=caption,
                 weight=count,
             )
