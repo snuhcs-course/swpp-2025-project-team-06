@@ -665,7 +665,9 @@ class PhotoRecommendationView(APIView):
 
             photos = recommend_photo_from_tag(request.user, tag_id)
 
-            return Response(photos, status=status.HTTP_200_OK)
+            serializer = ResPhotoSerializer(photos, many=True)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response(
