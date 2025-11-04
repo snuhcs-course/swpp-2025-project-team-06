@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,14 +16,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,7 +39,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -42,8 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Picture
@@ -62,11 +71,10 @@ fun SelectImageScreen(navController: NavController) {
     // Screen-scoped ViewModel using DraftTagRepository
     val selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
-    // TODO: GET /api/photos/ and convert to List<Photo>
-    val allPhotos: List<Photo> = remember { emptyList() }
-
+    val allPhotos by selectImageViewModel.allPhotos.collectAsState()
     val tagName by selectImageViewModel.tagName.collectAsState()
     val selectedPhotos by selectImageViewModel.selectedPhotos.collectAsState()
+    val isLoading by selectImageViewModel.isLoading.collectAsState()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -97,6 +105,15 @@ fun SelectImageScreen(navController: NavController) {
             selectImageViewModel.getAllPhotos()
         }
     }
+
+    // Sort photos: selected photos first, then unselected photos
+    val sortedPhotos =
+        remember(allPhotos, selectedPhotos) {
+            val selectedPhotoIds = selectedPhotos.map { it.photoId }.toSet()
+            val selected = allPhotos.filter { it.photoId in selectedPhotoIds }
+            val unselected = allPhotos.filter { it.photoId !in selectedPhotoIds }
+            selected + unselected
+        }
 
     Scaffold(
         topBar = {
@@ -141,21 +158,71 @@ fun SelectImageScreen(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (hasPermission) {
+            if (isLoading) {
+                // Loading state with bear animation
+                SearchLoadingStateCustom(
+                    onRefresh = { selectImageViewModel.getAllPhotos() },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(453.dp),
+                )
+            } else if (hasPermission) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.height(453.dp),
                 ) {
-                    items(allPhotos) { photo ->
+                    items(sortedPhotos) { photo ->
                         val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
-                        PhotoCheckedItem(
-                            photo = photo,
-                            isSelected = isSelected,
-                            onClick = { onPhotoClick(photo) },
-                            modifier = Modifier.aspectRatio(1f),
-                        )
+                        Box(
+                            modifier =
+                                Modifier
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onPhotoClick(photo) },
+                        ) {
+                            AsyncImage(
+                                model = photo.contentUri,
+                                contentDescription = "Photo ${photo.photoId}",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+
+                            // Dark overlay when selected
+                            if (isSelected) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.4f)),
+                                )
+                            }
+
+                            // Checkbox indicator
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .size(24.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(
+                                            if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
+                                        ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -165,7 +232,7 @@ fun SelectImageScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.spacedBy(21.dp),
                     modifier = Modifier.height(453.dp),
                 ) {
-                    items(allPhotos) { _ ->
+                    items(sortedPhotos) { _ ->
                         Box(modifier = Modifier) {
                             Spacer(
                                 modifier =

@@ -31,16 +31,24 @@ class SelectImageViewModel(
     private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
     val allPhotos = _allPhotos.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
     fun getAllPhotos() {
         viewModelScope.launch {
+            _isLoading.value = true
+            // Only get photos from server (uploaded photos)
             when (val result = remoteRepository.getAllPhotos()) {
                 is RemoteRepository.Result.Success -> {
-                    _allPhotos.value = localRepository.toPhotos(result.data)
+                    val serverPhotos = localRepository.toPhotos(result.data)
+                    _allPhotos.value = serverPhotos
                 }
                 else -> {
-                    // TODO : Handle error
+                    // If server fails, show empty list
+                    _allPhotos.value = emptyList()
                 }
             }
+            _isLoading.value = false
         }
     }
 
