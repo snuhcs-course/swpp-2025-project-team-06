@@ -53,5 +53,5 @@ urlpatterns = [
         views.StoryView.as_view(),
         name="stories",
         # get
-    )
+    ),
 ]

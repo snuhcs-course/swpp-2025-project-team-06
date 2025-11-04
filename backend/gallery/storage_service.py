@@ -65,7 +65,7 @@ class LocalStorageBackend(StorageBackend):
         storage_key = str(uuid.uuid4())
         file_path = os.path.join(self.base_path, storage_key)
 
-        with open(file_path, 'wb') as f:
+        with open(file_path, "wb") as f:
             for chunk in file_obj.chunks():
                 f.write(chunk)
 
@@ -80,7 +80,7 @@ class LocalStorageBackend(StorageBackend):
             raise FileNotFoundError(f"File not found: {file_path}")
 
         file_obj = BytesIO()
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             file_obj.write(f.read())
 
         file_obj.seek(0)  # Reset to beginning for reading
@@ -104,7 +104,6 @@ class MinIOStorageBackend(StorageBackend):
     def __init__(self):
         try:
             import boto3
-            from botocore.exceptions import ClientError
         except ImportError:
             raise ImportError(
                 "boto3 is required for MinIO storage. Install with: uv add boto3"
@@ -119,7 +118,7 @@ class MinIOStorageBackend(StorageBackend):
 
         # Initialize S3 client
         self.s3_client = boto3.client(
-            's3',
+            "s3",
             endpoint_url=self.endpoint_url,
             aws_access_key_id=self.access_key,
             aws_secret_access_key=self.secret_key,
@@ -225,9 +224,9 @@ def get_storage_backend() -> StorageBackend:
     global _storage_backend
 
     if _storage_backend is None:
-        backend_type = getattr(settings, 'STORAGE_BACKEND', 'local')
+        backend_type = getattr(settings, "STORAGE_BACKEND", "local")
 
-        if backend_type == 'minio':
+        if backend_type == "minio":
             print("[StorageService] Using MinIO storage backend")
             _storage_backend = MinIOStorageBackend()
         else:

@@ -70,27 +70,25 @@ class SemanticSearchView(APIView):
                     {"error": "query parameter is required."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-                
+
             offset = int(request.GET.get("offset", 0))
             user = request.user
-            
+
             TAG_EDGE_WEIGHT = SEARCH_SETTINGS["TAG_EDGE_WEIGHT"]
-            
+
             tag_names = TAG_REGEX.findall(query)
             text_only_query = TAG_REGEX.sub("", query).strip()
 
             semantic_query = ""
-            
+
             if text_only_query:
                 semantic_query = TAG_REGEX.sub("something", query).strip()
-            
+
             personalization_nodes = set()
 
             valid_tags = []
             if tag_names:
-                valid_tags = Tag.objects.filter(
-                    user=user, tag__in=tag_names
-                )
+                valid_tags = Tag.objects.filter(user=user, tag__in=tag_names)
                 for tag_obj in valid_tags:
                     personalization_nodes.add(tag_obj)
 
@@ -110,16 +108,16 @@ class SemanticSearchView(APIView):
                     )
 
                     search_result = client.search(
-                        collection_name=IMAGE_COLLECTION_NAME, #
+                        collection_name=IMAGE_COLLECTION_NAME,  #
                         query_vector=query_vector,
                         query_filter=user_filter,
                         limit=SEARCH_SETTINGS["SEMANTIC_LIMIT_FOR_GRAPH"],
                         offset=offset,
                         with_payload=True,
-                        with_vectors=False, 
-                        score_threshold=0.2
+                        with_vectors=False,
+                        score_threshold=0.2,
                     )
-                    
+
                     for point in search_result:
                         photo_uuid = uuid.UUID(point.id)
                         personalization_nodes.add(photo_uuid)
@@ -134,27 +132,31 @@ class SemanticSearchView(APIView):
                         {"error": f"Semantic search failed: {str(e)}"},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     )
-            
-            # --- 3. 최종 검색 실행 ---            
+
+            # --- 3. 최종 검색 실행 ---
             final_results = []
-            
+
             if not semantic_query and valid_tags:
                 # (A) 태그만 있는 경우 (e.g. "{room_escape}"): 태그에 있는 사진만 보여주기
                 tag_ids = [tag.tag_id for tag in valid_tags]
 
-                photo_tags = Photo_Tag.objects.filter(
-                    user=user,
-                    tag_id__in=tag_ids
-                ).values_list('photo_id', flat=True).distinct()
+                photo_tags = (
+                    Photo_Tag.objects.filter(user=user, tag_id__in=tag_ids)
+                    .values_list("photo_id", flat=True)
+                    .distinct()
+                )
 
                 if photo_tags:
                     # Fetch photo_path_id from Photo model instead of Qdrant
-                    photos = Photo.objects.filter(
-                        photo_id__in=photo_tags
-                    ).values('photo_id', 'photo_path_id')
+                    photos = Photo.objects.filter(photo_id__in=photo_tags).values(
+                        "photo_id", "photo_path_id"
+                    )
 
                     final_results = [
-                        {"photo_id": str(p['photo_id']), "photo_path_id": p['photo_path_id']}
+                        {
+                            "photo_id": str(p["photo_id"]),
+                            "photo_path_id": p["photo_path_id"],
+                        }
                         for p in photos
                     ]
 
@@ -165,12 +167,14 @@ class SemanticSearchView(APIView):
                     photo_uuids = [uuid.UUID(pid) for pid in semantic_photo_ids]
 
                     # Fetch photo_path_id from Photo model instead of Qdrant
-                    photos = Photo.objects.filter(
-                        photo_id__in=photo_uuids
-                    ).values('photo_id', 'photo_path_id')
+                    photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
+                        "photo_id", "photo_path_id"
+                    )
 
                     # Build lookup dict to maintain order
-                    id_to_path = {str(p['photo_id']): p['photo_path_id'] for p in photos}
+                    id_to_path = {
+                        str(p["photo_id"]): p["photo_path_id"] for p in photos
+                    }
 
                     # Maintain order from semantic search results
                     final_results = [
@@ -180,22 +184,22 @@ class SemanticSearchView(APIView):
                     ]
 
             elif semantic_query and valid_tags:
-                # (C) 하이브리드 검색 
+                # (C) 하이브리드 검색
                 final_results = execute_hybrid_graph_search(
                     user=user,
                     personalization_nodes=personalization_nodes,
                     semantic_scores=semantic_scores,
                     tag_edge_weight=TAG_EDGE_WEIGHT,
-                ) #
+                )  #
 
             else:
                 # (D) 쿼리가 비어있거나, 유효한 태그가 하나도 없는 경우
                 return Response(
                     {"message": "No valid tags found or query is empty."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            serializer = PhotoResponseSerializer(final_results, many=True) #
+            serializer = PhotoResponseSerializer(final_results, many=True)  #
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:

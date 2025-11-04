@@ -27,15 +27,15 @@ class TaskFunctionsTest(TestCase):
         self.photo_id = uuid.uuid4()
         self.tag_id = uuid.uuid4()
         self.tag = Tag.objects.create(tag_id=self.tag_id, user=self.user, tag="test")
-        
+
         # Create photo first
         self.photo = Photo.objects.create(
             photo_id=self.photo_id,
             user=self.user,
             photo_path_id=123,
-            filename="test.jpg"
+            filename="test.jpg",
         )
-        
+
         # Create photo_tag relationship with photo instance
         self.photo_tag = Photo_Tag.objects.create(
             user=self.user, tag=self.tag, photo=self.photo
@@ -76,7 +76,7 @@ class TaskFunctionsTest(TestCase):
         first_uuid = uuid.uuid4()
 
         mock_points = [
-            MagicMock(id =str(first_uuid), payload={"photo_path_id": 1}),
+            MagicMock(id=str(first_uuid), payload={"photo_path_id": 1}),
             MagicMock(id=str(uuid.uuid4()), payload={"photo_path_id": 2}),
             MagicMock(id=str(uuid.uuid4()), payload={"photo_path_id": 3}),
         ]

@@ -12,7 +12,6 @@ To run workers:
     celery -A config worker --loglevel=info
 """
 
-import uuid
 import re
 import torch
 from io import BytesIO
@@ -36,15 +35,37 @@ _caption_model = None
 
 # Stop words for caption processing
 STOP_WORDS = {
-    "a", "an", "the", "in", "on", "of", "at", "for", "with", "by", "about",
-    "is", "are", "was", "were", "it", "this", "that", "and", "or", "but",
-    "photo", "picture", "image",
+    "a",
+    "an",
+    "the",
+    "in",
+    "on",
+    "of",
+    "at",
+    "for",
+    "with",
+    "by",
+    "about",
+    "is",
+    "are",
+    "was",
+    "were",
+    "it",
+    "this",
+    "that",
+    "and",
+    "or",
+    "but",
+    "photo",
+    "picture",
+    "image",
 }
 
 
 # ============================================================================
 # Vision Model Loaders
 # ============================================================================
+
 
 def get_image_model():
     """Lazy-load CLIP image model once per worker"""
@@ -82,6 +103,7 @@ def get_caption_model():
 # Vision Inference Functions
 # ============================================================================
 
+
 def get_image_embedding(image_data: BytesIO):
     """
     Generate CLIP embedding for an image.
@@ -93,7 +115,7 @@ def get_image_embedding(image_data: BytesIO):
         Image embedding vector or None on error
     """
     try:
-        print(f"[INFO] Generating embedding from image data ...", flush=True)
+        print("[INFO] Generating embedding from image data ...", flush=True)
 
         image = Image.open(image_data).convert("RGB")
         model = get_image_model()
@@ -101,7 +123,7 @@ def get_image_embedding(image_data: BytesIO):
         with torch.no_grad():
             embedding = model.encode(image)
 
-        print(f"[DONE] Finished image embedding\n", flush=True)
+        print("[DONE] Finished image embedding\n", flush=True)
         return embedding
 
     except Exception as e:
@@ -144,7 +166,7 @@ def get_image_captions(image_data: BytesIO) -> dict[str, int]:
         list(chain.from_iterable((phrase_to_words(phrase) for phrase in phrases)))
     )
 
-    print(f"[DONE] Finished caption generation\n", flush=True)
+    print("[DONE] Finished caption generation\n", flush=True)
     return dict(counter)
 
 
@@ -241,7 +263,6 @@ def process_and_embed_photo(
         image_data.seek(0)
         captions = get_image_captions(image_data)
 
-
         for word, count in captions.items():
             caption, _ = Caption.objects.get_or_create(
                 user=user,
@@ -265,5 +286,3 @@ def process_and_embed_photo(
             image_data.close()
         # Cleanup storage
         delete_photo(storage_key)
-
-

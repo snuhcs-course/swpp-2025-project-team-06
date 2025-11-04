@@ -15,7 +15,6 @@ from .reponse_serializers import (
     ResTagIdSerializer,
     ResTagVectorSerializer,
     ResStorySerializer,
-    ResTagAlbumSerializer,
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
@@ -31,7 +30,6 @@ from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-from django.conf import settings
 from django.core.cache import cache
 
 from .tasks import (
@@ -43,7 +41,6 @@ from .tasks import (
 )
 from .gpu_tasks import process_and_embed_photo  # GPU-dependent task
 from .storage_service import upload_photo
-
 
 
 class PhotoView(APIView):
@@ -171,7 +168,6 @@ class PhotoView(APIView):
                     lng=data["lng"],
                 )
 
-
             return Response(
                 {"message": "Photos are being processed."},
                 status=status.HTTP_202_ACCEPTED,
@@ -251,13 +247,11 @@ class PhotoDetailView(APIView):
                 {
                     "tag_id": str(tag.tag_id),
                     "tag": tag.tag,
-                } for tag in tags
+                }
+                for tag in tags
             ]
 
-            photo_data = {
-                "photo_path_id": photo.photo_path_id,
-                "tags": tag_list
-            }
+            photo_data = {"photo_path_id": photo.photo_path_id, "tags": tag_list}
 
             serializer = ResPhotoTagListSerializer(photo_data)
 
@@ -296,7 +290,9 @@ class PhotoDetailView(APIView):
         try:
             client = get_qdrant_client()
 
-            associated_photo_tags = Photo_Tag.objects.filter(photo__photo_id=photo_id, user=request.user)
+            associated_photo_tags = Photo_Tag.objects.filter(
+                photo__photo_id=photo_id, user=request.user
+            )
             tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_photo_tags]
 
             Photo.objects.filter(photo_id=photo_id, user=request.user).delete()
@@ -306,7 +302,7 @@ class PhotoDetailView(APIView):
                 points_selector=[str(photo_id)],
                 wait=True,
             )
-            
+
             print(f"[INFO] Invalidating graph cache for user {request.user.id}")
             cache.delete(f"user_{request.user.id}_combined_graph")
 
@@ -367,14 +363,16 @@ class BulkDeletePhotoView(APIView):
                 points_selector=[str(photo_id) for photo_id in photo_ids_to_delete],
                 wait=True,
             )
-            
+
             print(f"[INFO] Invalidating graph cache for user {request.user.id}")
             cache.delete(f"user_{request.user.id}_combined_graph")
 
             for tag_id in tag_ids_to_recompute:
                 compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
-            Photo.objects.filter(photo_id__in=photo_ids_to_delete, user=request.user).delete()
+            Photo.objects.filter(
+                photo_id__in=photo_ids_to_delete, user=request.user
+            ).delete()
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -413,20 +411,13 @@ class GetPhotosByTagView(APIView):
         try:
             tag = Tag.objects.get(tag_id=tag_id, user=request.user)
 
-            photo_tags = Photo_Tag.objects.filter(
-                tag=tag,
-                user=request.user
-            )
+            photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user)
 
-            photos = [
-                photo_tag.photo for photo_tag in photo_tags
-            ]
+            photos = [photo_tag.photo for photo_tag in photo_tags]
 
             photos_data = [
-                {
-                    "photo_id": photo.photo_id,
-                    "photo_path_id": photo.photo_path_id
-                } for photo in photos
+                {"photo_id": photo.photo_id, "photo_path_id": photo.photo_path_id}
+                for photo in photos
             ]
 
             serializer = ResPhotoSerializer(photos_data, many=True)
@@ -479,7 +470,6 @@ class PostPhotoTagsView(APIView):
             photo = Photo.objects.get(photo_id=photo_id, user=request.user)
 
             for tag_id in tag_ids:
-
                 tag = Tag.objects.get(tag_id=tag_id, user=request.user)
 
                 if Photo_Tag.objects.filter(
@@ -488,10 +478,7 @@ class PostPhotoTagsView(APIView):
                     continue  # Skip if the relationship already exists
 
                 Photo_Tag.objects.create(
-                    pt_id=uuid.uuid4(),
-                    photo=photo,
-                    tag=tag,
-                    user=request.user
+                    pt_id=uuid.uuid4(), photo=photo, tag=tag, user=request.user
                 )
 
                 print(f"[INFO] Invalidating graph cache for user {request.user.id}")
@@ -505,9 +492,7 @@ class PostPhotoTagsView(APIView):
                 {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
             )
         except Tag.DoesNotExist:
-            return Response(
-                {"error": "No such tag"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "No such tag"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -542,10 +527,8 @@ class DeletePhotoTagsView(APIView):
         try:
             photo = Photo.objects.get(photo_id=photo_id, user=request.user)
             tag = Tag.objects.get(tag_id=tag_id, user=request.user)
-            
-            photo_tag = Photo_Tag.objects.get(
-                photo=photo, tag=tag, user=request.user
-            )
+
+            photo_tag = Photo_Tag.objects.get(photo=photo, tag=tag, user=request.user)
 
             photo_tag.delete()
 
@@ -992,45 +975,42 @@ class StoryView(APIView):
                 type=openapi.TYPE_STRING,
             ),
             openapi.Parameter(
-                "size", openapi.IN_QUERY, description="number of photos", type=openapi.TYPE_INTEGER
+                "size",
+                openapi.IN_QUERY,
+                description="number of photos",
+                type=openapi.TYPE_INTEGER,
             ),
-        ]
+        ],
     )
     def get(self, request):
-        try:   
+        try:
             # 페이지네이션 파라미터 가져오기 및 검증
             try:
-                size = int(request.GET.get('size', 20))
+                size = int(request.GET.get("size", 20))
                 if size < 1:
                     return Response(
-                        {"error": "Size parameter must be positive"}, 
-                        status=status.HTTP_400_BAD_REQUEST
+                        {"error": "Size parameter must be positive"},
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
                 size = min(size, 200)  # 최대 200개 제한
             except ValueError:
                 return Response(
-                    {"error": "Invalid size parameter"}, 
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"error": "Invalid size parameter"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             # 랜덤 정렬로 매번 다른 순서 보장
             # Filter photos that don't have any Photo_Tag relations
-            has_tags = Photo_Tag.objects.filter(
-                photo=OuterRef('pk'),
-                user=request.user
-            )
-            photos_queryset = Photo.objects.filter(
-                user=request.user
-            ).exclude(
-                Exists(has_tags)
-            ).order_by('?')[:size]  # 랜덤 정렬 + 슬라이싱
-            
+            has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=request.user)
+            photos_queryset = (
+                Photo.objects.filter(user=request.user)
+                .exclude(Exists(has_tags))
+                .order_by("?")[:size]
+            )  # 랜덤 정렬 + 슬라이싱
+
             # QuerySet을 유지하면서 데이터 직렬화
             photos_data = [
-                {
-                    "photo_id": str(photo.photo_id),
-                    "photo_path_id": photo.photo_path_id
-                } 
+                {"photo_id": str(photo.photo_id), "photo_path_id": photo.photo_path_id}
                 for photo in photos_queryset
             ]
 
