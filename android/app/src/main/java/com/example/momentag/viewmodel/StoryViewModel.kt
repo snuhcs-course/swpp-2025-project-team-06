@@ -295,7 +295,7 @@ class StoryViewModel(
                 // First, create the tag (or get existing tag ID)
                 when (val createResult = remoteRepository.postTags(tagName)) {
                     is RemoteRepository.Result.Success -> {
-                        val tagId = createResult.data.tagId
+                        val tagId = createResult.data.id
 
                         // Then associate the tag with the photo
                         when (val associateResult = remoteRepository.postTagsToPhoto(photoId, tagId)) {

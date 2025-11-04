@@ -136,7 +136,7 @@ class AddTagViewModel(
 
             when (tagResult) {
                 is RemoteRepository.Result.Success -> {
-                    tagId = tagResult.data.tagId
+                    tagId = tagResult.data.id
                 }
                 else -> {
                     _saveState.value = SaveState.Error("Error creating tag")

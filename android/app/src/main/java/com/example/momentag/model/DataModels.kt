@@ -18,9 +18,14 @@ data class TagItem(
     val tagId: String,
 )
 
-data class TagCreateRequest(
+data class TagName(
     @SerializedName("tag")
     val name: String,
+)
+
+data class TagId(
+    @SerializedName("tag_id")
+    val id: String,
 )
 
 data class PhotoDetailResponse(
@@ -40,16 +45,6 @@ data class Photo(
 
 data class Photos(
     val photos: List<Photo>,
-)
-
-data class TagIdRequest(
-    @SerializedName("tag_id")
-    val tagId: String,
-)
-
-data class TagCreateResponse(
-    @SerializedName("tag_id")
-    val tagId: String,
 )
 
 data class PhotoTag(

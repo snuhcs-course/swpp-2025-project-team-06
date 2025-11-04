@@ -2,10 +2,15 @@ package com.example.momentag
 
 import android.Manifest
 import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Indication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,14 +28,20 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -45,11 +56,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,6 +95,63 @@ fun AlbumScreen(
     val albumViewModel: AlbumViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
     val imageLoadState by albumViewModel.albumLoadingState.collectAsState()
+    val tagDeleteState by albumViewModel.tagDeleteState.collectAsState()
+    val tagRenameState by albumViewModel.tagRenameState.collectAsState()
+
+    // State for main album delete mode
+    var isAlbumDeleteMode by remember { mutableStateOf(false) }
+
+    // State for tag name text field
+    // "actual" name, updates on successful rename
+    var currentTagName by remember(tagName) { mutableStateOf(tagName) }
+    // text field's current content
+    var editableTagName by remember(tagName) { mutableStateOf(tagName) }
+
+    // State for focus tracking
+    var isFocused by remember { mutableStateOf(false) }
+
+    // Controllers for keyboard and focus
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
+    // Handle back press to exit delete mode
+    BackHandler(enabled = isAlbumDeleteMode) {
+        isAlbumDeleteMode = false
+    }
+
+    // Handle delete success/error
+    LaunchedEffect(tagDeleteState) {
+        when (val state = tagDeleteState) {
+            is AlbumViewModel.TagDeleteState.Success -> {
+                Toast.makeText(context, "Photo removed from album", Toast.LENGTH_SHORT).show()
+                albumViewModel.resetDeleteState()
+            }
+            is AlbumViewModel.TagDeleteState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                albumViewModel.resetDeleteState()
+            }
+            else -> Unit // Idle, Loading
+        }
+    }
+
+    // Handle rename success/error
+    LaunchedEffect(tagRenameState) {
+        when (val state = tagRenameState) {
+            is AlbumViewModel.TagRenameState.Success -> {
+                Toast.makeText(context, "Tag renamed", Toast.LENGTH_SHORT).show()
+                // On success, update the "current" name to the new name
+                currentTagName = editableTagName
+                albumViewModel.resetRenameState()
+            }
+            is AlbumViewModel.TagRenameState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                // On error, reset the text field to the last known good name
+                editableTagName = currentTagName
+                albumViewModel.resetRenameState()
+            }
+            else -> Unit // Idle, Loading
+        }
+    }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -96,6 +169,12 @@ fun AlbumScreen(
         }
     }
 
+    // Update local states if the initial tagName prop changes
+    LaunchedEffect(tagName) {
+        currentTagName = tagName
+        editableTagName = tagName
+    }
+
     LaunchedEffect(key1 = true) {
         val permission =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -106,12 +185,30 @@ fun AlbumScreen(
         permissionLauncher.launch(permission)
     }
 
+    // Helper function for submit/unfocus logic
+    val submitAndClearFocus = {
+        if (editableTagName.isNotBlank() && editableTagName != currentTagName) { // If text is valid and different, rename
+            albumViewModel.renameTag(tagId, editableTagName)
+        } else if (editableTagName.isBlank()) { // If text is blank, revert to the last good name
+            editableTagName = currentTagName
+        }
+
+        keyboardController?.hide() // Hide keyboard
+        focusManager.clearFocus() // Remove focus (cursor)
+    }
+
     Scaffold(
         containerColor = Background,
         topBar = {
             BackTopBar(
                 title = "MomenTag",
-                onBackClick = onNavigateBack,
+                onBackClick = {
+                    if (isAlbumDeleteMode) {
+                        isAlbumDeleteMode = false
+                    } else {
+                        onNavigateBack()
+                    }
+                },
             )
         },
     ) { paddingValues ->
@@ -133,14 +230,66 @@ fun AlbumScreen(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null, // No ripple effect
+                        ) {
+                            submitAndClearFocus() // Run the same logic as "Done"
+                        },
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = tagName,
-                    fontSize = 28.sp,
-                    fontFamily = FontFamily.Serif,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    BasicTextField(
+                        value = editableTagName,
+                        onValueChange = { editableTagName = it },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
+                            .onFocusChanged { focusState ->
+                                isFocused = focusState.isFocused
+                            },
+                        textStyle = TextStyle(
+                            fontSize = 28.sp,
+                            fontFamily = FontFamily.Serif,
+                            color = LocalContentColor.current,
+                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                submitAndClearFocus()
+                            },
+                        ),
+                        singleLine = true,
+                    )
+
+                    // 'Clear text' (x) button
+                    // Show only when focused AND not empty
+                    if (editableTagName.isNotEmpty() && isFocused) {                        IconButton(
+                            onClick = { editableTagName = "" },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(24.dp)
+                                        .background(Color.Gray.copy(alpha = 0.5f), shape = CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear text",
+                                    tint = Color.Black.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                    }
+                }
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
                     color = Color.Black.copy(alpha = 0.5f),
@@ -158,6 +307,12 @@ fun AlbumScreen(
                         navController = navController,
                         onToggleRecommendPhoto = { photo -> albumViewModel.toggleRecommendPhoto(photo) },
                         onResetSelection = { albumViewModel.resetRecommendSelection() },
+                        tagId = tagId,
+                        isAlbumDeleteMode = isAlbumDeleteMode,
+                        onEnterAlbumDeleteMode = { isAlbumDeleteMode = true },
+                        onDeleteTagFromPhoto = { photoId, tagIdValue ->
+                            albumViewModel.deleteTagFromPhoto(photoId, tagIdValue)
+                        },
                     )
                 }
             }
@@ -173,6 +328,10 @@ private fun AlbumContent(
     navController: NavController,
     onToggleRecommendPhoto: (com.example.momentag.model.Photo) -> Unit,
     onResetSelection: () -> Unit,
+    tagId: String,
+    isAlbumDeleteMode: Boolean,
+    onEnterAlbumDeleteMode: () -> Unit,
+    onDeleteTagFromPhoto: (String, String) -> Unit,
 ) {
     var isRecommendSelectionMode by remember { mutableStateOf(false) }
     var recommendOffsetY by remember { mutableFloatStateOf(600f) }
@@ -203,8 +362,15 @@ private fun AlbumContent(
                         ImageGridUriItem(
                             photo = photos[index],
                             navController = navController,
+                            onLongPress = {
+                                onEnterAlbumDeleteMode()
+                            },
                             cornerRadius = 12.dp,
                             topPadding = 0.dp,
+                            isAlbumDeleteMode = isAlbumDeleteMode,
+                            onDeleteClick = {
+                                onDeleteTagFromPhoto(photos[index].photoId, tagId)
+                            },
                         )
                     }
                 }
