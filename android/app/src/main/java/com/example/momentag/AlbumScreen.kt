@@ -102,10 +102,8 @@ fun AlbumScreen(
     var isAlbumDeleteMode by remember { mutableStateOf(false) }
 
     // State for tag name text field
-    // "actual" name, updates on successful rename
-    var currentTagName by remember(tagName) { mutableStateOf(tagName) }
-    // text field's current content
-    var editableTagName by remember(tagName) { mutableStateOf(tagName) }
+    var currentTagName by remember(tagName) { mutableStateOf(tagName) } // actual name, updates on successful rename
+    var editableTagName by remember(tagName) { mutableStateOf(tagName) } // text field's current content
 
     // State for focus tracking
     var isFocused by remember { mutableStateOf(false) }
@@ -139,14 +137,12 @@ fun AlbumScreen(
         when (val state = tagRenameState) {
             is AlbumViewModel.TagRenameState.Success -> {
                 Toast.makeText(context, "Tag renamed", Toast.LENGTH_SHORT).show()
-                // On success, update the "current" name to the new name
-                currentTagName = editableTagName
+                currentTagName = editableTagName // update the "current" name to the new name
                 albumViewModel.resetRenameState()
             }
             is AlbumViewModel.TagRenameState.Error -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-                // On error, reset the text field to the last known good name
-                editableTagName = currentTagName
+                editableTagName = currentTagName // reset the text field to the last known good name
                 albumViewModel.resetRenameState()
             }
             else -> Unit // Idle, Loading
@@ -169,7 +165,6 @@ fun AlbumScreen(
         }
     }
 
-    // Update local states if the initial tagName prop changes
     LaunchedEffect(tagName) {
         currentTagName = tagName
         editableTagName = tagName
@@ -185,9 +180,8 @@ fun AlbumScreen(
         permissionLauncher.launch(permission)
     }
 
-    // Helper function for submit/unfocus logic
     val submitAndClearFocus = {
-        if (editableTagName.isNotBlank() && editableTagName != currentTagName) { // If text is valid and different, rename
+        if (editableTagName.isNotBlank() && editableTagName != currentTagName) {
             albumViewModel.renameTag(tagId, editableTagName)
         } else if (editableTagName.isBlank()) { // If text is blank, revert to the last good name
             editableTagName = currentTagName
@@ -233,7 +227,7 @@ fun AlbumScreen(
                         .padding(horizontal = 16.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = null, // No ripple effect
+                            indication = null,
                         ) {
                             submitAndClearFocus() // Run the same logic as "Done"
                         },
@@ -269,7 +263,8 @@ fun AlbumScreen(
 
                     // 'Clear text' (x) button
                     // Show only when focused AND not empty
-                    if (editableTagName.isNotEmpty() && isFocused) {                        IconButton(
+                    if (editableTagName.isNotEmpty() && isFocused) {
+                        IconButton(
                             onClick = { editableTagName = "" },
                             modifier = Modifier.size(32.dp),
                         ) {

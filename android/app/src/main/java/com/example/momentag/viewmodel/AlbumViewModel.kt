@@ -288,5 +288,4 @@ class AlbumViewModel(
     fun resetRenameState() {
         _tagRenameState.value = TagRenameState.Idle
     }
-
 }
