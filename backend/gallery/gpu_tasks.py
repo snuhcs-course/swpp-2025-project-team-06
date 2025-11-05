@@ -94,11 +94,11 @@ def get_caption_model():
     """Lazy-load BLIP caption model"""
     global _caption_model
     if _caption_model is None:
-        print("[INFO] Loading BLIP captioning model inside worker...")
+        print(f"[INFO] Loading BLIP captioning model on {DEVICE}...")
         _caption_model = BlipForConditionalGeneration.from_pretrained(
             "Salesforce/blip-image-captioning-base",
-            dtype=torch.float16,
-        )
+            torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+        ).to(DEVICE)
     return _caption_model
 
 
@@ -150,6 +150,8 @@ def get_image_captions(image_data: BytesIO) -> dict[str, int]:
     image = Image.open(image_data).convert("RGB")
 
     inputs = processor(images=image, return_tensors="pt")  # pyright: ignore[reportCallIssue]
+    # Move inputs to the same device as the model
+    inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 
     with torch.no_grad():
         outputs = model.generate(
@@ -285,6 +287,8 @@ def get_image_captions_batch(image_data_list: list[BytesIO]) -> list[dict[str, i
 
     # Process all images at once
     inputs = processor(images=images, return_tensors="pt", padding=True)  # pyright: ignore[reportCallIssue]
+    # Move inputs to the same device as the model
+    inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 
     with torch.no_grad():
         # Generate captions for all images in batch
