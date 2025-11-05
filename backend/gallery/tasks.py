@@ -42,10 +42,20 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     rrf_scores = defaultdict(float)
     photo_uuids = set()
 
+    user_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="user_id",
+                match=models.MatchValue(value=user.id),
+            )
+        ]
+    )
+
     for rep_vector in rep_vectors:
         search_result = client.search(
             IMAGE_COLLECTION_NAME,
             query_vector=rep_vector,
+            query_filter=user_filter,
             limit=LIMIT,
         )
 
