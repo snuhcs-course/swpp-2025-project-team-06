@@ -86,6 +86,9 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     ALPHA = 0.5
     LIMIT = 20
 
+    if not photos:
+        return []
+
     target_set = set(photos)
 
     all_photos, _, graph = retrieve_photo_caption_graph(user)
