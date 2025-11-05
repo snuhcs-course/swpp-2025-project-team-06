@@ -88,8 +88,8 @@ import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.HomeViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -611,7 +611,7 @@ private fun MainContent(
             // All Photos Grid View - 서버에서 가져온 사진들 with pagination
             val listState = rememberLazyGridState()
 
-                        // 스크롤 지점 감지 - serverPhotos와 isLoadingMorePhotos도 의존성에 추가
+            // 스크롤 지점 감지 - serverPhotos와 isLoadingMorePhotos도 의존성에 추가
             LaunchedEffect(listState) {
                 snapshotFlow {
                     listState.layoutInfo.visibleItemsInfo
