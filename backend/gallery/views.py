@@ -39,7 +39,10 @@ from .tasks import (
     recommend_photo_from_photo,
     compute_and_store_rep_vectors,
 )
-from .gpu_tasks import process_and_embed_photo  # GPU-dependent task
+from .gpu_tasks import (
+    process_and_embed_photo,  # GPU-dependent task (single photo)
+    process_and_embed_photos_batch,  # GPU-dependent task (batch)
+)
 from .storage_service import upload_photo
 
 
@@ -50,11 +53,11 @@ class PhotoView(APIView):
 
     @swagger_auto_schema(
         operation_summary="Upload Photos",
-        operation_description="Upload photos to the backend",
+        operation_description="Upload photos to the backend. Photos are automatically chunked into batches of 8 for GPU efficiency.",
         request_body=ReqPhotoDetailSerializer(many=True),
         responses={
-            201: openapi.Response(
-                description="Created", schema=ResPhotoIdSerializer(many=True)
+            202: openapi.Response(
+                description="Accepted - Photos are being processed"
             ),
             400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
@@ -142,6 +145,9 @@ class PhotoView(APIView):
             print(f"[INFO] Invalidating graph cache for user {request.user.id}")
             cache.delete(f"user_{request.user.id}_combined_graph")
 
+            # Collect all photo metadata for batch processing
+            all_metadata = []
+
             for data in photos_data:
                 image_file = data["photo"]
 
@@ -158,15 +164,23 @@ class PhotoView(APIView):
                     lng=data["lng"],
                 )
 
-                process_and_embed_photo.delay(
-                    storage_key=storage_key,
-                    user_id=request.user.id,
-                    filename=data["filename"],
-                    photo_path_id=data["photo_path_id"],
-                    created_at=data["created_at"].isoformat(),
-                    lat=data["lat"],
-                    lng=data["lng"],
-                )
+                # Add to metadata list
+                all_metadata.append({
+                    "storage_key": storage_key,
+                    "user_id": request.user.id,
+                    "filename": data["filename"],
+                    "photo_path_id": data["photo_path_id"],
+                    "created_at": data["created_at"].isoformat(),
+                    "lat": data["lat"],
+                    "lng": data["lng"],
+                })
+
+            # Split into batches of 8 for GPU memory management
+            BATCH_SIZE = 8
+            for i in range(0, len(all_metadata), BATCH_SIZE):
+                batch_metadata = all_metadata[i:i + BATCH_SIZE]
+                process_and_embed_photos_batch.delay(batch_metadata)
+                print(f"[INFO] Dispatched batch task for {len(batch_metadata)} photos (batch {i//BATCH_SIZE + 1})")
 
             return Response(
                 {"message": "Photos are being processed."},
