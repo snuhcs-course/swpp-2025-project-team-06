@@ -64,7 +64,7 @@ class LocalRepository(
     // - JPEG로 압축한 ByteArray를 반환 (실패 시 null)
     // - API 28+ : ImageDecoder (EXIF 자동 반영) + 정수 샘플링 우선
     // - API <28 : BitmapFactory + inSampleSize(OR 루프) + EXIF 수동 회전 보정
-    private fun resizeImage(
+    fun resizeImage(
         contentUri: Uri,
         maxWidth: Int,
         maxHeight: Int,
@@ -305,7 +305,7 @@ class LocalRepository(
 
                     // generate MultipartBody.Part
                     // Resize & compress to JPEG to reduce upload size and memory usage. If resize fails, fall back to raw bytes.
-                    val resizedBytes = resizeImage(contentUri, maxWidth = 1280, maxHeight = 1280, quality = 85)
+                    val resizedBytes = resizeImage(contentUri, maxWidth = 224, maxHeight = 224, quality = 85)
                     val (bytes, mime) =
                         if (resizedBytes != null) {
                             resizedBytes to "image/jpeg"
@@ -582,7 +582,7 @@ class LocalRepository(
 
         chunk.forEach { photoInfo ->
             // (기존 getPhotoUploadRequest의 리사이즈/변환 로직 재사용)
-            val resizedBytes = resizeImage(photoInfo.uri, maxWidth = 1280, maxHeight = 1280, quality = 85)
+            val resizedBytes = resizeImage(photoInfo.uri, maxWidth = 224, maxHeight = 224, quality = 85)
             val (bytes, mime) =
                 if (resizedBytes != null) {
                     resizedBytes to "image/jpeg"
