@@ -58,21 +58,8 @@ class ImageDetailViewModel(
      * @param uri 현재 보고 있는 사진의 URI
      */
     fun loadImageContextByUri(uri: Uri) {
-        // Repository에서 URI로 컨텍스트 조회
         val context = imageBrowserRepository.getPhotoContextByUri(uri)
-
-        if (context != null) {
-            // Found in browsing session
-            _imageContext.value = context
-        } else {
-            // Not in session - create empty context
-            _imageContext.value =
-                ImageContext(
-                    images = emptyList(),
-                    currentIndex = 0,
-                    contextType = ImageContext.ContextType.GALLERY,
-                )
-        }
+        _imageContext.value = context // may be null when no active browsing session
     }
 
     /**

@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -102,13 +101,14 @@ fun ImageDetailScreen(
         }
     }
 
-    // Extract photos from ImageContext or create single photo from imageUri
+    // Extract photos from ImageContext or create single photo using backend imageId with provided imageUri
+    // Important: Do NOT derive backend photoId from local media URI; always use backend-provided imageId
     val photos =
-        imageContext?.images?.takeIf { it.isNotEmpty() } ?: imageUri?.let {
+        imageContext?.images?.takeIf { it.isNotEmpty() } ?: imageUri?.let { uri ->
             listOf(
                 Photo(
-                    photoId = it.lastPathSegment ?: it.toString(), // Use media ID from URI as fallback
-                    contentUri = it,
+                    photoId = imageId, // backend photo_id must be used
+                    contentUri = uri,
                 ),
             )
         } ?: emptyList()
@@ -308,9 +308,8 @@ fun ImageDetailScreen(
                     state = pagerState,
                     modifier =
                         Modifier
-                            .padding(top = 50.dp)
-                            .aspectRatio(0.7f)
-                            .align(Alignment.BottomCenter),
+                            .fillMaxSize()
+                            .align(Alignment.Center),
                 ) { page ->
                     val photo = photos.getOrNull(page)
                     AsyncImage(
@@ -322,7 +321,7 @@ fun ImageDetailScreen(
                                 .clickable {
                                     if (isDeleteMode) isDeleteMode = false
                                 },
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                     )
                 }
 

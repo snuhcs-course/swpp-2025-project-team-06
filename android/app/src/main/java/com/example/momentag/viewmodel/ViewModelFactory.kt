@@ -94,7 +94,7 @@ class ViewModelFactory private constructor(
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
         when {
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
-                HomeViewModel(localRepository, remoteRepository) as T
+                HomeViewModel(localRepository, remoteRepository, draftTagRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(LocalViewModel::class.java) -> {
                 LocalViewModel(localRepository, imageBrowserRepository, albumUploadSuccessEvent) as T
@@ -115,7 +115,7 @@ class ViewModelFactory private constructor(
                 AddTagViewModel(draftTagRepository, recommendRepository, localRepository, remoteRepository) as T
             }
             modelClass.isAssignableFrom(SelectImageViewModel::class.java) -> {
-                SelectImageViewModel(draftTagRepository, localRepository, remoteRepository) as T
+                SelectImageViewModel(draftTagRepository, localRepository, remoteRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(AlbumViewModel::class.java) -> {
                 AlbumViewModel(localRepository, remoteRepository, recommendRepository, imageBrowserRepository) as T
