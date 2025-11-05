@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +43,8 @@ import com.example.momentag.model.Photo
  * @param onLongPress 롱프레스 콜백 (선택사항)
  * @param cornerRadius 모서리 둥글기 (기본: 16dp)
  * @param topPadding 상단 패딩 (기본: 12dp)
+ * @param isAlbumDeleteMode 앨범 삭제 모드 활성화 여부
+ * @param onDeleteClick 삭제 'x' 버튼 클릭 콜백
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -53,6 +58,8 @@ fun ImageGridUriItem(
     onLongPress: (() -> Unit)? = null,
     cornerRadius: Dp = 16.dp,
     topPadding: Dp = 12.dp,
+    isAlbumDeleteMode: Boolean = false,
+    onDeleteClick: (() -> Unit)? = null,
 ) {
     Box(modifier = modifier) {
         // 이미지
@@ -72,6 +79,10 @@ fun ImageGridUriItem(
                     // 선택 모드이거나 롱프레스 지원 시 combinedClickable 사용
                     imageModifier.combinedClickable(
                         onClick = {
+                            if (isAlbumDeleteMode) {
+                                // ignore click on delete mode
+                                return@combinedClickable
+                            }
                             if (isSelectionMode && onToggleSelection != null) {
                                 onToggleSelection()
                             } else {
@@ -80,6 +91,10 @@ fun ImageGridUriItem(
                             }
                         },
                         onLongClick = {
+                            if (isAlbumDeleteMode) {
+                                // ignore long click on delete mode
+                                return@combinedClickable
+                            }
                             if (!isSelectionMode && onLongPress != null) {
                                 onLongPress()
                                 onToggleSelection?.invoke()
@@ -89,6 +104,10 @@ fun ImageGridUriItem(
                 } else {
                     // 일반 클릭만 지원
                     imageModifier.clickable {
+                        if (isAlbumDeleteMode) {
+                            // ignore click on delete mode
+                            return@clickable
+                        }
                         // Just navigate - ImageContext loaded from Repository
                         navController.navigate(Screen.Image.createRoute(photo.contentUri, photo.photoId))
                     }
@@ -123,6 +142,35 @@ fun ImageGridUriItem(
                             .align(Alignment.Center)
                             .size(48.dp),
                 )
+            }
+        }
+
+        // 삭제 'x' 아이콘 (앨범 삭제 모드일 때만)
+        if (isAlbumDeleteMode) {
+            IconButton(
+                onClick = { onDeleteClick?.invoke() },
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(
+                            top = topPadding.plus(4.dp),
+                            end = 4.dp,
+                        ), // 이미지 패딩에 맞춰 조정
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(24.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Delete",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
         }
     }
