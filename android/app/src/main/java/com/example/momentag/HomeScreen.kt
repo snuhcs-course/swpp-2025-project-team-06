@@ -59,6 +59,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -108,6 +109,7 @@ fun HomeScreen(navController: NavController) {
     val selectedPhotos by homeViewModel.selectedPhotos.collectAsState() // draftTagRepository에서 가져옴!
     val allPhotos by homeViewModel.allPhotos.collectAsState() // 서버에서 가져온 사진들
     val isLoadingPhotos by homeViewModel.isLoadingPhotos.collectAsState()
+    val isLoadingMorePhotos by homeViewModel.isLoadingMorePhotos.collectAsState()
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
     var onlyTag by remember { mutableStateOf(false) }
@@ -592,9 +594,28 @@ private fun MainContent(
             }
         }
         showAllPhotos -> {
-            // All Photos Grid View - 서버에서 가져온 사진들
+            // All Photos Grid View - 서버에서 가져온 사진들 with pagination
+            val listState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+            val pageSize = 66
+            val loadThreshold = pageSize / 3  // 22장 = pageSize의 1/3
+            
+            // 스크롤 지점 - pageSize/3 만큼 남았을 때 다음 페이지 로드
+            LaunchedEffect(listState) {
+                snapshotFlow { listState.layoutInfo.visibleItemsInfo }
+                    .collect { visibleItems ->
+                        val lastVisibleItem = visibleItems.lastOrNull()
+                        if (lastVisibleItem != null && serverPhotos.size >= loadThreshold) {
+                            val threshold = serverPhotos.size - loadThreshold
+                            if (lastVisibleItem.index >= threshold) {
+                                homeViewModel?.loadMorePhotos()
+                            }
+                        }
+                    }
+            }
+            
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
+                state = listState,
                 modifier = modifier,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -667,6 +688,24 @@ private fun MainContent(
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+                
+                // 로딩 인디케이터 (다음 페이지 로딩 중)
+                if (isLoadingMorePhotos) {
+                    item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(32.dp),
+                                color = Color(0xFFFBC4AB),
+                                strokeWidth = 3.dp  // 약간 더 얇게 (선택사항)
+                            )
                         }
                     }
                 }
