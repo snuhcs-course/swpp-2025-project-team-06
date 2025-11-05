@@ -3,9 +3,9 @@ package com.example.momentag.repository
 import com.example.momentag.model.PhotoDetailResponse
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.PhotoUploadData
-import com.example.momentag.model.Tag
 import com.example.momentag.model.TagId
 import com.example.momentag.model.TagName
+import com.example.momentag.model.TagResponse
 import com.example.momentag.network.ApiService
 import retrofit2.HttpException
 import java.io.IOException
@@ -40,7 +40,7 @@ class RemoteRepository(
         ) : Result<T>()
     }
 
-    suspend fun getAllTags(): Result<List<Tag>> =
+    suspend fun getAllTags(): Result<List<TagResponse>> =
         try {
             val response = apiService.getAllTags()
 

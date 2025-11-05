@@ -16,6 +16,7 @@ import com.example.momentag.model.StoryResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagId
 import com.example.momentag.model.TagName
+import com.example.momentag.model.TagResponse
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -43,7 +44,7 @@ import kotlin.uuid.ExperimentalUuidApi
 @OptIn(ExperimentalUuidApi::class)
 interface ApiService {
     @GET("api/tags/")
-    suspend fun getAllTags(): Response<List<Tag>>
+    suspend fun getAllTags(): Response<List<TagResponse>>
 
     @GET("api/photos/")
     suspend fun getAllPhotos(): Response<List<PhotoResponse>>
