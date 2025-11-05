@@ -250,7 +250,7 @@ fun StoryTagSelectionScreen(
                                 navController.navigate(Screen.Home.route)
                             }
                             BottomTab.SearchResultScreen -> {
-                                navController.navigate(Screen.SearchResult.route)
+                                navController.navigate(Screen.SearchResult.initialRoute())
                             }
                             BottomTab.AddTagScreen -> {
                                 navController.navigate(Screen.AddTag.route)

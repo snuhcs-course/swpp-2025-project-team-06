@@ -308,7 +308,7 @@ fun HomeScreen(navController: NavController) {
                             // 이미 홈 화면
                         }
                         BottomTab.SearchResultScreen -> {
-                            navController.navigate(Screen.SearchResult.route)
+                            navController.navigate(Screen.SearchResult.initialRoute())
                         }
                         BottomTab.AddTagScreen -> {
                             navController.navigate(Screen.AddTag.route)
