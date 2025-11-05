@@ -192,7 +192,7 @@ fun AddTagScreen(navController: NavController) {
                             navController.navigate(Screen.Home.route)
                         }
                         BottomTab.SearchResultScreen -> {
-                            navController.navigate(Screen.SearchResult.route)
+                            navController.navigate(Screen.SearchResult.initialRoute())
                         }
                         BottomTab.AddTagScreen -> {
                             // 이미 Tag 화면
