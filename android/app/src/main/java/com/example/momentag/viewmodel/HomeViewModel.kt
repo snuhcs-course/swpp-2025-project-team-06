@@ -82,7 +82,7 @@ class HomeViewModel(
             _isLoadingPhotos.value = true
             currentOffset = 0
             hasMorePhotos = true
-            
+
             when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = 0)) {
                 is RemoteRepository.Result.Success -> {
                     val serverPhotos = localRepository.toPhotos(result.data)
@@ -105,7 +105,7 @@ class HomeViewModel(
 
         viewModelScope.launch {
             _isLoadingMorePhotos.value = true
-            
+
             when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = currentOffset)) {
                 is RemoteRepository.Result.Success -> {
                     val newPhotos = localRepository.toPhotos(result.data)
@@ -113,7 +113,7 @@ class HomeViewModel(
                         _allPhotos.value = _allPhotos.value + newPhotos
                         currentOffset += newPhotos.size
                         hasMorePhotos = newPhotos.size >= pageSize
-                        
+
                         // ImageBrowserRepository도 업데이트 (이전/다음 버튼 작동 보장)
                         imageBrowserRepository.setGallery(_allPhotos.value)
                     } else {

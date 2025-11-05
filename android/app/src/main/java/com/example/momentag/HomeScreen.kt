@@ -595,10 +595,12 @@ private fun MainContent(
         }
         showAllPhotos -> {
             // All Photos Grid View - 서버에서 가져온 사진들 with pagination
-            val listState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+            val listState =
+                androidx.compose.foundation.lazy.grid
+                    .rememberLazyGridState()
             val pageSize = 66
-            val loadThreshold = pageSize / 3  // 22장 = pageSize의 1/3
-            
+            val loadThreshold = pageSize / 3 // 22장 = pageSize의 1/3
+
             // 스크롤 지점 - pageSize/3 만큼 남았을 때 다음 페이지 로드
             LaunchedEffect(listState) {
                 snapshotFlow { listState.layoutInfo.visibleItemsInfo }
@@ -612,7 +614,7 @@ private fun MainContent(
                         }
                     }
             }
-            
+
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 state = listState,
@@ -691,20 +693,24 @@ private fun MainContent(
                         }
                     }
                 }
-                
+
                 // 로딩 인디케이터 (다음 페이지 로딩 중)
                 if (isLoadingMorePhotos) {
-                    item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(3) }) {
+                    item(span = {
+                        androidx.compose.foundation.lazy.grid
+                            .GridItemSpan(3)
+                    }) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(32.dp),
                                 color = Color(0xFFFBC4AB),
-                                strokeWidth = 3.dp  // 약간 더 얇게 (선택사항)
+                                strokeWidth = 3.dp, // 약간 더 얇게 (선택사항)
                             )
                         }
                     }
