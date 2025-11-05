@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">MomenTag</string>
-    <string name="API_BASE_URL">https://hcs.swpp-2025.snu.ac.kr/team6/</string>
+    <string name="API_BASE_URL"> https://hcs.swpp-2025.snu.ac.kr/team6/</string>
 </resources>

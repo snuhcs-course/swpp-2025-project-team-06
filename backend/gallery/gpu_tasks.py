@@ -28,8 +28,11 @@ from .models import User, Photo_Caption, Caption, Photo
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+_IMAGE_MODEL_NAME = "clip-ViT-B-32"
+
 # Global model caches (lazy-loaded)
 _image_model = None
+
 _caption_processor = None
 _caption_model = None
 
@@ -71,8 +74,8 @@ def get_image_model():
     """Lazy-load CLIP image model once per worker"""
     global _image_model
     if _image_model is None:
-        print("[INFO] Loading CLIP image model inside worker...")
-        _image_model = SentenceTransformer("clip-ViT-B-32")
+        print(f"[INFO] Loading CLIP image model ({_IMAGE_MODEL_NAME}) on {DEVICE}...")
+        _image_model = SentenceTransformer(_IMAGE_MODEL_NAME, device=DEVICE)
     return _image_model
 
 

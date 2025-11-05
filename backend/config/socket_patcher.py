@@ -15,7 +15,6 @@ import socks
 import ipaddress
 import os
 
-
 class SelectiveProxySocket(_socket.socket):
     """
     A socket wrapper that selectively routes traffic through a SOCKS5 proxy

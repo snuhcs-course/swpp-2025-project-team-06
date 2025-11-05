@@ -4,7 +4,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import re
-from gallery.models import Tag, Photo_Tag, Photo
+from gallery.models import Tag, Photo_Tag, Caption, Photo
+from gallery.gpu_tasks import phrase_to_words
 from .embedding_service import create_query_embedding
 from gallery.tasks import execute_hybrid_graph_search
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
@@ -82,8 +83,9 @@ class SemanticSearchView(APIView):
             semantic_query = ""
 
             if text_only_query:
-                semantic_query = TAG_REGEX.sub("something", query).strip()
-
+                # semantic_query = TAG_REGEX.sub("something", query).strip()    # for test
+                semantic_query = text_only_query
+            
             personalization_nodes = set()
 
             valid_tags = []
@@ -185,12 +187,21 @@ class SemanticSearchView(APIView):
 
             elif semantic_query and valid_tags:
                 # (C) 하이브리드 검색
+                processed_words = phrase_to_words(semantic_query)
+                
+                matching_captions = set(Caption.objects.filter(
+                    user=request.user,
+                    caption__in=processed_words
+                ))
+                
+                personalization_nodes = set(valid_tags).union(semantic_scores.keys()).union(matching_captions)
+                
                 final_results = execute_hybrid_graph_search(
                     user=user,
                     personalization_nodes=personalization_nodes,
                     semantic_scores=semantic_scores,
                     tag_edge_weight=TAG_EDGE_WEIGHT,
-                )  #
+                )
 
             else:
                 # (D) 쿼리가 비어있거나, 유효한 태그가 하나도 없는 경우

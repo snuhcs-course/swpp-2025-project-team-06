@@ -31,6 +31,13 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import java.io.InputStream
+import java.security.KeyStore
+import java.security.cert.CertificateFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
@@ -95,7 +102,7 @@ interface ApiService {
         @Part("metadata") metadata: RequestBody,
     ): Response<Unit>
 
-    @GET("/api/photos/{photo_id}/")
+    @GET("api/photos/{photo_id}/")
     suspend fun getPhotoDetail(
         @Path("photo_id") photoId: String,
     ): Response<PhotoDetailResponse>
@@ -151,11 +158,45 @@ interface ApiService {
 object RetrofitInstance {
     private var apiService: ApiService? = null
 
+    private fun createCustomTrustManager(context: Context): X509TrustManager {
+        val resourceId =
+            context.resources.getIdentifier(
+                "myclass",
+                "raw",
+                context.packageName,
+            )
+        val certInputStream: InputStream = context.resources.openRawResource(resourceId)
+
+        val certificateFactory = CertificateFactory.getInstance("X.509")
+        val certificate = certificateFactory.generateCertificate(certInputStream)
+        certInputStream.close()
+
+        val keyStoreType = KeyStore.getDefaultType()
+        val keyStore = KeyStore.getInstance(keyStoreType)
+        keyStore.load(null, null)
+        keyStore.setCertificateEntry("ca", certificate)
+
+        val tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm()
+        val tmf = TrustManagerFactory.getInstance(tmfAlgorithm)
+        tmf.init(keyStore)
+
+        return tmf.trustManagers[0] as X509TrustManager
+    }
+
+    private fun createCustomSslSocketFactory(trustManager: X509TrustManager): SSLSocketFactory {
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf(trustManager), null)
+        return sslContext.socketFactory
+    }
+
     fun getApiService(context: Context): ApiService {
         if (apiService == null) {
             val sessionStore = SessionManager.getInstance(context.applicationContext)
             val authInterceptor = AuthInterceptor(sessionStore)
             val tokenAuthenticator = TokenAuthenticator(context.applicationContext, sessionStore)
+
+            val customTrustManager = createCustomTrustManager(context.applicationContext)
+            val customSslSocketFactory = createCustomSslSocketFactory(customTrustManager)
 
             val okHttpClient =
                 SslHelper
@@ -164,6 +205,8 @@ object RetrofitInstance {
                         context.applicationContext,
                     ).addInterceptor(authInterceptor)
                     .authenticator(tokenAuthenticator)
+                    .sslSocketFactory(customSslSocketFactory, customTrustManager)
+                    .hostnameVerifier { _, _ -> true }
 //                    .connectTimeout(30, TimeUnit.SECONDS)
 //                    .readTimeout(30, TimeUnit.SECONDS)
 //                    .writeTimeout(30, TimeUnit.SECONDS)

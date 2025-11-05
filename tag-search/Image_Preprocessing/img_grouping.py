@@ -1,11 +1,8 @@
 from sentence_transformers import SentenceTransformer
 from PIL import Image
 from pathlib import Path
-from sklearn.metrics.pairwise import cosine_similarity
 import torch.nn.functional as F
-import numpy as np
 import torch
-import shutil
 import io
 import time
 

@@ -261,7 +261,7 @@ class LocalRepository(
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                var count = 3 // for testing
+                var count = 30 // for testing
 
                 while (cursor.moveToNext() && count-- > 0) {
                     val id = cursor.getLong(idColumn)

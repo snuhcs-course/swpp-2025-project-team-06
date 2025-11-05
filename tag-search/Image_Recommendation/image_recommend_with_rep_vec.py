@@ -1,15 +1,11 @@
-import string
-from scipy.spatial.distance import cdist
 import numpy as np
 import json
 import sys
 import random
 from sklearn.cluster import KMeans
 from sklearn.ensemble import IsolationForest  # 이상치 탐지를 위해 추가
-from sentence_transformers import SentenceTransformer
 import os
 import shutil
-import time
 import faiss
 
 IMG_EMB_FILE = "/home/team6/tag-search/PoC/source/embedding_vectors.npy"
@@ -138,7 +134,8 @@ def find_images_by_top_k_tags(search_categories, faiss_index, representative_vec
 def copy_images_to_folder(src_paths, dest_folder):
     os.makedirs(dest_folder, exist_ok=True)
     for src_path in src_paths:
-        if not os.path.exists(src_path): continue
+        if not os.path.exists(src_path): 
+            continue
         dest_path = os.path.join(dest_folder, os.path.basename(src_path))
         shutil.copy2(src_path, dest_path)
         
@@ -175,10 +172,6 @@ def get_recommendation_list(search_categories):
         
     final_images_list_filtered = [img for img in final_images_list if img not in origin_file_list]
     print(f"\n최종 분석 결과, 총 {len(final_images_list_filtered)}개의 이미지를 찾았습니다.")
-
-    output_folder = "_".join(search_categories).replace(" ", "_")
-    output_path = os.path.join(RESULT_BASE_PATH, output_folder)
-    src_paths = [os.path.join(IMAGE_BASE_PATH, fname) for fname in final_images_list_filtered]
     
     return final_images_list_filtered
     
