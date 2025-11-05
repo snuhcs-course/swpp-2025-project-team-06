@@ -9,7 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,14 +23,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -88,20 +81,21 @@ fun LocalGalleryScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                // 👇 [수정] 'selectedAlbumId?.let' (단수) -> 'selectedAlbumIds.isNotEmpty' (복수)
-                if (selectedAlbumIds.isNotEmpty()) {
-                    // 👇 [수정] 'uploadPhotosForAlbum(it, ...)' -> 'uploadPhotosForAlbums(selectedAlbumIds, ...)'
-                    photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    // 👇 [수정] 'selectedAlbumId?.let' (단수) -> 'selectedAlbumIds.isNotEmpty' (복수)
+                    if (selectedAlbumIds.isNotEmpty()) {
+                        // 👇 [수정] 'uploadPhotosForAlbum(it, ...)' -> 'uploadPhotosForAlbums(selectedAlbumIds, ...)'
+                        photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
+                    }
+                } else {
+                    // (권한 거부 시 토스트 메시지 등)
                 }
-            } else {
-                // (권한 거부 시 토스트 메시지 등)
-            }
-        }
-    )
+            },
+        )
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -140,7 +134,6 @@ fun LocalGalleryScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-
         // 👇 [수정] 2: floatingActionButton 추가
         floatingActionButton = {
             // 앨범이 선택됐을 때만 FAB 보이기
@@ -167,7 +160,7 @@ fun LocalGalleryScreen(
                             // [수정]
                             photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
                         }
-                    }
+                    },
                 )
             }
         },
@@ -220,12 +213,12 @@ fun LocalGalleryScreen(
                             isSelected = (album.albumId in selectedAlbumIds),
                             onClick = {
                                 navController.navigate(
-                                    Screen.LocalAlbum.createRoute(album.albumId, album.albumName)
+                                    Screen.LocalAlbum.createRoute(album.albumId, album.albumName),
                                 )
                             },
                             onLongClick = {
                                 localViewModel.toggleAlbumSelection(album.albumId)
-                            }
+                            },
                         )
                     }
                 }
@@ -255,21 +248,21 @@ fun albumGridItem(
     onLongClick: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-        .then(
-            if (isSelected) {
-                Modifier.border(
-                    BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
-                    RoundedCornerShape(16.dp)
-                )
-            } else {
-                Modifier
-            }
-        )
-        .combinedClickable(
-            onClick = onClick,
-            onLongClick = onLongClick
-        )
+        modifier =
+            Modifier
+                .then(
+                    if (isSelected) {
+                        Modifier.border(
+                            BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
+                            RoundedCornerShape(16.dp),
+                        )
+                    } else {
+                        Modifier
+                    },
+                ).combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
     ) {
         if (imageUri != null) {
             AsyncImage(
@@ -292,7 +285,7 @@ fun albumGridItem(
                         .background(
                             color = Picture,
                             shape = RoundedCornerShape(16.dp),
-                        ).align(Alignment.BottomCenter)
+                        ).align(Alignment.BottomCenter),
             )
         }
 

@@ -26,7 +26,7 @@ import java.util.TimeZone
 
 data class PhotoInfoForUpload(
     val uri: Uri,
-    val meta: PhotoMeta
+    val meta: PhotoMeta,
 )
 
 class LocalRepository(
@@ -514,56 +514,65 @@ class LocalRepository(
 
     fun getAlbumPhotoInfo(albumId: Long): List<PhotoInfoForUpload> {
         val photoInfoList = mutableListOf<PhotoInfoForUpload>()
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.DATE_TAKEN
-        )
+        val projection =
+            arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_TAKEN,
+            )
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
         val selectionArgs = arrayOf(albumId.toString())
         val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
 
-        context.contentResolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            projection, selection, selectionArgs, sortOrder
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-            val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+        context.contentResolver
+            .query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder,
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
 
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idColumn)
-                val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idColumn)
+                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                    val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
 
-                val dateValue = cursor.getLong(dateTakenColumn)
-                val createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                    .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
-                    .format(Date(dateValue))
+                    val dateValue = cursor.getLong(dateTakenColumn)
+                    val createdAt =
+                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                            .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
+                            .format(Date(dateValue))
 
-                var finalLat = 0.0
-                var finalLng = 0.0
-                try {
-                    context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
-                        val exif = ExifInterface(inputStream)
-                        val latOutput = FloatArray(2)
-                        if (exif.getLatLong(latOutput)) {
-                            finalLat = latOutput[0].toDouble()
-                            finalLng = latOutput[1].toDouble()
+                    var finalLat = 0.0
+                    var finalLng = 0.0
+                    try {
+                        context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
+                            val exif = ExifInterface(inputStream)
+                            val latOutput = FloatArray(2)
+                            if (exif.getLatLong(latOutput)) {
+                                finalLat = latOutput[0].toDouble()
+                                finalLng = latOutput[1].toDouble()
+                            }
                         }
+                    } catch (e: Exception) {
+                        // 0.0 유지
                     }
-                } catch (e: Exception) { /* 0.0 유지 */ }
 
-                val meta = PhotoMeta(
-                    filename = filename,
-                    photo_path_id = id.toInt(),
-                    created_at = createdAt,
-                    lat = finalLat,
-                    lng = finalLng,
-                )
-                photoInfoList.add(PhotoInfoForUpload(contentUri, meta))
+                    val meta =
+                        PhotoMeta(
+                            filename = filename,
+                            photo_path_id = id.toInt(),
+                            created_at = createdAt,
+                            lat = finalLat,
+                            lng = finalLng,
+                        )
+                    photoInfoList.add(PhotoInfoForUpload(contentUri, meta))
+                }
             }
-        }
         return photoInfoList
     }
 

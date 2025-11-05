@@ -69,15 +69,19 @@ class PhotoViewModel(
         }
     }
 
-    fun uploadPhotosForAlbums(albumIds: Set<Long>, context: Context) {
+    fun uploadPhotosForAlbums(
+        albumIds: Set<Long>,
+        context: Context,
+    ) {
         if (albumIds.isEmpty()) {
             return
         }
         // 1. Service에 앨범 ID를 전달할 Intent 생성
         albumIds.forEach { albumId ->
-            val intent = Intent(context, AlbumUploadService::class.java).apply {
-                putExtra("ALBUM_ID_KEY", albumId)
-            }
+            val intent =
+                Intent(context, AlbumUploadService::class.java).apply {
+                    putExtra("ALBUM_ID_KEY", albumId)
+                }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {

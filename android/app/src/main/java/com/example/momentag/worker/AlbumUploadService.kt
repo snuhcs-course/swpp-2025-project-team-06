@@ -13,17 +13,19 @@ import com.example.momentag.R
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.viewmodel.ViewModelFactory
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.lang.Exception
 
 class AlbumUploadService : Service() {
-
     private lateinit var notificationManager: NotificationManager
-    private val NOTIFICATION_ID = 12345
-    private val CHANNEL_ID = "AlbumUploadChannel"
+    private val notificationId = 12345
+    private val channelId = "AlbumUploadChannel"
 
     // 서비스만의 독립적인 CoroutineScope 생성
     private val serviceJob = SupervisorJob()
@@ -51,7 +53,11 @@ class AlbumUploadService : Service() {
         createNotificationChannel()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         // 1. ViewModel이 넘겨준 앨범 ID를 꺼냅니다.
         val albumId = intent?.getLongExtra("ALBUM_ID_KEY", -1L) ?: -1L
         if (albumId == -1L) {
@@ -60,7 +66,7 @@ class AlbumUploadService : Service() {
         }
 
         // 2. 서비스 시작! 알림을 띄우고 포그라운드로 전환
-        startForeground(NOTIFICATION_ID, createNotification("업로드 준비 중..."))
+        startForeground(notificationId, createNotification("업로드 준비 중..."))
 
         albumUploadJobCount.update { it + 1 }
 
@@ -123,34 +129,40 @@ class AlbumUploadService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null // 바인딩 안 함
 
     // --- 알림(Notification) 관련 헬퍼 함수 ---
-    private fun createNotification(text: String): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun createNotification(text: String): Notification =
+        NotificationCompat
+            .Builder(this, channelId)
             .setContentTitle("MomenTag 앨범 업로드")
             .setContentText(text)
             .setSmallIcon(R.mipmap.ic_launcher) // TODO: 앱 아이콘으로 변경
             .setOngoing(true)
             .build()
-    }
 
-    private fun updateNotification(title: String, text: String) {
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setSmallIcon(R.mipmap.ic_launcher) // TODO: 앱 아이콘으로 변경
-            .setOngoing(false) // 완료/실패 시에는 알림을 스와이프해 지울 수 있게
-            .build()
-        notificationManager.notify(NOTIFICATION_ID, notification)
+    private fun updateNotification(
+        title: String,
+        text: String,
+    ) {
+        val notification =
+            NotificationCompat
+                .Builder(this, channelId)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(R.mipmap.ic_launcher) // TODO: 앱 아이콘으로 변경
+                .setOngoing(false) // 완료/실패 시에는 알림을 스와이프해 지울 수 있게
+                .build()
+        notificationManager.notify(notificationId, notification)
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "MomenTag 업로드",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "앨범 사진 업로드 진행률 표시"
-            }
+            val channel =
+                NotificationChannel(
+                    channelId,
+                    "MomenTag 업로드",
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = "앨범 사진 업로드 진행률 표시"
+                }
             notificationManager.createNotificationChannel(channel)
         }
     }
