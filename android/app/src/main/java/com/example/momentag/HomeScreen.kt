@@ -443,6 +443,7 @@ fun HomeScreen(navController: NavController) {
                                 photo?.let { homeViewModel.togglePhoto(it) }
                             },
                             homeViewModel = homeViewModel,
+                            isLoadingMorePhotos = isLoadingMorePhotos,
                         )
                     }
                 } else {
@@ -472,6 +473,7 @@ fun HomeScreen(navController: NavController) {
                                 selectedItems = emptySet(),
                                 onItemSelectionToggle = { }, // 사용되지 않음
                                 homeViewModel = homeViewModel,
+                                isLoadingMorePhotos = isLoadingMorePhotos,
                             )
                         }
 
@@ -560,13 +562,13 @@ private fun ViewToggle(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MainContent(
+    modifier: Modifier = Modifier,
     onlyTag: Boolean,
     showAllPhotos: Boolean,
     tagItems: List<TagItem>,
     serverPhotos: List<Photo> = emptyList(),
     navController: NavController,
     onDeleteClick: (String) -> Unit,
-    modifier: Modifier = Modifier,
     isDeleteMode: Boolean,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
@@ -574,6 +576,7 @@ private fun MainContent(
     selectedItems: Set<String>,
     onItemSelectionToggle: (String) -> Unit,
     homeViewModel: HomeViewModel? = null,
+    isLoadingMorePhotos: Boolean = false,
 ) {
     when {
         onlyTag -> {
@@ -709,8 +712,7 @@ private fun MainContent(
                         ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(32.dp),
-                                color = Color(0xFFFBC4AB),
-                                strokeWidth = 3.dp, // 약간 더 얇게 (선택사항)
+                                color = Word,
                             )
                         }
                     }
