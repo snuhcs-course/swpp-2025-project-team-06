@@ -83,19 +83,25 @@ class HomeViewModel(
             currentOffset = 0
             hasMorePhotos = true
 
-            when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = 0)) {
-                is RemoteRepository.Result.Success -> {
-                    val serverPhotos = localRepository.toPhotos(result.data)
-                    _allPhotos.value = serverPhotos
-                    currentOffset = serverPhotos.size
-                    hasMorePhotos = serverPhotos.size >= pageSize
+            try {
+                when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = 0)) {
+                    is RemoteRepository.Result.Success -> {
+                        val serverPhotos = localRepository.toPhotos(result.data)
+                        _allPhotos.value = serverPhotos
+                        currentOffset = pageSize // 다음 요청은 66부터 시작
+                        hasMorePhotos = serverPhotos.size == pageSize // 정확히 pageSize개 받았으면 더 있을 가능성
+                    }
+                    else -> {
+                        _allPhotos.value = emptyList()
+                        hasMorePhotos = false
+                    }
                 }
-                else -> {
-                    _allPhotos.value = emptyList()
-                    hasMorePhotos = false
-                }
+            } catch (e: Exception) {
+                _allPhotos.value = emptyList()
+                hasMorePhotos = false
+            } finally {
+                _isLoadingPhotos.value = false
             }
-            _isLoadingPhotos.value = false
         }
     }
 
@@ -106,25 +112,30 @@ class HomeViewModel(
         viewModelScope.launch {
             _isLoadingMorePhotos.value = true
 
-            when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = currentOffset)) {
-                is RemoteRepository.Result.Success -> {
-                    val newPhotos = localRepository.toPhotos(result.data)
-                    if (newPhotos.isNotEmpty()) {
-                        _allPhotos.value = _allPhotos.value + newPhotos
-                        currentOffset += newPhotos.size
-                        hasMorePhotos = newPhotos.size >= pageSize
+            try {
+                when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = currentOffset)) {
+                    is RemoteRepository.Result.Success -> {
+                        val newPhotos = localRepository.toPhotos(result.data)
+                        if (newPhotos.isNotEmpty()) {
+                            _allPhotos.value = _allPhotos.value + newPhotos
+                            currentOffset += pageSize // 다음 요청을 위해 pageSize만큼 증가
+                            hasMorePhotos = newPhotos.size == pageSize // 정확히 pageSize개 받았으면 더 있을 가능성
 
-                        // ImageBrowserRepository도 업데이트 (이전/다음 버튼 작동 보장)
-                        imageBrowserRepository.setGallery(_allPhotos.value)
-                    } else {
+                            // ImageBrowserRepository도 업데이트 (이전/다음 버튼 작동 보장)
+                            imageBrowserRepository.setGallery(_allPhotos.value)
+                        } else {
+                            hasMorePhotos = false
+                        }
+                    }
+                    else -> {
                         hasMorePhotos = false
                     }
                 }
-                else -> {
-                    hasMorePhotos = false
-                }
+            } catch (e: Exception) {
+                hasMorePhotos = false
+            } finally {
+                _isLoadingMorePhotos.value = false
             }
-            _isLoadingMorePhotos.value = false
         }
     }
 

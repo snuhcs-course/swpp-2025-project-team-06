@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -87,6 +88,9 @@ import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.HomeViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -568,7 +572,7 @@ private fun ViewToggle(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
 private fun MainContent(
     modifier: Modifier = Modifier,
@@ -607,24 +611,30 @@ private fun MainContent(
         }
         showAllPhotos -> {
             // All Photos Grid View - 서버에서 가져온 사진들 with pagination
-            val listState =
-                androidx.compose.foundation.lazy.grid
-                    .rememberLazyGridState()
-            val pageSize = 66
-            val loadThreshold = pageSize / 3 // 22장 = pageSize의 1/3
+            val listState = rememberLazyGridState()
 
-            // 스크롤 지점 - pageSize/3 만큼 남았을 때 다음 페이지 로드
-            LaunchedEffect(listState) {
-                snapshotFlow { listState.layoutInfo.visibleItemsInfo }
-                    .collect { visibleItems ->
-                        val lastVisibleItem = visibleItems.lastOrNull()
-                        if (lastVisibleItem != null && serverPhotos.size >= loadThreshold) {
-                            val threshold = serverPhotos.size - loadThreshold
-                            if (lastVisibleItem.index >= threshold) {
-                                homeViewModel?.loadMorePhotos()
+            // 스크롤 지점 감지 - isLoadingMorePhotos 변경 시 LaunchedEffect 재시작
+            LaunchedEffect(listState, isLoadingMorePhotos) {
+                // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
+                if (!isLoadingMorePhotos) {
+                    snapshotFlow {
+                        listState.layoutInfo.visibleItemsInfo
+                            .lastOrNull()
+                            ?.index
+                    }.distinctUntilChanged() // 같은 값이 연속으로 올 때 필터링
+                        .debounce(150) // 빠른 스크롤 시 150ms 대기 후 처리 렉 방지
+                        .collect { lastVisibleIndex ->
+                            if (lastVisibleIndex != null && serverPhotos.isNotEmpty()) {
+                                val totalItems = serverPhotos.size
+                                val remainingItems = totalItems - (lastVisibleIndex + 1)
+
+                                // 남은 아이템이 33개 미만이면 다음 페이지 로드
+                                if (remainingItems < 33) {
+                                    homeViewModel?.loadMorePhotos()
+                                }
                             }
                         }
-                    }
+                }
             }
 
             LazyVerticalGrid(
@@ -634,7 +644,10 @@ private fun MainContent(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(serverPhotos.size) { index ->
+                items(
+                    count = serverPhotos.size,
+                    key = { index -> serverPhotos[index].photoId }, // 성능 최적화
+                ) { index ->
                     val photo = serverPhotos[index]
                     val isSelected = selectedItems.contains(photo.photoId)
 
@@ -651,7 +664,6 @@ private fun MainContent(
                                             if (isSelectionMode) {
                                                 onItemSelectionToggle(photo.photoId)
                                             } else {
-                                                // Set browsing session before navigating
                                                 homeViewModel?.setGalleryBrowsingSession()
                                                 navController.navigate(
                                                     Screen.Image.createRoute(
@@ -706,7 +718,7 @@ private fun MainContent(
                     }
                 }
 
-                // 로딩 인디케이터 (다음 페이지 로딩 중)
+                // 로딩 인디케이터
                 if (isLoadingMorePhotos) {
                     item(span = {
                         androidx.compose.foundation.lazy.grid
