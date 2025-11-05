@@ -197,6 +197,9 @@ class PhotoView(APIView):
             200: openapi.Response(
                 description="Success", schema=ResPhotoSerializer(many=True)
             ),
+            400: openapi.Response(
+                description="Bad Request - Invalid offset or limit parameter"
+            ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
@@ -207,12 +210,45 @@ class PhotoView(APIView):
                 openapi.IN_HEADER,
                 description="access token",
                 type=openapi.TYPE_STRING,
-            )
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description="number of photos to skip",
+                type=openapi.TYPE_INTEGER,
+            ),
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description="maximum number of photos to return",
+                type=openapi.TYPE_INTEGER,
+            ),
         ],
     )
     def get(self, request):
         try:
-            photos = Photo.objects.filter(user=request.user)
+            # Pagination 파라미터 검증
+            try:
+                offset = int(request.GET.get("offset", 0))
+                limit = int(request.GET.get("limit", 100))
+                if offset < 0 or limit < 1:
+                    return Response(
+                        {"error": "Offset must be non-negative and limit must be positive"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                limit = min(limit, 100)  # 최대 100개 제한
+            except ValueError:
+                return Response(
+                    {"error": "Invalid offset or limit parameter"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # created_at 기준으로 최신순 정렬 (가장 최신이 먼저)
+            photos = Photo.objects.filter(user=request.user).order_by("-created_at")
+
+            # 페이지네이션 적용
+            photos = photos[offset:offset + limit]
+
             serializer = ResPhotoSerializer(photos, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
