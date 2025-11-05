@@ -63,9 +63,12 @@ class RemoteRepository(
             Result.Exception(e)
         }
 
-    suspend fun getAllPhotos(): Result<List<PhotoResponse>> =
+    suspend fun getAllPhotos(
+        limit: Int? = null,
+        offset: Int? = null,
+    ): Result<List<PhotoResponse>> =
         try {
-            val response = apiService.getAllPhotos()
+            val response = apiService.getAllPhotos(limit, offset)
 
             if (response.isSuccessful) {
                 response.body()?.let { photos ->

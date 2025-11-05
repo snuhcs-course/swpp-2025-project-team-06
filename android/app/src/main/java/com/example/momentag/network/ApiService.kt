@@ -47,7 +47,10 @@ interface ApiService {
     suspend fun getAllTags(): Response<List<TagResponse>>
 
     @GET("api/photos/")
-    suspend fun getAllPhotos(): Response<List<PhotoResponse>>
+    suspend fun getAllPhotos(
+        @Query("limit") limit: Int? = null,
+        @Query("offset") offset: Int? = null,
+    ): Response<List<PhotoResponse>>
 
     @POST("api/tags/")
     suspend fun postTags(

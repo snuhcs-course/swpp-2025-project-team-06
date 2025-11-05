@@ -54,12 +54,19 @@ class HomeViewModel(
     // Photo selection management (같은 패턴으로 SearchViewModel 처럼!)
     val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
 
-    // Server photos for All Photos view
+    // Server photos for All Photos view with pagination
     private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
     val allPhotos = _allPhotos.asStateFlow()
 
     private val _isLoadingPhotos = MutableStateFlow(false)
     val isLoadingPhotos = _isLoadingPhotos.asStateFlow()
+
+    private val _isLoadingMorePhotos = MutableStateFlow(false)
+    val isLoadingMorePhotos = _isLoadingMorePhotos.asStateFlow()
+
+    private var currentOffset = 0
+    private val pageSize = 66
+    private var hasMorePhotos = true
 
     fun togglePhoto(photo: Photo) {
         draftTagRepository.togglePhoto(photo)
@@ -69,19 +76,55 @@ class HomeViewModel(
         draftTagRepository.clear()
     }
 
+    // 처음 로드 (초기화)
     fun loadAllPhotos() {
         viewModelScope.launch {
             _isLoadingPhotos.value = true
-            when (val result = remoteRepository.getAllPhotos()) {
+            currentOffset = 0
+            hasMorePhotos = true
+
+            when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = 0)) {
                 is RemoteRepository.Result.Success -> {
                     val serverPhotos = localRepository.toPhotos(result.data)
                     _allPhotos.value = serverPhotos
+                    currentOffset = serverPhotos.size
+                    hasMorePhotos = serverPhotos.size >= pageSize
                 }
                 else -> {
                     _allPhotos.value = emptyList()
+                    hasMorePhotos = false
                 }
             }
             _isLoadingPhotos.value = false
+        }
+    }
+
+    // 다음 페이지 로드 (무한 스크롤)
+    fun loadMorePhotos() {
+        if (_isLoadingMorePhotos.value || !hasMorePhotos) return
+
+        viewModelScope.launch {
+            _isLoadingMorePhotos.value = true
+
+            when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = currentOffset)) {
+                is RemoteRepository.Result.Success -> {
+                    val newPhotos = localRepository.toPhotos(result.data)
+                    if (newPhotos.isNotEmpty()) {
+                        _allPhotos.value = _allPhotos.value + newPhotos
+                        currentOffset += newPhotos.size
+                        hasMorePhotos = newPhotos.size >= pageSize
+
+                        // ImageBrowserRepository도 업데이트 (이전/다음 버튼 작동 보장)
+                        imageBrowserRepository.setGallery(_allPhotos.value)
+                    } else {
+                        hasMorePhotos = false
+                    }
+                }
+                else -> {
+                    hasMorePhotos = false
+                }
+            }
+            _isLoadingMorePhotos.value = false
         }
     }
 
