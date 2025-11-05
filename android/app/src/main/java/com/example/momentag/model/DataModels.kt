@@ -12,6 +12,15 @@ data class Tag(
     val tagId: String,
 )
 
+data class TagResponse(
+    @SerializedName("tag")
+    val tagName: String,
+    @SerializedName("tag_id")
+    val tagId: String,
+    @SerializedName("thumbnail_path_id")
+    val thumbnailPhotoPathId: Long?,
+)
+
 data class TagItem(
     val tagName: String,
     val coverImageId: Long?,
