@@ -195,18 +195,18 @@ HYBRID_SEARCH_SETTINGS = {
     # 1. search/views.py 용
     # --------------------------
     # (views.py) 태그의 가중치 (캡션보다 얼마나 중요한가)
-    "TAG_EDGE_WEIGHT": 20.0,
+    "TAG_EDGE_WEIGHT": 40.0,
     # (views.py) 그래프에 넣을 시맨틱 검색 후보 수
-    "SEMANTIC_LIMIT_FOR_GRAPH": 10,
+    "SEMANTIC_LIMIT_FOR_GRAPH": 40,
 
     # 2. gallery/tasks.py 용
     # --------------------------
     # (tasks.py) 그래프 점수 vs 시맨틱 점수 최종 비중
-    "GRAPH_WEIGHT": 0.6,
-    "SEMANTIC_WEIGHT": 0.4,
+    "GRAPH_WEIGHT": 0.8,
+    "SEMANTIC_WEIGHT": 0.2,
     
     # (tasks.py) 그래프 점수 내부 (RWR vs Adamic/Adar) 비중
-    "ALPHA_RWR_VS_AA": 0.5,
+    "ALPHA_RWR_VS_AA": 0.7,
     
     # (tasks.py) 최종 반환할 사진 개수
     "FINAL_RESULT_LIMIT": 20,
@@ -218,3 +218,14 @@ CACHES = {
         "LOCATION": "combined_graph",
     }
 }
+
+# Storage backend configuration
+STORAGE_BACKEND = env('STORAGE_BACKEND', default='local')  # 'local' or 'minio'
+
+# MinIO settings (only needed when STORAGE_BACKEND='minio')
+MINIO_ENDPOINT_URL = env('MINIO_ENDPOINT_URL', default='http://localhost:9000')
+MINIO_ACCESS_KEY = env('MINIO_ACCESS_KEY', default='')
+MINIO_SECRET_KEY = env('MINIO_SECRET_KEY', default='')
+MINIO_BUCKET_NAME = env('MINIO_BUCKET_NAME', default='momentag-photos')
+MINIO_PREFIX = env('MINIO_PREFIX', default='temp-photos')  # Optional folder prefix
+MINIO_REGION = env('MINIO_REGION', default='us-east-1')  # S3 compatibility

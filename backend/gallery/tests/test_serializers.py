@@ -369,7 +369,10 @@ class ResPhotoSerializerTest(TestCase):
     def test_res_photo_serializer_valid_data(self):
         """유효한 데이터로 ResPhotoSerializer 테스트"""
         test_uuid = uuid.uuid4()
-        data = {"photo_id": test_uuid, "photo_path_id": 12345}
+        data = {
+            "photo_id": test_uuid,
+            "photo_path_id": 12345,
+        }
 
         serializer = ResPhotoSerializer(data=data)
         self.assertTrue(serializer.is_valid())
@@ -381,13 +384,17 @@ class ResPhotoSerializerTest(TestCase):
     def test_res_photo_serializer_serialization(self):
         """ResPhotoSerializer 직렬화 테스트"""
         test_uuid = uuid.uuid4()
-        data = {"photo_id": test_uuid, "photo_path_id": 12345}
+        datetime.now()
+        data = {
+            "photo_id": test_uuid,
+            "photo_path_id": 456,
+        }
 
         serializer = ResPhotoSerializer(data)
         serialized_data = serializer.data
 
         self.assertEqual(serialized_data["photo_id"], str(test_uuid))
-        self.assertEqual(serialized_data["photo_path_id"], 12345)
+        self.assertEqual(serialized_data["photo_path_id"], 456)
 
 
 class ResPhotoTagListSerializerTest(TestCase):
@@ -416,12 +423,12 @@ class ResPhotoTagListSerializerTest(TestCase):
 
     def test_res_photo_tag_list_serializer_no_tags(self):
         """태그가 없는 사진에 대한 ResPhotoTagListSerializer 테스트"""
-        data = {"photo_path_id": 12345, "tags": []}
+        data = {"photo_path_id": 67890, "tags": []}
 
         serializer = ResPhotoTagListSerializer(data)
         serialized_data = serializer.data
 
-        self.assertEqual(serialized_data["photo_path_id"], 12345)
+        self.assertEqual(serialized_data["photo_path_id"], 67890)
         self.assertEqual(len(serialized_data["tags"]), 0)
 
 
@@ -500,7 +507,7 @@ class ResStorySerializerTest(TestCase):
             self.assertIn("photo_id", photo)
             self.assertIn("photo_path_id", photo)
             self.assertIsInstance(photo["photo_id"], str)  # UUID는 문자열로 직렬화
-            self.assertIsInstance(photo["photo_path_id"], int)
+            self.assertIsInstance(photo["photo_path_id"], int)  # int로 변경됨
 
     def test_res_story_serializer_empty_photos(self):
         """빈 사진 리스트 직렬화 테스트"""

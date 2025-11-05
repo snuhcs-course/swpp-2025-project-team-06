@@ -1,7 +1,6 @@
 import sys
 import os
 import json
-import random
 import shutil
 import numpy as np
 import faiss
@@ -129,7 +128,8 @@ def find_top_k_tags_for_image(image_id, k_neighbors, faiss_index, rep_vec_cats):
     # Faiss 검색을 위해 벡터 정규화 및 형태 변환 (2D 배열로)
     target_vector_2d = target_vector.reshape(1, -1).astype('float32')
     norm = np.linalg.norm(target_vector_2d)
-    if norm == 0: norm = 1e-10
+    if norm == 0: 
+        norm = 1e-10
     normalized_target = target_vector_2d / norm
 
     # Faiss 인덱스에서 가장 가까운 k+alpha개 검색
