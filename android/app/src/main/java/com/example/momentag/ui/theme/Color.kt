@@ -16,7 +16,7 @@ Color Palette
  */
 val TagColor = Color(0xFFFBC4AB)
 val Picture = Color(0xFFD8D8D8)
-val Background = Color(0xFFFFFBF5)
+val Background = Color.White
 val Button = Color(0xFFF88379)
 val Temp_word = Color(0xFFB2B2B2)
 val Word = Color(0xFF000000)

@@ -416,7 +416,12 @@ fun HomeScreen(navController: NavController) {
                 } else if (showAllPhotos) {
                     // All Photos 모드: 서버에서 가져온 사진 표시
                     if (isLoadingPhotos) {
-                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                             contentAlignment = Alignment.Center
+                        ) {
                             CircularProgressIndicator()
                         }
                     } else {
@@ -475,7 +480,9 @@ fun HomeScreen(navController: NavController) {
 
                         is HomeViewModel.HomeLoadingState.Loading -> {
                             Box(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 CircularProgressIndicator()
