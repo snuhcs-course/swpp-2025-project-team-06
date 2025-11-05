@@ -217,47 +217,50 @@ fun HomeScreen(navController: NavController) {
                 onLogoutClick = { authViewModel.logout() },
                 isLogoutLoading = logoutState is LogoutState.Loading,
                 actions = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (isSelectionMode) {
-                            // Cancel button when in selection mode
+                    // 태그 앨범 뷰(!showAllPhotos)에서는 선택 모드 버튼을 표시하지 않음
+                    if (showAllPhotos) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (isSelectionMode) {
+                                // Cancel button when in selection mode
+                                IconButton(
+                                    onClick = {
+                                        isSelectionMode = false
+                                        homeViewModel.resetSelection() // draftRepository 초기화!
+                                    },
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Cancel",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                            }
+
                             IconButton(
                                 onClick = {
-                                    isSelectionMode = false
-                                    homeViewModel.resetSelection() // draftRepository 초기화!
+                                    if (isSelectionMode) {
+                                        // Share action
+                                        if (selectedPhotos.isEmpty()) {
+                                            Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Share ${selectedPhotos.size} items", Toast.LENGTH_SHORT).show()
+                                            // TODO: Implement share functionality
+                                        }
+                                    } else {
+                                        // Enter selection mode
+                                        isSelectionMode = true
+                                        homeViewModel.resetSelection() // 진입 시 초기화
+                                    }
                                 },
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Cancel",
+                                    imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Default.Edit,
+                                    contentDescription = if (isSelectionMode) "Share" else "Edit",
                                     tint = Color.Black,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
-                        }
-
-                        IconButton(
-                            onClick = {
-                                if (isSelectionMode) {
-                                    // Share action
-                                    if (selectedPhotos.isEmpty()) {
-                                        Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Share ${selectedPhotos.size} items", Toast.LENGTH_SHORT).show()
-                                        // TODO: Implement share functionality
-                                    }
-                                } else {
-                                    // Enter selection mode
-                                    isSelectionMode = true
-                                    homeViewModel.resetSelection() // 진입 시 초기화
-                                }
-                            },
-                        ) {
-                            Icon(
-                                imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Default.Edit,
-                                contentDescription = if (isSelectionMode) "Share" else "Edit",
-                                tint = Color.Black,
-                                modifier = Modifier.size(20.dp),
-                            )
                         }
                     }
                 },
@@ -319,16 +322,19 @@ fun HomeScreen(navController: NavController) {
         },
         containerColor = Color.White,
         floatingActionButton = {
-            CreateTagButton(
-                modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
-                text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Create with ${selectedPhotos.size}" else "Create Tag",
-                onClick = {
-                    // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
-                    // SearchResultScreen과 동일한 패턴
-                    isSelectionMode = false
-                    navController.navigate(Screen.AddTag.route)
-                },
-            )
+            // 태그 앨범 뷰(!showAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
+            if (showAllPhotos) {
+                CreateTagButton(
+                    modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
+                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Create with ${selectedPhotos.size}" else "Create Tag",
+                    onClick = {
+                        // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
+                        // SearchResultScreen과 동일한 패턴
+                        isSelectionMode = false
+                        navController.navigate(Screen.AddTag.route)
+                    },
+                )
+            }
         },
     ) { paddingValues ->
         PullToRefreshBox(
@@ -460,17 +466,9 @@ fun HomeScreen(navController: NavController) {
                                     }
                                 },
                                 onExitDeleteMode = { isDeleteMode = false },
-                                isSelectionMode = isSelectionMode,
-                                selectedItems = selectedPhotos.map { it.photoId }.toSet(), // Photo -> photoId
-                                onItemSelectionToggle = { uriString ->
-                                    // URI String을 Photo 객체로 변환해서 togglePhoto 호출
-                                    val photo =
-                                        com.example.momentag.model.Photo(
-                                            photoId = uriString, // URI를 photoId로 사용
-                                            contentUri = Uri.parse(uriString),
-                                        )
-                                    homeViewModel.togglePhoto(photo)
-                                },
+                                isSelectionMode = false, // 태그 앨범 뷰에서는 선택 모드 비활성화
+                                selectedItems = emptySet(),
+                                onItemSelectionToggle = { }, // 사용되지 않음
                                 homeViewModel = homeViewModel,
                             )
                         }
@@ -692,9 +690,6 @@ private fun MainContent(
                         isDeleteMode = isDeleteMode,
                         onEnterDeleteMode = onEnterDeleteMode,
                         onExitDeleteMode = onExitDeleteMode,
-                        isSelectionMode = isSelectionMode,
-                        isSelected = selectedItems.contains(item.tagId),
-                        onSelectionToggle = { onItemSelectionToggle(item.tagId) },
                     )
                 }
             }
@@ -719,9 +714,6 @@ fun TagGridItem(
     isDeleteMode: Boolean,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
-    isSelectionMode: Boolean = false,
-    isSelected: Boolean = false,
-    onSelectionToggle: () -> Unit = {},
 ) {
     val imageUri: Uri? =
         remember(imageId) {
@@ -746,16 +738,15 @@ fun TagGridItem(
                         .align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
-                                when {
-                                    isSelectionMode -> onSelectionToggle()
-                                    isDeleteMode -> onExitDeleteMode()
-                                    else -> navController.navigate(Screen.Album.createRoute(tagId, tagName))
+                                if (isDeleteMode) {
+                                    onExitDeleteMode()
+                                } else {
+                                    navController.navigate(Screen.Album.createRoute(tagId, tagName))
                                 }
                             },
                             onLongClick = {
-                                if (!isSelectionMode && !isDeleteMode) {
+                                if (!isDeleteMode) {
                                     onEnterDeleteMode()
-                                    onSelectionToggle()
                                 }
                             },
                         ),
@@ -773,56 +764,19 @@ fun TagGridItem(
                         ).align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
-                                when {
-                                    isSelectionMode -> onSelectionToggle()
-                                    isDeleteMode -> onExitDeleteMode()
-                                    else -> navController.navigate(Screen.Album.createRoute(tagId, tagName))
+                                if (isDeleteMode) {
+                                    onExitDeleteMode()
+                                } else {
+                                    navController.navigate(Screen.Album.createRoute(tagId, tagName))
                                 }
                             },
                             onLongClick = {
-                                if (!isSelectionMode && !isDeleteMode) {
+                                if (!isDeleteMode) {
                                     onEnterDeleteMode()
-                                    onSelectionToggle()
                                 }
                             },
                         ),
             )
-        }
-
-        // Selection overlay
-        if (isSelectionMode) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(top = 12.dp)
-                        .aspectRatio(1f)
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            if (isSelected) Color.Black.copy(alpha = 0.3f) else Color.Transparent,
-                        ),
-            )
-
-            Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 16.dp, end = 4.dp)
-                        .size(24.dp)
-                        .background(
-                            if (isSelected) Color(0xFFFBC4AB) else Color.White.copy(alpha = 0.8f),
-                            RoundedCornerShape(12.dp),
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
         }
 
         Text(
