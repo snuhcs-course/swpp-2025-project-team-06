@@ -23,8 +23,10 @@ class ResTagIdSerializer(serializers.Serializer):
 class ResTagVectorSerializer(serializers.Serializer):
     tag = serializers.CharField(help_text="태그 이름")
 
+
 class ResStorySerializer(serializers.Serializer):
     recs = ResPhotoSerializer(many=True)
+
 
 class ResTagAlbumSerializer(serializers.Serializer):
     photos = ResPhotoSerializer(many=True)

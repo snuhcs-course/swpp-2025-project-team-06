@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from unittest.mock import patch, MagicMock
-from gallery.vision_service import phrase_to_words, get_image_captions
+from gallery.gpu_tasks import phrase_to_words, get_image_captions
 
 
 class VisionServicesTest(TestCase):
@@ -29,14 +29,10 @@ class VisionServicesTest(TestCase):
         expected = set(["cats", "dogs", "there"])
         self.assertEqual(set(phrase_to_words(text)), expected)
 
-    @patch(
-        "gallery.vision_service.torch.no_grad"
-    )  # Patch torch.no_grad context manager
-    @patch("gallery.vision_service.Image.open")  # Patch Image.open
-    @patch("gallery.vision_service.get_caption_model")  # Patch your model loader
-    @patch(
-        "gallery.vision_service.get_caption_processor"
-    )  # Patch your processor loader
+    @patch("gallery.gpu_tasks.torch.no_grad")  # Patch torch.no_grad context manager
+    @patch("gallery.gpu_tasks.Image.open")  # Patch Image.open
+    @patch("gallery.gpu_tasks.get_caption_model")  # Patch your model loader
+    @patch("gallery.gpu_tasks.get_caption_processor")  # Patch your processor loader
     @patch("builtins.print")  # Patch the built-in print to check logs
     def test_successful_caption_generation(
         self,
@@ -108,10 +104,10 @@ class VisionServicesTest(TestCase):
             num_return_sequences=5,
         )
 
-    @patch("gallery.vision_service.torch.no_grad")
-    @patch("gallery.vision_service.Image.open")
-    @patch("gallery.vision_service.get_caption_model")
-    @patch("gallery.vision_service.get_caption_processor")
+    @patch("gallery.gpu_tasks.torch.no_grad")
+    @patch("gallery.gpu_tasks.Image.open")
+    @patch("gallery.gpu_tasks.get_caption_model")
+    @patch("gallery.gpu_tasks.get_caption_processor")
     @patch("builtins.print")
     def test_empty_captions_returned(
         self,
