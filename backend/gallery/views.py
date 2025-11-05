@@ -11,7 +11,6 @@ from drf_yasg import openapi
 from .reponse_serializers import (
     ResPhotoSerializer,
     ResPhotoTagListSerializer,
-    ResPhotoIdSerializer,
     ResTagIdSerializer,
     ResTagVectorSerializer,
     ResStorySerializer,
@@ -40,7 +39,6 @@ from .tasks import (
     compute_and_store_rep_vectors,
 )
 from .gpu_tasks import (
-    process_and_embed_photo,  # GPU-dependent task (single photo)
     process_and_embed_photos_batch,  # GPU-dependent task (batch)
 )
 from .storage_service import upload_photo

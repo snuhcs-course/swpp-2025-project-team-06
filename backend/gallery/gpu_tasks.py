@@ -293,7 +293,6 @@ def get_image_captions_batch(image_data_list: list[BytesIO]) -> list[dict[str, i
     with torch.no_grad():
         # Generate captions for all images in batch
         # We generate 5 captions per image
-        num_images = len(images)
         outputs = model.generate(
             **inputs,
             max_new_tokens=20,
