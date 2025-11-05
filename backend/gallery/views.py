@@ -14,6 +14,7 @@ from .reponse_serializers import (
     ResTagIdSerializer,
     ResTagVectorSerializer,
     ResStorySerializer,
+    ResTagThumbnailSerializer,
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
@@ -54,9 +55,7 @@ class PhotoView(APIView):
         operation_description="Upload photos to the backend. Photos are automatically chunked into batches of 8 for GPU efficiency.",
         request_body=ReqPhotoDetailSerializer(many=True),
         responses={
-            202: openapi.Response(
-                description="Accepted - Photos are being processed"
-            ),
+            202: openapi.Response(description="Accepted - Photos are being processed"),
             400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -163,22 +162,26 @@ class PhotoView(APIView):
                 )
 
                 # Add to metadata list
-                all_metadata.append({
-                    "storage_key": storage_key,
-                    "user_id": request.user.id,
-                    "filename": data["filename"],
-                    "photo_path_id": data["photo_path_id"],
-                    "created_at": data["created_at"].isoformat(),
-                    "lat": data["lat"],
-                    "lng": data["lng"],
-                })
+                all_metadata.append(
+                    {
+                        "storage_key": storage_key,
+                        "user_id": request.user.id,
+                        "filename": data["filename"],
+                        "photo_path_id": data["photo_path_id"],
+                        "created_at": data["created_at"].isoformat(),
+                        "lat": data["lat"],
+                        "lng": data["lng"],
+                    }
+                )
 
             # Split into batches of 8 for GPU memory management
             BATCH_SIZE = 8
             for i in range(0, len(all_metadata), BATCH_SIZE):
-                batch_metadata = all_metadata[i:i + BATCH_SIZE]
+                batch_metadata = all_metadata[i : i + BATCH_SIZE]
                 process_and_embed_photos_batch.delay(batch_metadata)
-                print(f"[INFO] Dispatched batch task for {len(batch_metadata)} photos (batch {i//BATCH_SIZE + 1})")
+                print(
+                    f"[INFO] Dispatched batch task for {len(batch_metadata)} photos (batch {i // BATCH_SIZE + 1})"
+                )
 
             return Response(
                 {"message": "Photos are being processed."},
@@ -720,7 +723,8 @@ class TagView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success", schema=TagSerializer(many=True)
+                description="Success",
+                schema=ResTagThumbnailSerializer(many=True),
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -742,7 +746,27 @@ class TagView(APIView):
         try:
             tags = Tag.objects.filter(user=request.user)
 
-            response_serializer = TagSerializer(tags, many=True)
+            # Build response data with thumbnail_path_id for each tag
+            tags_data = []
+            for tag in tags:
+                # Get one photo_path_id from photos with this tag
+                photo_tag = (
+                    Photo_Tag.objects.filter(tag=tag, user=request.user)
+                    .select_related("photo")
+                    .first()
+                )
+
+                thumbnail_path_id = photo_tag.photo.photo_path_id if photo_tag else None
+
+                tags_data.append(
+                    {
+                        "tag_id": tag.tag_id,
+                        "tag": tag.tag,
+                        "thumbnail_path_id": thumbnail_path_id,
+                    }
+                )
+
+            response_serializer = ResTagThumbnailSerializer(tags_data, many=True)
 
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
