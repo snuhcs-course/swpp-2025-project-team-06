@@ -14,9 +14,8 @@ import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
 import com.example.momentag.model.StoryResponse
 import com.example.momentag.model.Tag
-import com.example.momentag.model.TagCreateRequest
-import com.example.momentag.model.TagCreateResponse
-import com.example.momentag.model.TagIdRequest
+import com.example.momentag.model.TagId
+import com.example.momentag.model.TagName
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -28,6 +27,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -50,8 +50,8 @@ interface ApiService {
 
     @POST("api/tags/")
     suspend fun postTags(
-        @Body request: TagCreateRequest,
-    ): Response<TagCreateResponse>
+        @Body request: TagName,
+    ): Response<TagId>
 
     @GET("api/photos/albums/{tagId}/")
     suspend fun getPhotosByTag(
@@ -72,7 +72,7 @@ interface ApiService {
     @POST("api/photos/{photo_id}/tags/")
     suspend fun postTagsToPhoto(
         @Path("photo_id") photoId: String,
-        @Body tagIdList: List<TagIdRequest>,
+        @Body tagIdList: List<TagId>,
     ): Response<Unit>
 
     @POST("api/auth/signin/")
@@ -140,6 +140,12 @@ interface ApiService {
     suspend fun recommendPhotosFromPhotos(
         @Body photoIds: PhotoToPhotoRequest,
     ): Response<List<PhotoResponse>>
+
+    @PUT("api/tags/{tag_id}/")
+    suspend fun renameTag(
+        @Path("tag_id") tagId: String,
+        @Body tagName: TagName,
+    ): Response<TagId>
 }
 
 /**
