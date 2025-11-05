@@ -138,13 +138,14 @@ fun appNavigation() {
 
         composable(
             route = Screen.SearchResult.route,
-            arguments = listOf(
-                navArgument("query") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
-            ),
+            arguments =
+                listOf(
+                    navArgument("query") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
         ) { backStackEntry ->
             val encodedQuery = backStackEntry.arguments?.getString("query") ?: ""
             val query = URLDecoder.decode(encodedQuery, StandardCharsets.UTF_8.toString())

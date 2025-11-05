@@ -50,9 +50,7 @@ sealed class Screen(
             return "search_result_screen?query=$encodedQuery"
         }
 
-        fun initialRoute(): String {
-            return "search_result_screen"
-        }
+        fun initialRoute(): String = "search_result_screen"
     }
 
     object Login : Screen("login_screen")
