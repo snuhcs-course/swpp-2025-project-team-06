@@ -94,11 +94,11 @@ def get_caption_model():
     """Lazy-load BLIP caption model"""
     global _caption_model
     if _caption_model is None:
-        print("[INFO] Loading BLIP captioning model inside worker...")
+        print(f"[INFO] Loading BLIP captioning model on {DEVICE}...")
         _caption_model = BlipForConditionalGeneration.from_pretrained(
             "Salesforce/blip-image-captioning-base",
-            dtype=torch.float16,
-        )
+            torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+        ).to(DEVICE)
     return _caption_model
 
 
@@ -150,6 +150,8 @@ def get_image_captions(image_data: BytesIO) -> dict[str, int]:
     image = Image.open(image_data).convert("RGB")
 
     inputs = processor(images=image, return_tensors="pt")  # pyright: ignore[reportCallIssue]
+    # Move inputs to the same device as the model
+    inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 
     with torch.no_grad():
         outputs = model.generate(
@@ -199,6 +201,129 @@ def phrase_to_words(text: str) -> list[str]:
     ]
 
     return final_words
+
+
+# ============================================================================
+# Batch Vision Inference Functions
+# ============================================================================
+
+
+def get_image_embeddings_batch(image_data_list: list[BytesIO]):
+    """
+    Generate CLIP embeddings for multiple images at once (batch processing).
+
+    Args:
+        image_data_list: List of BytesIO objects containing image data
+
+    Returns:
+        List of image embedding vectors or None for failed images
+    """
+    try:
+        print(f"[INFO] Generating embeddings for {len(image_data_list)} images in batch...", flush=True)
+
+        images = []
+        valid_indices = []
+
+        for i, image_data in enumerate(image_data_list):
+            try:
+                image = Image.open(image_data).convert("RGB")
+                images.append(image)
+                valid_indices.append(i)
+            except Exception as e:
+                print(f"[ERROR] Failed to load image {i}: {e}")
+                continue
+
+        if not images:
+            print("[ERROR] No valid images to process")
+            return [None] * len(image_data_list)
+
+        model = get_image_model()
+
+        with torch.no_grad():
+            # SentenceTransformer's encode can handle batches directly
+            embeddings = model.encode(images, batch_size=len(images), show_progress_bar=False)
+
+        # Create result list with None for failed images
+        results = [None] * len(image_data_list)
+        for idx, embedding in zip(valid_indices, embeddings):
+            results[idx] = embedding
+
+        print(f"[DONE] Finished batch embedding for {len(valid_indices)}/{len(image_data_list)} images\n", flush=True)
+        return results
+
+    except Exception as e:
+        print(f"Error creating batch CLIP embeddings: {e}")
+        return [None] * len(image_data_list)
+
+
+def get_image_captions_batch(image_data_list: list[BytesIO]) -> list[dict[str, int]]:
+    """
+    Generate BLIP captions for multiple images at once (batch processing).
+
+    Args:
+        image_data_list: List of BytesIO objects containing image data
+
+    Returns:
+        List of dictionaries (word -> count) from generated captions
+    """
+    processor = get_caption_processor()
+    model = get_caption_model()
+
+    images = []
+    valid_indices = []
+
+    for i, image_data in enumerate(image_data_list):
+        try:
+            image = Image.open(image_data).convert("RGB")
+            images.append(image)
+            valid_indices.append(i)
+        except Exception as e:
+            print(f"[ERROR] Failed to load image {i} for captioning: {e}")
+            continue
+
+    if not images:
+        print("[ERROR] No valid images to caption")
+        return [{}] * len(image_data_list)
+
+    # Process all images at once
+    inputs = processor(images=images, return_tensors="pt", padding=True)  # pyright: ignore[reportCallIssue]
+    # Move inputs to the same device as the model
+    inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
+
+    with torch.no_grad():
+        # Generate captions for all images in batch
+        # We generate 5 captions per image
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=20,
+            do_sample=True,
+            top_k=50,
+            top_p=0.95,
+            num_return_sequences=5,
+        )
+
+        # Decode all outputs
+        all_phrases: list[str] = [
+            processor.decode(output, skip_special_tokens=True) for output in outputs
+        ]
+
+    # Group captions by image (5 captions per image)
+    results = [{}] * len(image_data_list)
+
+    for idx, img_idx in enumerate(valid_indices):
+        # Get the 5 captions for this image
+        start = idx * 5
+        end = start + 5
+        phrases = all_phrases[start:end]
+
+        counter = Counter(
+            list(chain.from_iterable((phrase_to_words(phrase) for phrase in phrases)))
+        )
+
+        results[img_idx] = dict(counter)
+
+    print(f"[DONE] Finished batch caption generation for {len(valid_indices)}/{len(image_data_list)} images\n", flush=True)
+    return results
 
 
 # ============================================================================
@@ -289,3 +414,150 @@ def process_and_embed_photo(
             image_data.close()
         # Cleanup storage
         delete_photo(storage_key)
+
+
+@shared_task
+def process_and_embed_photos_batch(photos_metadata: list[dict]):
+    """
+    GPU Task: Batch process multiple photos and generate embeddings/captions.
+
+    This task downloads multiple photos from storage, generates CLIP embeddings and BLIP captions
+    in batches for better GPU efficiency, then uploads the results to Qdrant and Django DB.
+
+    Args:
+        photos_metadata: List of photo metadata dictionaries, each containing:
+            - storage_key: Unique identifier for the photo in storage
+            - user_id: ID of the user who uploaded the photo
+            - filename: Original filename (for metadata)
+            - photo_path_id: Client-side photo identifier
+            - created_at: Photo creation timestamp
+            - lat: Latitude
+            - lng: Longitude
+    """
+    from .storage_service import download_photo, delete_photo
+
+    if not photos_metadata:
+        print("[Celery Batch Task] No photos to process")
+        return
+
+    print(f"[Celery Batch Task] Processing batch of {len(photos_metadata)} photos")
+
+    image_data_list = []
+    storage_keys = []
+
+    try:
+        client = get_qdrant_client()
+
+        # Step 1: Download all photos from storage
+        for metadata in photos_metadata:
+            storage_key = metadata["storage_key"]
+            try:
+                image_data = download_photo(storage_key)
+                image_data_list.append(image_data)
+                storage_keys.append(storage_key)
+            except Exception as e:
+                print(f"[Celery Batch Task Error] Failed to download photo {storage_key}: {str(e)}")
+                image_data_list.append(None)
+                storage_keys.append(storage_key)
+
+        # Step 2: Generate embeddings in batch
+        embeddings = get_image_embeddings_batch(
+            [img for img in image_data_list if img is not None]
+        )
+
+        # Step 3: Reset BytesIO positions and generate captions in batch
+        for img_data in image_data_list:
+            if img_data is not None:
+                img_data.seek(0)
+
+        captions_list = get_image_captions_batch(
+            [img for img in image_data_list if img is not None]
+        )
+
+        # Step 4: Store results for each photo
+        points_to_upsert = []
+        valid_idx = 0  # Track index in the filtered (non-None) lists
+
+        for i, metadata in enumerate(photos_metadata):
+            storage_key = metadata["storage_key"]
+            user_id = metadata["user_id"]
+            filename = metadata["filename"]
+            photo_path_id = metadata["photo_path_id"]
+            created_at = metadata["created_at"]
+            lat = metadata["lat"]
+            lng = metadata["lng"]
+
+            # Skip if image download failed
+            if image_data_list[i] is None:
+                print(f"[Celery Batch Task] Skipping failed photo {filename}")
+                continue
+
+            embedding = embeddings[valid_idx]
+            captions = captions_list[valid_idx]
+            valid_idx += 1
+
+            if embedding is None:
+                print(f"[Celery Batch Task Error] Failed to create embedding for {filename}")
+                continue
+
+            # Prepare Qdrant point
+            point_to_upsert = models.PointStruct(
+                id=str(storage_key),
+                vector=embedding,
+                payload={
+                    "user_id": user_id,
+                    "filename": filename,
+                    "photo_path_id": photo_path_id,
+                    "created_at": created_at,
+                    "lat": lat,
+                    "lng": lng,
+                },
+            )
+            points_to_upsert.append(point_to_upsert)
+
+            # Store captions in Django DB
+            try:
+                user = User.objects.get(id=user_id)
+                photo = Photo.objects.get(photo_id=storage_key)
+
+                for word, count in captions.items():
+                    caption, _ = Caption.objects.get_or_create(
+                        user=user,
+                        caption=word,
+                    )
+
+                    Photo_Caption.objects.create(
+                        user=user,
+                        photo=photo,
+                        caption=caption,
+                        weight=count,
+                    )
+
+                print(f"[Celery Batch Task] Successfully processed photo {filename}")
+
+            except Exception as e:
+                print(f"[Celery Batch Task Exception] Error storing captions for {filename}: {str(e)}")
+
+        # Step 5: Batch upsert to Qdrant
+        if points_to_upsert:
+            client.upsert(
+                collection_name=IMAGE_COLLECTION_NAME,
+                points=points_to_upsert,
+                wait=True,
+            )
+            print(f"[Celery Batch Task Success] Upserted {len(points_to_upsert)} photos to Qdrant")
+
+    except Exception as e:
+        print(f"[Celery Batch Task Exception] Error in batch processing: {str(e)}")
+
+    finally:
+        # Cleanup: Close all in-memory buffers and delete from storage
+        for image_data in image_data_list:
+            if image_data is not None:
+                image_data.close()
+
+        for storage_key in storage_keys:
+            try:
+                delete_photo(storage_key)
+            except Exception as e:
+                print(f"[Celery Batch Task] Failed to delete photo {storage_key}: {str(e)}")
