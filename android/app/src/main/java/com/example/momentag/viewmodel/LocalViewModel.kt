@@ -9,13 +9,16 @@ import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class LocalViewModel(
     private val localRepository: LocalRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
+    private val albumUploadSuccessEvent: SharedFlow<Long>,
 ) : ViewModel() {
     private val _image = MutableStateFlow<List<Uri>>(emptyList())
     val image = _image.asStateFlow()
@@ -102,5 +105,28 @@ class LocalViewModel(
                 )
             }
         imageBrowserRepository.setGallery(photos)
+    }
+
+    private val _selectedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedAlbumIds = _selectedAlbumIds.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            albumUploadSuccessEvent.collect { successfulAlbumId ->
+                _selectedAlbumIds.update { currentSet ->
+                    currentSet - successfulAlbumId
+                }
+            }
+        }
+    }
+
+    fun toggleAlbumSelection(albumId: Long) {
+        _selectedAlbumIds.update { currentSet ->
+            if (albumId in currentSet) {
+                currentSet - albumId // 이미 있으면 제거 (선택 해제)
+            } else {
+                currentSet + albumId // 없으면 추가 (선택)
+            }
+        }
     }
 }
