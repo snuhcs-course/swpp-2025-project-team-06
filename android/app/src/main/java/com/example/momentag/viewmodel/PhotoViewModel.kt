@@ -1,14 +1,16 @@
 package com.example.momentag.viewmodel
 
 import android.content.Context
-import android.content.Intent
-import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequest
+import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkManager
 import com.example.momentag.model.HomeScreenUiState
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
-import com.example.momentag.worker.AlbumUploadService
+import com.example.momentag.worker.AlbumUploadWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,29 +75,30 @@ class PhotoViewModel(
         albumIds: Set<Long>,
         context: Context,
     ) {
-        if (albumIds.isEmpty()) {
-            return
-        }
-        // 1. Service에 앨범 ID를 전달할 Intent 생성
+        if (albumIds.isEmpty()) return
+
         albumIds.forEach { albumId ->
-            val intent =
-                Intent(context, AlbumUploadService::class.java).apply {
-                    putExtra("ALBUM_ID_KEY", albumId)
-                }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+
+            val inputData =
+                Data
+                    .Builder()
+                    .putLong(AlbumUploadWorker.keyAlbumId, albumId)
+                    .build()
+
+            val uploadWorkRequest =
+                OneTimeWorkRequest
+                    .Builder(AlbumUploadWorker::class.java)
+                    .setInputData(inputData)
+                    .addTag("album-upload-$albumId")
+                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .build()
+
+            WorkManager.getInstance(context).enqueue(uploadWorkRequest)
         }
 
-        // 3. UI 상태 업데이트 (Service 시작을 알림)
-        // 참고:HomeScreen과 uiState를 공유하므로, 두 업로드가 동시에 실행되면
-        // 상태 메시지가 겹칠 수 있지만, 지금 구조에선 이게 최선입니다.
         _uiState.update { it.copy(userMessage = "백그라운드 업로드가 시작되었습니다.") }
     }
 
-    // to show message and reset
     fun userMessageShown() {
         _uiState.update { it.copy(userMessage = null) }
     }
