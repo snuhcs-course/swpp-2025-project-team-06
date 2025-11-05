@@ -40,7 +40,7 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
 
     rrf_scores = defaultdict(float)
-    all_photo_ids = set()
+    photo_uuids = set()
 
     for rep_vector in rep_vectors:
         search_result = client.search(
@@ -50,14 +50,9 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         )
 
         for i, img_point in enumerate(search_result):
-            photo_id = img_point.id
-            all_photo_ids.add(photo_id)
+            photo_id = uuid.UUID(img_point.id)
+            photo_uuids.add(photo_id)
             rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
-
-    # Fetch photo_path_id from Photo model instead of Qdrant
-    photo_uuids = [uuid.UUID(pid) for pid in all_photo_ids]
-    photos = Photo.objects.filter(photo_id__in=photo_uuids).values('photo_id', 'photo_path_id')
-    photo_id_to_path_id = {str(p['photo_id']): p['photo_path_id'] for p in photos}
 
     rrf_sorted = sorted(
         rrf_scores.items(),
@@ -66,15 +61,23 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     )
 
     tagged_photo_ids = set(
-        Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id)
-        .values_list("photo__photo_id", flat=True)
+        Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
+            "photo__photo_id", flat=True
+        )
     )
 
-    recommendations = [
-        {"photo_id": photo_id, "photo_path_id": photo_id_to_path_id[photo_id]}
-        for (photo_id, _) in rrf_sorted
-        if photo_id not in tagged_photo_ids
-    ][:LIMIT]
+    recommendations = []
+
+    for i, (photo_id, _) in enumerate(rrf_sorted):
+        if i >= LIMIT:
+            break
+
+        if photo_id not in tagged_photo_ids:
+            try:
+                photo = Photo.objects.get(photo_id=photo_id)
+                recommendations.append(photo)
+            except Photo.DoesNotExist:
+                continue
 
     return recommendations
 
@@ -126,8 +129,10 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
 
     # Fetch photo_path_id from Photo model instead of Qdrant
     photo_uuids = [uuid.UUID(pid) for pid in recommend_photos]
-    photos = Photo.objects.filter(photo_id__in=photo_uuids).values('photo_id', 'photo_path_id')
-    id_to_path = {str(p['photo_id']): p['photo_path_id'] for p in photos}
+    photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
+        "photo_id", "photo_path_id"
+    )
+    id_to_path = {str(p["photo_id"]): p["photo_path_id"] for p in photos}
 
     # Maintain order from sorted scores
     return [
@@ -221,26 +226,25 @@ def retrieve_photo_caption_graph(user: User):
         if photo_id not in photo_set:
             photo_set.add(photo_id)
             graph.add_node(photo_id, bipartite=0)
-            
+
         caption_id = photo_caption.caption.caption_id
         if caption_id not in caption_set:
             caption_set.add(caption_id)
             graph.add_node(caption_id, bipartite=1)
 
-        graph.add_edge(
-            photo_id, caption_id, weight=photo_caption.weight
-        )
+        graph.add_edge(photo_id, caption_id, weight=photo_caption.weight)
 
     return photo_set, caption_set, graph
 
+
 def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
     cache_key = f"user_{user.id}_combined_graph"
-    
+
     cached_data = cache.get(cache_key)
-    
+
     if cached_data:
         print(f"[INFO] User {user.id} graph loaded from CACHE")
-        return cached_data['photo_set'], cached_data['meta_set'], cached_data['graph']
+        return cached_data["photo_set"], cached_data["meta_set"], cached_data["graph"]
 
     print(f"[INFO] User {user.id} graph building from DB...")
     graph = nx.Graph()
@@ -293,7 +297,7 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
         
     for photo_tag in tag_relations:
         photo_id = photo_tag.photo.photo_id
-        tag_obj = photo_tag.tag 
+        tag_obj = photo_tag.tag
 
         if photo_id not in photo_set:
             photo_set.add(photo_id)
@@ -303,35 +307,30 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
             meta_set.add(tag_obj)
             graph.add_node(tag_obj, bipartite=1)
 
-        graph.add_edge(
-            photo_id, tag_obj, weight=tag_edge_weight
-        )
-        
-    data_to_cache = {
-        'photo_set': photo_set,
-        'meta_set': meta_set,
-        'graph': graph
-    }
-    
+        graph.add_edge(photo_id, tag_obj, weight=tag_edge_weight)
+
+    data_to_cache = {"photo_set": photo_set, "meta_set": meta_set, "graph": graph}
+
     cache.set(cache_key, data_to_cache, timeout=3600)
-    
+
     print(f"[INFO] User {user.id} graph SAVED to cache")
 
     return photo_set, meta_set, graph
 
+
 def execute_hybrid_graph_search(
-    user: User, 
-    personalization_nodes: set, 
+    user: User,
+    personalization_nodes: set,
     semantic_scores: dict,
     tag_edge_weight: float = SEARCH_SETTINGS["TAG_EDGE_WEIGHT"],
     alpha: float = SEARCH_SETTINGS["ALPHA_RWR_VS_AA"],
     graph_weight: float = SEARCH_SETTINGS["GRAPH_WEIGHT"],
-    semantic_weight: float =SEARCH_SETTINGS["SEMANTIC_WEIGHT"],
+    semantic_weight: float = SEARCH_SETTINGS["SEMANTIC_WEIGHT"],
     limit: int = SEARCH_SETTINGS["FINAL_RESULT_LIMIT"],
 ):
     # 1. 결합 그래프 생성
     all_photos, _, graph = retrieve_combined_graph(user, tag_edge_weight)
-    
+
     # 2. 후보군 정의
     # 재시작 집합의 노드 중 '사진' 노드만 분리
     # (Tag, Caption 객체는 UUID가 아니므로 분리 가능)
@@ -343,23 +342,27 @@ def execute_hybrid_graph_search(
 
     if not valid_personalization_nodes_set:
         return []
-    
+
     personalization_dict = {node: 1 for node in valid_personalization_nodes_set}
 
     # 점수 계산 1: Personalized PageRank (RWR)
     rwr_scores = nx.pagerank(
-        graph, 
-        personalization=personalization_dict, 
-        weight="weight"
+        graph, personalization=personalization_dict, weight="weight"
     )
 
     # 4. 점수 계산 2: Adamic/Adar Index
     aa_scores = defaultdict(float)
-    target_set = valid_personalization_nodes_set 
-    
+    target_set = valid_personalization_nodes_set
+
     try:
         for u, _, score in nx.adamic_adar_index(
-            graph, [(c, t) for c in candidates for t in target_set if (c in graph and t in graph)]
+            graph,
+            [
+                (c, t)
+                for c in candidates
+                for t in target_set
+                if (c in graph and t in graph)
+            ],
         ):
             aa_scores[u] += score
     except Exception as e:
@@ -422,10 +425,12 @@ def execute_hybrid_graph_search(
 
     # Fetch photo_path_id from Photo model instead of Qdrant
     photo_uuids = [uuid.UUID(pid) for pid in recommend_photos]
-    photos = Photo.objects.filter(photo_id__in=photo_uuids).values('photo_id', 'photo_path_id')
+    photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
+        "photo_id", "photo_path_id"
+    )
 
     # Build lookup dict to maintain order
-    id_to_path = {str(p['photo_id']): p['photo_path_id'] for p in photos}
+    id_to_path = {str(p["photo_id"]): p["photo_path_id"] for p in photos}
 
     # RWR/AA로 정렬된 순서대로 최종 결과 생성 (maintain order from sorted scores)
     final_results = [
@@ -447,7 +452,7 @@ def is_valid_uuid(uuid_to_test):
 @shared_task
 def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
     client = get_qdrant_client()
-    K_CLUSTERS = 3           # 기본 코드의 k = 3
+    K_CLUSTERS = 3  # 기본 코드의 k = 3
     OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
     MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수 (기본 코드 기준)
 
@@ -459,50 +464,58 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
 
         delete_filter = models.Filter(
             must=[
-                models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
-                models.FieldCondition(key="tag_id", match=models.MatchValue(value=str(tag_id))) 
+                models.FieldCondition(
+                    key="user_id", match=models.MatchValue(value=user_id)
+                ),
+                models.FieldCondition(
+                    key="tag_id", match=models.MatchValue(value=str(tag_id))
+                ),
             ]
         )
         client.delete(
             collection_name=REPVEC_COLLECTION_NAME,
             points_selector=models.FilterSelector(filter=delete_filter),
-            wait=True
+            wait=True,
         )
         print(f"[Task Info] Deleted old repvecs for Tag: {tag_id}.")
 
         if not photo_ids:
-            print(f"[Task Info] No photos found for Tag: {tag_id}. RepVecs deleted. Task finished.")
+            print(
+                f"[Task Info] No photos found for Tag: {tag_id}. RepVecs deleted. Task finished."
+            )
             return
 
         points = client.retrieve(
-            collection_name=IMAGE_COLLECTION_NAME,
-            ids=photo_ids,
-            with_vectors=True
+            collection_name=IMAGE_COLLECTION_NAME, ids=photo_ids, with_vectors=True
         )
-        
+
         selected_vecs = np.array([point.vector for point in points if point.vector])
 
         if len(selected_vecs) == 0:
-            print(f"[Task Info] No vectors found in Qdrant for Tag: {tag_id}. Skipping.")
+            print(
+                f"[Task Info] No vectors found in Qdrant for Tag: {tag_id}. Skipping."
+            )
             return
 
         if len(selected_vecs) < MIN_SAMPLES_FOR_ML:
             final_representatives = selected_vecs
         else:
-            iso_forest = IsolationForest(contamination=OUTLIER_FRACTION, random_state=42)
+            iso_forest = IsolationForest(
+                contamination=OUTLIER_FRACTION, random_state=42
+            )
             preds = iso_forest.fit_predict(selected_vecs)
-            
+
             outlier_vecs = selected_vecs[preds == -1]
             inlier_vecs = selected_vecs[preds == 1]
-            
+
             kmeans_centers = np.array([])
             if len(inlier_vecs) >= K_CLUSTERS:
-                kmeans = KMeans(n_clusters=K_CLUSTERS, random_state=42, n_init='auto')
+                kmeans = KMeans(n_clusters=K_CLUSTERS, random_state=42, n_init="auto")
                 kmeans.fit(inlier_vecs)
                 kmeans_centers = kmeans.cluster_centers_
             elif len(inlier_vecs) > 0:
                 kmeans_centers = inlier_vecs
-                
+
             final_representatives_list = []
             if len(outlier_vecs) > 0:
                 final_representatives_list.append(outlier_vecs)
@@ -510,7 +523,9 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
                 final_representatives_list.append(kmeans_centers)
 
             if not final_representatives_list:
-                print(f"[Task Info] No representative vectors generated for Tag: {tag_id}.")
+                print(
+                    f"[Task Info] No representative vectors generated for Tag: {tag_id}."
+                )
                 return
 
             final_representatives = np.vstack(final_representatives_list)
@@ -518,25 +533,20 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
         points_to_upsert = []
         for vec in final_representatives:
             point_id = str(uuid.uuid4())
-            payload = {
-                "user_id": user_id,
-                "tag_id": str(tag_id)
-            }
+            payload = {"user_id": user_id, "tag_id": str(tag_id)}
             points_to_upsert.append(
-                models.PointStruct(
-                    id=point_id,
-                    vector=vec.tolist(),
-                    payload=payload
-                )
+                models.PointStruct(id=point_id, vector=vec.tolist(), payload=payload)
             )
 
         if points_to_upsert:
             client.upsert(
                 collection_name=REPVEC_COLLECTION_NAME,
                 points=points_to_upsert,
-                wait=True
+                wait=True,
             )
-            print(f"[Task Success] Upserted {len(points_to_upsert)} new repvecs for Tag: {tag_id}.")
+            print(
+                f"[Task Success] Upserted {len(points_to_upsert)} new repvecs for Tag: {tag_id}."
+            )
         else:
             print(f"[Task Info] No new repvecs to upsert for Tag: {tag_id}.")
 

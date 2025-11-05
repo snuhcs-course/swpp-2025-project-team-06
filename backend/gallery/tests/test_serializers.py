@@ -370,7 +370,7 @@ class ResPhotoSerializerTest(TestCase):
         """유효한 데이터로 ResPhotoSerializer 테스트"""
         test_uuid = uuid.uuid4()
         data = {
-            "photo_id": test_uuid, 
+            "photo_id": test_uuid,
             "photo_path_id": 12345,
         }
 
@@ -386,7 +386,7 @@ class ResPhotoSerializerTest(TestCase):
         test_uuid = uuid.uuid4()
         datetime.now()
         data = {
-            "photo_id": test_uuid, 
+            "photo_id": test_uuid,
             "photo_path_id": 456,
         }
 

@@ -10,7 +10,7 @@ class Tag(models.Model):
 
     def __str__(self):
         return self.tag
-    
+
 
 class Photo(models.Model):
     photo_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -42,7 +42,8 @@ class Caption(models.Model):
     caption = models.CharField(max_length=50)
 
     class Meta:
-        unique_together = ('user', 'caption')
+        unique_together = ("user", "caption")
+
     def __str__(self):
         return self.caption
 

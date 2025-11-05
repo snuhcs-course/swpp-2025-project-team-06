@@ -29,14 +29,10 @@ class VisionServicesTest(TestCase):
         expected = set(["cats", "dogs", "there"])
         self.assertEqual(set(phrase_to_words(text)), expected)
 
-    @patch(
-        "gallery.gpu_tasks.torch.no_grad"
-    )  # Patch torch.no_grad context manager
+    @patch("gallery.gpu_tasks.torch.no_grad")  # Patch torch.no_grad context manager
     @patch("gallery.gpu_tasks.Image.open")  # Patch Image.open
     @patch("gallery.gpu_tasks.get_caption_model")  # Patch your model loader
-    @patch(
-        "gallery.gpu_tasks.get_caption_processor"
-    )  # Patch your processor loader
+    @patch("gallery.gpu_tasks.get_caption_processor")  # Patch your processor loader
     @patch("builtins.print")  # Patch the built-in print to check logs
     def test_successful_caption_generation(
         self,

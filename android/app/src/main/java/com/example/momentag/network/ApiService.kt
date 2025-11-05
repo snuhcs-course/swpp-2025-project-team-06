@@ -20,13 +20,6 @@ import com.example.momentag.model.TagIdRequest
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
-import java.io.InputStream
-import java.security.KeyStore
-import java.security.cert.CertificateFactory
-import javax.net.ssl.SSLContext
-import javax.net.ssl.SSLSocketFactory
-import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.X509TrustManager
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -38,6 +31,13 @@ import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import java.io.InputStream
+import java.security.KeyStore
+import java.security.cert.CertificateFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
@@ -102,7 +102,7 @@ interface ApiService {
         @Part("metadata") metadata: RequestBody,
     ): Response<Unit>
 
-    @GET("/api/photos/{photo_id}/")
+    @GET("api/photos/{photo_id}/")
     suspend fun getPhotoDetail(
         @Path("photo_id") photoId: String,
     ): Response<PhotoDetailResponse>
@@ -153,11 +153,12 @@ object RetrofitInstance {
     private var apiService: ApiService? = null
 
     private fun createCustomTrustManager(context: Context): X509TrustManager {
-        val resourceId = context.resources.getIdentifier(
-            "myclass",
-            "raw",
-            context.packageName
-        )
+        val resourceId =
+            context.resources.getIdentifier(
+                "myclass",
+                "raw",
+                context.packageName,
+            )
         val certInputStream: InputStream = context.resources.openRawResource(resourceId)
 
         val certificateFactory = CertificateFactory.getInstance("X.509")

@@ -38,15 +38,37 @@ _caption_model = None
 
 # Stop words for caption processing
 STOP_WORDS = {
-    "a", "an", "the", "in", "on", "of", "at", "for", "with", "by", "about",
-    "is", "are", "was", "were", "it", "this", "that", "and", "or", "but",
-    "photo", "picture", "image",
+    "a",
+    "an",
+    "the",
+    "in",
+    "on",
+    "of",
+    "at",
+    "for",
+    "with",
+    "by",
+    "about",
+    "is",
+    "are",
+    "was",
+    "were",
+    "it",
+    "this",
+    "that",
+    "and",
+    "or",
+    "but",
+    "photo",
+    "picture",
+    "image",
 }
 
 
 # ============================================================================
 # Vision Model Loaders
 # ============================================================================
+
 
 def get_image_model():
     """Lazy-load CLIP image model once per worker"""
@@ -83,6 +105,7 @@ def get_caption_model():
 # ============================================================================
 # Vision Inference Functions
 # ============================================================================
+
 
 def get_image_embedding(image_data: BytesIO):
     """
@@ -243,7 +266,6 @@ def process_and_embed_photo(
         image_data.seek(0)
         captions = get_image_captions(image_data)
 
-
         for word, count in captions.items():
             caption, _ = Caption.objects.get_or_create(
                 user=user,
@@ -267,5 +289,3 @@ def process_and_embed_photo(
             image_data.close()
         # Cleanup storage
         delete_photo(storage_key)
-
-

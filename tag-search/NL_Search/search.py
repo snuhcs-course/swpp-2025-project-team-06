@@ -2,7 +2,6 @@ import torch
 import os
 import json
 import numpy as np
-from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 from peft import PeftModel
 from sklearn.metrics.pairwise import cosine_similarity
