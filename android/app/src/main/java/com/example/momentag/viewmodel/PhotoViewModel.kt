@@ -82,7 +82,7 @@ class PhotoViewModel(
             val inputData =
                 Data
                     .Builder()
-                    .putLong(AlbumUploadWorker.keyAlbumId, albumId)
+                    .putLong(AlbumUploadWorker.KEY_ALBUM_ID, albumId)
                     .build()
 
             val uploadWorkRequest =
