@@ -95,7 +95,7 @@ interface ApiService {
         @Part("metadata") metadata: RequestBody,
     ): Response<Unit>
 
-    @GET("/api/photos/{photo_id}/")
+    @GET("api/photos/{photo_id}/")
     suspend fun getPhotoDetail(
         @Path("photo_id") photoId: String,
     ): Response<PhotoDetailResponse>
