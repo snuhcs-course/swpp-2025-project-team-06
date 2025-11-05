@@ -144,10 +144,10 @@ fun HomeScreen(navController: NavController) {
         if (hasPermission) {
             homeViewModel.loadServerTags()
 
-            val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED_108", false)
+            val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED_112", false)
             if (!hasAlreadyUploaded) {
                 photoViewModel.uploadPhotos()
-                sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED_108", true).apply()
+                sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED_112", true).apply()
             }
         }
     }

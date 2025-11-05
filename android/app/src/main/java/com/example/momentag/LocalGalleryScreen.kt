@@ -5,23 +5,38 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -50,6 +65,7 @@ import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
@@ -62,9 +78,30 @@ fun LocalGalleryScreen(
 ) {
     val context = LocalContext.current
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     var hasPermission by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
+
+    val selectedAlbumIds by localViewModel.selectedAlbumIds.collectAsState()
+    val uploadState by photoViewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                // 👇 [수정] 'selectedAlbumId?.let' (단수) -> 'selectedAlbumIds.isNotEmpty' (복수)
+                if (selectedAlbumIds.isNotEmpty()) {
+                    // 👇 [수정] 'uploadPhotosForAlbum(it, ...)' -> 'uploadPhotosForAlbums(selectedAlbumIds, ...)'
+                    photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
+                }
+            } else {
+                // (권한 거부 시 토스트 메시지 등)
+            }
+        }
+    )
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -101,6 +138,38 @@ fun LocalGalleryScreen(
                 title = "MomenTag",
                 onBackClick = onNavigateBack,
             )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+
+        // 👇 [수정] 2: floatingActionButton 추가
+        floatingActionButton = {
+            // 앨범이 선택됐을 때만 FAB 보이기
+            if (selectedAlbumIds.isNotEmpty()) {
+                ExtendedFloatingActionButton(
+                    text = {
+                        if (uploadState.isLoading) {
+                            Text("업로드 시작됨 (알림 확인)")
+                        } else {
+                            // 👇 [수정] 3: 선택된 개수 표시
+                            Text("선택한 ${selectedAlbumIds.size}개 앨범 업로드하기")
+                        }
+                    },
+                    icon = {
+                        // ... (로딩 스피너 로직은 동일)
+                    },
+                    onClick = {
+                        if (uploadState.isLoading) return@ExtendedFloatingActionButton
+
+                        // 👇 [수정] 4: 'selectedAlbumId' (단수) -> 'selectedAlbumIds' (복수) 전달
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            // [수정]
+                            photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
+                        }
+                    }
+                )
+            }
         },
     ) { paddingValues ->
         PullToRefreshBox(
@@ -148,8 +217,26 @@ fun LocalGalleryScreen(
                             albumName = album.albumName,
                             albumId = album.albumId,
                             imageUri = album.thumbnailUri,
-                            navController = navController,
+                            isSelected = (album.albumId in selectedAlbumIds),
+                            onClick = {
+                                navController.navigate(
+                                    Screen.LocalAlbum.createRoute(album.albumId, album.albumName)
+                                )
+                            },
+                            onLongClick = {
+                                localViewModel.toggleAlbumSelection(album.albumId)
+                            }
                         )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                uploadState.userMessage?.let { message ->
+                    LaunchedEffect(uploadState.userMessage) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(message)
+                        }
+                        photoViewModel.userMessageShown()
                     }
                 }
             }
@@ -157,14 +244,33 @@ fun LocalGalleryScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun albumGridItem(
     albumName: String,
     albumId: Long,
     imageUri: Uri?,
-    navController: NavController,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
-    Box(modifier = Modifier) {
+    Box(
+        modifier = Modifier
+        .then(
+            if (isSelected) {
+                Modifier.border(
+                    BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
+                    RoundedCornerShape(16.dp)
+                )
+            } else {
+                Modifier
+            }
+        )
+        .combinedClickable(
+            onClick = onClick,
+            onLongClick = onLongClick
+        )
+    ) {
         if (imageUri != null) {
             AsyncImage(
                 model = imageUri,
@@ -174,10 +280,7 @@ fun albumGridItem(
                         .padding(top = 12.dp)
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(16.dp))
-                        .align(Alignment.BottomCenter)
-                        .clickable {
-                            navController.navigate(Screen.LocalAlbum.createRoute(albumId, albumName))
-                        },
+                        .align(Alignment.BottomCenter),
                 contentScale = ContentScale.Crop,
             )
         } else {
@@ -190,7 +293,6 @@ fun albumGridItem(
                             color = Picture,
                             shape = RoundedCornerShape(16.dp),
                         ).align(Alignment.BottomCenter)
-                        .clickable { /* TODO */ },
             )
         }
 

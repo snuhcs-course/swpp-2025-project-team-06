@@ -11,6 +11,8 @@ import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.repository.TokenRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.uuid.ExperimentalUuidApi
 
 /**
@@ -38,6 +40,10 @@ class ViewModelFactory private constructor(
             }
     }
 
+    val albumUploadJobCount = MutableStateFlow(0)
+
+    val albumUploadSuccessEvent = MutableSharedFlow<Long>()
+
     // 싱글톤으로 관리되는 SessionStore (앱 전체에서 하나만 존재)
     private val sessionStore by lazy {
         SessionManager.getInstance(context.applicationContext)
@@ -52,12 +58,12 @@ class ViewModelFactory private constructor(
     }
 
     // RemoteRepository (Feature API)
-    private val remoteRepository by lazy {
+    val remoteRepository by lazy {
         RemoteRepository(RetrofitInstance.getApiService(context.applicationContext))
     }
 
     // LocalRepository (MediaStore 접근)
-    private val localRepository by lazy {
+    val localRepository by lazy {
         LocalRepository(context.applicationContext)
     }
 
@@ -91,7 +97,7 @@ class ViewModelFactory private constructor(
                 HomeViewModel(localRepository, remoteRepository) as T
             }
             modelClass.isAssignableFrom(LocalViewModel::class.java) -> {
-                LocalViewModel(localRepository, imageBrowserRepository) as T
+                LocalViewModel(localRepository, imageBrowserRepository, albumUploadSuccessEvent) as T
             }
             modelClass.isAssignableFrom(AuthViewModel::class.java) -> {
                 AuthViewModel(tokenRepository) as T
@@ -103,7 +109,7 @@ class ViewModelFactory private constructor(
                 ImageDetailViewModel(imageBrowserRepository, remoteRepository, recommendRepository) as T
             }
             modelClass.isAssignableFrom(PhotoViewModel::class.java) -> {
-                PhotoViewModel(remoteRepository, localRepository) as T
+                PhotoViewModel(remoteRepository, localRepository, albumUploadJobCount) as T
             }
             modelClass.isAssignableFrom(AddTagViewModel::class.java) -> {
                 AddTagViewModel(draftTagRepository, recommendRepository, localRepository, remoteRepository) as T

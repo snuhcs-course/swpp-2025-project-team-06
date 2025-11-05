@@ -24,6 +24,11 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+data class PhotoInfoForUpload(
+    val uri: Uri,
+    val meta: PhotoMeta
+)
+
 class LocalRepository(
     private val context: Context,
 ) {
@@ -261,7 +266,7 @@ class LocalRepository(
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                var count = 30 // for testing
+                var count = 0 // for testing
 
                 while (cursor.moveToNext() && count-- > 0) {
                     val id = cursor.getLong(idColumn)
@@ -506,4 +511,90 @@ class LocalRepository(
         } catch (e: Exception) {
             "Unknown location"
         }
+
+    fun getAlbumPhotoInfo(albumId: Long): List<PhotoInfoForUpload> {
+        val photoInfoList = mutableListOf<PhotoInfoForUpload>()
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.DATE_TAKEN
+        )
+        val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
+        val selectionArgs = arrayOf(albumId.toString())
+        val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection, selection, selectionArgs, sortOrder
+        )?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+            val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idColumn)
+                val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
+
+                val dateValue = cursor.getLong(dateTakenColumn)
+                val createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                    .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
+                    .format(Date(dateValue))
+
+                var finalLat = 0.0
+                var finalLng = 0.0
+                try {
+                    context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
+                        val exif = ExifInterface(inputStream)
+                        val latOutput = FloatArray(2)
+                        if (exif.getLatLong(latOutput)) {
+                            finalLat = latOutput[0].toDouble()
+                            finalLng = latOutput[1].toDouble()
+                        }
+                    }
+                } catch (e: Exception) { /* 0.0 유지 */ }
+
+                val meta = PhotoMeta(
+                    filename = filename,
+                    photo_path_id = id.toInt(),
+                    created_at = createdAt,
+                    lat = finalLat,
+                    lng = finalLng,
+                )
+                photoInfoList.add(PhotoInfoForUpload(contentUri, meta))
+            }
+        }
+        return photoInfoList
+    }
+
+    fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
+        val photoParts = mutableListOf<MultipartBody.Part>()
+        val metadataList = mutableListOf<PhotoMeta>()
+
+        chunk.forEach { photoInfo ->
+            // (기존 getPhotoUploadRequest의 리사이즈/변환 로직 재사용)
+            val resizedBytes = resizeImage(photoInfo.uri, maxWidth = 1280, maxHeight = 1280, quality = 85)
+            val (bytes, mime) =
+                if (resizedBytes != null) {
+                    resizedBytes to "image/jpeg"
+                } else {
+                    val raw = context.contentResolver.openInputStream(photoInfo.uri)?.use { it.readBytes() }
+                    val type = context.contentResolver.getType(photoInfo.uri) ?: "application/octet-stream"
+                    raw to type
+                }
+
+            bytes?.let { b ->
+                val requestBody = b.toRequestBody(mime.toMediaTypeOrNull())
+                val part = MultipartBody.Part.createFormData("photo", photoInfo.meta.filename, requestBody)
+                photoParts.add(part)
+            }
+            metadataList.add(photoInfo.meta)
+        }
+
+        val gson = Gson()
+        val metadataJson = gson.toJson(metadataList)
+        val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
+
+        return PhotoUploadData(photoParts, metadataBody)
+    }
 }
