@@ -13,7 +13,6 @@ from collections import defaultdict
 from celery import shared_task
 from qdrant_client import models
 from django.conf import settings
-from django.core.cache import cache
 
 from .qdrant_utils import (
     get_qdrant_client,
@@ -251,88 +250,7 @@ def retrieve_photo_caption_graph(user: User):
     return photo_set, caption_set, graph
 
 
-def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
-    cache_key = f"user_{user.id}_combined_graph"
-
-    cached_data = cache.get(cache_key)
-
-    if cached_data:
-        print(f"[INFO] User {user.id} graph loaded from CACHE")
-        return cached_data["photo_set"], cached_data["meta_set"], cached_data["graph"]
-
-    print(f"[INFO] User {user.id} graph building from DB...")
-    graph = nx.Graph()
-    photo_set = set()
-    meta_set = set()
-    
-    caption_relations = Photo_Caption.objects.filter(user=user).select_related('caption')
-    tag_relations = Photo_Tag.objects.filter(user=user).select_related('tag')
-
-    all_photo_ids = set()
-    caption_doc_freq = defaultdict(set)
-    
-    for pc in caption_relations:
-        all_photo_ids.add(pc.photo_id)
-        caption_doc_freq[pc.caption].add(pc.photo_id)
-
-    for pt in tag_relations:
-        all_photo_ids.add(pt.photo_id)
-    
-    N = len(all_photo_ids)
-    if N == 0:
-        N = 1
-    
-    idf_scores = {}
-    for caption_obj, photo_ids_set in caption_doc_freq.items():
-        df = len(photo_ids_set)
-        idf_scores[caption_obj] = math.log(N / (1 + df))
-    
-    for photo_caption in caption_relations:
-        photo_id = photo_caption.photo.photo_id
-        caption_obj = photo_caption.caption
-
-        if photo_id not in photo_set:
-            photo_set.add(photo_id)
-            graph.add_node(photo_id, bipartite=0)
-
-        if caption_obj not in meta_set:
-            meta_set.add(caption_obj)
-            graph.add_node(caption_obj, bipartite=1)
-
-        tf = photo_caption.weight
-        
-        idf = idf_scores.get(caption_obj, 0.0) 
-        
-        new_weight = tf * (1 + idf)
-
-        graph.add_edge(
-            photo_id, caption_obj, weight=new_weight 
-        )
-        
-    for photo_tag in tag_relations:
-        photo_id = photo_tag.photo.photo_id
-        tag_obj = photo_tag.tag
-
-        if photo_id not in photo_set:
-            photo_set.add(photo_id)
-            graph.add_node(photo_id, bipartite=0)
-
-        if tag_obj not in meta_set:
-            meta_set.add(tag_obj)
-            graph.add_node(tag_obj, bipartite=1)
-
-        graph.add_edge(photo_id, tag_obj, weight=tag_edge_weight)
-
-    data_to_cache = {"photo_set": photo_set, "meta_set": meta_set, "graph": graph}
-
-    cache.set(cache_key, data_to_cache, timeout=3600)
-
-    print(f"[INFO] User {user.id} graph SAVED to cache")
-
-    return photo_set, meta_set, graph
-
-
-def execute_hybrid_graph_search(
+def execute_hybrid_search(
     user: User,
     # -----------------------------------------------
     # ▼ 기존 파라미터 (personalization_nodes, semantic_scores 등) 대신
