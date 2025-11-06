@@ -1,5 +1,6 @@
 package com.example.momentag.viewmodel
 
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
@@ -63,6 +64,15 @@ class HomeViewModel(
 
     private val _isLoadingMorePhotos = MutableStateFlow(false)
     val isLoadingMorePhotos = _isLoadingMorePhotos.asStateFlow()
+
+    private val _shouldReturnToAllPhotos = MutableStateFlow(false)
+    val shouldReturnToAllPhotos: StateFlow<Boolean> = _shouldReturnToAllPhotos.asStateFlow()
+
+    fun setShouldReturnToAllPhotos(value: Boolean) {
+        _shouldReturnToAllPhotos.value = value
+    }
+
+    val allPhotosListState = LazyGridState()
 
     private var currentOffset = 0
     private val pageSize = 66
