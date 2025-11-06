@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.db import IntegrityError
 
 
 from .reponse_serializers import (
@@ -29,8 +30,6 @@ from .models import Photo_Tag, Tag, Photo
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-
-from django.core.cache import cache
 
 from .tasks import (
     tag_recommendation,
