@@ -45,7 +45,7 @@ try:
             print(f"✅ [SQL] 총 {total_sql_deleted}개의 중복 Photo 행을 삭제했습니다.")
     print("--- [1부] SQL DB 작업 완료 (커밋됨) ---")
 except Exception as e:
-    print(f"🚨🚨🚨 [1부 실패!] SQL 트랜잭션이 롤백되었습니다! 🚨🚨🚨")
+    print("🚨🚨🚨 [1부 실패!] SQL 트랜잭션이 롤백되었습니다! 🚨🚨🚨")
     print(f"에러: {e}")
     print("DB 변경사항이 모두 취소되었습니다. Qdrant 작업을 시작하지 않습니다.")
     sys.exit(1)
@@ -95,7 +95,7 @@ try:
         print(f"✅ [QDRANT] '{IMAGE_COLLECTION_NAME}' 삭제 완료.")
     print("--- [2부] Qdrant 이미지 작업 완료 ---")
 except Exception as e:
-    print(f"🚨🚨🚨 [2부 실패!] Qdrant 작업 중 오류 발생! 🚨🚨🚨")
+    print("🚨🚨🚨 [2부 실패!] Qdrant 작업 중 오류 발생! 🚨🚨🚨")
     print(f"에러: {e}")
 
 print("\n🎉🎉🎉 SQL DB 중복 제거 및 이미지 벡터 정리 작업이 완료되었습니다. 🎉🎉🎉")
