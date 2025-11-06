@@ -251,33 +251,14 @@ def retrieve_photo_caption_graph(user: User):
 
 def execute_hybrid_search(
     user: User,
-    # -----------------------------------------------
-    # ▼ 기존 파라미터 (personalization_nodes, semantic_scores 등) 대신
-    #   아래 두 파라미터로 "변경"합니다.
-    # -----------------------------------------------
     tag_ids: list[uuid.UUID],
     query_string: str,
-    # -----------------------------------------------
-    # 설정값들은 settings.py에서 가져옵니다.
     tag_weight: float = SEARCH_SETTINGS.get("TAG_FUSION_WEIGHT", 1.0),
     semantic_weight: float = SEARCH_SETTINGS.get("SEMANTIC_FUSION_WEIGHT", 1.0),
     recommend_limit: int = SEARCH_SETTINGS.get("RECOMMEND_LIMIT", 50),
     semantic_limit: int = SEARCH_SETTINGS.get("SEMANTIC_LIMIT", 50),
     final_limit: int = SEARCH_SETTINGS.get("FINAL_RESULT_LIMIT", 100),
 ):
-    """
-    [새 버전] 태그와 자연어 쿼리를 결합한 Qdrant 기반 하이브리드 검색.
-    (기존 NetworkX 그래프 로직을 대체함)
-
-    1. (축 1) 태그 검색:
-       - 태그에 직접 연결된 사진 (점수 1.0)
-       - Qdrant `recommend`로 찾은 유사 사진 (Qdrant 점수)
-    2. (축 2) 자연어 검색:
-       - Qdrant `search`로 찾은 시맨틱 유사 사진 (Qdrant 점수)
-    3. (퓨전):
-       - (축1 점수 * tag_weight) + (축2 점수 * semantic_weight)로 최종 점수 계산
-    """
-
     client = get_qdrant_client()
     phase_1_scores = {}
     phase_2_scores = {}
@@ -292,22 +273,21 @@ def execute_hybrid_search(
         ]
     )
 
-    # --- 1단계: 태그 기반 점수 계산 (축 1) ---
     if tag_ids:
-        # 1.1: DB에서 태그에 직접 속한 사진 ID 조회 (TagPhotoSet)
+        # 1.1: DB에서 태그에 직접 속한 사진 ID 조회 
         tag_photo_uuids = set(
             Photo_Tag.objects.filter(
                 user=user,
                 tag__tag_id__in=tag_ids
             ).values_list("photo__photo_id", flat=True)
-        ) # Django ORM 구문 정확
+        )
 
         tag_photo_ids_str = {str(pid) for pid in tag_photo_uuids}
 
-        # 1.2: Qdrant `recommend` API 호출 (SimilarPhotoSet)
+        # 1.2: Qdrant `recommend` API 호출
         if tag_photo_ids_str:
             try:
-                # Qdrant `recommend` API (문법 정확)
+                # Qdrant `recommend` API
                 recommend_results = client.recommend(
                     collection_name=IMAGE_COLLECTION_NAME,
                     positive=list(tag_photo_ids_str),
@@ -324,12 +304,11 @@ def execute_hybrid_search(
                 print(f"[HybridSearch Error] Qdrant recommend failed: {e}")
                 pass
 
-        # 1.3: 태그에 "직접" 속한 사진(TagPhotoSet)에 1.0점 부여 (덮어쓰기)
+        # 1.3: 태그에 "직접" 속한 사진(TagPhotoSet)에 1.0점 부여
         for photo_id_str in tag_photo_ids_str:
             phase_1_scores[photo_id_str] = 1.0
 
 
-    # --- 2단계: 자연어 기반 점수 계산 (축 2) ---
     if query_string:
         # 2.1: 자연어 쿼리를 임베딩 벡터로 변환
         query_vector = create_query_embedding(query_string)
@@ -371,7 +350,7 @@ def execute_hybrid_search(
         reverse=True
     )
 
-    # 3.4: 최종 결과 포맷팅 (DB 조회)
+    # 3.4: 최종 결과 포맷팅
     recommend_photo_ids_str = [item[0] for item in sorted_scores_tuple[:final_limit]]
 
     if not recommend_photo_ids_str:
@@ -379,7 +358,7 @@ def execute_hybrid_search(
 
     photo_uuids = [uuid.UUID(pid) for pid in recommend_photo_ids_str]
 
-    # Photo 모델에서 photo_path_id 조회 (Django ORM 구문 정확)
+    # Photo 모델에서 photo_path_id 조회
     photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
         "photo_id", "photo_path_id"
     )
