@@ -32,16 +32,14 @@ from .gpu_tasks import phrase_to_words
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
 
-# aggregates N similarity queries with Reciprocal Rank Fusion
 def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
-    client = get_qdrant_client()
     LIMIT = 40
-    RRF_CONSTANT = 40
+    client = get_qdrant_client()
 
     rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
 
-    rrf_scores = defaultdict(float)
-    photo_uuids = set()
+    if not rep_vectors:
+        return []
 
     user_filter = models.Filter(
         must=[
@@ -52,46 +50,36 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         ]
     )
 
-    for rep_vector in rep_vectors:
-        search_result = client.search(
-            IMAGE_COLLECTION_NAME,
-            query_vector=rep_vector,
-            query_filter=user_filter,
-            limit=LIMIT,
-        )
-
-        for i, img_point in enumerate(search_result):
-            photo_id = uuid.UUID(img_point.id)
-            photo_uuids.add(photo_id)
-            rrf_scores[photo_id] = rrf_scores[photo_id] + \
-                1 / (RRF_CONSTANT + i + 1)
-
-    rrf_sorted = sorted(
-        rrf_scores.items(),
-        key=lambda item: item[1],
-        reverse=True,
+    points = client.recommend(
+        collection_name=IMAGE_COLLECTION_NAME,
+        positive=rep_vectors,
+        query_filter=user_filter,
+        limit=2 * LIMIT,
+        with_payload=False,
     )
+
+    # Fetch photo_path_id from Photo model instead of Qdrant
+    photo_uuids = list(map(uuid.UUID, (point.id for point in points)))
+    photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
+        "photo_id", "photo_path_id"
+    )
+    id_to_path = {str(p["photo_id"]): p["photo_path_id"] for p in photos}
 
     tagged_photo_ids = set(
-        Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
-            "photo__photo_id", flat=True
+        map(
+            str,
+            Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
+                "photo__photo_id", flat=True
+            )
         )
     )
 
-    recommendations = []
-
-    for i, (photo_id, _) in enumerate(rrf_sorted):
-        if i >= LIMIT:
-            break
-
-        if photo_id not in tagged_photo_ids:
-            try:
-                photo = Photo.objects.get(photo_id=photo_id)
-                recommendations.append(photo)
-            except Photo.DoesNotExist:
-                continue
-
-    return recommendations
+    # Maintain order from sorted scores
+    return [
+        {"photo_id": point.id, "photo_path_id": id_to_path[point.id]}
+        for point in points
+        if point.id in id_to_path and point.id not in tagged_photo_ids
+    ][:LIMIT]
 
 
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
