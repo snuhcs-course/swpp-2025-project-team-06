@@ -31,9 +31,9 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -518,14 +518,15 @@ fun HomeScreen(navController: NavController) {
 
                         else -> { // Error, NetworkError, Idle
                             Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth(),
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     "태그를 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.",
-                                    textAlign = TextAlign.Center
+                                    textAlign = TextAlign.Center,
                                 )
                             }
                         }
