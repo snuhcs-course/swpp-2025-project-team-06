@@ -4,8 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import re
-from gallery.models import Tag, Photo_Tag, Caption, Photo
-from gallery.gpu_tasks import phrase_to_words
+from gallery.models import Tag, Photo_Tag, Photo
 from .embedding_service import create_query_embedding
 from gallery.tasks import execute_hybrid_graph_search
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
@@ -75,7 +74,6 @@ class SemanticSearchView(APIView):
             offset = int(request.GET.get("offset", 0))
             user = request.user
 
-            TAG_EDGE_WEIGHT = SEARCH_SETTINGS["TAG_EDGE_WEIGHT"]
 
             tag_names = TAG_REGEX.findall(query)
             text_only_query = TAG_REGEX.sub("", query).strip()
@@ -187,20 +185,10 @@ class SemanticSearchView(APIView):
 
             elif semantic_query and valid_tags:
                 # (C) 하이브리드 검색
-                processed_words = phrase_to_words(semantic_query)
-                
-                matching_captions = set(Caption.objects.filter(
-                    user=request.user,
-                    caption__in=processed_words
-                ))
-                
-                personalization_nodes = set(valid_tags).union(semantic_scores.keys()).union(matching_captions)
-                
                 final_results = execute_hybrid_graph_search(
                     user=user,
-                    personalization_nodes=personalization_nodes,
-                    semantic_scores=semantic_scores,
-                    tag_edge_weight=TAG_EDGE_WEIGHT,
+                    tag_ids=valid_tags,       # 1단계에서 바꾼 파라미터
+                    query_string=semantic_query   # 1단계에서 바꾼 파라미터
                 )
 
             else:

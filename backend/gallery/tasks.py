@@ -21,6 +21,7 @@ from .qdrant_utils import (
     REPVEC_COLLECTION_NAME,
 )
 from .models import User, Photo_Caption, Photo_Tag, Tag, Photo
+from search.embedding_service import create_query_embedding
 
 
 import numpy as np
@@ -333,124 +334,147 @@ def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
 
 def execute_hybrid_graph_search(
     user: User,
-    personalization_nodes: set,
-    semantic_scores: dict,
-    tag_edge_weight: float = SEARCH_SETTINGS["TAG_EDGE_WEIGHT"],
-    alpha: float = SEARCH_SETTINGS["ALPHA_RWR_VS_AA"],
-    graph_weight: float = SEARCH_SETTINGS["GRAPH_WEIGHT"],
-    semantic_weight: float = SEARCH_SETTINGS["SEMANTIC_WEIGHT"],
-    limit: int = SEARCH_SETTINGS["FINAL_RESULT_LIMIT"],
+    # -----------------------------------------------
+    # ▼ 기존 파라미터 (personalization_nodes, semantic_scores 등) 대신
+    #   아래 두 파라미터로 "변경"합니다.
+    # -----------------------------------------------
+    tag_ids: list[uuid.UUID],
+    query_string: str,
+    # -----------------------------------------------
+    # 설정값들은 settings.py에서 가져옵니다.
+    tag_weight: float = SEARCH_SETTINGS.get("TAG_FUSION_WEIGHT", 1.0),
+    semantic_weight: float = SEARCH_SETTINGS.get("SEMANTIC_FUSION_WEIGHT", 1.0),
+    recommend_limit: int = SEARCH_SETTINGS.get("RECOMMEND_LIMIT", 50),
+    semantic_limit: int = SEARCH_SETTINGS.get("SEMANTIC_LIMIT", 50),
+    final_limit: int = SEARCH_SETTINGS.get("FINAL_RESULT_LIMIT", 100),
 ):
-    # 1. 결합 그래프 생성
-    all_photos, _, graph = retrieve_combined_graph(user, tag_edge_weight)
+    """
+    [새 버전] 태그와 자연어 쿼리를 결합한 Qdrant 기반 하이브리드 검색.
+    (기존 NetworkX 그래프 로직을 대체함)
 
-    # 2. 후보군 정의
-    # 재시작 집합의 노드 중 '사진' 노드만 분리
-    # (Tag, Caption 객체는 UUID가 아니므로 분리 가능)
-    candidates: set[uuid.UUID] = all_photos
-    
-    valid_personalization_nodes_set = {
-        node for node in personalization_nodes if node in graph
-    }
+    1. (축 1) 태그 검색:
+       - 태그에 직접 연결된 사진 (점수 1.0)
+       - Qdrant `recommend`로 찾은 유사 사진 (Qdrant 점수)
+    2. (축 2) 자연어 검색:
+       - Qdrant `search`로 찾은 시맨틱 유사 사진 (Qdrant 점수)
+    3. (퓨전):
+       - (축1 점수 * tag_weight) + (축2 점수 * semantic_weight)로 최종 점수 계산
+    """
 
-    if not valid_personalization_nodes_set:
-        return []
+    client = get_qdrant_client()
+    phase_1_scores = {}
+    phase_2_scores = {}
 
-    personalization_dict = {node: 1 for node in valid_personalization_nodes_set}
-
-    # 점수 계산 1: Personalized PageRank (RWR)
-    rwr_scores = nx.pagerank(
-        graph, personalization=personalization_dict, weight="weight"
+    # Qdrant 검색 시 다른 유저의 데이터를 침범하지 않도록 필터를 생성합니다.
+    user_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="user_id",
+                match=models.MatchValue(value=user.id),
+            )
+        ]
     )
 
-    # 4. 점수 계산 2: Adamic/Adar Index
-    aa_scores = defaultdict(float)
-    target_set = valid_personalization_nodes_set
+    # --- 1단계: 태그 기반 점수 계산 (축 1) ---
+    if tag_ids:
+        # 1.1: DB에서 태그에 직접 속한 사진 ID 조회 (TagPhotoSet)
+        tag_photo_uuids = set(
+            Photo_Tag.objects.filter(
+                user=user,
+                tag__tag_id__in=tag_ids
+            ).values_list("photo__photo_id", flat=True)
+        ) # Django ORM 구문 정확
 
-    try:
-        for u, _, score in nx.adamic_adar_index(
-            graph,
-            [
-                (c, t)
-                for c in candidates
-                for t in target_set
-                if (c in graph and t in graph)
-            ],
-        ):
-            aa_scores[u] += score
-    except Exception as e:
-        print(f"[AdamicAdar Error] {e}")
-        pass
+        tag_photo_ids_str = {str(pid) for pid in tag_photo_uuids}
 
-    def z_score_sigmoid_normalize(score_dict, candidates):
-        # 1. 후보군에 해당하는 점수 리스트 생성
-        scores_array = np.array([score_dict.get(c, 0.0) for c in candidates])
-        
-        # 2. Z-Score 계산
-        mean = np.mean(scores_array)
-        std = np.std(scores_array)
-        
-        if std == 0:
-            # 모든 점수가 0이거나 동일함
-            return {c: 0.5 for c in candidates} # Sigmoid(0) = 0.5
-
-        z_scores = (scores_array - mean) / std
-        
-        # 3. Sigmoid 적용 (0.0 ~ 1.0 사이로 압축)
-        #    numpy의 'vectorize'를 사용하지 않고 math.exp를 루프로 돌리는 것이
-        #    오버헤드가 적어 더 빠릅니다.
-        final_scores = {}
-        for candidate, z in zip(candidates, z_scores):
+        # 1.2: Qdrant `recommend` API 호출 (SimilarPhotoSet)
+        if tag_photo_ids_str:
             try:
-                final_scores[candidate] = 1 / (1 + math.exp(-z))
-            except OverflowError:
-                # z가 너무 작으면 (e.g., -1000) exp(-z)가 오버플로우
-                # z가 너무 크면 (e.g., +1000) exp(-z)가 0
-                final_scores[candidate] = 0.0 if z < 0 else 1.0
-                
-        return final_scores
+                # Qdrant `recommend` API (문법 정확)
+                recommend_results = client.recommend(
+                    collection_name=IMAGE_COLLECTION_NAME,
+                    positive=list(tag_photo_ids_str),
+                    query_filter=user_filter,
+                    limit=recommend_limit,
+                    with_vectors=False,
+                    with_payload=False,
+                )
 
-    # 3대 점수 모두 정규화
-    norm_rwr_dict = z_score_sigmoid_normalize(rwr_scores, candidates)
-    norm_aa_dict = z_score_sigmoid_normalize(aa_scores, candidates)
-    norm_sem_dict = z_score_sigmoid_normalize(semantic_scores, candidates)
-    
-    scores = {}
-    for candidate in candidates:
-        # 그래프 점수 계산
-        norm_rwr = norm_rwr_dict.get(candidate, 0.5)
-        norm_aa = norm_aa_dict.get(candidate, 0.5)
-        graph_score = alpha * norm_rwr + (1 - alpha) * norm_aa
+                for result in recommend_results:
+                    phase_1_scores[result.id] = result.score
 
-        # 시맨틱 점수 계산
-        # (시맨틱 검색 결과에 없던 후보는 0점 -> Z-Score 후에도 평균 이하 점수 -> Sigmoid 후 0.5 미만)
-        norm_sem = norm_sem_dict.get(candidate, 0.5)
-        
-        # 최종 하이브리드 점수
-        scores[candidate] = (graph_weight * graph_score) + (semantic_weight * norm_sem)
+            except Exception as e:
+                print(f"[HybridSearch Error] Qdrant recommend failed: {e}")
+                pass
 
-    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        # 1.3: 태그에 "직접" 속한 사진(TagPhotoSet)에 1.0점 부여 (덮어쓰기)
+        for photo_id_str in tag_photo_ids_str:
+            phase_1_scores[photo_id_str] = 1.0
 
-    recommend_photos = list(map(lambda t: str(t[0]), sorted_scores[:limit]))
 
-    if not recommend_photos:
+    # --- 2단계: 자연어 기반 점수 계산 (축 2) ---
+    if query_string:
+        # 2.1: 자연어 쿼리를 임베딩 벡터로 변환
+        query_vector = create_query_embedding(query_string)
+
+        # 2.2: Qdrant `search` API 호출 (문법 정확)
+        try:
+            search_results = client.search(
+                collection_name=IMAGE_COLLECTION_NAME,
+                query_vector=query_vector,
+                query_filter=user_filter,
+                limit=semantic_limit,
+                with_vectors=False,
+                with_payload=False,
+            )
+
+            for result in search_results:
+                phase_2_scores[result.id] = result.score
+
+        except Exception as e:
+            print(f"[HybridSearch Error] Qdrant search failed: {e}")
+            pass
+
+    # --- 3단계: 점수 퓨전 ---
+    all_candidates = set(phase_1_scores.keys()).union(phase_2_scores.keys())
+
+    if not all_candidates:
         return []
 
-    # Fetch photo_path_id from Photo model instead of Qdrant
-    photo_uuids = [uuid.UUID(pid) for pid in recommend_photos]
+    final_scores = {}
+    for photo_id_str in all_candidates:
+        p1_score = phase_1_scores.get(photo_id_str, 0.0)
+        p2_score = phase_2_scores.get(photo_id_str, 0.0)
+
+        final_scores[photo_id_str] = (tag_weight * p1_score) + (semantic_weight * p2_score)
+
+    sorted_scores_tuple = sorted(
+        final_scores.items(),
+        key=lambda item: item[1],
+        reverse=True
+    )
+
+    # 3.4: 최종 결과 포맷팅 (DB 조회)
+    recommend_photo_ids_str = [item[0] for item in sorted_scores_tuple[:final_limit]]
+
+    if not recommend_photo_ids_str:
+        return []
+
+    photo_uuids = [uuid.UUID(pid) for pid in recommend_photo_ids_str]
+
+    # Photo 모델에서 photo_path_id 조회 (Django ORM 구문 정확)
     photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
         "photo_id", "photo_path_id"
     )
 
-    # Build lookup dict to maintain order
     id_to_path = {str(p["photo_id"]): p["photo_path_id"] for p in photos}
 
-    # RWR/AA로 정렬된 순서대로 최종 결과 생성 (maintain order from sorted scores)
     final_results = [
-        {"photo_id": photo_id, "photo_path_id": id_to_path[photo_id]}
-        for photo_id in recommend_photos
-        if photo_id in id_to_path
+        {"photo_id": photo_id_str, "photo_path_id": id_to_path[photo_id_str]}
+        for photo_id_str in recommend_photo_ids_str
+        if photo_id_str in id_to_path
     ]
+
     return final_results
 
 
