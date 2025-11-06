@@ -70,7 +70,7 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
             str,
             Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
                 "photo__photo_id", flat=True
-            )
+            ),
         )
     )
 
@@ -83,7 +83,6 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
 
 
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
-    ALPHA = 0.5
     LIMIT = 20
 
     if not photos:
@@ -155,8 +154,7 @@ def tag_recommendation(user, photo_id):
         with_payload=True,
     )
 
-    tag_ids = list(dict.fromkeys(
-        result.payload["tag_id"] for result in search_results))
+    tag_ids = list(dict.fromkeys(result.payload["tag_id"] for result in search_results))
 
     recommendations = []
 
@@ -224,10 +222,8 @@ def execute_hybrid_search(
     tag_ids: list[uuid.UUID],
     query_string: str,
     tag_weight: float = SEARCH_SETTINGS.get("TAG_FUSION_WEIGHT", 1.0),
-    semantic_weight: float = SEARCH_SETTINGS.get(
-        "SEMANTIC_FUSION_WEIGHT", 1.0),
-    caption_bonus_weight: float = SEARCH_SETTINGS.get(
-        "CAPTION_BONUS_WEIGHT", 0.5),
+    semantic_weight: float = SEARCH_SETTINGS.get("SEMANTIC_FUSION_WEIGHT", 1.0),
+    caption_bonus_weight: float = SEARCH_SETTINGS.get("CAPTION_BONUS_WEIGHT", 0.5),
     recommend_limit: int = SEARCH_SETTINGS.get("RECOMMEND_LIMIT", 50),
     semantic_limit: int = SEARCH_SETTINGS.get("SEMANTIC_LIMIT", 50),
     final_limit: int = SEARCH_SETTINGS.get("FINAL_RESULT_LIMIT", 100),
@@ -249,10 +245,9 @@ def execute_hybrid_search(
     if tag_ids:
         # 1.1: DB에서 태그에 직접 속한 사진 ID 조회
         tag_photo_uuids = set(
-            Photo_Tag.objects.filter(
-                user=user,
-                tag__tag_id__in=tag_ids
-            ).values_list("photo__photo_id", flat=True)
+            Photo_Tag.objects.filter(user=user, tag__tag_id__in=tag_ids).values_list(
+                "photo__photo_id", flat=True
+            )
         )
 
         tag_photo_ids_str = {str(pid) for pid in tag_photo_uuids}
@@ -319,31 +314,28 @@ def execute_hybrid_search(
             matching_photo_captions = Photo_Caption.objects.filter(
                 user=user,
                 photo_id__in=candidate_uuids,
-                caption__caption__in=query_words
-            ).values('photo_id')
+                caption__caption__in=query_words,
+            ).values("photo_id")
 
             for item in matching_photo_captions:
-                caption_bonus_map[str(item['photo_id'])] += 1
+                caption_bonus_map[str(item["photo_id"])] += 1
 
     final_scores = {}
     for photo_id_str in all_candidates:
         p1_score = phase_1_scores.get(photo_id_str, 0.0)
         p2_score = phase_2_scores.get(photo_id_str, 0.0)
-        p3_bonus = caption_bonus_map.get(
-            photo_id_str, 0) * caption_bonus_weight
+        p3_bonus = caption_bonus_map.get(photo_id_str, 0) * caption_bonus_weight
 
         final_scores[photo_id_str] = (
-            tag_weight * p1_score) + (semantic_weight * p2_score) + p3_bonus
+            (tag_weight * p1_score) + (semantic_weight * p2_score) + p3_bonus
+        )
 
     sorted_scores_tuple = sorted(
-        final_scores.items(),
-        key=lambda item: item[1],
-        reverse=True
+        final_scores.items(), key=lambda item: item[1], reverse=True
     )
 
     # 3.4: 최종 결과 포맷팅
-    recommend_photo_ids_str = [item[0]
-                               for item in sorted_scores_tuple[:final_limit]]
+    recommend_photo_ids_str = [item[0] for item in sorted_scores_tuple[:final_limit]]
 
     if not recommend_photo_ids_str:
         return []
@@ -381,12 +373,10 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
     OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
     MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수 (기본 코드 기준)
 
-    print(f"[Task Start] RepVec computation for User: {
-          user_id}, Tag: {tag_id}")
+    print(f"[Task Start] RepVec computation for User: {user_id}, Tag: {tag_id}")
 
     try:
-        photo_tags = Photo_Tag.objects.filter(
-            user__id=user_id, tag__tag_id=tag_id)
+        photo_tags = Photo_Tag.objects.filter(user__id=user_id, tag__tag_id=tag_id)
         photo_ids = [str(pt.photo.photo_id) for pt in photo_tags]
 
         delete_filter = models.Filter(
@@ -409,7 +399,8 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
         if not photo_ids:
             print(
                 f"[Task Info] No photos found for Tag: {
-                    tag_id}. RepVecs deleted. Task finished."
+                    tag_id
+                }. RepVecs deleted. Task finished."
             )
             return
 
@@ -417,13 +408,11 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
             collection_name=IMAGE_COLLECTION_NAME, ids=photo_ids, with_vectors=True
         )
 
-        selected_vecs = np.array(
-            [point.vector for point in points if point.vector])
+        selected_vecs = np.array([point.vector for point in points if point.vector])
 
         if len(selected_vecs) == 0:
             print(
-                f"[Task Info] No vectors found in Qdrant for Tag: {
-                    tag_id}. Skipping."
+                f"[Task Info] No vectors found in Qdrant for Tag: {tag_id}. Skipping."
             )
             return
 
@@ -440,8 +429,7 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
 
             kmeans_centers = np.array([])
             if len(inlier_vecs) >= K_CLUSTERS:
-                kmeans = KMeans(n_clusters=K_CLUSTERS,
-                                random_state=42, n_init="auto")
+                kmeans = KMeans(n_clusters=K_CLUSTERS, random_state=42, n_init="auto")
                 kmeans.fit(inlier_vecs)
                 kmeans_centers = kmeans.cluster_centers_
             elif len(inlier_vecs) > 0:
@@ -456,7 +444,8 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
             if not final_representatives_list:
                 print(
                     f"[Task Info] No representative vectors generated for Tag: {
-                        tag_id}."
+                        tag_id
+                    }."
                 )
                 return
 
@@ -467,8 +456,7 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
             point_id = str(uuid.uuid4())
             payload = {"user_id": user_id, "tag_id": str(tag_id)}
             points_to_upsert.append(
-                models.PointStruct(
-                    id=point_id, vector=vec.tolist(), payload=payload)
+                models.PointStruct(id=point_id, vector=vec.tolist(), payload=payload)
             )
 
         if points_to_upsert:
@@ -478,8 +466,9 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
                 wait=True,
             )
             print(
-                f"[Task Success] Upserted {
-                    len(points_to_upsert)} new repvecs for Tag: {tag_id}."
+                f"[Task Success] Upserted {len(points_to_upsert)} new repvecs for Tag: {
+                    tag_id
+                }."
             )
         else:
             print(f"[Task Info] No new repvecs to upsert for Tag: {tag_id}.")
