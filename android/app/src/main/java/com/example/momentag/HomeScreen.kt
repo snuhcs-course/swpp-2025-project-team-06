@@ -488,11 +488,7 @@ fun HomeScreen(navController: NavController) {
                                 modifier = Modifier.weight(1f),
                                 isDeleteMode = isDeleteMode,
                                 onEnterDeleteMode = {
-                                    if (!isDeleteMode) {
-                                        isSelectionMode = true
-                                    } else {
-                                        isDeleteMode = true
-                                    }
+                                    isDeleteMode = true
                                 },
                                 onExitDeleteMode = { isDeleteMode = false },
                                 isSelectionMode = false, // 태그 앨범 뷰에서는 선택 모드 비활성화
