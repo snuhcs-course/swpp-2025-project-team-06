@@ -193,9 +193,9 @@ SIMPLE_JWT = {
 
 HYBRID_SEARCH_SETTINGS = {
     # --- (A) 퓨전(Fusion) 가중치 (tasks.py의 execute_hybrid_search가 사용) ---
-    # (축 1: 태그 점수)와 (축 2: 시맨틱 점수)를 1:1로 섞는다는 의미
     "TAG_FUSION_WEIGHT": 1.0,
     "SEMANTIC_FUSION_WEIGHT": 1.0, 
+    "CAPTION_BONUS_WEIGHT": 0.1,
     
     # --- (B) Qdrant 검색 제한값 (tasks.py의 execute_hybrid_search가 사용) ---
     "RECOMMEND_LIMIT": 50,  # 태그 기반 `recommend` 시 최대 50개

@@ -27,6 +27,8 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
 
+from .gpu_tasks import phrase_to_words
+
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
 
@@ -255,6 +257,7 @@ def execute_hybrid_search(
     query_string: str,
     tag_weight: float = SEARCH_SETTINGS.get("TAG_FUSION_WEIGHT", 1.0),
     semantic_weight: float = SEARCH_SETTINGS.get("SEMANTIC_FUSION_WEIGHT", 1.0),
+    caption_bonus_weight: float = SEARCH_SETTINGS.get("CAPTION_BONUS_WEIGHT", 0.5),
     recommend_limit: int = SEARCH_SETTINGS.get("RECOMMEND_LIMIT", 50),
     semantic_limit: int = SEARCH_SETTINGS.get("SEMANTIC_LIMIT", 50),
     final_limit: int = SEARCH_SETTINGS.get("FINAL_RESULT_LIMIT", 100),
@@ -331,18 +334,35 @@ def execute_hybrid_search(
             print(f"[HybridSearch Error] Qdrant search failed: {e}")
             pass
 
-    # --- 3단계: 점수 퓨전 ---
     all_candidates = set(phase_1_scores.keys()).union(phase_2_scores.keys())
 
     if not all_candidates:
         return []
+    
+    caption_bonus_map = defaultdict(int)
+    
+    if query_string:
+        query_words = set(phrase_to_words(query_string))
+
+        if query_words:
+            candidate_uuids = [uuid.UUID(pid) for pid in all_candidates]
+            
+            matching_photo_captions = Photo_Caption.objects.filter(
+                user=user,
+                photo_id__in=candidate_uuids,
+                caption__caption__in=query_words
+            ).values('photo_id')
+            
+            for item in matching_photo_captions:
+                caption_bonus_map[str(item['photo_id'])] += 1
 
     final_scores = {}
     for photo_id_str in all_candidates:
         p1_score = phase_1_scores.get(photo_id_str, 0.0)
         p2_score = phase_2_scores.get(photo_id_str, 0.0)
+        p3_bonus = caption_bonus_map.get(photo_id_str, 0) * caption_bonus_weight
 
-        final_scores[photo_id_str] = (tag_weight * p1_score) + (semantic_weight * p2_score)
+        final_scores[photo_id_str] = (tag_weight * p1_score) + (semantic_weight * p2_score) + p3_bonus
 
     sorted_scores_tuple = sorted(
         final_scores.items(),
