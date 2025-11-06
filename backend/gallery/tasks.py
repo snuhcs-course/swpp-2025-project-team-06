@@ -63,7 +63,8 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         for i, img_point in enumerate(search_result):
             photo_id = uuid.UUID(img_point.id)
             photo_uuids.add(photo_id)
-            rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
+            rrf_scores[photo_id] = rrf_scores[photo_id] + \
+                1 / (RRF_CONSTANT + i + 1)
 
     rrf_sorted = sorted(
         rrf_scores.items(),
@@ -100,49 +101,27 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     if not photos:
         return []
 
-    target_set = set(photos)
+    client = get_qdrant_client()
 
-    all_photos, _, graph = retrieve_photo_caption_graph(user)
-
-    candidates: set[uuid.UUID] = all_photos - target_set
-
-    # evaluate weighted root pagerank
-    rwr_scores = nx.pagerank(
-        graph, personalization={node: 1 for node in photos}, weight="weight"
+    user_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="user_id",
+                match=models.MatchValue(value=user.id),
+            )
+        ]
     )
 
-    # evaluate Adamic/Adar score
-    aa_scores = defaultdict(float)
-
-    for u, _, score in nx.adamic_adar_index(
-        graph, [(c, t) for c in candidates for t in target_set]
-    ):
-        aa_scores[u] += score
-
-    def normalize(minv, maxv, v):
-        if maxv == minv:
-            return 0
-        else:
-            return (v - minv) / (maxv - minv)
-
-    max_rwr = max(rwr_scores.values()) if rwr_scores else 0
-    min_rwr = min(rwr_scores.values()) if rwr_scores else 0
-
-    max_aa = max(aa_scores.values()) if aa_scores else 0
-    min_aa = min(aa_scores.values()) if aa_scores else 0
-
-    scores = {
-        candidate: ALPHA * normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0))
-        + (1 - ALPHA) * normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
-        for candidate in candidates
-    }
-
-    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-
-    recommend_photos = list(map(lambda t: str(t[0]), sorted_scores[:LIMIT]))
+    points = client.recommend(
+        collection_name=IMAGE_COLLECTION_NAME,
+        positive=[str(pid) for pid in photos],
+        query_filter=user_filter,
+        limit=LIMIT,
+        with_payload=False,
+    )
 
     # Fetch photo_path_id from Photo model instead of Qdrant
-    photo_uuids = [uuid.UUID(pid) for pid in recommend_photos]
+    photo_uuids = list(map(uuid.UUID, (point.id for point in points)))
     photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
         "photo_id", "photo_path_id"
     )
@@ -150,9 +129,9 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
 
     # Maintain order from sorted scores
     return [
-        {"photo_id": pid, "photo_path_id": id_to_path[pid]}
-        for pid in recommend_photos
-        if pid in id_to_path
+        {"photo_id": point.id, "photo_path_id": id_to_path[point.id]}
+        for point in points
+        if point.id in id_to_path
     ]
 
 
@@ -188,7 +167,8 @@ def tag_recommendation(user, photo_id):
         with_payload=True,
     )
 
-    tag_ids = list(dict.fromkeys(result.payload["tag_id"] for result in search_results))
+    tag_ids = list(dict.fromkeys(
+        result.payload["tag_id"] for result in search_results))
 
     recommendations = []
 
@@ -256,8 +236,10 @@ def execute_hybrid_search(
     tag_ids: list[uuid.UUID],
     query_string: str,
     tag_weight: float = SEARCH_SETTINGS.get("TAG_FUSION_WEIGHT", 1.0),
-    semantic_weight: float = SEARCH_SETTINGS.get("SEMANTIC_FUSION_WEIGHT", 1.0),
-    caption_bonus_weight: float = SEARCH_SETTINGS.get("CAPTION_BONUS_WEIGHT", 0.5),
+    semantic_weight: float = SEARCH_SETTINGS.get(
+        "SEMANTIC_FUSION_WEIGHT", 1.0),
+    caption_bonus_weight: float = SEARCH_SETTINGS.get(
+        "CAPTION_BONUS_WEIGHT", 0.5),
     recommend_limit: int = SEARCH_SETTINGS.get("RECOMMEND_LIMIT", 50),
     semantic_limit: int = SEARCH_SETTINGS.get("SEMANTIC_LIMIT", 50),
     final_limit: int = SEARCH_SETTINGS.get("FINAL_RESULT_LIMIT", 100),
@@ -277,7 +259,7 @@ def execute_hybrid_search(
     )
 
     if tag_ids:
-        # 1.1: DB에서 태그에 직접 속한 사진 ID 조회 
+        # 1.1: DB에서 태그에 직접 속한 사진 ID 조회
         tag_photo_uuids = set(
             Photo_Tag.objects.filter(
                 user=user,
@@ -311,7 +293,6 @@ def execute_hybrid_search(
         for photo_id_str in tag_photo_ids_str:
             phase_1_scores[photo_id_str] = 1.0
 
-
     if query_string:
         # 2.1: 자연어 쿼리를 임베딩 벡터로 변환
         query_vector = create_query_embedding(query_string)
@@ -338,21 +319,21 @@ def execute_hybrid_search(
 
     if not all_candidates:
         return []
-    
+
     caption_bonus_map = defaultdict(int)
-    
+
     if query_string:
         query_words = set(phrase_to_words(query_string))
 
         if query_words:
             candidate_uuids = [uuid.UUID(pid) for pid in all_candidates]
-            
+
             matching_photo_captions = Photo_Caption.objects.filter(
                 user=user,
                 photo_id__in=candidate_uuids,
                 caption__caption__in=query_words
             ).values('photo_id')
-            
+
             for item in matching_photo_captions:
                 caption_bonus_map[str(item['photo_id'])] += 1
 
@@ -360,9 +341,11 @@ def execute_hybrid_search(
     for photo_id_str in all_candidates:
         p1_score = phase_1_scores.get(photo_id_str, 0.0)
         p2_score = phase_2_scores.get(photo_id_str, 0.0)
-        p3_bonus = caption_bonus_map.get(photo_id_str, 0) * caption_bonus_weight
+        p3_bonus = caption_bonus_map.get(
+            photo_id_str, 0) * caption_bonus_weight
 
-        final_scores[photo_id_str] = (tag_weight * p1_score) + (semantic_weight * p2_score) + p3_bonus
+        final_scores[photo_id_str] = (
+            tag_weight * p1_score) + (semantic_weight * p2_score) + p3_bonus
 
     sorted_scores_tuple = sorted(
         final_scores.items(),
@@ -371,7 +354,8 @@ def execute_hybrid_search(
     )
 
     # 3.4: 최종 결과 포맷팅
-    recommend_photo_ids_str = [item[0] for item in sorted_scores_tuple[:final_limit]]
+    recommend_photo_ids_str = [item[0]
+                               for item in sorted_scores_tuple[:final_limit]]
 
     if not recommend_photo_ids_str:
         return []
@@ -409,10 +393,12 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
     OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
     MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수 (기본 코드 기준)
 
-    print(f"[Task Start] RepVec computation for User: {user_id}, Tag: {tag_id}")
+    print(f"[Task Start] RepVec computation for User: {
+          user_id}, Tag: {tag_id}")
 
     try:
-        photo_tags = Photo_Tag.objects.filter(user__id=user_id, tag__tag_id=tag_id)
+        photo_tags = Photo_Tag.objects.filter(
+            user__id=user_id, tag__tag_id=tag_id)
         photo_ids = [str(pt.photo.photo_id) for pt in photo_tags]
 
         delete_filter = models.Filter(
@@ -434,7 +420,8 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
 
         if not photo_ids:
             print(
-                f"[Task Info] No photos found for Tag: {tag_id}. RepVecs deleted. Task finished."
+                f"[Task Info] No photos found for Tag: {
+                    tag_id}. RepVecs deleted. Task finished."
             )
             return
 
@@ -442,11 +429,13 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
             collection_name=IMAGE_COLLECTION_NAME, ids=photo_ids, with_vectors=True
         )
 
-        selected_vecs = np.array([point.vector for point in points if point.vector])
+        selected_vecs = np.array(
+            [point.vector for point in points if point.vector])
 
         if len(selected_vecs) == 0:
             print(
-                f"[Task Info] No vectors found in Qdrant for Tag: {tag_id}. Skipping."
+                f"[Task Info] No vectors found in Qdrant for Tag: {
+                    tag_id}. Skipping."
             )
             return
 
@@ -463,7 +452,8 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
 
             kmeans_centers = np.array([])
             if len(inlier_vecs) >= K_CLUSTERS:
-                kmeans = KMeans(n_clusters=K_CLUSTERS, random_state=42, n_init="auto")
+                kmeans = KMeans(n_clusters=K_CLUSTERS,
+                                random_state=42, n_init="auto")
                 kmeans.fit(inlier_vecs)
                 kmeans_centers = kmeans.cluster_centers_
             elif len(inlier_vecs) > 0:
@@ -477,7 +467,8 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
 
             if not final_representatives_list:
                 print(
-                    f"[Task Info] No representative vectors generated for Tag: {tag_id}."
+                    f"[Task Info] No representative vectors generated for Tag: {
+                        tag_id}."
                 )
                 return
 
@@ -488,7 +479,8 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
             point_id = str(uuid.uuid4())
             payload = {"user_id": user_id, "tag_id": str(tag_id)}
             points_to_upsert.append(
-                models.PointStruct(id=point_id, vector=vec.tolist(), payload=payload)
+                models.PointStruct(
+                    id=point_id, vector=vec.tolist(), payload=payload)
             )
 
         if points_to_upsert:
@@ -498,7 +490,8 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
                 wait=True,
             )
             print(
-                f"[Task Success] Upserted {len(points_to_upsert)} new repvecs for Tag: {tag_id}."
+                f"[Task Success] Upserted {
+                    len(points_to_upsert)} new repvecs for Tag: {tag_id}."
             )
         else:
             print(f"[Task Info] No new repvecs to upsert for Tag: {tag_id}.")
