@@ -138,9 +138,6 @@ class PhotoView(APIView):
 
             photos_data = serializer.validated_data
 
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
-
             # Collect all photo metadata for batch processing
             all_metadata = []
 
@@ -353,9 +350,6 @@ class PhotoDetailView(APIView):
                 wait=True,
             )
 
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
-
             for tag_id in tag_ids_to_recompute:
                 compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
@@ -413,9 +407,6 @@ class BulkDeletePhotoView(APIView):
                 points_selector=[str(photo_id) for photo_id in photo_ids_to_delete],
                 wait=True,
             )
-
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
 
             for tag_id in tag_ids_to_recompute:
                 compute_and_store_rep_vectors.delay(request.user.id, tag_id)
@@ -530,9 +521,6 @@ class PostPhotoTagsView(APIView):
                 Photo_Tag.objects.create(
                     pt_id=uuid.uuid4(), photo=photo, tag=tag, user=request.user
                 )
-
-                print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-                cache.delete(f"user_{request.user.id}_combined_graph")
 
                 compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
