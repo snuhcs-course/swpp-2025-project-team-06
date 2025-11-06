@@ -26,7 +26,6 @@ from search.embedding_service import create_query_embedding
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
-import math
 
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
