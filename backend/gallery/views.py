@@ -43,6 +43,8 @@ from .gpu_tasks import (
 )
 from .storage_service import upload_photo, delete_photo
 
+from config.redis import get_redis
+import json
 
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -1036,8 +1038,49 @@ class StoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        operation_summary="Get Stories",
-        operation_description="Get stories generated from user's photos with pagination",
+        operation_summary="Get Stories from redis",
+        operation_description="Get stories from redis",
+        request_body=None,
+        responses={
+            200: openapi.Response(description="Success", schema=ResStorySerializer()),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ]
+    )
+    def get(self, request):
+        try:
+            r = get_redis()
+            exists = r.exists(request.user.id)
+            if not exists:
+                return Response(
+                    {"error": "No stories found. Please generate stories first or try again later."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            
+            story_data_json = r.get(request.user.id)
+            story_data = json.loads(story_data_json)
+            serializer = ResStorySerializer(story_data, many=True)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+    @swagger_auto_schema(
+        operation_summary="Generate and save stories into redis",
+        operation_description="Generate and save stories into redis",
         request_body=None,
         responses={
             200: openapi.Response(description="Success", schema=ResStorySerializer()),
@@ -1060,7 +1103,7 @@ class StoryView(APIView):
             ),
         ],
     )
-    def get(self, request):
+    def post(self, request):
         try:
             # 페이지네이션 파라미터 가져오기 및 검증
             try:
@@ -1076,7 +1119,7 @@ class StoryView(APIView):
                     {"error": "Invalid size parameter"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
+            
             # 랜덤 정렬로 매번 다른 순서 보장
             # Filter photos that don't have any Photo_Tag relations
             has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=request.user)
@@ -1086,22 +1129,29 @@ class StoryView(APIView):
                 .order_by("?")[:size]
             )  # 랜덤 정렬 + 슬라이싱
 
-            # QuerySet을 유지하면서 데이터 직렬화
-            photos_data = [
-                {"photo_id": str(photo.photo_id), "photo_path_id": photo.photo_path_id}
-                for photo in photos_queryset
-            ]
+            story_data = []
+            for photo in photos_queryset:
+                tag_rec = tag_recommendation(request.user, str(photo.photo_id))
+                photo_id = str(photo.photo_id)
+                photo_path_id = photo.photo_path_id
+                tags = [
+                    {
+                        "tag_id": str(t.tag_id),
+                        "tag": t.tag,
+                    } for t in tag_rec
+                ]
+                story_data.append({
+                    "photo_id": photo_id,
+                    "photo_path_id": photo_path_id,
+                    "tags": tags,
+                })
+            
+            r = get_redis()
+            r.set(request.user.id, json.dumps(story_data))
 
-            # 빈 결과 처리
-            if not photos_data:
-                story_response = {"recs": []}
-            else:
-                story_response = {"recs": photos_data}
-
-            serializer = ResStorySerializer(story_response)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({}, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

@@ -223,3 +223,8 @@ MINIO_SECRET_KEY = env('MINIO_SECRET_KEY', default='')
 MINIO_BUCKET_NAME = env('MINIO_BUCKET_NAME', default='momentag-photos')
 MINIO_PREFIX = env('MINIO_PREFIX', default='temp-photos')  # Optional folder prefix
 MINIO_REGION = env('MINIO_REGION', default='us-east-1')  # S3 compatibility
+
+# Redis settings for story generation and store
+REDIS_HOST = "127.0.0.1"
+REDIS_PORT = 6380      
+REDIS_PASSWORD = None  
