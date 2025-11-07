@@ -47,6 +47,23 @@ class LocalViewModel(
     private val _imagesInAlbum = MutableStateFlow<List<Uri>>(emptyList())
     val imagesInAlbum = _imagesInAlbum.asStateFlow()
 
+    private val _selectedPhotosInAlbum = MutableStateFlow<Set<Photo>>(emptySet())
+    val selectedPhotosInAlbum = _selectedPhotosInAlbum.asStateFlow()
+
+    fun togglePhotoSelection(photo: Photo) {
+        _selectedPhotosInAlbum.update { currentSet ->
+            if (currentSet.any { it.photoId == photo.photoId }) {
+                currentSet.filter { it.photoId != photo.photoId }.toSet()
+            } else {
+                currentSet + photo
+            }
+        }
+    }
+
+    fun clearPhotoSelection() {
+        _selectedPhotosInAlbum.value = emptySet()
+    }
+
     fun getImagesForAlbum(albumId: Long) {
         viewModelScope.launch {
             _imagesInAlbum.value =

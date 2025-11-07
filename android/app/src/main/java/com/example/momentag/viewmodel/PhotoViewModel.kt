@@ -8,9 +8,11 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import com.example.momentag.model.HomeScreenUiState
+import com.example.momentag.model.Photo
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.worker.AlbumUploadWorker
+import com.example.momentag.worker.SelectedPhotoUploadWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -95,6 +97,33 @@ class PhotoViewModel(
 
             WorkManager.getInstance(context).enqueue(uploadWorkRequest)
         }
+
+        _uiState.update { it.copy(userMessage = "백그라운드 업로드가 시작되었습니다.") }
+    }
+
+    fun uploadSelectedPhotos(photos: Set<Photo>, context: Context) {
+        if (photos.isEmpty()) return
+
+        val photoIds = photos.mapNotNull { it.photoId.toLongOrNull() }.toLongArray()
+
+        if (photoIds.isEmpty()) {
+            _uiState.update { it.copy(userMessage = "업로드할 사진 ID가 없습니다.") }
+            return
+        }
+
+        val inputData = Data.Builder()
+            .putLongArray(SelectedPhotoUploadWorker.KEY_PHOTO_IDS, photoIds)
+            .build()
+
+        val uploadWorkRequest =
+            OneTimeWorkRequest
+                .Builder(SelectedPhotoUploadWorker::class.java)
+                .setInputData(inputData)
+                .addTag("selected-photo-upload")
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .build()
+
+        WorkManager.getInstance(context).enqueue(uploadWorkRequest)
 
         _uiState.update { it.copy(userMessage = "백그라운드 업로드가 시작되었습니다.") }
     }
