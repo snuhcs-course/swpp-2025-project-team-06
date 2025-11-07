@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,8 +29,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.momentag.ui.theme.TagColor
-import com.example.momentag.ui.theme.Word
 
 /**
  * 태그 변형(Variant)
@@ -65,7 +64,7 @@ private fun tagContainer(
         modifier =
             modifier
                 .height(32.dp)
-                .background(color = TagColor, shape = RoundedCornerShape(50))
+                .background(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(50))
                 .padding(horizontal = 12.dp), // vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
@@ -84,7 +83,7 @@ fun tagChip(
     val alpha = if (variant is TagVariant.Recommended) 0.5f else 1f
 
     tagContainer(modifier = modifier.alpha(alpha)) {
-        Text(text = text, fontSize = 14.sp, color = Word)
+        Text(text = text, fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
         Spacer(modifier = Modifier.width(4.dp))
 
         when (variant) {

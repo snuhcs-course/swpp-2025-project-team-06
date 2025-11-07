@@ -31,6 +31,7 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -57,7 +58,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.momentag.ui.theme.Background
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -122,7 +122,7 @@ fun LocalAlbumScreen(
     }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = {
@@ -154,7 +154,7 @@ fun LocalAlbumScreen(
                 },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
-                        containerColor = Background,
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
             )
         },
@@ -220,7 +220,7 @@ fun LocalAlbumScreen(
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-                    color = Color.Black.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
                 // Convert Uri list to Photo list (use URI's last path segment as photoId)
                 val photos =
@@ -288,7 +288,7 @@ fun LocalAlbumScreen(
                                             .fillMaxSize()
                                             .background(
                                                 if (isSelected) {
-                                                    Color.Black.copy(alpha = 0.3f)
+                                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                                                 } else {
                                                     Color.Transparent
                                                 },
@@ -304,9 +304,9 @@ fun LocalAlbumScreen(
                                             .size(24.dp)
                                             .background(
                                                 if (isSelected) {
-                                                    Color(0xFFFBC4AB)
+                                                    MaterialTheme.colorScheme.primaryContainer
                                                 } else {
-                                                    Color.White.copy(alpha = 0.8f)
+                                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
                                                 },
                                                 CircleShape,
                                             ),
@@ -316,7 +316,7 @@ fun LocalAlbumScreen(
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
-                                            tint = Color.White,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                             modifier = Modifier.size(16.dp),
                                         )
                                     }

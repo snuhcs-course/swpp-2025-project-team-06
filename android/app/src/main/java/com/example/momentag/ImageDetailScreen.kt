@@ -33,6 +33,7 @@ import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -53,7 +54,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -65,7 +65,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
-import com.example.momentag.ui.theme.Background
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -250,13 +249,13 @@ fun ImageDetailScreen(
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
                     snackbarData = data,
-                    containerColor = Color.DarkGray,
-                    contentColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                 )
             }
         },
@@ -279,7 +278,7 @@ fun ImageDetailScreen(
                 },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
-                        containerColor = Background,
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
             )
         },
@@ -395,7 +394,11 @@ fun ImageDetailScreen(
                         },
                         modifier = Modifier.size(32.dp),
                     ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag", tint = Color.Gray)
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Tag",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
@@ -459,7 +462,7 @@ fun TagsSection(
             },
             modifier = Modifier.size(32.dp),
         ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag", tint = Color.Gray)
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

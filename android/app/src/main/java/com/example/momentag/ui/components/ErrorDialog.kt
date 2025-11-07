@@ -16,6 +16,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.momentag.ui.theme.Background
 
 /**
  * 재사용 가능한 에러 다이얼로그 컴포넌트
@@ -74,7 +74,7 @@ fun errorDialog(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
             )
 
             // 에러 다이얼로그 카드
@@ -86,7 +86,7 @@ fun errorDialog(
                 shape = RoundedCornerShape(16.dp),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = Color.White,
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
             ) {
@@ -102,7 +102,7 @@ fun errorDialog(
                         text = title,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
@@ -110,7 +110,7 @@ fun errorDialog(
                     Text(
                         text = errorMessage,
                         fontSize = 14.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp),
                     )
@@ -120,8 +120,8 @@ fun errorDialog(
                         onClick = onRetry,
                         colors =
                             ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color(0xFFE57373),
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.error,
                             ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
@@ -169,7 +169,7 @@ fun ErrorOverlay(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f)),
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f)),
         )
 
         // 에러 다이얼로그 카드
@@ -181,7 +181,7 @@ fun ErrorOverlay(
             shape = RoundedCornerShape(16.dp),
             colors =
                 CardDefaults.cardColors(
-                    containerColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
                 ),
             elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
         ) {
@@ -200,7 +200,7 @@ fun ErrorOverlay(
                         text = title,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
@@ -208,7 +208,7 @@ fun ErrorOverlay(
                     Text(
                         text = errorMessage,
                         fontSize = 14.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp),
                     )
@@ -265,7 +265,7 @@ private fun previewErrorDialog() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         errorDialog(
             errorMessage = "Network Error!\nPlease check your internet connection.",
@@ -281,7 +281,7 @@ private fun previewErrorDialogCustomText() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         errorDialog(
             errorMessage = "서버 연결에 실패했습니다.\n잠시 후 다시 시도해주세요.",
@@ -299,7 +299,7 @@ private fun previewErrorOverlay() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         // 뒤 배경 콘텐츠
         Column(

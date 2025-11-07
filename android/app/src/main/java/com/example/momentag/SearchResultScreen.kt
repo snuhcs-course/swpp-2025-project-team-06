@@ -28,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,9 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -60,11 +59,6 @@ import com.example.momentag.ui.search.components.SearchEmptyStateCustom
 import com.example.momentag.ui.search.components.SearchErrorStateFallbackCustom
 import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Semi_background
-import com.example.momentag.ui.theme.Temp_word
-import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -213,7 +207,7 @@ fun SearchResultScreenUi(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = modifier,
-            containerColor = Background,
+            containerColor = MaterialTheme.colorScheme.surface,
             topBar = {
                 BackTopBar(
                     title = "Search Results",
@@ -308,7 +302,6 @@ private fun SearchResultContent(
                     Text(
                         text = "Search for Photo",
                         fontSize = 18.sp,
-                        fontFamily = FontFamily.Serif,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
@@ -324,11 +317,16 @@ private fun SearchResultContent(
                             ButtonDefaults.buttonColors(
                                 containerColor =
                                     if (isSelectionMode) {
-                                        Button
+                                        MaterialTheme.colorScheme.primary
                                     } else {
-                                        Semi_background
+                                        MaterialTheme.colorScheme.surfaceContainerLow
                                     },
-                                contentColor = if (isSelectionMode) Color.White else Word,
+                                contentColor =
+                                    if (isSelectionMode) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
                             ),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -402,13 +400,13 @@ private fun SearchResultContent(
                 Text(
                     text = "총 ${uiState.results.size}장",
                     fontSize = 14.sp,
-                    color = Temp_word,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier =
                         Modifier
                             .align(Alignment.BottomStart)
                             .padding(end = 16.dp)
                             .background(
-                                color = Background.copy(alpha = 0.9f),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                                 shape = RoundedCornerShape(8.dp),
                             ).padding(horizontal = 12.dp, vertical = 6.dp),
                 )

@@ -15,17 +15,15 @@ import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Temp_word
 
 /**
  * 하단 Bottom Navigation
@@ -42,7 +40,7 @@ fun BottomNavBar(
             modifier
                 .fillMaxWidth()
                 .height(56.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 4.dp,
         shadowElevation = 8.dp,
     ) {
@@ -102,7 +100,7 @@ private fun BottomNavItem(
     isSelected: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val tint = if (isSelected) Button else Temp_word
+    val tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         modifier =
             Modifier

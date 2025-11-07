@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.theme.Word
 
 /**
  * 로딩 화면 (곰돌이 + Loading 텍스트 + Progress Bar + 경고 메시지)
@@ -52,13 +52,13 @@ fun SearchLoadingStateCustom(
             Text(
                 text = "Loading ...",
                 fontSize = 18.sp,
-                color = Word,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
             CircularProgressIndicator(
                 modifier = Modifier.size(48.dp),
-                color = com.example.momentag.ui.theme.Button,
+                color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 4.dp,
             )
         }
