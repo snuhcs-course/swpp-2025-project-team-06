@@ -67,7 +67,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -82,6 +81,7 @@ import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchBar
 import com.example.momentag.ui.theme.Picture
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
@@ -217,7 +217,7 @@ fun HomeScreen(navController: NavController) {
                 onTitleClick = {
                     navController.navigate(Screen.LocalGallery.route)
                 },
-                titleFontFamily = FontFamily.Serif,
+                titleFontFamily = Pretendard,
                 titleFontSize = 28,
                 showLogout = true,
                 onLogoutClick = { authViewModel.logout() },

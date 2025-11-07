@@ -46,7 +46,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -55,6 +54,7 @@ import coil.compose.AsyncImage
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Picture
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.LocalViewModel
@@ -194,7 +194,7 @@ fun LocalGalleryScreen(
                 Text(
                     text = "Albums",
                     fontSize = 28.sp,
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = Pretendard,
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),

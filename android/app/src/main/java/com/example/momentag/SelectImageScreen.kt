@@ -45,7 +45,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,6 +57,7 @@ import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Picture
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -151,7 +151,7 @@ fun SelectImageScreen(navController: NavController) {
             Text(
                 text = "#$tagName",
                 fontSize = 21.sp,
-                fontFamily = FontFamily.Serif,
+                fontFamily = Pretendard,
                 fontWeight = FontWeight.Bold,
                 color = Word,
             )
@@ -171,7 +171,7 @@ fun SelectImageScreen(navController: NavController) {
                 Text(
                     text = "Choose more than 5 pictures",
                     fontSize = 21.sp,
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = Pretendard,
                     fontWeight = FontWeight.Bold,
                     color = Word,
                     modifier = Modifier.align(Alignment.CenterStart),

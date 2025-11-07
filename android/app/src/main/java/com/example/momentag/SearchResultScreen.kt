@@ -41,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -62,6 +61,7 @@ import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
@@ -308,7 +308,7 @@ private fun SearchResultContent(
                     Text(
                         text = "Search for Photo",
                         fontSize = 18.sp,
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = Pretendard,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(

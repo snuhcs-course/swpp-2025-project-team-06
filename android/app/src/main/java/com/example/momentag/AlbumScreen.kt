@@ -62,7 +62,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntOffset
@@ -74,6 +73,7 @@ import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.Purple80
 import com.example.momentag.viewmodel.AlbumViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -265,7 +265,7 @@ fun AlbumScreen(
                         textStyle =
                             TextStyle(
                                 fontSize = 28.sp,
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = Pretendard,
                                 color = LocalContentColor.current,
                             ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

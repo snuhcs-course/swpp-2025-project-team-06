@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.momentag.ui.theme.Pretendard
 
 /**
  * 공통 TopAppBar 컴포넌트
@@ -47,7 +48,7 @@ fun CommonTopBar(
     onLogoutClick: (() -> Unit)? = null,
     isLogoutLoading: Boolean = false,
     onTitleClick: (() -> Unit)? = null,
-    titleFontFamily: FontFamily = FontFamily.Serif,
+    titleFontFamily: FontFamily = Pretendard,
     titleFontSize: Int = 32,
     actions: @Composable () -> Unit = {},
 ) {

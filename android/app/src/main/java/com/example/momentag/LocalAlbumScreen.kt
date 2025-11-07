@@ -29,13 +29,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -126,7 +126,7 @@ fun LocalAlbumScreen(
                 Text(
                     text = albumName,
                     fontSize = 28.sp,
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = Pretendard,
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),

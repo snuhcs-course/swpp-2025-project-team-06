@@ -59,7 +59,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -73,6 +72,7 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
@@ -307,7 +307,7 @@ private fun TagNameSection(
         Text(
             text = "New tag name",
             fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
+            fontFamily = Pretendard,
             color = Word,
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -355,7 +355,7 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
         Text(
             text = "Select Pictures",
             fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
+            fontFamily = Pretendard,
             color = Word,
         )
     }
@@ -396,7 +396,7 @@ private fun RecommendedPicturesSection(
         Text(
             text = "Recommended Pictures",
             fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
+            fontFamily = Pretendard,
             color = Word,
         )
         Spacer(modifier = Modifier.height(11.dp))

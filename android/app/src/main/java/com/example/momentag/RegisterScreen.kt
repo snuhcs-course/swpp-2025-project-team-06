@@ -41,7 +41,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -52,6 +51,7 @@ import androidx.navigation.NavController
 import com.example.momentag.model.RegisterState
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Blue_word
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.viewmodel.AuthViewModel
@@ -164,7 +164,7 @@ fun RegisterScreen(navController: NavController) {
                 text = "MomenTag",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
+                fontFamily = Pretendard,
             )
             Spacer(modifier = Modifier.height(24.dp))
 
