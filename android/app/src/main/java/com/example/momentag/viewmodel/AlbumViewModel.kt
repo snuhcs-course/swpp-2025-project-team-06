@@ -305,6 +305,7 @@ class AlbumViewModel(
     fun addRecommendedPhotosToTagAlbum(
         photos: List<Photo>,
         tagId: String,
+        tagName: String,
     ) {
         viewModelScope.launch {
             _tagAddState.value = TagAddState.Loading
@@ -357,11 +358,9 @@ class AlbumViewModel(
 
             if (_tagAddState.value == TagAddState.Loading) {
                 _tagAddState.value = TagAddState.Success
-
-                _recommendLoadingState.value = RecommendLoadingState.Loading
-                kotlinx.coroutines.delay(3000L) // to prevent racing
-                loadRecommendations(tagId)
             }
+
+            loadAlbum(tagId, tagName)
         }
     }
 
