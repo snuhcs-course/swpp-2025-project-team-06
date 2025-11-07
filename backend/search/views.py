@@ -4,10 +4,9 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import re
-from gallery.models import Tag, Photo_Tag, Caption, Photo
-from gallery.gpu_tasks import phrase_to_words
+from gallery.models import Tag, Photo_Tag, Photo
 from .embedding_service import create_query_embedding
-from gallery.tasks import execute_hybrid_graph_search
+from gallery.tasks import execute_hybrid_search
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from qdrant_client.http import models
 from .response_serializers import PhotoResponseSerializer
@@ -75,28 +74,40 @@ class SemanticSearchView(APIView):
             offset = int(request.GET.get("offset", 0))
             user = request.user
 
-            TAG_EDGE_WEIGHT = SEARCH_SETTINGS["TAG_EDGE_WEIGHT"]
-
             tag_names = TAG_REGEX.findall(query)
-            text_only_query = TAG_REGEX.sub("", query).strip()
+            semantic_query = TAG_REGEX.sub("", query).strip()
 
-            semantic_query = ""
-
-            if text_only_query:
-                # semantic_query = TAG_REGEX.sub("something", query).strip()    # for test
-                semantic_query = text_only_query
-            
-            personalization_nodes = set()
-
-            valid_tags = []
+            valid_tag_ids = []
             if tag_names:
-                valid_tags = Tag.objects.filter(user=user, tag__in=tag_names)
-                for tag_obj in valid_tags:
-                    personalization_nodes.add(tag_obj)
+                valid_tag_ids = list(
+                    Tag.objects.filter(
+                        user=user, tag__in=tag_names
+                    ).values_list("tag_id", flat=True)
+                )
 
-            semantic_photo_ids = []
-            semantic_scores = {}
-            if semantic_query:
+            final_results = []
+
+            if not semantic_query and valid_tag_ids:
+                photo_tags = (
+                    Photo_Tag.objects.filter(user=user, tag_id__in=valid_tag_ids)
+                    .values_list("photo_id", flat=True)
+                    .distinct()
+                )
+
+                if photo_tags:
+                    photos = Photo.objects.filter(photo_id__in=photo_tags).values(
+                        "photo_id", "photo_path_id"
+                    )
+
+                    final_results = [
+                        {
+                            "photo_id": str(p["photo_id"]),
+                            "photo_path_id": p["photo_path_id"],
+                        }
+                        for p in photos
+                    ]
+
+            elif semantic_query and not valid_tag_ids:
                 try:
                     query_vector = create_query_embedding(semantic_query)
 
@@ -110,7 +121,7 @@ class SemanticSearchView(APIView):
                     )
 
                     search_result = client.search(
-                        collection_name=IMAGE_COLLECTION_NAME,  #
+                        collection_name=IMAGE_COLLECTION_NAME,
                         query_vector=query_vector,
                         query_filter=user_filter,
                         limit=SEARCH_SETTINGS["SEMANTIC_LIMIT_FOR_GRAPH"],
@@ -120,14 +131,25 @@ class SemanticSearchView(APIView):
                         score_threshold=0.2,
                     )
 
-                    for point in search_result:
-                        photo_uuid = uuid.UUID(point.id)
-                        personalization_nodes.add(photo_uuid)
-                        semantic_photo_ids.append(point.id)
-                        score = point.score
-                        if score is None:
-                            score = 0.0
-                        semantic_scores[photo_uuid] = score
+                    semantic_photo_ids = [point.id for point in search_result]
+
+                    if semantic_photo_ids:
+                        photo_uuids = [uuid.UUID(pid) for pid in semantic_photo_ids]
+
+                        photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
+                            "photo_id", "photo_path_id"
+                        )
+
+                        id_to_path = {
+                            str(p["photo_id"]): p["photo_path_id"] for p in photos
+                        }
+
+                        # Qdrant 검색 순서 유지
+                        final_results = [
+                            {"photo_id": pid, "photo_path_id": id_to_path[pid]}
+                            for pid in semantic_photo_ids
+                            if pid in id_to_path
+                        ]
 
                 except Exception as e:
                     return Response(
@@ -135,82 +157,20 @@ class SemanticSearchView(APIView):
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     )
 
-            # --- 3. 최종 검색 실행 ---
-            final_results = []
-
-            if not semantic_query and valid_tags:
-                # (A) 태그만 있는 경우 (e.g. "{room_escape}"): 태그에 있는 사진만 보여주기
-                tag_ids = [tag.tag_id for tag in valid_tags]
-
-                photo_tags = (
-                    Photo_Tag.objects.filter(user=user, tag_id__in=tag_ids)
-                    .values_list("photo_id", flat=True)
-                    .distinct()
-                )
-
-                if photo_tags:
-                    # Fetch photo_path_id from Photo model instead of Qdrant
-                    photos = Photo.objects.filter(photo_id__in=photo_tags).values(
-                        "photo_id", "photo_path_id"
-                    )
-
-                    final_results = [
-                        {
-                            "photo_id": str(p["photo_id"]),
-                            "photo_path_id": p["photo_path_id"],
-                        }
-                        for p in photos
-                    ]
-
-            elif semantic_query and not valid_tags:
-                # (B) 시맨틱 쿼리만 있는 경우 (기존 검색과 동일)
-                if semantic_photo_ids:
-                    # Convert string IDs to UUIDs for Photo model query
-                    photo_uuids = [uuid.UUID(pid) for pid in semantic_photo_ids]
-
-                    # Fetch photo_path_id from Photo model instead of Qdrant
-                    photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
-                        "photo_id", "photo_path_id"
-                    )
-
-                    # Build lookup dict to maintain order
-                    id_to_path = {
-                        str(p["photo_id"]): p["photo_path_id"] for p in photos
-                    }
-
-                    # Maintain order from semantic search results
-                    final_results = [
-                        {"photo_id": pid, "photo_path_id": id_to_path[pid]}
-                        for pid in semantic_photo_ids
-                        if pid in id_to_path
-                    ]
-
-            elif semantic_query and valid_tags:
-                # (C) 하이브리드 검색
-                processed_words = phrase_to_words(semantic_query)
-                
-                matching_captions = set(Caption.objects.filter(
-                    user=request.user,
-                    caption__in=processed_words
-                ))
-                
-                personalization_nodes = set(valid_tags).union(semantic_scores.keys()).union(matching_captions)
-                
-                final_results = execute_hybrid_graph_search(
+            elif semantic_query and valid_tag_ids:
+                final_results = execute_hybrid_search(
                     user=user,
-                    personalization_nodes=personalization_nodes,
-                    semantic_scores=semantic_scores,
-                    tag_edge_weight=TAG_EDGE_WEIGHT,
+                    tag_ids=valid_tag_ids,
+                    query_string=semantic_query 
                 )
 
             else:
-                # (D) 쿼리가 비어있거나, 유효한 태그가 하나도 없는 경우
                 return Response(
                     {"message": "No valid tags found or query is empty."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            serializer = PhotoResponseSerializer(final_results, many=True)  #
+            serializer = PhotoResponseSerializer(final_results, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
