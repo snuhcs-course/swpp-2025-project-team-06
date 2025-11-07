@@ -57,7 +57,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
@@ -130,7 +129,7 @@ fun LocalAlbumScreen(
                     Text(
                         "MomenTag",
                         fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 },
                 navigationIcon = {
@@ -141,21 +140,22 @@ fun LocalAlbumScreen(
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Cancel Selection"
+                                contentDescription = "Cancel Selection",
                             )
                         }
                     } else {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = "Back",
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Background,
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = Background,
+                    ),
             )
         },
         floatingActionButton = {
@@ -238,40 +238,41 @@ fun LocalAlbumScreen(
                 ) {
                     items(
                         count = photos.size,
-                        key = { index -> photos[index].photoId }
+                        key = { index -> photos[index].photoId },
                     ) { index ->
                         val photo = photos[index]
                         val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
 
                         Box(
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(12.dp)) // 모서리 둥글게
-                                .combinedClickable(
-                                    onClick = {
-                                        if (isSelectionMode) {
-                                            localViewModel.togglePhotoSelection(photo)
-                                        } else {
-                                            // 기존 로직: 이미지 상세 보기
-                                            localViewModel.setLocalAlbumBrowsingSession(
-                                                imageUris,
-                                                albumName
-                                            )
-                                            navController.navigate(
-                                                Screen.Image.createRoute(
-                                                    uri = photo.contentUri,
-                                                    imageId = photo.photoId,
-                                                ),
-                                            )
-                                        }
-                                    },
-                                    onLongClick = {
-                                        if (!isSelectionMode) {
-                                            isSelectionMode = true
-                                            localViewModel.togglePhotoSelection(photo)
-                                        }
-                                    },
-                                )
+                            modifier =
+                                Modifier
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(12.dp)) // 모서리 둥글게
+                                    .combinedClickable(
+                                        onClick = {
+                                            if (isSelectionMode) {
+                                                localViewModel.togglePhotoSelection(photo)
+                                            } else {
+                                                // 기존 로직: 이미지 상세 보기
+                                                localViewModel.setLocalAlbumBrowsingSession(
+                                                    imageUris,
+                                                    albumName,
+                                                )
+                                                navController.navigate(
+                                                    Screen.Image.createRoute(
+                                                        uri = photo.contentUri,
+                                                        imageId = photo.photoId,
+                                                    ),
+                                                )
+                                            }
+                                        },
+                                        onLongClick = {
+                                            if (!isSelectionMode) {
+                                                isSelectionMode = true
+                                                localViewModel.togglePhotoSelection(photo)
+                                            }
+                                        },
+                                    ),
                         ) {
                             AsyncImage(
                                 model = photo.contentUri,
@@ -282,25 +283,33 @@ fun LocalAlbumScreen(
 
                             if (isSelectionMode) {
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            if (isSelected) Color.Black.copy(alpha = 0.3f)
-                                            else Color.Transparent,
-                                        ),
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                if (isSelected) {
+                                                    Color.Black.copy(alpha = 0.3f)
+                                                } else {
+                                                    Color.Transparent
+                                                },
+                                            ),
                                 )
 
                                 // 👇 체크박스 (HomeScreen.kt 참고)
                                 Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(4.dp)
-                                        .size(24.dp)
-                                        .background(
-                                            if (isSelected) Color(0xFFFBC4AB)
-                                            else Color.White.copy(alpha = 0.8f),
-                                            CircleShape,
-                                        ),
+                                    modifier =
+                                        Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(4.dp)
+                                            .size(24.dp)
+                                            .background(
+                                                if (isSelected) {
+                                                    Color(0xFFFBC4AB)
+                                                } else {
+                                                    Color.White.copy(alpha = 0.8f)
+                                                },
+                                                CircleShape,
+                                            ),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (isSelected) {

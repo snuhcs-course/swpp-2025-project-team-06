@@ -101,7 +101,10 @@ class PhotoViewModel(
         _uiState.update { it.copy(userMessage = "백그라운드 업로드가 시작되었습니다.") }
     }
 
-    fun uploadSelectedPhotos(photos: Set<Photo>, context: Context) {
+    fun uploadSelectedPhotos(
+        photos: Set<Photo>,
+        context: Context,
+    ) {
         if (photos.isEmpty()) return
 
         val photoIds = photos.mapNotNull { it.photoId.toLongOrNull() }.toLongArray()
@@ -111,9 +114,11 @@ class PhotoViewModel(
             return
         }
 
-        val inputData = Data.Builder()
-            .putLongArray(SelectedPhotoUploadWorker.KEY_PHOTO_IDS, photoIds)
-            .build()
+        val inputData =
+            Data
+                .Builder()
+                .putLongArray(SelectedPhotoUploadWorker.KEY_PHOTO_IDS, photoIds)
+                .build()
 
         val uploadWorkRequest =
             OneTimeWorkRequest

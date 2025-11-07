@@ -40,7 +40,7 @@ private data class PhotoMetadataHolder(
     val filename: String,
     val createdAt: String,
     val lat: Double,
-    val lng: Double
+    val lng: Double,
 )
 
 class SelectedPhotoUploadWorker(
@@ -146,7 +146,6 @@ class SelectedPhotoUploadWorker(
         photoIds: LongArray,
         chunkSize: Int,
     ): Boolean {
-
         val totalPhotos = photoIds.size
         if (totalPhotos == 0) return true
 
@@ -162,13 +161,14 @@ class SelectedPhotoUploadWorker(
 
                 val (filename, createdAt, lat, lng) = getMetadataForPhoto(id, contentUri)
 
-                val meta = PhotoMeta(
-                    filename = filename,
-                    photo_path_id = id.toInt(),
-                    created_at = createdAt,
-                    lat = lat,
-                    lng = lng,
-                )
+                val meta =
+                    PhotoMeta(
+                        filename = filename,
+                        photo_path_id = id.toInt(),
+                        created_at = createdAt,
+                        lat = lat,
+                        lng = lng,
+                    )
                 currentChunk.add(PhotoInfoForUpload(contentUri, meta))
             }
 
@@ -189,7 +189,10 @@ class SelectedPhotoUploadWorker(
         return true
     }
 
-    private fun getMetadataForPhoto(id: Long, contentUri: Uri): PhotoMetadataHolder {
+    private fun getMetadataForPhoto(
+        id: Long,
+        contentUri: Uri,
+    ): PhotoMetadataHolder {
         var filename = "unknown.jpg"
         var createdAt = ""
         var finalLat = 0.0
@@ -200,9 +203,10 @@ class SelectedPhotoUploadWorker(
             if (cursor.moveToFirst()) {
                 filename = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)) ?: "unknown.jpg"
                 val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
-                createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                    .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
-                    .format(Date(dateValue))
+                createdAt =
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                        .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
+                        .format(Date(dateValue))
             }
         }
 
@@ -215,11 +219,12 @@ class SelectedPhotoUploadWorker(
                     finalLng = latOutput[1].toDouble()
                 }
             }
-        } catch (e: Exception) { /* 0.0 유지 */ }
+        } catch (e: Exception) {
+            // 0.0 유지
+        }
 
         return PhotoMetadataHolder(filename, createdAt, finalLat, finalLng)
     }
-
 
     private fun updateNotification(
         title: String,
