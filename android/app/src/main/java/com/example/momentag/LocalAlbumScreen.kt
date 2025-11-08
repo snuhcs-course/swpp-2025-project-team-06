@@ -56,7 +56,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.viewmodel.LocalViewModel
