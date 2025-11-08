@@ -203,7 +203,6 @@ class StoryViewModel(
                 is RecommendRepository.RecommendResult.Error,
                 -> {
                     // Silently fail - tag loading is not critical
-                    tagCache[storyId] = emptyList()
                 }
             }
         }

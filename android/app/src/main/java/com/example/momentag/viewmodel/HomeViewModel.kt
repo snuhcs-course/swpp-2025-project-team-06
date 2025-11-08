@@ -95,7 +95,7 @@ class HomeViewModel(
 
     private fun formatISODate(isoDate: String): String {
         return try {
-            val datePart = isoDate.split('T').firstOrNull() ?: return "Unknown Date"
+            val datePart = isoDate.substring(0, 10) // [수정 후] (YYYY-MM-DD 가정)
             datePart.replace('-', '.')
         } catch (e: Exception) {
             "Unknown Date"

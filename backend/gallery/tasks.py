@@ -60,10 +60,14 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
 
     # Fetch photo_path_id from Photo model instead of Qdrant
     photo_uuids = list(map(uuid.UUID, (point.id for point in points)))
-    photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
-        "photo_id", "photo_path_id"
-    )
-    id_to_path = {str(p["photo_id"]): p["photo_path_id"] for p in photos}
+    photos = Photo.objects.filter(photo_id__in=photo_uuids)
+    id_to_meta = {
+        str(p.photo_id): {
+            "photo_path_id": p.photo_path_id, 
+            "created_at": p.created_at
+        } 
+        for p in photos
+    }
 
     tagged_photo_ids = set(
         map(
@@ -76,9 +80,13 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
 
     # Maintain order from sorted scores
     return [
-        {"photo_id": point.id, "photo_path_id": id_to_path[point.id]}
+        {
+            "photo_id": point.id, 
+            "photo_path_id": id_to_meta[point.id]["photo_path_id"],
+            "created_at": id_to_meta[point.id]["created_at"]
+        }
         for point in points
-        if point.id in id_to_path and point.id not in tagged_photo_ids
+        if point.id in id_to_meta and point.id not in tagged_photo_ids
     ][:LIMIT]
 
 
