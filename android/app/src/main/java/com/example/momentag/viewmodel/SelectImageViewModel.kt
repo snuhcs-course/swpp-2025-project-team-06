@@ -31,26 +31,94 @@ class SelectImageViewModel(
     val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
 
     private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
-    val allPhotos = _allPhotos.asStateFlow()
+    val allPhotos: StateFlow<List<Photo>> = _allPhotos.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
-    val isLoading = _isLoading.asStateFlow()
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private var currentOffset = 0
+    private val pageSize = 100
+    private var hasMorePages = true
 
     fun getAllPhotos() {
+        if (_isLoading.value) return
+
         viewModelScope.launch {
             _isLoading.value = true
-            // Only get photos from server (uploaded photos)
-            when (val result = remoteRepository.getAllPhotos()) {
-                is RemoteRepository.Result.Success -> {
-                    val serverPhotos = localRepository.toPhotos(result.data)
-                    _allPhotos.value = serverPhotos
+            currentOffset = 0
+            hasMorePages = true
+
+            try {
+                when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = 0)) {
+                    is RemoteRepository.Result.Success -> {
+                        val serverPhotos = localRepository.toPhotos(result.data)
+
+                        // 이미 선택된 사진들을 맨 앞에 배치
+                        val selected = selectedPhotos.value
+                        val selectedIds = selected.map { it.photoId }.toSet()
+
+                        // 서버에서 가져온 사진 중 선택되지 않은 사진만 추가
+                        val unselected = serverPhotos.filter { it.photoId !in selectedIds }
+
+                        // 선택된 사진들 + 서버에서 가져온 나머지 사진들
+                        _allPhotos.value = selected + unselected
+                        currentOffset = pageSize
+                        hasMorePages = serverPhotos.size == pageSize
+                    }
+                    else -> {
+                        _allPhotos.value = emptyList()
+                        hasMorePages = false
+                    }
                 }
-                else -> {
-                    // If server fails, show empty list
-                    _allPhotos.value = emptyList()
-                }
+            } catch (e: Exception) {
+                _allPhotos.value = emptyList()
+                hasMorePages = false
+            } finally {
+                _isLoading.value = false
             }
-            _isLoading.value = false
+        }
+    }
+
+    fun loadMorePhotos() {
+        if (_isLoadingMore.value || !hasMorePages || _isLoading.value) return
+
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+
+            try {
+                when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = currentOffset)) {
+                    is RemoteRepository.Result.Success -> {
+                        val newPhotos = localRepository.toPhotos(result.data)
+
+                        if (newPhotos.isNotEmpty()) {
+                            // 이미 리스트에 있는 사진 ID들 (선택된 사진 포함)
+                            val existingIds = _allPhotos.value.map { it.photoId }.toSet()
+
+                            // 중복 제거 후 추가
+                            val uniqueNewPhotos = newPhotos.filter { it.photoId !in existingIds }
+                            _allPhotos.value = _allPhotos.value + uniqueNewPhotos
+
+                            currentOffset += pageSize
+                            hasMorePages = newPhotos.size == pageSize
+
+                            // ImageBrowserRepository도 업데이트 (이전/다음 버튼 작동 보장)
+                            imageBrowserRepository.setGallery(_allPhotos.value)
+                        } else {
+                            hasMorePages = false
+                        }
+                    }
+                    else -> {
+                        hasMorePages = false
+                    }
+                }
+            } catch (e: Exception) {
+                hasMorePages = false
+            } finally {
+                _isLoadingMore.value = false
+            }
         }
     }
 

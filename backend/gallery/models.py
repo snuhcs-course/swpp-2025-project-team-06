@@ -21,6 +21,14 @@ class Photo(models.Model):
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
     is_tagged = models.BooleanField(default=False)
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'photo_path_id'], 
+                name='unique_user_photo_path_id'
+            )
+        ]
 
     def __str__(self):
         return f"Photo {self.photo_id} by User {self.user.id}"

@@ -13,7 +13,6 @@ from collections import defaultdict
 from celery import shared_task
 from qdrant_client import models
 from django.conf import settings
-from django.core.cache import cache
 
 from .qdrant_utils import (
     get_qdrant_client,
@@ -21,26 +20,26 @@ from .qdrant_utils import (
     REPVEC_COLLECTION_NAME,
 )
 from .models import User, Photo_Caption, Photo_Tag, Tag, Photo
+from search.embedding_service import create_query_embedding
 
 
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
-import math
+
+from .gpu_tasks import phrase_to_words
 
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
 
-# aggregates N similarity queries with Reciprocal Rank Fusion
 def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
-    client = get_qdrant_client()
     LIMIT = 40
-    RRF_CONSTANT = 40
+    client = get_qdrant_client()
 
     rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
 
-    rrf_scores = defaultdict(float)
-    photo_uuids = set()
+    if not rep_vectors:
+        return []
 
     user_filter = models.Filter(
         must=[
@@ -51,97 +50,65 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         ]
     )
 
-    for rep_vector in rep_vectors:
-        search_result = client.search(
-            IMAGE_COLLECTION_NAME,
-            query_vector=rep_vector,
-            query_filter=user_filter,
-            limit=LIMIT,
-        )
-
-        for i, img_point in enumerate(search_result):
-            photo_id = uuid.UUID(img_point.id)
-            photo_uuids.add(photo_id)
-            rrf_scores[photo_id] = rrf_scores[photo_id] + 1 / (RRF_CONSTANT + i + 1)
-
-    rrf_sorted = sorted(
-        rrf_scores.items(),
-        key=lambda item: item[1],
-        reverse=True,
+    points = client.recommend(
+        collection_name=IMAGE_COLLECTION_NAME,
+        positive=rep_vectors,
+        query_filter=user_filter,
+        limit=2 * LIMIT,
+        with_payload=False,
     )
+
+    # Fetch photo_path_id from Photo model instead of Qdrant
+    photo_uuids = list(map(uuid.UUID, (point.id for point in points)))
+    photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
+        "photo_id", "photo_path_id"
+    )
+    id_to_path = {str(p["photo_id"]): p["photo_path_id"] for p in photos}
 
     tagged_photo_ids = set(
-        Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
-            "photo__photo_id", flat=True
+        map(
+            str,
+            Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
+                "photo__photo_id", flat=True
+            ),
         )
     )
 
-    recommendations = []
-
-    for i, (photo_id, _) in enumerate(rrf_sorted):
-        if i >= LIMIT:
-            break
-
-        if photo_id not in tagged_photo_ids:
-            try:
-                photo = Photo.objects.get(photo_id=photo_id)
-                recommendations.append(photo)
-            except Photo.DoesNotExist:
-                continue
-
-    return recommendations
+    # Maintain order from sorted scores
+    return [
+        {"photo_id": point.id, "photo_path_id": id_to_path[point.id]}
+        for point in points
+        if point.id in id_to_path and point.id not in tagged_photo_ids
+    ][:LIMIT]
 
 
 def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
-    ALPHA = 0.5
     LIMIT = 20
 
     if not photos:
         return []
 
-    target_set = set(photos)
+    client = get_qdrant_client()
 
-    all_photos, _, graph = retrieve_photo_caption_graph(user)
-
-    candidates: set[uuid.UUID] = all_photos - target_set
-
-    # evaluate weighted root pagerank
-    rwr_scores = nx.pagerank(
-        graph, personalization={node: 1 for node in photos}, weight="weight"
+    user_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="user_id",
+                match=models.MatchValue(value=user.id),
+            )
+        ]
     )
 
-    # evaluate Adamic/Adar score
-    aa_scores = defaultdict(float)
-
-    for u, _, score in nx.adamic_adar_index(
-        graph, [(c, t) for c in candidates for t in target_set]
-    ):
-        aa_scores[u] += score
-
-    def normalize(minv, maxv, v):
-        if maxv == minv:
-            return 0
-        else:
-            return (v - minv) / (maxv - minv)
-
-    max_rwr = max(rwr_scores.values()) if rwr_scores else 0
-    min_rwr = min(rwr_scores.values()) if rwr_scores else 0
-
-    max_aa = max(aa_scores.values()) if aa_scores else 0
-    min_aa = min(aa_scores.values()) if aa_scores else 0
-
-    scores = {
-        candidate: ALPHA * normalize(min_rwr, max_rwr, rwr_scores.get(candidate, 0))
-        + (1 - ALPHA) * normalize(min_aa, max_aa, aa_scores.get(candidate, 0))
-        for candidate in candidates
-    }
-
-    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-
-    recommend_photos = list(map(lambda t: str(t[0]), sorted_scores[:LIMIT]))
+    points = client.recommend(
+        collection_name=IMAGE_COLLECTION_NAME,
+        positive=[str(pid) for pid in photos],
+        query_filter=user_filter,
+        limit=LIMIT,
+        with_payload=False,
+    )
 
     # Fetch photo_path_id from Photo model instead of Qdrant
-    photo_uuids = [uuid.UUID(pid) for pid in recommend_photos]
+    photo_uuids = list(map(uuid.UUID, (point.id for point in points)))
     photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
         "photo_id", "photo_path_id"
     )
@@ -149,9 +116,9 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
 
     # Maintain order from sorted scores
     return [
-        {"photo_id": pid, "photo_path_id": id_to_path[pid]}
-        for pid in recommend_photos
-        if pid in id_to_path
+        {"photo_id": point.id, "photo_path_id": id_to_path[point.id]}
+        for point in points
+        if point.id in id_to_path
     ]
 
 
@@ -250,207 +217,144 @@ def retrieve_photo_caption_graph(user: User):
     return photo_set, caption_set, graph
 
 
-def retrieve_combined_graph(user: User, tag_edge_weight: float = 10.0):
-    cache_key = f"user_{user.id}_combined_graph"
-
-    cached_data = cache.get(cache_key)
-
-    if cached_data:
-        print(f"[INFO] User {user.id} graph loaded from CACHE")
-        return cached_data["photo_set"], cached_data["meta_set"], cached_data["graph"]
-
-    print(f"[INFO] User {user.id} graph building from DB...")
-    graph = nx.Graph()
-    photo_set = set()
-    meta_set = set()
-    
-    caption_relations = Photo_Caption.objects.filter(user=user).select_related('caption')
-    tag_relations = Photo_Tag.objects.filter(user=user).select_related('tag')
-
-    all_photo_ids = set()
-    caption_doc_freq = defaultdict(set)
-    
-    for pc in caption_relations:
-        all_photo_ids.add(pc.photo_id)
-        caption_doc_freq[pc.caption].add(pc.photo_id)
-
-    for pt in tag_relations:
-        all_photo_ids.add(pt.photo_id)
-    
-    N = len(all_photo_ids)
-    if N == 0:
-        N = 1
-    
-    idf_scores = {}
-    for caption_obj, photo_ids_set in caption_doc_freq.items():
-        df = len(photo_ids_set)
-        idf_scores[caption_obj] = math.log(N / (1 + df))
-    
-    for photo_caption in caption_relations:
-        photo_id = photo_caption.photo.photo_id
-        caption_obj = photo_caption.caption
-
-        if photo_id not in photo_set:
-            photo_set.add(photo_id)
-            graph.add_node(photo_id, bipartite=0)
-
-        if caption_obj not in meta_set:
-            meta_set.add(caption_obj)
-            graph.add_node(caption_obj, bipartite=1)
-
-        tf = photo_caption.weight
-        
-        idf = idf_scores.get(caption_obj, 0.0) 
-        
-        new_weight = tf * (1 + idf)
-
-        graph.add_edge(
-            photo_id, caption_obj, weight=new_weight 
-        )
-        
-    for photo_tag in tag_relations:
-        photo_id = photo_tag.photo.photo_id
-        tag_obj = photo_tag.tag
-
-        if photo_id not in photo_set:
-            photo_set.add(photo_id)
-            graph.add_node(photo_id, bipartite=0)
-
-        if tag_obj not in meta_set:
-            meta_set.add(tag_obj)
-            graph.add_node(tag_obj, bipartite=1)
-
-        graph.add_edge(photo_id, tag_obj, weight=tag_edge_weight)
-
-    data_to_cache = {"photo_set": photo_set, "meta_set": meta_set, "graph": graph}
-
-    cache.set(cache_key, data_to_cache, timeout=3600)
-
-    print(f"[INFO] User {user.id} graph SAVED to cache")
-
-    return photo_set, meta_set, graph
-
-
-def execute_hybrid_graph_search(
+def execute_hybrid_search(
     user: User,
-    personalization_nodes: set,
-    semantic_scores: dict,
-    tag_edge_weight: float = SEARCH_SETTINGS["TAG_EDGE_WEIGHT"],
-    alpha: float = SEARCH_SETTINGS["ALPHA_RWR_VS_AA"],
-    graph_weight: float = SEARCH_SETTINGS["GRAPH_WEIGHT"],
-    semantic_weight: float = SEARCH_SETTINGS["SEMANTIC_WEIGHT"],
-    limit: int = SEARCH_SETTINGS["FINAL_RESULT_LIMIT"],
+    tag_ids: list[uuid.UUID],
+    query_string: str,
+    tag_weight: float = SEARCH_SETTINGS.get("TAG_FUSION_WEIGHT", 1.0),
+    semantic_weight: float = SEARCH_SETTINGS.get("SEMANTIC_FUSION_WEIGHT", 1.0),
+    caption_bonus_weight: float = SEARCH_SETTINGS.get("CAPTION_BONUS_WEIGHT", 0.5),
+    recommend_limit: int = SEARCH_SETTINGS.get("RECOMMEND_LIMIT", 50),
+    semantic_limit: int = SEARCH_SETTINGS.get("SEMANTIC_LIMIT", 50),
+    final_limit: int = SEARCH_SETTINGS.get("FINAL_RESULT_LIMIT", 100),
 ):
-    # 1. 결합 그래프 생성
-    all_photos, _, graph = retrieve_combined_graph(user, tag_edge_weight)
+    client = get_qdrant_client()
+    phase_1_scores = {}
+    phase_2_scores = {}
 
-    # 2. 후보군 정의
-    # 재시작 집합의 노드 중 '사진' 노드만 분리
-    # (Tag, Caption 객체는 UUID가 아니므로 분리 가능)
-    candidates: set[uuid.UUID] = all_photos
-    
-    valid_personalization_nodes_set = {
-        node for node in personalization_nodes if node in graph
-    }
-
-    if not valid_personalization_nodes_set:
-        return []
-
-    personalization_dict = {node: 1 for node in valid_personalization_nodes_set}
-
-    # 점수 계산 1: Personalized PageRank (RWR)
-    rwr_scores = nx.pagerank(
-        graph, personalization=personalization_dict, weight="weight"
+    # Qdrant 검색 시 다른 유저의 데이터를 침범하지 않도록 필터를 생성합니다.
+    user_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="user_id",
+                match=models.MatchValue(value=user.id),
+            )
+        ]
     )
 
-    # 4. 점수 계산 2: Adamic/Adar Index
-    aa_scores = defaultdict(float)
-    target_set = valid_personalization_nodes_set
+    if tag_ids:
+        # 1.1: DB에서 태그에 직접 속한 사진 ID 조회
+        tag_photo_uuids = set(
+            Photo_Tag.objects.filter(user=user, tag__tag_id__in=tag_ids).values_list(
+                "photo__photo_id", flat=True
+            )
+        )
 
-    try:
-        for u, _, score in nx.adamic_adar_index(
-            graph,
-            [
-                (c, t)
-                for c in candidates
-                for t in target_set
-                if (c in graph and t in graph)
-            ],
-        ):
-            aa_scores[u] += score
-    except Exception as e:
-        print(f"[AdamicAdar Error] {e}")
-        pass
+        tag_photo_ids_str = {str(pid) for pid in tag_photo_uuids}
 
-    def z_score_sigmoid_normalize(score_dict, candidates):
-        # 1. 후보군에 해당하는 점수 리스트 생성
-        scores_array = np.array([score_dict.get(c, 0.0) for c in candidates])
-        
-        # 2. Z-Score 계산
-        mean = np.mean(scores_array)
-        std = np.std(scores_array)
-        
-        if std == 0:
-            # 모든 점수가 0이거나 동일함
-            return {c: 0.5 for c in candidates} # Sigmoid(0) = 0.5
-
-        z_scores = (scores_array - mean) / std
-        
-        # 3. Sigmoid 적용 (0.0 ~ 1.0 사이로 압축)
-        #    numpy의 'vectorize'를 사용하지 않고 math.exp를 루프로 돌리는 것이
-        #    오버헤드가 적어 더 빠릅니다.
-        final_scores = {}
-        for candidate, z in zip(candidates, z_scores):
+        # 1.2: Qdrant `recommend` API 호출
+        if tag_photo_ids_str:
             try:
-                final_scores[candidate] = 1 / (1 + math.exp(-z))
-            except OverflowError:
-                # z가 너무 작으면 (e.g., -1000) exp(-z)가 오버플로우
-                # z가 너무 크면 (e.g., +1000) exp(-z)가 0
-                final_scores[candidate] = 0.0 if z < 0 else 1.0
-                
-        return final_scores
+                # Qdrant `recommend` API
+                recommend_results = client.recommend(
+                    collection_name=IMAGE_COLLECTION_NAME,
+                    positive=list(tag_photo_ids_str),
+                    query_filter=user_filter,
+                    limit=recommend_limit,
+                    with_vectors=False,
+                    with_payload=False,
+                )
 
-    # 3대 점수 모두 정규화
-    norm_rwr_dict = z_score_sigmoid_normalize(rwr_scores, candidates)
-    norm_aa_dict = z_score_sigmoid_normalize(aa_scores, candidates)
-    norm_sem_dict = z_score_sigmoid_normalize(semantic_scores, candidates)
-    
-    scores = {}
-    for candidate in candidates:
-        # 그래프 점수 계산
-        norm_rwr = norm_rwr_dict.get(candidate, 0.5)
-        norm_aa = norm_aa_dict.get(candidate, 0.5)
-        graph_score = alpha * norm_rwr + (1 - alpha) * norm_aa
+                for result in recommend_results:
+                    phase_1_scores[result.id] = result.score
 
-        # 시맨틱 점수 계산
-        # (시맨틱 검색 결과에 없던 후보는 0점 -> Z-Score 후에도 평균 이하 점수 -> Sigmoid 후 0.5 미만)
-        norm_sem = norm_sem_dict.get(candidate, 0.5)
-        
-        # 최종 하이브리드 점수
-        scores[candidate] = (graph_weight * graph_score) + (semantic_weight * norm_sem)
+            except Exception as e:
+                print(f"[HybridSearch Error] Qdrant recommend failed: {e}")
+                pass
 
-    sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        # 1.3: 태그에 "직접" 속한 사진(TagPhotoSet)에 1.0점 부여
+        for photo_id_str in tag_photo_ids_str:
+            phase_1_scores[photo_id_str] = 1.0
 
-    recommend_photos = list(map(lambda t: str(t[0]), sorted_scores[:limit]))
+    if query_string:
+        # 2.1: 자연어 쿼리를 임베딩 벡터로 변환
+        query_vector = create_query_embedding(query_string)
 
-    if not recommend_photos:
+        # 2.2: Qdrant `search` API 호출 (문법 정확)
+        try:
+            search_results = client.search(
+                collection_name=IMAGE_COLLECTION_NAME,
+                query_vector=query_vector,
+                query_filter=user_filter,
+                limit=semantic_limit,
+                with_vectors=False,
+                with_payload=False,
+            )
+
+            for result in search_results:
+                phase_2_scores[result.id] = result.score
+
+        except Exception as e:
+            print(f"[HybridSearch Error] Qdrant search failed: {e}")
+            pass
+
+    all_candidates = set(phase_1_scores.keys()).union(phase_2_scores.keys())
+
+    if not all_candidates:
         return []
 
-    # Fetch photo_path_id from Photo model instead of Qdrant
-    photo_uuids = [uuid.UUID(pid) for pid in recommend_photos]
+    caption_bonus_map = defaultdict(int)
+
+    if query_string:
+        query_words = set(phrase_to_words(query_string))
+
+        if query_words:
+            candidate_uuids = [uuid.UUID(pid) for pid in all_candidates]
+
+            matching_photo_captions = Photo_Caption.objects.filter(
+                user=user,
+                photo_id__in=candidate_uuids,
+                caption__caption__in=query_words,
+            ).values("photo_id")
+
+            for item in matching_photo_captions:
+                caption_bonus_map[str(item["photo_id"])] += 1
+
+    final_scores = {}
+    for photo_id_str in all_candidates:
+        p1_score = phase_1_scores.get(photo_id_str, 0.0)
+        p2_score = phase_2_scores.get(photo_id_str, 0.0)
+        p3_bonus = caption_bonus_map.get(photo_id_str, 0) * caption_bonus_weight
+
+        final_scores[photo_id_str] = (
+            (tag_weight * p1_score) + (semantic_weight * p2_score) + p3_bonus
+        )
+
+    sorted_scores_tuple = sorted(
+        final_scores.items(), key=lambda item: item[1], reverse=True
+    )
+
+    # 3.4: 최종 결과 포맷팅
+    recommend_photo_ids_str = [item[0] for item in sorted_scores_tuple[:final_limit]]
+
+    if not recommend_photo_ids_str:
+        return []
+
+    photo_uuids = [uuid.UUID(pid) for pid in recommend_photo_ids_str]
+
+    # Photo 모델에서 photo_path_id 조회
     photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
         "photo_id", "photo_path_id"
     )
 
-    # Build lookup dict to maintain order
     id_to_path = {str(p["photo_id"]): p["photo_path_id"] for p in photos}
 
-    # RWR/AA로 정렬된 순서대로 최종 결과 생성 (maintain order from sorted scores)
     final_results = [
-        {"photo_id": photo_id, "photo_path_id": id_to_path[photo_id]}
-        for photo_id in recommend_photos
-        if photo_id in id_to_path
+        {"photo_id": photo_id_str, "photo_path_id": id_to_path[photo_id_str]}
+        for photo_id_str in recommend_photo_ids_str
+        if photo_id_str in id_to_path
     ]
+
     return final_results
 
 
@@ -494,7 +398,9 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
 
         if not photo_ids:
             print(
-                f"[Task Info] No photos found for Tag: {tag_id}. RepVecs deleted. Task finished."
+                f"[Task Info] No photos found for Tag: {
+                    tag_id
+                }. RepVecs deleted. Task finished."
             )
             return
 
@@ -537,7 +443,9 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
 
             if not final_representatives_list:
                 print(
-                    f"[Task Info] No representative vectors generated for Tag: {tag_id}."
+                    f"[Task Info] No representative vectors generated for Tag: {
+                        tag_id
+                    }."
                 )
                 return
 
@@ -558,7 +466,9 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
                 wait=True,
             )
             print(
-                f"[Task Success] Upserted {len(points_to_upsert)} new repvecs for Tag: {tag_id}."
+                f"[Task Success] Upserted {len(points_to_upsert)} new repvecs for Tag: {
+                    tag_id
+                }."
             )
         else:
             print(f"[Task Info] No new repvecs to upsert for Tag: {tag_id}.")

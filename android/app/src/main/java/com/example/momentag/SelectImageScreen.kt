@@ -20,12 +20,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -40,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,23 +62,25 @@ import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun SelectImageScreen(navController: NavController) {
     var hasPermission by remember { mutableStateOf(false) }
     var isSelectionMode by remember { mutableStateOf(false) }
 
-    // TODO: GET /api/photos/
     val context = LocalContext.current
 
-    // Screen-scoped ViewModel using DraftTagRepository
     val selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
     val allPhotos by selectImageViewModel.allPhotos.collectAsState()
     val tagName by selectImageViewModel.tagName.collectAsState()
     val selectedPhotos by selectImageViewModel.selectedPhotos.collectAsState()
     val isLoading by selectImageViewModel.isLoading.collectAsState()
+    val isLoadingMore by selectImageViewModel.isLoadingMore.collectAsState()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -101,7 +106,6 @@ fun SelectImageScreen(navController: NavController) {
         if (isSelectionMode) {
             selectImageViewModel.togglePhoto(photo)
         } else {
-            // Set browsing session before navigating
             selectImageViewModel.setGalleryBrowsingSession()
             navController.navigate(
                 Screen.Image.createRoute(
@@ -118,14 +122,30 @@ fun SelectImageScreen(navController: NavController) {
         }
     }
 
-    // Sort photos: selected photos first, then unselected photos
-    val sortedPhotos =
-        remember(allPhotos, selectedPhotos) {
-            val selectedPhotoIds = selectedPhotos.map { it.photoId }.toSet()
-            val selected = allPhotos.filter { it.photoId in selectedPhotoIds }
-            val unselected = allPhotos.filter { it.photoId !in selectedPhotoIds }
-            selected + unselected
+    // LazyGrid state for pagination
+    val listState = rememberLazyGridState()
+
+    // Scroll detection for pagination
+    LaunchedEffect(listState, isLoadingMore) {
+        if (!isLoadingMore) {
+            snapshotFlow {
+                listState.layoutInfo.visibleItemsInfo
+                    .lastOrNull()
+                    ?.index
+            }.distinctUntilChanged()
+                .debounce(150)
+                .collect { lastVisibleIndex ->
+                    if (lastVisibleIndex != null && allPhotos.isNotEmpty()) {
+                        val totalItems = allPhotos.size
+                        val remainingItems = totalItems - (lastVisibleIndex + 1)
+
+                        if (remainingItems < 33) {
+                            selectImageViewModel.loadMorePhotos()
+                        }
+                    }
+                }
         }
+    }
 
     Scaffold(
         topBar = {
@@ -160,7 +180,6 @@ fun SelectImageScreen(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Header with selection mode toggle
             Box(
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -187,7 +206,6 @@ fun SelectImageScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (isLoading) {
-                // Loading state with bear animation
                 SearchLoadingStateCustom(
                     onRefresh = { selectImageViewModel.getAllPhotos() },
                     modifier =
@@ -198,12 +216,18 @@ fun SelectImageScreen(navController: NavController) {
             } else if (hasPermission) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
+                    state = listState,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.height(453.dp),
                 ) {
-                    items(sortedPhotos) { photo ->
+                    items(
+                        count = allPhotos.size,
+                        key = { index -> allPhotos[index].photoId },
+                    ) { index ->
+                        val photo = allPhotos[index]
                         val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
+
                         Box(
                             modifier =
                                 Modifier
@@ -218,7 +242,6 @@ fun SelectImageScreen(navController: NavController) {
                                 modifier = Modifier.fillMaxSize(),
                             )
 
-                            // Dark overlay when selected (only in selection mode)
                             if (isSelectionMode && isSelected) {
                                 Box(
                                     modifier =
@@ -228,7 +251,6 @@ fun SelectImageScreen(navController: NavController) {
                                 )
                             }
 
-                            // Checkbox indicator (only in selection mode)
                             if (isSelectionMode) {
                                 Box(
                                     modifier =
@@ -254,6 +276,27 @@ fun SelectImageScreen(navController: NavController) {
                             }
                         }
                     }
+
+                    // Loading indicator
+                    if (isLoadingMore) {
+                        item(span = {
+                            androidx.compose.foundation.lazy.grid
+                                .GridItemSpan(3)
+                        }) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(32.dp),
+                                    color = Word,
+                                )
+                            }
+                        }
+                    }
                 }
             } else {
                 LazyVerticalGrid(
@@ -262,7 +305,7 @@ fun SelectImageScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.spacedBy(21.dp),
                     modifier = Modifier.height(453.dp),
                 ) {
-                    items(sortedPhotos) { _ ->
+                    items(allPhotos.size) { _ ->
                         Box(modifier = Modifier) {
                             Spacer(
                                 modifier =

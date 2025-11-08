@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -120,6 +121,17 @@ fun HomeScreen(navController: NavController) {
     var isDeleteMode by remember { mutableStateOf(false) }
     var isSelectionMode by remember { mutableStateOf(false) }
 
+    val allPhotosListState = homeViewModel.allPhotosListState
+    val shouldReturnToAllPhotos by homeViewModel.shouldReturnToAllPhotos.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (shouldReturnToAllPhotos) {
+            showAllPhotos = true
+            onlyTag = false
+            homeViewModel.setShouldReturnToAllPhotos(false) // flag reset
+        }
+    }
+
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -153,13 +165,15 @@ fun HomeScreen(navController: NavController) {
     // done once when got permission
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
-            homeViewModel.loadServerTags()
-            homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
+            if (homeViewModel.allPhotos.value.isEmpty()) {
+                homeViewModel.loadServerTags()
+                homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
 
-            val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED_112", false)
-            if (!hasAlreadyUploaded) {
-                photoViewModel.uploadPhotos()
-                sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED_112", true).apply()
+                val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED_112", false)
+                if (!hasAlreadyUploaded) {
+                    photoViewModel.uploadPhotos()
+                    sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED_112", true).apply()
+                }
             }
         }
     }
@@ -451,6 +465,7 @@ fun HomeScreen(navController: NavController) {
                             },
                             homeViewModel = homeViewModel,
                             isLoadingMorePhotos = isLoadingMorePhotos,
+                            allPhotosListState = allPhotosListState,
                         )
                     }
                 } else {
@@ -469,11 +484,7 @@ fun HomeScreen(navController: NavController) {
                                 modifier = Modifier.weight(1f),
                                 isDeleteMode = isDeleteMode,
                                 onEnterDeleteMode = {
-                                    if (!isDeleteMode) {
-                                        isSelectionMode = true
-                                    } else {
-                                        isDeleteMode = true
-                                    }
+                                    isDeleteMode = true
                                 },
                                 onExitDeleteMode = { isDeleteMode = false },
                                 isSelectionMode = false, // 태그 앨범 뷰에서는 선택 모드 비활성화
@@ -481,6 +492,7 @@ fun HomeScreen(navController: NavController) {
                                 onItemSelectionToggle = { }, // 사용되지 않음
                                 homeViewModel = homeViewModel,
                                 isLoadingMorePhotos = isLoadingMorePhotos,
+                                allPhotosListState = null,
                             )
                         }
 
@@ -498,10 +510,16 @@ fun HomeScreen(navController: NavController) {
 
                         else -> { // Error, NetworkError, Idle
                             Box(
-                                modifier = Modifier.weight(1f),
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text("태그를 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.")
+                                Text(
+                                    "태그를 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.",
+                                    textAlign = TextAlign.Center,
+                                )
                             }
                         }
                     }
@@ -587,6 +605,7 @@ private fun MainContent(
     onItemSelectionToggle: (String) -> Unit,
     homeViewModel: HomeViewModel? = null,
     isLoadingMorePhotos: Boolean = false,
+    allPhotosListState: LazyGridState? = null,
 ) {
     when {
         onlyTag -> {
@@ -608,7 +627,7 @@ private fun MainContent(
         }
         showAllPhotos -> {
             // All Photos Grid View - 서버에서 가져온 사진들 with pagination
-            val listState = rememberLazyGridState()
+            val listState = allPhotosListState ?: rememberLazyGridState()
 
             // 스크롤 지점 감지 - isLoadingMorePhotos 변경 시 LaunchedEffect 재시작
             LaunchedEffect(listState, isLoadingMorePhotos) {
@@ -662,6 +681,8 @@ private fun MainContent(
                                                 onItemSelectionToggle(photo.photoId)
                                             } else {
                                                 homeViewModel?.setGalleryBrowsingSession()
+                                                homeViewModel?.setShouldReturnToAllPhotos(true)
+
                                                 navController.navigate(
                                                     Screen.Image.createRoute(
                                                         uri = photo.contentUri,

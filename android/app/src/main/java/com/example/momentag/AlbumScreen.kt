@@ -322,7 +322,7 @@ fun AlbumScreen(
                             albumViewModel.deleteTagFromPhoto(photoId, tagIdValue)
                         },
                         onAddPhotosToAlbum = { photos ->
-                            albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId)
+                            albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId, tagName)
                         },
                     )
                 }

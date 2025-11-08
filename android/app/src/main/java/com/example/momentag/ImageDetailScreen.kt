@@ -34,6 +34,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -65,6 +68,7 @@ import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.launch
 import java.io.IOException
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
@@ -76,6 +80,7 @@ fun ImageDetailScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Screen-scoped ViewModel - fresh instance per screen
     val imageDetailViewModel: ImageDetailViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
@@ -246,6 +251,15 @@ fun ImageDetailScreen(
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         containerColor = Background,
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = Color.DarkGray,
+                    contentColor = Color.White,
+                )
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -290,6 +304,7 @@ fun ImageDetailScreen(
                             Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
                         }
                     },
+                    snackbarHostState = snackbarHostState,
                 )
                 Spacer(modifier = Modifier.height(200.dp))
             }
@@ -373,7 +388,11 @@ fun ImageDetailScreen(
                     }
 
                     IconButton(
-                        onClick = { /* TODO */ },
+                        onClick = {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("🛠️개발예정")
+                            }
+                        },
                         modifier = Modifier.size(32.dp),
                     ) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag", tint = Color.Gray)
@@ -395,7 +414,9 @@ fun TagsSection(
     onDeleteClick: (String) -> Unit,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
+    snackbarHostState: SnackbarHostState,
 ) {
+    val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     Row(
         modifier = modifier.horizontalScroll(scrollState),
@@ -430,7 +451,14 @@ fun TagsSection(
             }
         }
 
-        IconButton(onClick = { /* TODO */ }, modifier = Modifier.size(32.dp)) {
+        IconButton(
+            onClick = {
+                scope.launch {
+                    snackbarHostState.showSnackbar("🛠️개발예정")
+                }
+            },
+            modifier = Modifier.size(32.dp),
+        ) {
             Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag", tint = Color.Gray)
         }
     }
