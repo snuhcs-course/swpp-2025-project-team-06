@@ -351,12 +351,12 @@ private fun StoryPageFullBlock(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 이미지 영역 최대한 크게
+            // 이미지 영역 - 고정 높이로 일관성 유지
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .weight(1f) // 남는 공간을 모두 차지
+                        .height(480.dp) // 고정된 높이로 모든 스토리에서 일관된 크기 유지
                         .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
@@ -365,7 +365,7 @@ private fun StoryPageFullBlock(
                     model = story.images.firstOrNull(),
                     contentDescription = "story image",
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit, // 비율 유지하며 프레임 최대한 채우기
+                    contentScale = ContentScale.Fit,
                 )
             }
 
