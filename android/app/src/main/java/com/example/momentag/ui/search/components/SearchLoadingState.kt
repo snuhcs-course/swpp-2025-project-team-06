@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,12 +49,11 @@ fun SearchLoadingStateCustom(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("🐻", fontSize = 80.sp, modifier = Modifier.padding(bottom = 16.dp))
+            Text("🐻", style = MaterialTheme.typography.displayLarge.copy(fontSize = 80.sp), modifier = Modifier.padding(bottom = 16.dp))
             Text(
                 text = "Loading ...",
-                fontSize = 18.sp,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium),
                 color = Word,
-                fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
             CircularProgressIndicator(

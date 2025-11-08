@@ -45,12 +45,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.LoginState
@@ -144,9 +142,7 @@ fun LoginScreen(navController: NavController) {
             // MomenTag title
             Text(
                 text = "MomenTag",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
+                style = MaterialTheme.typography.displayLarge,
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -161,11 +157,7 @@ fun LoginScreen(navController: NavController) {
                 // Login title
                 Text(
                     text = "Login",
-                    style =
-                        TextStyle(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
+                    style = MaterialTheme.typography.displayLarge,
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -382,7 +374,7 @@ fun LoginScreen(navController: NavController) {
                         ),
                     border = BorderStroke(0.dp, Color.Transparent),
                 ) {
-                    Text("Log In", fontSize = 18.sp)
+                    Text("Log In", style = MaterialTheme.typography.headlineSmall)
                 }
             }
         }

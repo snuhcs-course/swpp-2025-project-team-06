@@ -16,10 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /**
  * 공통 TopAppBar 컴포넌트
@@ -47,17 +44,13 @@ fun CommonTopBar(
     onLogoutClick: (() -> Unit)? = null,
     isLogoutLoading: Boolean = false,
     onTitleClick: (() -> Unit)? = null,
-    titleFontFamily: FontFamily = FontFamily.Serif,
-    titleFontSize: Int = 32,
     actions: @Composable () -> Unit = {},
 ) {
     CenterAlignedTopAppBar(
         title = {
             Text(
                 text = title,
-                fontSize = titleFontSize.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = titleFontFamily,
+                style = androidx.compose.material3.MaterialTheme.typography.displayLarge,
                 modifier =
                     if (onTitleClick != null) {
                         Modifier.clickable { onTitleClick() }

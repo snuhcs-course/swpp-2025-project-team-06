@@ -40,6 +40,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -58,10 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -306,8 +304,7 @@ private fun TagNameSection(
     Column {
         Text(
             text = "New tag name",
-            fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
+            style = MaterialTheme.typography.headlineLarge,
             color = Word,
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -316,9 +313,9 @@ private fun TagNameSection(
             value = tagName,
             onValueChange = onTagNameChange,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = TextStyle(fontSize = 21.sp),
+            textStyle = MaterialTheme.typography.headlineLarge,
             placeholder = { Text("태그 입력") },
-            leadingIcon = { Text("#", fontSize = 21.sp, color = Word) },
+            leadingIcon = { Text("#", style = MaterialTheme.typography.headlineLarge, color = Word) },
             colors =
                 TextFieldDefaults.colors(
                     focusedContainerColor = Background,
@@ -354,8 +351,7 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Select Pictures",
-            fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
+            style = MaterialTheme.typography.headlineLarge,
             color = Word,
         )
     }
@@ -395,8 +391,7 @@ private fun RecommendedPicturesSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "Recommended Pictures",
-            fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
+            style = MaterialTheme.typography.headlineLarge,
             color = Word,
         )
         Spacer(modifier = Modifier.height(11.dp))

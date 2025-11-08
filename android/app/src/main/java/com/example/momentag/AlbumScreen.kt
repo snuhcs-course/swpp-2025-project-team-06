@@ -41,6 +41,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -61,13 +62,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
@@ -263,9 +261,7 @@ fun AlbumScreen(
                                     isFocused = focusState.isFocused
                                 },
                         textStyle =
-                            TextStyle(
-                                fontSize = 28.sp,
-                                fontFamily = FontFamily.Serif,
+                            MaterialTheme.typography.displayMedium.copy(
                                 color = LocalContentColor.current,
                             ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -460,8 +456,7 @@ private fun AlbumContent(
                         Text(
                             text = "AI Recommend",
                             color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         )
                     }
 
@@ -490,7 +485,7 @@ private fun AlbumContent(
                         ) {
                             Text(
                                 text = if (isRecommendSelectionMode) "취소" else "선택",
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = if (isRecommendSelectionMode) Color.White else Color.Black,
                             )
                         }
@@ -561,8 +556,7 @@ private fun AlbumContent(
                                         Text(
                                             text = "Add to Album (${selectedRecommendPhotos.size})",
                                             color = Color.White,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.labelLarge,
                                             modifier = Modifier.padding(vertical = 4.dp),
                                         )
                                     }
