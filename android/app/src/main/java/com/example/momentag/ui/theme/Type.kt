@@ -17,8 +17,7 @@ val Pretendard =
         Font(R.font.pretendard_semibold, FontWeight.SemiBold),
     )
 
-// Set of Material typography styles to start with
-val Typography =
+val MomenTagTypography =
     Typography(
         // 제목/헤더 (Titles/Headers) - 앱 타이틀, 화면 타이틀
         displayLarge =

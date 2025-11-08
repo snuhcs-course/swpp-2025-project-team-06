@@ -9,7 +9,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,7 +39,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,8 +61,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
@@ -81,11 +77,6 @@ import com.example.momentag.model.StoryState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Pink80
-import com.example.momentag.ui.theme.Temp_word
-import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.StoryViewModel
 import kotlinx.coroutines.launch
 
@@ -119,13 +110,13 @@ fun StoryTagSelectionScreen(
         is StoryState.Loading -> {
             // Show loading screen
             Box(
-                modifier = modifier.fillMaxSize().background(Background),
+                modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("추억을 불러오는 중...", color = Word)
+                    Text("추억을 불러오는 중...", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
@@ -153,7 +144,7 @@ fun StoryTagSelectionScreen(
                 modifier =
                     modifier
                         .fillMaxSize()
-                        .background(Background),
+                        .background(MaterialTheme.colorScheme.surface),
             ) {
                 // 상단 앱바
                 BackTopBar(
@@ -264,13 +255,13 @@ fun StoryTagSelectionScreen(
         is StoryState.Error -> {
             // Show error screen
             Box(
-                modifier = modifier.fillMaxSize().background(Background),
+                modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Error: ${state.message}", color = Word)
+                    Text("Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { viewModel.loadStories(10) }) {
+                    androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
                         Text("Retry")
                     }
                 }
@@ -279,13 +270,13 @@ fun StoryTagSelectionScreen(
         is StoryState.NetworkError -> {
             // Show network error screen
             Box(
-                modifier = modifier.fillMaxSize().background(Background),
+                modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Network Error: ${state.message}", color = Word)
+                    Text("Network Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { viewModel.loadStories(10) }) {
+                    androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
                         Text("Retry")
                     }
                 }
@@ -324,12 +315,12 @@ private fun StoryPageFullBlock(
                     Text(
                         text = story.date,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Word,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = story.location,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
-                        color = Word,
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
@@ -341,12 +332,12 @@ private fun StoryPageFullBlock(
                         Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.6f)),
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)),
                 ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Favorite",
-                        tint = if (isFavorite) Button else Color.Gray,
+                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -361,7 +352,7 @@ private fun StoryPageFullBlock(
                         .fillMaxWidth()
                         .weight(1f) // 남는 공간을 모두 차지
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Temp_word),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
                 AsyncImage(
@@ -402,6 +393,10 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
         label = "scrollbounce",
     )
 
+    // Capture color scheme values in composable scope
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+
     Column(
         modifier = modifier.offset(y = offsetY.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -409,13 +404,13 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
         Icon(
             imageVector = Icons.Default.KeyboardArrowUp,
             contentDescription = null,
-            tint = Color.Black.copy(alpha = 0.4f),
+            tint = onSurfaceColor.copy(alpha = 0.4f),
             modifier =
                 Modifier
                     .size(24.dp)
                     .drawBehind {
                         drawCircle(
-                            color = Color.White.copy(alpha = 0.5f), // 빛 색상
+                            color = surfaceColor.copy(alpha = 0.5f), // 빛 색상
                             radius = this.size.maxDimension / 1.8f, // 번짐 크기
                             center = this.center,
                         )
@@ -423,12 +418,12 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
         )
         Text(
             text = "스크롤하여 다음 추억",
-            color = Color.Black,
+            color = onSurfaceColor,
             style =
                 MaterialTheme.typography.bodySmall.copy(
                     shadow =
                         androidx.compose.ui.graphics.Shadow(
-                            color = Color.White, // 그림자(빛) 색상
+                            color = surfaceColor, // 그림자(빛) 색상
                             offset = Offset(0f, 0f), // 중심에서 얼마나 이동시킬지
                             blurRadius = 12f, // 얼마나 번지게 할지
                         ),
@@ -447,24 +442,16 @@ internal fun TagSelectionCard(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val borderColor = Pink80
-
     Card(
         modifier =
             modifier
                 .fillMaxWidth()
-                .wrapContentHeight()
-                .shadow(
-                    elevation = 16.dp,
-                    shape = RoundedCornerShape(20.dp),
-                    clip = false,
-                ),
+                .wrapContentHeight(),
         shape = RoundedCornerShape(20.dp),
         colors =
             CardDefaults.cardColors(
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
             ),
-        border = BorderStroke(1.dp, borderColor),
     ) {
         Column(
             modifier =
@@ -474,8 +461,8 @@ internal fun TagSelectionCard(
             // TODO : 이 추억을 어떻게 기억하고 싶나요? 이거 남겨두는게 나을지,, 아니면 첫번재만 보여줄지...난 남겨두는 것도 괜찮다고 생각됨.
             Text(
                 text = "이 추억을 어떻게 기억하고 싶나요?",
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = Color(0xFF444444),
                 modifier = Modifier.padding(bottom = 12.dp),
             )
 
@@ -521,10 +508,10 @@ internal fun AddTagChip(onClick: () -> Unit) {
         modifier =
             Modifier
                 .clip(RoundedCornerShape(50))
-                .background(Color(0xFFF5F5F5))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .border(
                     width = 1.dp,
-                    color = Color(0xFFCCCCCC),
+                    color = MaterialTheme.colorScheme.outline,
                     shape = RoundedCornerShape(50),
                 ).clickable { onClick() }
                 .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -532,8 +519,8 @@ internal fun AddTagChip(onClick: () -> Unit) {
     ) {
         Text(
             text = "+",
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            color = Color(0xFF555555),
         )
     }
 }
@@ -544,20 +531,12 @@ internal fun GradientPillButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val gradientBrush =
-        Brush.horizontalGradient(
-            listOf(
-                Color(0xFFFF8A80),
-                Color(0xFFFF6F61),
-            ),
-        )
-
     val bgModifier =
         if (enabled) {
-            Modifier.background(gradientBrush, RoundedCornerShape(24.dp))
+            Modifier.background(MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp))
         } else {
             Modifier.background(
-                Color(0xFFFFCFCB),
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                 RoundedCornerShape(24.dp),
             )
         }
@@ -574,7 +553,7 @@ internal fun GradientPillButton(
     ) {
         Text(
             text = text,
-            color = Color.White,
+            color = if (enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             style = MaterialTheme.typography.labelLarge,
         )
     }
@@ -673,7 +652,7 @@ private fun StoryPageFullBlockPreviewContent(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Color.White),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         Column(
             modifier =
@@ -684,13 +663,13 @@ private fun StoryPageFullBlockPreviewContent(
         ) {
             Text(
                 text = date,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF8A8A8A),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.headlineMedium,
             )
             Text(
                 text = location,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.headlineMedium,
-                color = Color(0xFF000000),
                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )
 
@@ -701,7 +680,7 @@ private fun StoryPageFullBlockPreviewContent(
                         .fillMaxWidth()
 //                        .aspectRatio(3f / 4f)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFEDEDED)),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 androidx.compose.foundation.Image(
                     painter =

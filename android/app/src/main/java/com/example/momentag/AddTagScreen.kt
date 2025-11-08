@@ -56,7 +56,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -69,11 +68,6 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Semi_background
-import com.example.momentag.ui.theme.Temp_word
-import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AddTagViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -169,7 +163,7 @@ fun AddTagScreen(navController: NavController) {
                     addTagViewModel.clearDraft()
                     navController.popBackStack()
                 },
-                modifier = Modifier.background(Background),
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface),
             )
         },
         bottomBar = {
@@ -202,7 +196,7 @@ fun AddTagScreen(navController: NavController) {
                 },
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Column(
             modifier =
@@ -276,8 +270,8 @@ fun AddTagScreen(navController: NavController) {
                         shape = RoundedCornerShape(15.dp),
                         colors =
                             ButtonDefaults.buttonColors(
-                                containerColor = Button,
-                                contentColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
                         modifier = Modifier.align(Alignment.End),
                         contentPadding = PaddingValues(horizontal = 32.dp),
@@ -304,8 +298,8 @@ private fun TagNameSection(
     Column {
         Text(
             text = "New tag name",
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.headlineLarge,
-            color = Word,
         )
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -315,13 +309,13 @@ private fun TagNameSection(
             modifier = Modifier.fillMaxWidth(),
             textStyle = MaterialTheme.typography.headlineLarge,
             placeholder = { Text("태그 입력") },
-            leadingIcon = { Text("#", style = MaterialTheme.typography.headlineLarge, color = Word) },
+            leadingIcon = { Text("#", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface) },
             colors =
                 TextFieldDefaults.colors(
-                    focusedContainerColor = Background,
-                    unfocusedContainerColor = Background,
-                    focusedIndicatorColor = Word,
-                    unfocusedIndicatorColor = Temp_word,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             singleLine = true,
         )
@@ -344,15 +338,15 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
             modifier =
                 Modifier
                     .clip(CircleShape)
-                    .background(Button)
+                    .background(MaterialTheme.colorScheme.primary)
                     .padding(2.dp),
-            tint = Word,
+            tint = MaterialTheme.colorScheme.onPrimary,
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Select Pictures",
             style = MaterialTheme.typography.headlineLarge,
-            color = Word,
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -367,7 +361,7 @@ private fun SelectedPhotosSection(
             Modifier
                 .fillMaxWidth()
                 .height(120.dp)
-                .background(Semi_background),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
         horizontalArrangement = Arrangement.spacedBy(21.dp),
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
@@ -392,7 +386,7 @@ private fun RecommendedPicturesSection(
         Text(
             text = "Recommended Pictures",
             style = MaterialTheme.typography.headlineLarge,
-            color = Word,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(11.dp))
         LazyVerticalGrid(
@@ -424,7 +418,7 @@ fun PhotoCheckedItem(
         modifier =
             modifier
                 .clip(RoundedCornerShape(16.dp))
-                .background(Semi_background)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(onClick = onClick),
     ) {
         AsyncImage(
@@ -451,14 +445,14 @@ private fun CheckboxOverlay(
                 .padding(8.dp)
                 .size(24.dp)
                 .clip(RoundedCornerShape(4.dp))
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
         contentAlignment = Alignment.Center,
     ) {
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Selected",
-                tint = Word,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(16.dp),
             )
         }

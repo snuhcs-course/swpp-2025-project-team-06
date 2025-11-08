@@ -38,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -48,10 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.RegisterState
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Blue_word
-import com.example.momentag.ui.theme.TagColor
-import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -148,8 +143,8 @@ fun RegisterScreen(navController: NavController) {
                             Brush.verticalGradient(
                                 colorStops =
                                     arrayOf(
-                                        0.5f to Background,
-                                        1.0f to TagColor.copy(alpha = 0.7f),
+                                        0.5f to MaterialTheme.colorScheme.surface,
+                                        1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                                     ),
                             ),
                     ).padding(paddingValues)
@@ -184,7 +179,7 @@ fun RegisterScreen(navController: NavController) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Already have an account? ", color = Color.Gray)
+                    Text("Already have an account? ", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         text = "Login",
                         modifier =
@@ -193,14 +188,14 @@ fun RegisterScreen(navController: NavController) {
                                     popUpTo(Screen.Register.route) { inclusive = true }
                                 }
                             },
-                        style = TextStyle(color = Blue_word, fontWeight = FontWeight.Bold),
+                        style = TextStyle(color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold),
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // email input
-                Text(text = "Email", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                Text(text = "Email", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -229,19 +224,19 @@ fun RegisterScreen(navController: NavController) {
                             isEmailError = false
                         }
                     },
-                    placeholder = { Text("Email", color = Temp_word) },
+                    placeholder = { Text("Email", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     isError = isEmailError || (emailTouched && email.isNotEmpty() && !isValidEmail(email)),
                     colors =
                         OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            errorBorderColor = Color.Red,
-                            errorContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
                 Box(
@@ -254,20 +249,20 @@ fun RegisterScreen(navController: NavController) {
                     if (isEmailError && email.isEmpty()) {
                         Text(
                             text = "Please enter your email",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     } else if (emailTouched && email.isNotEmpty() && !isValidEmail(email)) {
                         Text(
                             text = "Please enter a valid email address",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
 
                 // username input
-                Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -296,19 +291,19 @@ fun RegisterScreen(navController: NavController) {
                             isUsernameError = false
                         }
                     },
-                    placeholder = { Text("Username", color = Temp_word) },
+                    placeholder = { Text("Username", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     isError = isUsernameError,
                     colors =
                         OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            errorBorderColor = Color.Red,
-                            errorContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
                 Box(
@@ -321,14 +316,14 @@ fun RegisterScreen(navController: NavController) {
                     if (isUsernameError && username.isEmpty()) {
                         Text(
                             text = "Please enter your username",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
 
                 // password input
-                Text(text = "Password", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                Text(text = "Password", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -357,7 +352,7 @@ fun RegisterScreen(navController: NavController) {
                             isPasswordError = false
                         }
                     },
-                    placeholder = { Text("Password", color = Temp_word) },
+                    placeholder = { Text("Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -371,13 +366,13 @@ fun RegisterScreen(navController: NavController) {
                     isError = isPasswordError,
                     colors =
                         OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            errorBorderColor = Color.Red,
-                            errorContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
                 Box(
@@ -390,14 +385,14 @@ fun RegisterScreen(navController: NavController) {
                     if (isPasswordError && password.isEmpty()) {
                         Text(
                             text = "Please enter your password",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
 
                 // password check input
-                Text(text = "Password Check", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                Text(text = "Password Check", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -426,7 +421,7 @@ fun RegisterScreen(navController: NavController) {
                             isPasswordCheckError = false
                         }
                     },
-                    placeholder = { Text("Password Check", color = Temp_word) },
+                    placeholder = { Text("Password Check", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     visualTransformation = if (passwordCheckVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -440,13 +435,13 @@ fun RegisterScreen(navController: NavController) {
                     isError = isPasswordCheckError || (passwordCheck.isNotEmpty() && password != passwordCheck),
                     colors =
                         OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            errorBorderColor = Color.Red,
-                            errorContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
                 Box(
@@ -460,19 +455,19 @@ fun RegisterScreen(navController: NavController) {
                     if (serverErr != null) {
                         Text(
                             text = serverErr,
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     } else if (isPasswordCheckError && passwordCheck.isEmpty()) {
                         Text(
                             text = "Please check your password",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     } else if (passwordCheck.isNotEmpty() && password != passwordCheck) {
                         Text(
                             text = "Password does not match",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -506,8 +501,8 @@ fun RegisterScreen(navController: NavController) {
                     shape = RoundedCornerShape(12.dp),
                     colors =
                         ButtonDefaults.buttonColors(
-                            containerColor = com.example.momentag.ui.theme.Button,
-                            contentColor = Color.White,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
                 ) {
                     Text(text = "Register", style = MaterialTheme.typography.headlineMedium)

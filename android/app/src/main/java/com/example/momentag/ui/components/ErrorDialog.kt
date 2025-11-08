@@ -27,7 +27,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.momentag.ui.theme.Background
 
 /**
  * 재사용 가능한 에러 다이얼로그 컴포넌트
@@ -73,7 +72,7 @@ fun errorDialog(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
             )
 
             // 에러 다이얼로그 카드
@@ -85,7 +84,7 @@ fun errorDialog(
                 shape = RoundedCornerShape(16.dp),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = Color.White,
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
             ) {
@@ -99,16 +98,16 @@ fun errorDialog(
                     // 제목
                     Text(
                         text = title,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
-                        color = Color.Black,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
                     // 에러 메시지
                     Text(
                         text = errorMessage,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp),
                     )
@@ -118,8 +117,8 @@ fun errorDialog(
                         onClick = onRetry,
                         colors =
                             ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color(0xFFE57373),
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.error,
                             ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
@@ -166,7 +165,7 @@ fun ErrorOverlay(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f)),
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f)),
         )
 
         // 에러 다이얼로그 카드
@@ -178,7 +177,7 @@ fun ErrorOverlay(
             shape = RoundedCornerShape(16.dp),
             colors =
                 CardDefaults.cardColors(
-                    containerColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
                 ),
             elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
         ) {
@@ -195,16 +194,16 @@ fun ErrorOverlay(
                     // 제목
                     Text(
                         text = title,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
-                        color = Color.Black,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
                     // 에러 메시지
                     Text(
                         text = errorMessage,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp),
                     )
@@ -260,7 +259,7 @@ private fun previewErrorDialog() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         errorDialog(
             errorMessage = "Network Error!\nPlease check your internet connection.",
@@ -276,7 +275,7 @@ private fun previewErrorDialogCustomText() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         errorDialog(
             errorMessage = "서버 연결에 실패했습니다.\n잠시 후 다시 시도해주세요.",
@@ -294,7 +293,7 @@ private fun previewErrorOverlay() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         // 뒤 배경 콘텐츠
         Column(

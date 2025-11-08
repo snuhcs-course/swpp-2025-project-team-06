@@ -40,7 +40,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -57,7 +56,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -70,9 +68,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.BackTopBar
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Purple80
 import com.example.momentag.viewmodel.AlbumViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -204,7 +199,7 @@ fun AlbumScreen(
     }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             BackTopBar(
                 title = "MomenTag",
@@ -261,9 +256,7 @@ fun AlbumScreen(
                                     isFocused = focusState.isFocused
                                 },
                         textStyle =
-                            MaterialTheme.typography.displayMedium.copy(
-                                color = LocalContentColor.current,
-                            ),
+                            MaterialTheme.typography.displayMedium,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions =
                             KeyboardActions(
@@ -285,13 +278,13 @@ fun AlbumScreen(
                                 modifier =
                                     Modifier
                                         .size(24.dp)
-                                        .background(Color.Gray.copy(alpha = 0.5f), shape = CircleShape),
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = CircleShape),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Clear text",
-                                    tint = Color.Black.copy(alpha = 0.7f),
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                     modifier = Modifier.size(16.dp),
                                 )
                             }
@@ -300,7 +293,7 @@ fun AlbumScreen(
                 }
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-                    color = Color.Black.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 )
 
                 if (!hasPermission) {
@@ -418,7 +411,7 @@ private fun AlbumContent(
                             val newOffset = recommendOffsetY + dragAmount
                             recommendOffsetY = newOffset.coerceIn(minOffset, maxOffset)
                         }
-                    }.background(Background, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    }.background(MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .padding(16.dp),
         ) {
             Column {
@@ -428,7 +421,7 @@ private fun AlbumContent(
                         Modifier
                             .width(40.dp)
                             .height(4.dp)
-                            .background(Color.Gray.copy(alpha = 0.4f), shape = CircleShape)
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), shape = CircleShape)
                             .align(Alignment.CenterHorizontally),
                 )
 
@@ -443,19 +436,19 @@ private fun AlbumContent(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier =
                             Modifier
-                                .background(Purple80, shape = RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(16.dp))
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = "AI",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "AI Recommend",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         )
                     }
@@ -475,9 +468,15 @@ private fun AlbumContent(
                                 ButtonDefaults.buttonColors(
                                     containerColor =
                                         if (isRecommendSelectionMode) {
-                                            Button
+                                            MaterialTheme.colorScheme.primaryContainer
                                         } else {
-                                            Color.LightGray
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                        },
+                                    contentColor =
+                                        if (isRecommendSelectionMode) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                                         },
                                 ),
                             shape = RoundedCornerShape(8.dp),
@@ -486,7 +485,6 @@ private fun AlbumContent(
                             Text(
                                 text = if (isRecommendSelectionMode) "취소" else "선택",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (isRecommendSelectionMode) Color.White else Color.Black,
                             )
                         }
                     }
@@ -506,7 +504,7 @@ private fun AlbumContent(
 
                         if (recommendPhotos.isEmpty()) {
                             Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                                Text("추천 사진이 없습니다.", color = Color.Gray)
+                                Text("추천 사진이 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         } else {
                             Column {
@@ -549,13 +547,13 @@ private fun AlbumContent(
                                             isRecommendSelectionMode = false
                                             onResetSelection()
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Button),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(12.dp),
                                     ) {
                                         Text(
                                             text = "Add to Album (${selectedRecommendPhotos.size})",
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onPrimary,
                                             style = MaterialTheme.typography.labelLarge,
                                             modifier = Modifier.padding(vertical = 4.dp),
                                         )
@@ -566,7 +564,7 @@ private fun AlbumContent(
                     }
                     is AlbumViewModel.RecommendLoadingState.Error -> {
                         Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                            Text("추천 사진을 불러오지 못했습니다.", color = Color.Gray)
+                            Text("추천 사진을 불러오지 못했습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     is AlbumViewModel.RecommendLoadingState.Idle -> {

@@ -43,7 +43,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -51,10 +50,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.ui.components.BackTopBar
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Picture
-import com.example.momentag.ui.theme.TagColor
-import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -124,7 +119,7 @@ fun LocalGalleryScreen(
     val albumSet by localViewModel.albums.collectAsState()
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             BackTopBar(
                 title = "MomenTag",
@@ -195,7 +190,7 @@ fun LocalGalleryScreen(
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-                    color = Color.Black.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 )
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -280,7 +275,7 @@ fun albumGridItem(
                         .padding(top = 12.dp)
                         .aspectRatio(1f)
                         .background(
-                            color = Picture,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(16.dp),
                         ).align(Alignment.BottomCenter),
             )
@@ -288,14 +283,14 @@ fun albumGridItem(
 
         Text(
             text = albumName,
-            color = Word,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodySmall,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
                     .padding(start = 8.dp)
                     .background(
-                        color = TagColor,
+                        color = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(8.dp),
                     ).padding(horizontal = 8.dp, vertical = 4.dp),
         )

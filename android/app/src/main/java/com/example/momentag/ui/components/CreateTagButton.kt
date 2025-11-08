@@ -13,7 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.momentag.ui.theme.Button as ButtonColor
 
 /**
  * 📦 CreateTagButton — Home / Gallery 등에서 공용으로 쓰는 버튼
@@ -22,7 +21,6 @@ import com.example.momentag.ui.theme.Button as ButtonColor
  * @param modifier 위치 및 여백용 Modifier
  * @param onClick 클릭 시 동작 (화면별로 다르게 주입)
  */
-@Suppress("ktlint:standard:function-naming")
 @Composable
 fun CreateTagButton(
     modifier: Modifier = Modifier,
@@ -35,7 +33,7 @@ fun CreateTagButton(
         enabled = enabled,
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = ButtonColor),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
     ) {
         Icon(
             imageVector = Icons.Default.AddCircle,
@@ -43,6 +41,6 @@ fun CreateTagButton(
             modifier = Modifier.width(20.dp),
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = text, style = MaterialTheme.typography.labelLarge)
+        Text(text = text, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge)
     }
 }
