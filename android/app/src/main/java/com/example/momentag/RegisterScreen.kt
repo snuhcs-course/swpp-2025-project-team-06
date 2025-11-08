@@ -149,7 +149,6 @@ fun RegisterScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .imePadding()
                     .background(
                         brush =
                             Brush.verticalGradient(
@@ -160,7 +159,8 @@ fun RegisterScreen(navController: NavController) {
                                     ),
                             ),
                     ).padding(paddingValues)
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = 24.dp)
+                    .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(24.dp))
