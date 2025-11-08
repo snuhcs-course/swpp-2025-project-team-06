@@ -474,6 +474,63 @@ def is_valid_uuid(uuid_to_test):
 
 
 @shared_task
+def generate_stories_task(user_id: int, size: int):
+    """
+    백그라운드에서 스토리 생성 및 Redis 저장 (Celery 비동기 처리)
+    
+    Args:
+        user_id: 사용자 ID
+        size: 생성할 스토리 개수
+    """
+    from django.db.models import Exists, OuterRef
+    from config.redis import get_redis
+    import json
+    
+    print(f"[Task Start] Story generation for User: {user_id}, Size: {size}")
+    
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # 태그 없는 사진 랜덤 조회
+        has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=user)
+        photos_queryset = (
+            Photo.objects.filter(user=user)
+            .exclude(Exists(has_tags))
+            .order_by("?")[:size]
+        )
+        
+        # 배치 처리로 병렬 태그 추천
+        photo_ids = [str(photo.photo_id) for photo in photos_queryset]
+        photo_dict = {str(photo.photo_id): photo for photo in photos_queryset}
+        
+        tag_rec_batch = tag_recommendation_batch(user, photo_ids)
+        
+        story_data = []
+        for photo_id, tag_list in tag_rec_batch.items():
+            photo = photo_dict[photo_id]
+            tags = [
+                {
+                    "tag_id": str(t.tag_id),
+                    "tag": t.tag,
+                } for t in tag_list
+            ]
+            story_data.append({
+                "photo_id": photo_id,
+                "photo_path_id": photo.photo_path_id,
+                "tags": tags,
+            })
+        
+        # Redis에 저장
+        r = get_redis()
+        r.set(user_id, json.dumps(story_data))
+        
+        print(f"[Task Success] Story generation completed for User: {user_id}, Generated: {len(story_data)} stories")
+        
+    except Exception as e:
+        print(f"[Task Exception] Story generation failed for User {user_id}: {str(e)}")
+
+
+@shared_task
 def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
     client = get_qdrant_client()
     K_CLUSTERS = 3  # 기본 코드의 k = 3

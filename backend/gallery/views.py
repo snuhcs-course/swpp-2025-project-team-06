@@ -38,6 +38,7 @@ from .tasks import (
     recommend_photo_from_tag,
     recommend_photo_from_photo,
     compute_and_store_rep_vectors,
+    generate_stories_task,
 )
 from .gpu_tasks import (
     process_and_embed_photos_batch,  # GPU-dependent task (batch)
@@ -1086,7 +1087,8 @@ class StoryView(APIView):
         operation_description="Generate and save stories into redis",
         request_body=None,
         responses={
-            200: openapi.Response(description="Success", schema=ResStorySerializer()),
+            202: openapi.Response(description="Accepted - Story generation started"),
+            400: openapi.Response(description="Bad Request - Invalid size parameter"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
@@ -1123,40 +1125,13 @@ class StoryView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             
-            # 랜덤 정렬로 매번 다른 순서 보장
-            # Filter photos that don't have any Photo_Tag relations
-            has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=request.user)
-            photos_queryset = (
-                Photo.objects.filter(user=request.user)
-                .exclude(Exists(has_tags))
-                .order_by("?")[:size]
-            )  # 랜덤 정렬 + 슬라이싱
+            # Celery 백그라운드 작업으로 위임
+            generate_stories_task.delay(request.user.id, size)
 
-            # 배치 처리로 병렬 태그 추천
-            photo_ids = [str(photo.photo_id) for photo in photos_queryset]
-            photo_dict = {str(photo.photo_id): photo for photo in photos_queryset}
-            
-            tag_rec_batch = tag_recommendation_batch(request.user, photo_ids)
-            
-            story_data = []
-            for photo_id, tag_list in tag_rec_batch.items():
-                photo = photo_dict[photo_id]
-                tags = [
-                    {
-                        "tag_id": str(t.tag_id),
-                        "tag": t.tag,
-                    } for t in tag_list
-                ]
-                story_data.append({
-                    "photo_id": photo_id,
-                    "photo_path_id": photo.photo_path_id,
-                    "tags": tags,
-                })
-            
-            r = get_redis()
-            r.set(request.user.id, json.dumps(story_data))
-
-            return Response({}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "Story generation started"},
+                status=status.HTTP_202_ACCEPTED
+            )
 
         except Exception as e:
             return Response(
