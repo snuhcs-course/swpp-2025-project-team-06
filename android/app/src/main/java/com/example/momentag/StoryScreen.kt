@@ -13,6 +13,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,6 +62,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
@@ -312,8 +314,17 @@ private fun StoryPageFullBlock(
     story: StoryModel,
     showScrollHint: Boolean,
 ) {
+    var isScrollHintVisible by remember { mutableStateOf(showScrollHint) }
+
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        isScrollHintVisible = false
+                    }
+                },
     ) {
         Column(
             modifier =
@@ -386,7 +397,7 @@ private fun StoryPageFullBlock(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        if (showScrollHint) {
+        if (isScrollHintVisible) {
             ScrollHintOverlay(
                 modifier =
                     Modifier
