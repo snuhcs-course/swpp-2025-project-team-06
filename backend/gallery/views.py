@@ -1,5 +1,5 @@
 import uuid
-from django.db.models import Exists, OuterRef, Count, Subquery
+from django.db.models import Exists, OuterRef, Count, Subquery, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -794,7 +794,7 @@ class TagView(APIView):
             tags = Tag.objects.filter(
                 user=request.user
             ).annotate(
-                photo_count=Count('photo_tag', filter=models.Q(photo_tag__user=request.user)),
+                photo_count=Count('photo_tag', filter=Q(user=request.user)),
                 thumbnail_path_id=Subquery(latest_photo_subquery.values("photo__photo_path_id")[:1])
             )
 

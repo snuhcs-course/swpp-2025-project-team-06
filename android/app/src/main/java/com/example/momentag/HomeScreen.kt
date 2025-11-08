@@ -1057,7 +1057,7 @@ private fun SortOptionsSheet(
         )
         SortOptionItem(
             text = "항목 많은 순",
-            icon = Icons.Default.ArrowDownward,
+            icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
             onClick = { onOrderChange(TagSortOrder.COUNT_DESC) }
         )
