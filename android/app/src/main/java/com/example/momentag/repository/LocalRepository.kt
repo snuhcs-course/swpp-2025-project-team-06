@@ -381,10 +381,11 @@ class LocalRepository(
 
     fun getImagesForAlbum(albumId: Long): List<Photo> {
         val images = mutableListOf<Photo>()
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DATE_TAKEN
-        )
+        val projection =
+            arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DATE_TAKEN,
+            )
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
         val selectionArgs = arrayOf(albumId.toString())
         val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
@@ -407,19 +408,22 @@ class LocalRepository(
                             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                             id,
                         )
-                    val createdAt = try {
-                        val date = Date(dateValue)
-                        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                        sdf.timeZone = TimeZone.getTimeZone("UTC")
-                        sdf.format(date)
-                    } catch (e: Exception) {
-                        ""
-                    }
-                    images.add(Photo(
-                        photoId = id.toString(),
-                        contentUri = contentUri,
-                        createdAt = createdAt
-                    ))
+                    val createdAt =
+                        try {
+                            val date = Date(dateValue)
+                            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                            sdf.timeZone = TimeZone.getTimeZone("UTC")
+                            sdf.format(date)
+                        } catch (e: Exception) {
+                            ""
+                        }
+                    images.add(
+                        Photo(
+                            photoId = id.toString(),
+                            contentUri = contentUri,
+                            createdAt = createdAt,
+                        ),
+                    )
                 }
             }
         return images

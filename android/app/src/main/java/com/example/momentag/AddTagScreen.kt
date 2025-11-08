@@ -259,6 +259,7 @@ fun AddTagScreen(navController: NavController) {
                             onActionClick = {
                                 addTagViewModel.saveTagAndPhotos()
                             },
+                            backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }

@@ -129,6 +129,14 @@ fun HomeScreen(navController: NavController) {
     val groupedPhotos by homeViewModel.groupedPhotos.collectAsState()
     val allPhotos by homeViewModel.allPhotos.collectAsState()
 
+    var isUploadBannerDismissed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.isLoading) {
+        if (uiState.isLoading) {
+            isUploadBannerDismissed = false
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (shouldReturnToAllPhotos) {
             showAllPhotos = true
@@ -552,9 +560,10 @@ fun HomeScreen(navController: NavController) {
                 }
                 if (showAllPhotos && isLoadingMorePhotos) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
@@ -563,7 +572,7 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
                 }
-                AnimatedVisibility(visible = uiState.isLoading) {
+                AnimatedVisibility(visible = uiState.isLoading && !isUploadBannerDismissed) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
                         WarningBanner(
@@ -571,8 +580,12 @@ fun HomeScreen(navController: NavController) {
                             message = "사진을 백그라운드에서 업로드하고 있습니다.",
                             onActionClick = { },
                             showActionButton = false,
-                            backgroundColor = MaterialTheme.colorScheme.primaryContainer,
-                            icon = Icons.Default.Upload
+                            backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
+                            icon = Icons.Default.Upload,
+                            showDismissButton = true,
+                            onDismiss = {
+                                isUploadBannerDismissed = true
+                            },
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -665,7 +678,7 @@ private fun MainContent(
     onItemSelectionToggle: (String) -> Unit,
     homeViewModel: HomeViewModel? = null,
     lazyGridState: LazyGridState? = null,
-    isLoadingMorePhotos: Boolean = false
+    isLoadingMorePhotos: Boolean = false,
 ) {
     when {
         onlyTag -> {
@@ -697,21 +710,22 @@ private fun MainContent(
                 groupedPhotos.forEach { group ->
                     item(
                         key = group.date,
-                        span = { GridItemSpan(3) }
+                        span = { GridItemSpan(3) },
                     ) {
                         Text(
                             text = group.date,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .padding(top = 16.dp, bottom = 8.dp)
+                            modifier =
+                                Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .padding(top = 16.dp, bottom = 8.dp),
                         )
                     }
 
                     items(
                         items = group.photos,
-                        key = { photo -> photo.photoId }
+                        key = { photo -> photo.photoId },
                     ) { photo ->
                         val isSelected = selectedItems.contains(photo.photoId)
 
@@ -755,9 +769,13 @@ private fun MainContent(
                                         Modifier
                                             .fillMaxSize()
                                             .background(
-                                                if (isSelected) MaterialTheme.colorScheme.onSurface.copy(
-                                                    alpha = 0.3f
-                                                ) else Color.Transparent,
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.onSurface.copy(
+                                                        alpha = 0.3f,
+                                                    )
+                                                } else {
+                                                    Color.Transparent
+                                                },
                                             ),
                                 )
 
@@ -795,11 +813,13 @@ private fun MainContent(
 
                     // 로딩 인디케이터
                     if (isLoadingMorePhotos) {
-                        item(span = { GridItemSpan(3) }) { // 3칸 모두 차지
+                        item(span = { GridItemSpan(3) }) {
+                            // 3칸 모두 차지
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 CircularProgressIndicator(
@@ -836,7 +856,6 @@ private fun MainContent(
         }
     }
 }
-
 
 private fun requiredImagePermission(): String =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -955,4 +974,3 @@ fun TagGridItem(
         }
     }
 }
-

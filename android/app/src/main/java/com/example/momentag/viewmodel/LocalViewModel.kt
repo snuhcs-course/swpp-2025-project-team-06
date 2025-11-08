@@ -87,7 +87,7 @@ class LocalViewModel(
                 Photo(
                     photoId = uri.lastPathSegment ?: uri.toString(),
                     contentUri = uri,
-                    createdAt = ""
+                    createdAt = "",
                 )
             }
         imageBrowserRepository.setTagAlbum(photos, tagName)
@@ -114,7 +114,7 @@ class LocalViewModel(
                 Photo(
                     photoId = uri.lastPathSegment ?: uri.toString(),
                     contentUri = uri,
-                    createdAt = ""
+                    createdAt = "",
                 )
             }
         imageBrowserRepository.setGallery(photos)

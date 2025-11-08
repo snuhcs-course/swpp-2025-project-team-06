@@ -51,7 +51,7 @@ data class PhotoResponse(
 data class Photo(
     val photoId: String,
     val contentUri: Uri,
-    val createdAt: String
+    val createdAt: String,
 )
 
 data class Photos(

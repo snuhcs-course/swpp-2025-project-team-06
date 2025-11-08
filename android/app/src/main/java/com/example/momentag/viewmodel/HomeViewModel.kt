@@ -1,6 +1,5 @@
 package com.example.momentag.viewmodel
 
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
@@ -13,13 +12,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.time.ZoneId
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
 
 data class DatedPhotoGroup(
     val date: String,
-    val photos: List<Photo>
+    val photos: List<Photo>,
 )
 
 class HomeViewModel(
@@ -80,7 +76,6 @@ class HomeViewModel(
         _shouldReturnToAllPhotos.value = value
     }
 
-
     private var currentOffset = 0
     private val pageSize = 66
     private var hasMorePhotos = true
@@ -93,24 +88,24 @@ class HomeViewModel(
         draftTagRepository.clear()
     }
 
-    private fun formatISODate(isoDate: String): String {
-        return try {
+    private fun formatISODate(isoDate: String): String =
+        try {
             val datePart = isoDate.substring(0, 10) // [수정 후] (YYYY-MM-DD 가정)
             datePart.replace('-', '.')
         } catch (e: Exception) {
             "Unknown Date"
         }
-    }
 
     private val _groupedPhotos = MutableStateFlow<List<DatedPhotoGroup>>(emptyList())
     val groupedPhotos = _groupedPhotos.asStateFlow()
 
     private fun updateGroupedPhotos() {
-        val grouped = _allPhotos.value
-            .groupBy { formatISODate(it.createdAt) }
-            .map { (date, photos) ->
-                DatedPhotoGroup(date, photos)
-            }
+        val grouped =
+            _allPhotos.value
+                .groupBy { formatISODate(it.createdAt) }
+                .map { (date, photos) ->
+                    DatedPhotoGroup(date, photos)
+                }
         _groupedPhotos.value = grouped
 
         imageBrowserRepository.setGallery(_allPhotos.value)
