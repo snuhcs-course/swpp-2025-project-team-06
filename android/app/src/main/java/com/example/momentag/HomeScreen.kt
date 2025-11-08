@@ -151,6 +151,15 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
+    val bannerVisible = uiState.isLoading && !isUploadBannerDismissed
+
+    LaunchedEffect(bannerVisible) {
+        if (bannerVisible) {
+            kotlinx.coroutines.delay(5000)
+            isUploadBannerDismissed = true
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (shouldReturnToAllPhotos) {
             showAllPhotos = true
