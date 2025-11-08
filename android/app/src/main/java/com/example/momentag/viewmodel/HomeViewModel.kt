@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.time.ZonedDateTime
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -24,11 +23,11 @@ data class DatedPhotoGroup(
 )
 
 enum class TagSortOrder {
-    NAME_ASC,    // 이름 오름차순 (가나다)
-    NAME_DESC,   // 이름 내림차순
+    NAME_ASC, // 이름 오름차순 (가나다)
+    NAME_DESC, // 이름 내림차순
     CREATED_DESC, // 최근 추가 순 (기본값)
-    COUNT_ASC,   // 항목 적은 순
-    COUNT_DESC   // 항목 많은 순
+    COUNT_ASC, // 항목 적은 순
+    COUNT_DESC, // 항목 많은 순
 }
 
 class HomeViewModel(
@@ -67,6 +66,7 @@ class HomeViewModel(
     val sortOrder = _sortOrder.asStateFlow()
 
     private val _rawTagList = MutableStateFlow<List<TagItem>>(emptyList())
+    val rawTagList = _rawTagList.asStateFlow()
 
     private val _homeLoadingState = MutableStateFlow<HomeLoadingState>(HomeLoadingState.Idle)
     val homeLoadingState = _homeLoadingState.asStateFlow()
@@ -214,7 +214,7 @@ class HomeViewModel(
                                 tagId = tag.tagId,
                                 createdAt = tag.createdAt,
                                 updatedAt = tag.updatedAt,
-                                photoCount = tag.photoCount
+                                photoCount = tag.photoCount,
                             )
                         }
                     _rawTagList.value = tagItems
@@ -285,11 +285,12 @@ class HomeViewModel(
         fun parseDate(dateStr: String?): Date? {
             if (dateStr == null) return null
 
-            val formatStrings = listOf(
-                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
-                "yyyy-MM-dd'T'HH:mm:ss'Z'",
-                "yyyy-MM-dd'T'HH:mm:ss"
-            )
+            val formatStrings =
+                listOf(
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+                    "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                )
 
             for (format in formatStrings) {
                 try {
@@ -303,13 +304,14 @@ class HomeViewModel(
             return null
         }
 
-        val sortedList = when (_sortOrder.value) {
-            TagSortOrder.NAME_ASC -> currentList.sortedBy { it.tagName }
-            TagSortOrder.NAME_DESC -> currentList.sortedByDescending { it.tagName }
-            TagSortOrder.CREATED_DESC -> currentList.sortedByDescending { parseDate(it.createdAt) }
-            TagSortOrder.COUNT_ASC -> currentList.sortedBy { it.photoCount }
-            TagSortOrder.COUNT_DESC -> currentList.sortedByDescending { it.photoCount }
-        }
+        val sortedList =
+            when (_sortOrder.value) {
+                TagSortOrder.NAME_ASC -> currentList.sortedBy { it.tagName }
+                TagSortOrder.NAME_DESC -> currentList.sortedByDescending { it.tagName }
+                TagSortOrder.CREATED_DESC -> currentList.sortedByDescending { parseDate(it.createdAt) }
+                TagSortOrder.COUNT_ASC -> currentList.sortedBy { it.photoCount }
+                TagSortOrder.COUNT_DESC -> currentList.sortedByDescending { it.photoCount }
+            }
         _homeLoadingState.value = HomeLoadingState.Success(tags = sortedList)
     }
 

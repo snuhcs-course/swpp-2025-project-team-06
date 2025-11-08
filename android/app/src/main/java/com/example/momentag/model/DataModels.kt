@@ -24,7 +24,7 @@ data class TagResponse(
     @SerializedName("updated_at")
     val updatedAt: String?,
     @SerializedName("photo_count")
-    val photoCount: Int
+    val photoCount: Int,
 )
 
 data class TagItem(
@@ -33,7 +33,7 @@ data class TagItem(
     val tagId: String,
     val createdAt: String?,
     val updatedAt: String?,
-    val photoCount: Int
+    val photoCount: Int,
 )
 
 data class TagName(

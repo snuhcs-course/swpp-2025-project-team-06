@@ -59,13 +59,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -443,7 +443,7 @@ fun HomeScreen(navController: NavController) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // 7. "태그 앨범" 뷰일 때만 정렬 버튼 표시
                     if (!showAllPhotos) {
@@ -451,7 +451,7 @@ fun HomeScreen(navController: NavController) {
                             Icon(
                                 imageVector = Icons.Default.Sort,
                                 contentDescription = "Sort Tag Albums",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     } else {
@@ -639,7 +639,7 @@ fun HomeScreen(navController: NavController) {
                 onOrderChange = { newOrder ->
                     homeViewModel.setSortOrder(newOrder)
                     scope.launch { sheetState.hide() }
-                }
+                },
             )
         }
     }
@@ -1028,44 +1028,44 @@ fun TagGridItem(
 @Composable
 private fun SortOptionsSheet(
     currentOrder: TagSortOrder,
-    onOrderChange: (TagSortOrder) -> Unit
+    onOrderChange: (TagSortOrder) -> Unit,
 ) {
     Column(modifier = Modifier.padding(vertical = 16.dp)) {
         Text(
             "정렬 기준",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         SortOptionItem(
             text = "이름 (가나다순)",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.NAME_ASC,
-            onClick = { onOrderChange(TagSortOrder.NAME_ASC) }
+            onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
         )
         SortOptionItem(
             text = "이름 (가나다 역순)",
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.NAME_DESC,
-            onClick = { onOrderChange(TagSortOrder.NAME_DESC) }
+            onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
         )
         SortOptionItem(
             text = "최근 추가 순",
             icon = Icons.Default.FiberNew,
             isSelected = currentOrder == TagSortOrder.CREATED_DESC,
-            onClick = { onOrderChange(TagSortOrder.CREATED_DESC) }
+            onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
         )
         SortOptionItem(
             text = "항목 많은 순",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
-            onClick = { onOrderChange(TagSortOrder.COUNT_DESC) }
+            onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
         )
         SortOptionItem(
             text = "항목 적은 순",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.COUNT_ASC,
-            onClick = { onOrderChange(TagSortOrder.COUNT_ASC) }
+            onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
         )
     }
 }
@@ -1075,32 +1075,33 @@ private fun SortOptionItem(
     text: String,
     icon: ImageVector,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Selected",
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
     }
