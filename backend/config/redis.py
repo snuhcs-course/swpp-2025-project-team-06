@@ -11,6 +11,6 @@ def get_redis():
             port=settings.REDIS_PORT,
             password=settings.REDIS_PASSWORD,
             decode_responses=True,
-            db=1
+            db=0
         )
     return _redis
