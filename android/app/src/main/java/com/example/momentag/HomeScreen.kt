@@ -38,7 +38,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -53,6 +52,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -73,16 +73,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.LogoutState
-import com.example.momentag.model.Photo
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -90,9 +87,6 @@ import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchBar
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.theme.Picture
-import com.example.momentag.ui.theme.TagColor
-import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
 import com.example.momentag.viewmodel.HomeViewModel
@@ -241,8 +235,6 @@ fun HomeScreen(navController: NavController) {
                 onTitleClick = {
                     navController.navigate(Screen.LocalGallery.route)
                 },
-                titleFontFamily = FontFamily.Serif,
-                titleFontSize = 28,
                 showLogout = true,
                 onLogoutClick = { authViewModel.logout() },
                 isLogoutLoading = logoutState is LogoutState.Loading,
@@ -261,7 +253,7 @@ fun HomeScreen(navController: NavController) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Cancel",
-                                        tint = Color.Black,
+                                        tint = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(20.dp),
                                     )
                                 }
@@ -287,7 +279,7 @@ fun HomeScreen(navController: NavController) {
                                 Icon(
                                     imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Default.Edit,
                                     contentDescription = if (isSelectionMode) "Share" else "Edit",
-                                    tint = Color.Black,
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
@@ -306,12 +298,12 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         Text(
                             text = data.visuals.message,
-                            fontSize = 14.sp,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.bodyMedium,
                             modifier =
                                 Modifier
                                     .background(
-                                        Color.Black.copy(alpha = 0.8f),
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                         RoundedCornerShape(20.dp),
                                     ).padding(horizontal = 16.dp, vertical = 8.dp),
                         )
@@ -350,7 +342,7 @@ fun HomeScreen(navController: NavController) {
                 },
             )
         },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
             // 태그 앨범 뷰(!showAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
             if (showAllPhotos) {
@@ -412,14 +404,14 @@ fun HomeScreen(navController: NavController) {
                             Modifier
                                 .size(48.dp)
                                 .background(
-                                    color = Color(0xFFFBC4AB),
+                                    color = MaterialTheme.colorScheme.primary,
                                     shape = RoundedCornerShape(12.dp),
                                 ),
                     ) {
                         Icon(
                             imageVector = Icons.Default.FilterList,
                             contentDescription = "Filter",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                         )
                     }
                 }
@@ -567,7 +559,7 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(32.dp),
-                            color = Word,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -579,7 +571,7 @@ fun HomeScreen(navController: NavController) {
                             message = "사진을 백그라운드에서 업로드하고 있습니다.",
                             onActionClick = { },
                             showActionButton = false,
-                            backgroundColor = Color(0xFF2196F3),
+                            backgroundColor = MaterialTheme.colorScheme.primaryContainer,
                             icon = Icons.Default.Upload
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -605,7 +597,7 @@ private fun ViewToggle(
         Box(
             modifier =
                 Modifier
-                    .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(8.dp))
                     .padding(4.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -615,14 +607,21 @@ private fun ViewToggle(
                         Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (!onlyTag && !showAllPhotos) Color.Black else Color.Transparent,
+                                if (!onlyTag && !showAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, false) }
                             .padding(8.dp),
                 ) {
                     Icon(
                         Icons.Default.CollectionsBookmark,
                         contentDescription = "Tag Albums",
-                        tint = if (!onlyTag && !showAllPhotos) Color.White else Color.Gray,
+                        tint =
+                            if (!onlyTag &&
+                                !showAllPhotos
+                            ) {
+                                MaterialTheme.colorScheme.surface
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -632,14 +631,14 @@ private fun ViewToggle(
                         Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (showAllPhotos) Color.Black else Color.Transparent,
+                                if (showAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, true) }
                             .padding(8.dp),
                 ) {
                     Icon(
                         Icons.Default.Photo,
                         contentDescription = "All Photos",
-                        tint = if (showAllPhotos) Color.White else Color.Gray,
+                        tint = if (showAllPhotos) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -685,6 +684,7 @@ private fun MainContent(
                 }
             }
         }
+
         showAllPhotos -> {
             val listState = lazyGridState ?: rememberLazyGridState()
             LazyVerticalGrid(
@@ -701,9 +701,8 @@ private fun MainContent(
                     ) {
                         Text(
                             text = group.date,
-                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Word,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier
                                 .padding(horizontal = 4.dp)
                                 .padding(top = 16.dp, bottom = 8.dp)
@@ -756,7 +755,9 @@ private fun MainContent(
                                         Modifier
                                             .fillMaxSize()
                                             .background(
-                                                if (isSelected) Color.Black.copy(alpha = 0.3f) else Color.Transparent,
+                                                if (isSelected) MaterialTheme.colorScheme.onSurface.copy(
+                                                    alpha = 0.3f
+                                                ) else Color.Transparent,
                                             ),
                                 )
 
@@ -767,7 +768,14 @@ private fun MainContent(
                                             .padding(4.dp)
                                             .size(24.dp)
                                             .background(
-                                                if (isSelected) Color(0xFFFBC4AB) else Color.White.copy(alpha = 0.8f),
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.surface
+                                                        .copy(
+                                                            alpha = 0.8f,
+                                                        )
+                                                },
                                                 RoundedCornerShape(12.dp),
                                             ),
                                     contentAlignment = Alignment.Center,
@@ -776,7 +784,7 @@ private fun MainContent(
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
-                                            tint = Color.White,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                             modifier = Modifier.size(16.dp),
                                         )
                                     }
@@ -784,26 +792,28 @@ private fun MainContent(
                             }
                         }
                     }
-                }
-                if (isLoadingMorePhotos) {
-                    item(span = { GridItemSpan(3) }) { // 3칸 모두 차지
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
-                                color = Word,
-                            )
+
+                    // 로딩 인디케이터
+                    if (isLoadingMorePhotos) {
+                        item(span = { GridItemSpan(3) }) { // 3칸 모두 차지
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(32.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                     }
                 }
-
             }
         }
         else -> {
+            // Tag Albums Grid View
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = modifier,
@@ -826,6 +836,7 @@ private fun MainContent(
         }
     }
 }
+
 
 private fun requiredImagePermission(): String =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -889,7 +900,7 @@ fun TagGridItem(
                         .padding(top = 12.dp)
                         .aspectRatio(1f)
                         .background(
-                            color = Picture,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(16.dp),
                         ).align(Alignment.BottomCenter)
                         .combinedClickable(
@@ -911,14 +922,14 @@ fun TagGridItem(
 
         Text(
             text = tagName,
-            color = Word,
-            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            style = MaterialTheme.typography.bodySmall,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
                     .padding(start = 8.dp)
                     .background(
-                        color = TagColor,
+                        color = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(8.dp),
                     ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
@@ -931,16 +942,17 @@ fun TagGridItem(
                     Modifier
                         .align(Alignment.TopEnd)
                         .padding(top = 4.dp, end = 4.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), RoundedCornerShape(50))
                         .size(24.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = "Delete Tag",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.size(16.dp),
                 )
             }
         }
     }
 }
+

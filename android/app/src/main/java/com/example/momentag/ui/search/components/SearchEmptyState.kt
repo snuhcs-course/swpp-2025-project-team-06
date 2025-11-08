@@ -1,11 +1,11 @@
 package com.example.momentag.ui.search.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.example.momentag.ui.theme.Temp_word
 
 /**
  * 검색 결과 빈 상태 화면
@@ -24,7 +24,7 @@ fun SearchEmptyStateCustom(
     ) {
         Text(
             text = "\"$query\"에 대한 검색 결과가 없습니다.",
-            color = Temp_word,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -42,7 +42,7 @@ fun SearchIdleCustom(modifier: Modifier = Modifier) {
     ) {
         Text(
             text = "검색어를 입력해주세요.",
-            color = Temp_word,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -60,7 +60,7 @@ fun SearchErrorStateFallbackCustom(modifier: Modifier = Modifier) {
     ) {
         Text(
             text = "오류가 발생했습니다.",
-            color = Temp_word,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
