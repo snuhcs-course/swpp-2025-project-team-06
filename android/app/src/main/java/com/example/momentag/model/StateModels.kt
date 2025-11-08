@@ -116,3 +116,15 @@ sealed class PhotoTagState {
         val message: String,
     ) : PhotoTagState()
 }
+
+sealed class MyTagsUiState {
+    object Loading : MyTagsUiState()
+
+    data class Success(
+        val tags: List<TagCntData>,
+    ) : MyTagsUiState()
+
+    data class Error(
+        val message: String,
+    ) : MyTagsUiState()
+}

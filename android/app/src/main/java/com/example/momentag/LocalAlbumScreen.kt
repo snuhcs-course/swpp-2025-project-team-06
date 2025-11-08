@@ -56,7 +56,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -213,8 +212,7 @@ fun LocalAlbumScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = albumName,
-                    fontSize = 28.sp,
-                    fontFamily = Pretendard,
+                    style = MaterialTheme.typography.headlineMedium,
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),

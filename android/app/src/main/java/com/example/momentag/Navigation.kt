@@ -167,6 +167,13 @@ fun appNavigation() {
                 navController = navController,
             )
         }
+
+        composable(route = Screen.MyTags.route) {
+            MyTagsScreen(
+                navController = navController,
+            )
+        }
+
         // Story screen with ViewModel integration
         composable(
             route = Screen.Story.route,

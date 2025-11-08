@@ -19,6 +19,8 @@ data class TagResponse(
     val tagId: String,
     @SerializedName("thumbnail_path_id")
     val thumbnailPhotoPathId: Long?,
+    @SerializedName("photo_count")
+    val photoCount: Int? = null, // Backend에서 제공하는 경우 사용
 )
 
 data class TagItem(
@@ -35,6 +37,12 @@ data class TagName(
 data class TagId(
     @SerializedName("tag_id")
     val id: String,
+)
+
+data class TagCntData(
+    val tagId: String,
+    val tagName: String,
+    val count: Int,
 )
 
 data class PhotoDetailResponse(
