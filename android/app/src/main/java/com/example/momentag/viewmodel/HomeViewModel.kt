@@ -219,7 +219,6 @@ class HomeViewModel(
                         }
                     _rawTagList.value = tagItems
                     sortAndPublishTags()
-                    _homeLoadingState.value = HomeLoadingState.Success(tags = tagItems)
                 }
 
                 is RemoteRepository.Result.Error -> {
