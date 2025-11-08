@@ -30,6 +30,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,9 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -57,7 +56,6 @@ import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Picture
-import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -150,9 +148,7 @@ fun SelectImageScreen(navController: NavController) {
 
             Text(
                 text = "#$tagName",
-                fontSize = 21.sp,
-                fontFamily = Pretendard,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineLarge,
                 color = Word,
             )
             HorizontalDivider(
@@ -170,9 +166,7 @@ fun SelectImageScreen(navController: NavController) {
             ) {
                 Text(
                     text = "Choose more than 5 pictures",
-                    fontSize = 21.sp,
-                    fontFamily = Pretendard,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineLarge,
                     color = Word,
                     modifier = Modifier.align(Alignment.CenterStart),
                 )

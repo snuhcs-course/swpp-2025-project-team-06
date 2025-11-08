@@ -28,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
@@ -61,7 +61,6 @@ import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.Word
@@ -307,8 +306,7 @@ private fun SearchResultContent(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Search for Photo",
-                        fontSize = 18.sp,
-                        fontFamily = Pretendard,
+                        style = MaterialTheme.typography.headlineSmall,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
@@ -341,7 +339,7 @@ private fun SearchResultContent(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = if (isSelectionMode) "선택 모드" else "선택",
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                 }
@@ -401,7 +399,7 @@ private fun SearchResultContent(
 
                 Text(
                     text = "총 ${uiState.results.size}장",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = Temp_word,
                     modifier =
                         Modifier

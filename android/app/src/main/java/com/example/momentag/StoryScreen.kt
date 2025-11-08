@@ -68,11 +68,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
@@ -325,13 +323,12 @@ private fun StoryPageFullBlock(
                 ) {
                     Text(
                         text = story.date,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = Word,
                     )
                     Text(
                         text = story.location,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.headlineMedium,
                         color = Word,
                         modifier = Modifier.padding(top = 4.dp),
                     )
@@ -426,10 +423,9 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
         )
         Text(
             text = "스크롤하여 다음 추억",
-            fontSize = 12.sp,
             color = Color.Black,
             style =
-                TextStyle(
+                MaterialTheme.typography.bodySmall.copy(
                     shadow =
                         androidx.compose.ui.graphics.Shadow(
                             color = Color.White, // 그림자(빛) 색상
@@ -478,9 +474,8 @@ internal fun TagSelectionCard(
             // TODO : 이 추억을 어떻게 기억하고 싶나요? 이거 남겨두는게 나을지,, 아니면 첫번재만 보여줄지...난 남겨두는 것도 괜찮다고 생각됨.
             Text(
                 text = "이 추억을 어떻게 기억하고 싶나요?",
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 color = Color(0xFF444444),
-                fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(bottom = 12.dp),
             )
 
@@ -537,9 +532,8 @@ internal fun AddTagChip(onClick: () -> Unit) {
     ) {
         Text(
             text = "+",
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             color = Color(0xFF555555),
-            fontWeight = FontWeight.Medium,
         )
     }
 }
@@ -581,8 +575,7 @@ internal fun GradientPillButton(
         Text(
             text = text,
             color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelLarge,
         )
     }
 }
@@ -691,13 +684,12 @@ private fun StoryPageFullBlockPreviewContent(
         ) {
             Text(
                 text = date,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFF8A8A8A),
             )
             Text(
                 text = location,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.headlineMedium,
                 color = Color(0xFF000000),
                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )

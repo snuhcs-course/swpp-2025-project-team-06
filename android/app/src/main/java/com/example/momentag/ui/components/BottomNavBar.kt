@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Temp_word
 
@@ -118,9 +118,11 @@ private fun BottomNavItem(
         )
         Text(
             text = label,
-            fontSize = 10.sp,
+            style =
+                MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                ),
             color = tint,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
 }

@@ -49,14 +49,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.LoginState
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Blue_word
 import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.viewmodel.AuthViewModel
@@ -144,9 +142,7 @@ fun LoginScreen(navController: NavController) {
             // MomenTag title
             Text(
                 text = "MomenTag",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = Pretendard,
+                style = MaterialTheme.typography.displayLarge,
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -161,11 +157,7 @@ fun LoginScreen(navController: NavController) {
                 // Login title
                 Text(
                     text = "Login",
-                    style =
-                        TextStyle(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
+                    style = MaterialTheme.typography.displayLarge,
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -382,7 +374,7 @@ fun LoginScreen(navController: NavController) {
                         ),
                     border = BorderStroke(0.dp, Color.Transparent),
                 ) {
-                    Text("Log In", fontSize = 18.sp)
+                    Text("Log In", style = MaterialTheme.typography.headlineSmall)
                 }
             }
         }

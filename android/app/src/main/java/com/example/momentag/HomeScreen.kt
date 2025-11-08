@@ -47,6 +47,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -68,7 +69,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -81,7 +81,6 @@ import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchBar
 import com.example.momentag.ui.theme.Picture
-import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
 import com.example.momentag.viewmodel.AuthViewModel
@@ -217,8 +216,6 @@ fun HomeScreen(navController: NavController) {
                 onTitleClick = {
                     navController.navigate(Screen.LocalGallery.route)
                 },
-                titleFontFamily = Pretendard,
-                titleFontSize = 28,
                 showLogout = true,
                 onLogoutClick = { authViewModel.logout() },
                 isLogoutLoading = logoutState is LogoutState.Loading,
@@ -282,7 +279,7 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         Text(
                             text = data.visuals.message,
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = Color.White,
                             modifier =
                                 Modifier
@@ -850,7 +847,7 @@ fun TagGridItem(
         Text(
             text = tagName,
             color = Word,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
