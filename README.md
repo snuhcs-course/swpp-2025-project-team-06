@@ -96,10 +96,17 @@ docker-compose up -d
 # Run database migrations
 uv run manage.py migrate
 
-# Run local celery workers (terminal 1)
-uv run celery -A config worker -l info
+# === Multi-server setup ===
 
-# Run local backend server (terminal 2)
+# [CPU 서버] Run celery worker for CPU tasks (terminal 1)
+uv run celery -A config worker -Q cpu_tasks --loglevel=info --concurrency=4
+# Or use script: ./start_cpu_worker.sh
+
+# [GPU 서버] Run celery worker for GPU tasks (terminal 2)
+uv run celery -A config worker -Q gpu_tasks --loglevel=info --concurrency=2
+# Or use script: ./start_gpu_worker.sh
+
+# [CPU 서버] Run Django server (terminal 3)
 uv run manage.py runserver 0.0.0.0:8000
 ```
 
