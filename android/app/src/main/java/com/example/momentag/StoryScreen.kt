@@ -96,6 +96,8 @@ fun StoryTagSelectionScreen(
     val storyState by viewModel.storyState.collectAsState()
     val selectedTags by viewModel.selectedTags.collectAsState()
     val submissionStates by viewModel.submissionStates.collectAsState()
+    val viewedStories by viewModel.viewedStories.collectAsState()
+    val editModeStory by viewModel.editModeStory.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
     var currentTab by remember { mutableStateOf(BottomTab.StoryScreen) }
@@ -129,6 +131,9 @@ fun StoryTagSelectionScreen(
             val stories = state.stories
             val pagerState = rememberPagerState(pageCount = { stories.size })
 
+            // Track previous page to detect scroll direction
+            var previousPage by remember { mutableStateOf(0) }
+
             // Lazy-load tags for current page
             val currentPage = pagerState.currentPage
             LaunchedEffect(currentPage) {
@@ -136,6 +141,23 @@ fun StoryTagSelectionScreen(
                     val currentStory = stories[currentPage]
                     viewModel.loadTagsForStory(currentStory.id, currentStory.photoId)
                 }
+            }
+
+            // Handle scroll: mark as viewed when scrolling down, exit edit mode when scrolling
+            LaunchedEffect(currentPage) {
+                if (currentPage != previousPage) {
+                    // Exit edit mode for any story being edited
+                    editModeStory?.let { editingStoryId ->
+                        viewModel.exitEditMode(editingStoryId)
+                    }
+
+                    // Mark story as viewed when scrolling down (to next page)
+                    if (currentPage > previousPage && previousPage < stories.size) {
+                        val previousStory = stories[previousPage]
+                        viewModel.markStoryAsViewed(previousStory.id)
+                    }
+                }
+                previousPage = currentPage
             }
 
             // Detect when to load more stories (when approaching the last page)
@@ -180,6 +202,8 @@ fun StoryTagSelectionScreen(
                     val isFirstStory = page == 0
                     val selectedForThisStory = selectedTags[story.id] ?: emptySet()
                     val submissionState = submissionStates[story.id] ?: SubmissionState.Idle
+                    val isViewed = viewedStories.contains(story.id)
+                    val isEditMode = editModeStory == story.id
 
                     // 각 스토리 페이지
                     Box(
@@ -208,6 +232,8 @@ fun StoryTagSelectionScreen(
                                 tags = story.suggestedTags,
                                 selectedTags = selectedForThisStory,
                                 submissionState = submissionState,
+                                isViewed = isViewed,
+                                isEditMode = isEditMode,
                                 onTagToggle = { tag ->
                                     viewModel.toggleTag(story.id, tag)
                                 },
@@ -217,11 +243,18 @@ fun StoryTagSelectionScreen(
                                 onRetry = {
                                     viewModel.submitTagsForStory(story.id)
                                 },
+                                onEdit = {
+                                    viewModel.enterEditMode(story.id, story.photoId)
+                                },
                                 onSuccess = {
                                     // Auto-advance to next story after success animation
                                     coroutineScope.launch {
                                         // Brief delay to show checkmark
                                         delay(500)
+
+                                        // Clear edit mode and mark as viewed after showing checkmark
+                                        viewModel.clearEditMode()
+                                        viewModel.markStoryAsViewed(story.id)
 
                                         if (page < stories.lastIndex) {
                                             pagerState.animateScrollToPage(page + 1)
@@ -467,18 +500,25 @@ internal fun TagSelectionCard(
     tags: List<String>,
     selectedTags: Set<String>,
     submissionState: SubmissionState,
+    isViewed: Boolean,
+    isEditMode: Boolean,
     onTagToggle: (String) -> Unit,
     onDone: () -> Unit,
     onRetry: () -> Unit,
+    onEdit: () -> Unit,
     onSuccess: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Trigger auto-advance when submission succeeds
+    // Determine if in read-only mode (viewed but not editing)
+    val isReadOnly = isViewed && !isEditMode
+
+    // Trigger auto-advance when submission succeeds (both initial submission and edits)
     LaunchedEffect(submissionState) {
         if (submissionState is SubmissionState.Success) {
             onSuccess()
         }
     }
+
     Card(
         modifier =
             modifier
@@ -487,7 +527,12 @@ internal fun TagSelectionCard(
         shape = RoundedCornerShape(20.dp),
         colors =
             CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                containerColor =
+                    if (isReadOnly) {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainer
+                    },
             ),
     ) {
         Column(
@@ -495,10 +540,22 @@ internal fun TagSelectionCard(
                 Modifier
                     .padding(horizontal = 16.dp, vertical = 16.dp),
         ) {
-            // TODO : 이 추억을 어떻게 기억하고 싶나요? 이거 남겨두는게 나을지,, 아니면 첫번재만 보여줄지...난 남겨두는 것도 괜찮다고 생각됨.
+            // Show different text based on mode
             Text(
-                text = "이 추억을 어떻게 기억하고 싶나요?",
-                color = MaterialTheme.colorScheme.onSurface,
+                text =
+                    if (isReadOnly) {
+                        "이 추억에 붙인 태그"
+                    } else if (isEditMode) {
+                        "태그 수정하기"
+                    } else {
+                        "이 추억을 어떻게 기억하고 싶나요?"
+                    },
+                color =
+                    if (isReadOnly) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 modifier = Modifier.padding(bottom = 12.dp),
             )
@@ -510,25 +567,33 @@ internal fun TagSelectionCard(
                     val isAddChip =
                         (tagText == "+" || tagText == "＋" || tagText == "add")
 
-                    if (isAddChip) {
+                    if (isAddChip && !isReadOnly) {
                         AddTagChip(
                             onClick = {
                                 // TODO: 사용자 새 태그 추가
                             },
                         )
-                    } else {
+                    } else if (!isAddChip) {
                         val isSelected = selectedTags.contains(tagText)
 
                         StoryTagChip(
                             text = tagText,
                             isSelected = isSelected,
-                            onClick = { onTagToggle(tagText) },
+                            onClick = {
+                                if (!isReadOnly) {
+                                    onTagToggle(tagText)
+                                }
+                            },
+                            enabled = !isReadOnly,
                         )
                     }
                 }
             }
 
             val hasSelection = selectedTags.isNotEmpty()
+            // In edit mode, allow submitting even with no tags (to remove all tags)
+            // In initial submission, require at least one tag
+            val canSubmit = if (isEditMode) true else hasSelection
 
             // Show error message if submission failed
             if (submissionState is SubmissionState.Error) {
@@ -540,17 +605,27 @@ internal fun TagSelectionCard(
                 )
             }
 
-            GradientPillButton(
-                text = "Done",
-                enabled = hasSelection,
-                submissionState = submissionState,
-                onClick = {
-                    when (submissionState) {
-                        is SubmissionState.Error -> onRetry()
-                        else -> onDone()
-                    }
-                },
-            )
+            // Show Edit button in read-only mode, Done button otherwise
+            if (isReadOnly) {
+                GradientPillButton(
+                    text = "Edit",
+                    enabled = true,
+                    submissionState = SubmissionState.Idle,
+                    onClick = onEdit,
+                )
+            } else {
+                GradientPillButton(
+                    text = if (isEditMode) "Done" else "Done",
+                    enabled = canSubmit,
+                    submissionState = submissionState,
+                    onClick = {
+                        when (submissionState) {
+                            is SubmissionState.Error -> onRetry()
+                            else -> onDone()
+                        }
+                    },
+                )
+            }
         }
     }
 }
@@ -798,9 +873,12 @@ private fun StoryPageFullBlockPreviewContent(
                 tags = suggestedTags,
                 selectedTags = setOf("#카페", "#디저트"),
                 submissionState = SubmissionState.Idle,
+                isViewed = false,
+                isEditMode = false,
                 onTagToggle = {},
                 onDone = {},
                 onRetry = {},
+                onEdit = {},
                 onSuccess = {},
                 modifier = Modifier.fillMaxWidth(),
             )
