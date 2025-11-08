@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,7 +92,7 @@ fun ImageGridUriItem(
                     Modifier
                         .fillMaxSize()
                         .background(
-                            if (isSelected) Color.Black.copy(alpha = 0.3f) else Color.Transparent,
+                            if (isSelected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f) else Color.Transparent,
                         ),
             )
 
@@ -102,7 +103,7 @@ fun ImageGridUriItem(
                         .padding(4.dp)
                         .size(24.dp)
                         .background(
-                            if (isSelected) Color(0xFFFBC4AB) else Color.White.copy(alpha = 0.8f),
+                            if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                             RoundedCornerShape(12.dp),
                         ),
                 contentAlignment = Alignment.Center,
@@ -111,7 +112,7 @@ fun ImageGridUriItem(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(16.dp),
                     )
                 }

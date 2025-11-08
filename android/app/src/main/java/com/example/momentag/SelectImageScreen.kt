@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,20 +51,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Picture
-import com.example.momentag.ui.theme.Word
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.ui.theme.verticalArrangement
@@ -178,7 +171,7 @@ fun SelectImageScreen(navController: NavController) {
                         navController.popBackStack()
                     }
                 },
-                modifier = Modifier.background(Background),
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface),
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = true }) {
@@ -213,7 +206,7 @@ fun SelectImageScreen(navController: NavController) {
                 },
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Column(
             modifier =
@@ -226,26 +219,22 @@ fun SelectImageScreen(navController: NavController) {
 
             Text(
                 text = "#$tagName",
-                fontSize = 21.sp,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                color = Word,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineLarge,
             )
             HorizontalDivider(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
-                color = Word,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "Choose more than 5 pictures",
-                fontSize = 21.sp,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                color = Word,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineLarge,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -303,7 +292,7 @@ fun SelectImageScreen(navController: NavController) {
                                         Modifier
                                             .fillMaxSize()
                                             .background(
-                                                if (isSelected) Color.Black.copy(alpha = 0.3f) else Color.Transparent,
+                                                if (isSelected) MaterialTheme.colorScheme.scrim.copy(alpha = 0.3f) else Color.Transparent,
                                             ),
                                 )
 
@@ -315,7 +304,7 @@ fun SelectImageScreen(navController: NavController) {
                                             .size(24.dp)
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(
-                                                if (isSelected) Color(0xFFFBC4AB) else Color.White.copy(alpha = 0.8f),
+                                                if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                                             ),
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -323,7 +312,7 @@ fun SelectImageScreen(navController: NavController) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
-                                            tint = Color.White,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                             modifier = Modifier.size(16.dp),
                                         )
                                     }
@@ -347,7 +336,7 @@ fun SelectImageScreen(navController: NavController) {
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(32.dp),
-                                    color = Word,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -368,7 +357,7 @@ fun SelectImageScreen(navController: NavController) {
                                         .padding(top = 12.dp)
                                         .aspectRatio(1f)
                                         .background(
-                                            color = Picture,
+                                            color = MaterialTheme.colorScheme.surfaceVariant,
                                             shape = RoundedCornerShape(16.dp),
                                         ).align(Alignment.BottomCenter),
                             )
@@ -383,7 +372,7 @@ fun SelectImageScreen(navController: NavController) {
                         Modifier
                             .fillMaxWidth()
                             .padding(vertical = 16.dp),
-                    color = Word,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Button(
                     onClick = {
@@ -394,8 +383,8 @@ fun SelectImageScreen(navController: NavController) {
                     shape = RoundedCornerShape(15.dp),
                     colors =
                         ButtonDefaults.buttonColors(
-                            containerColor = Button,
-                            contentColor = Color.White,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
                     modifier = Modifier.align(Alignment.End),
                     contentPadding = PaddingValues(horizontal = 32.dp),

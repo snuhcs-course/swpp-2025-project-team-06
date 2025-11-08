@@ -30,6 +30,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,9 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
@@ -61,8 +60,6 @@ import com.example.momentag.ui.search.components.SearchEmptyStateCustom
 import com.example.momentag.ui.search.components.SearchErrorStateFallbackCustom
 import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SearchViewModel
@@ -289,7 +286,7 @@ fun SearchResultScreenUi(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = modifier,
-            containerColor = Background,
+            containerColor = MaterialTheme.colorScheme.surface,
             topBar = {
                 CommonTopBar(
                     title = "Search Results",
@@ -385,8 +382,7 @@ private fun SearchResultContent(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Search for Photo",
-                        fontSize = 18.sp,
-                        fontFamily = FontFamily.Serif,
+                        style = MaterialTheme.typography.headlineSmall,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
@@ -451,14 +447,14 @@ private fun SearchResultContent(
 
                 Text(
                     text = "총 ${uiState.results.size}장",
-                    fontSize = 14.sp,
-                    color = Temp_word,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
                     modifier =
                         Modifier
                             .align(Alignment.BottomStart)
                             .padding(end = 16.dp)
                             .background(
-                                color = Background.copy(alpha = 0.9f),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                                 shape = RoundedCornerShape(8.dp),
                             ).padding(horizontal = 12.dp, vertical = 6.dp),
                 )

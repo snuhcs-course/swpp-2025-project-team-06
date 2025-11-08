@@ -43,7 +43,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -59,24 +59,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.CommonTopBar
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Purple80
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.AlbumViewModel
@@ -220,7 +214,7 @@ fun AlbumScreen(
     }
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             CommonTopBar(
                 title = "MomenTag",
@@ -340,11 +334,7 @@ fun AlbumScreen(
                                     isFocused = focusState.isFocused
                                 },
                         textStyle =
-                            TextStyle(
-                                fontSize = 28.sp,
-                                fontFamily = FontFamily.Serif,
-                                color = LocalContentColor.current,
-                            ),
+                            MaterialTheme.typography.displayMedium,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions =
                             KeyboardActions(
@@ -366,13 +356,13 @@ fun AlbumScreen(
                                 modifier =
                                     Modifier
                                         .size(24.dp)
-                                        .background(Color.Gray.copy(alpha = 0.5f), shape = CircleShape),
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = CircleShape),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Clear text",
-                                    tint = Color.Black.copy(alpha = 0.7f),
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                     modifier = Modifier.size(16.dp),
                                 )
                             }
@@ -381,7 +371,7 @@ fun AlbumScreen(
                 }
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-                    color = Color.Black.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 )
 
                 if (!hasPermission) {
@@ -503,7 +493,7 @@ private fun AlbumContent(
                             val newOffset = recommendOffsetY + dragAmount
                             recommendOffsetY = newOffset.coerceIn(minOffset, maxOffset)
                         }
-                    }.background(Background, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    }.background(MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .padding(16.dp),
         ) {
             Column {
@@ -513,7 +503,7 @@ private fun AlbumContent(
                         Modifier
                             .width(40.dp)
                             .height(4.dp)
-                            .background(Color.Gray.copy(alpha = 0.4f), shape = CircleShape)
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), shape = CircleShape)
                             .align(Alignment.CenterHorizontally),
                 )
 
@@ -537,7 +527,7 @@ private fun AlbumContent(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Cancel selection",
-                                    tint = Color.Gray,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant, // Color.Gray,
                                     modifier = Modifier.size(24.dp),
                                 )
                             }
@@ -552,22 +542,21 @@ private fun AlbumContent(
                                     onResetRecommendSelection()
                                 },
                                 enabled = selectedRecommendPhotos.isNotEmpty(), // 선택된 사진이 있어야 활성화
-                                colors = ButtonDefaults.buttonColors(containerColor = Purple80),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                                 shape = buttonShape,
                                 contentPadding = buttonPadding,
                             ) {
                                 Text(
                                     text = "Add to Album (${selectedRecommendPhotos.size})",
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                 )
                             }
                         } else {
                             // Non-selection mode
                             Button(
                                 onClick = { isRecommendSelectionMode = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = Purple80),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                                 shape = buttonShape,
                                 contentPadding = buttonPadding,
                             ) {
@@ -577,15 +566,14 @@ private fun AlbumContent(
                                     Icon(
                                         imageVector = Icons.Default.AutoAwesome,
                                         contentDescription = "AI",
-                                        tint = Color.White,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                         modifier = Modifier.size(16.dp),
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "AI Recommend",
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        style = MaterialTheme.typography.labelLarge,
                                     )
                                 }
                             }
@@ -596,8 +584,8 @@ private fun AlbumContent(
                             onClick = {}, // can not click
                             colors =
                                 ButtonDefaults.buttonColors(
-                                    containerColor = Purple80,
-                                    disabledContainerColor = Purple80.copy(alpha = 0.5f), // 비활성 색
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), // 비활성 색
                                 ),
                             shape = buttonShape,
                             contentPadding = buttonPadding,
@@ -608,15 +596,14 @@ private fun AlbumContent(
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = "AI",
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.size(16.dp),
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "AI Recommend",
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                 )
                             }
                         }
@@ -637,7 +624,7 @@ private fun AlbumContent(
 
                         if (recommendPhotos.isEmpty()) {
                             Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                                Text("추천 사진이 없습니다.", color = Color.Gray)
+                                Text("추천 사진이 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         } else {
                             Column {
@@ -670,7 +657,7 @@ private fun AlbumContent(
                     }
                     is AlbumViewModel.RecommendLoadingState.Error -> {
                         Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                            Text("추천 사진을 불러오지 못했습니다.", color = Color.Gray)
+                            Text("추천 사진을 불러오지 못했습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     is AlbumViewModel.RecommendLoadingState.Idle -> {

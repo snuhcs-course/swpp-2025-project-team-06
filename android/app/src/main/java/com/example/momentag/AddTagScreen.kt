@@ -40,6 +40,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -58,10 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -71,11 +69,6 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Semi_background
-import com.example.momentag.ui.theme.Temp_word
-import com.example.momentag.ui.theme.Word
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.ui.theme.verticalArrangement
@@ -174,7 +167,7 @@ fun AddTagScreen(navController: NavController) {
                     addTagViewModel.clearDraft()
                     navController.popBackStack()
                 },
-                modifier = Modifier.background(Background),
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface),
             )
         },
         bottomBar = {
@@ -210,7 +203,7 @@ fun AddTagScreen(navController: NavController) {
                 },
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Column(
             modifier =
@@ -284,8 +277,8 @@ fun AddTagScreen(navController: NavController) {
                         shape = RoundedCornerShape(15.dp),
                         colors =
                             ButtonDefaults.buttonColors(
-                                containerColor = Button,
-                                contentColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
                         modifier = Modifier.align(Alignment.End),
                         contentPadding = PaddingValues(horizontal = 32.dp),
@@ -312,9 +305,8 @@ private fun TagNameSection(
     Column {
         Text(
             text = "New tag name",
-            fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
-            color = Word,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.headlineLarge,
         )
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -322,15 +314,15 @@ private fun TagNameSection(
             value = tagName,
             onValueChange = onTagNameChange,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = TextStyle(fontSize = 21.sp),
+            textStyle = MaterialTheme.typography.headlineLarge,
             placeholder = { Text("태그 입력") },
-            leadingIcon = { Text("#", fontSize = 21.sp, color = Word) },
+            leadingIcon = { Text("#", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface) },
             colors =
                 TextFieldDefaults.colors(
-                    focusedContainerColor = Background,
-                    unfocusedContainerColor = Background,
-                    focusedIndicatorColor = Word,
-                    unfocusedIndicatorColor = Temp_word,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             singleLine = true,
         )
@@ -353,16 +345,15 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
             modifier =
                 Modifier
                     .clip(CircleShape)
-                    .background(Button)
+                    .background(MaterialTheme.colorScheme.primary)
                     .padding(2.dp),
-            tint = Word,
+            tint = MaterialTheme.colorScheme.onPrimary,
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Select Pictures",
-            fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
-            color = Word,
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -377,7 +368,7 @@ private fun SelectedPhotosSection(
             Modifier
                 .fillMaxWidth()
                 .height(120.dp)
-                .background(Semi_background),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
         horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
         contentPadding = PaddingValues(vertical = 8.dp, horizontal = 24.dp),
     ) {
@@ -401,9 +392,8 @@ private fun RecommendedPicturesSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "Recommended Pictures",
-            fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
-            color = Word,
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(11.dp))
         LazyVerticalGrid(
@@ -438,7 +428,7 @@ fun PhotoCheckedItem(
         modifier =
             modifier
                 .clip(RoundedCornerShape(imageCornerRadius))
-                .background(Semi_background)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(onClick = onClick),
     ) {
         AsyncImage(
@@ -456,7 +446,7 @@ fun PhotoCheckedItem(
                     .padding(4.dp)
                     .size(24.dp)
                     .background(
-                        if (isSelected) Color(0xFFFBC4AB) else Color.White.copy(alpha = 0.8f),
+                        if (isSelected) Color(0xFFFBC4AB) else MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                         RoundedCornerShape(12.dp),
                     ),
             contentAlignment = Alignment.Center,
@@ -465,7 +455,7 @@ fun PhotoCheckedItem(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Selected",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(16.dp),
                 )
             }
