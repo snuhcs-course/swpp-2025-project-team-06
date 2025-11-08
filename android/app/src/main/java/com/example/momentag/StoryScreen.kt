@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -157,8 +158,15 @@ fun StoryTagSelectionScreen(
                 )
 
                 // 스토리 페이저 (페이지 기반 스크롤)
+                val flingBehavior =
+                    PagerDefaults.flingBehavior(
+                        state = pagerState,
+                        snapPositionalThreshold = 0.35f, // 35% 스크롤하면 다음 페이지로 넘어감 (기본값 50%)
+                    )
+
                 VerticalPager(
                     state = pagerState,
+                    flingBehavior = flingBehavior,
                     modifier =
                         Modifier
                             .weight(1f)
