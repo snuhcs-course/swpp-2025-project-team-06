@@ -52,6 +52,6 @@ urlpatterns = [
         "stories/",
         views.StoryView.as_view(),
         name="stories",
-        # get
+        # get, post
     ),
 ]
