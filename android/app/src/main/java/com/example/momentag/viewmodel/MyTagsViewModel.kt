@@ -126,14 +126,6 @@ class MyTagsViewModel(
         }
     }
 
-    fun showEditDialog(
-        tagId: String,
-        tagName: String,
-    ) {
-        // TODO: 다이얼로그 표시하여 태그 이름 수정
-        println("MyTagsViewModel: showEditDialog($tagId, $tagName)")
-    }
-
     fun renameTag(
         tagId: String,
         newName: String,
