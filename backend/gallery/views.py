@@ -1040,6 +1040,82 @@ class StoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
+        operation_summary="Get Stories",
+        operation_description="Get stories generated from user's photos with pagination",
+        request_body=None,
+        responses={
+            200: openapi.Response(description="Success", schema=ResStorySerializer()),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            ),
+            openapi.Parameter(
+                "size",
+                openapi.IN_QUERY,
+                description="number of photos",
+                type=openapi.TYPE_INTEGER,
+            ),
+        ],
+    )
+    def get(self, request):
+        try:
+            # 페이지네이션 파라미터 가져오기 및 검증
+            try:
+                size = int(request.GET.get("size", 20))
+                if size < 1:
+                    return Response(
+                        {"error": "Size parameter must be positive"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                size = min(size, 200)  # 최대 200개 제한
+            except ValueError:
+                return Response(
+                    {"error": "Invalid size parameter"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # 랜덤 정렬로 매번 다른 순서 보장
+            # Filter photos that don't have any Photo_Tag relations
+            has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=request.user)
+            photos_queryset = (
+                Photo.objects.filter(user=request.user)
+                .exclude(Exists(has_tags))
+                .order_by("?")[:size]
+            )  # 랜덤 정렬 + 슬라이싱
+
+            # QuerySet을 유지하면서 데이터 직렬화
+            photos_data = [
+                {"photo_id": str(photo.photo_id), "photo_path_id": photo.photo_path_id}
+                for photo in photos_queryset
+            ]
+
+            # 빈 결과 처리
+            if not photos_data:
+                story_response = {"recs": []}
+            else:
+                story_response = {"recs": photos_data}
+
+            serializer = ResStorySerializer(story_response)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class NewStoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
         operation_summary="Get Stories from redis",
         operation_description="Get stories from redis",
         request_body=None,

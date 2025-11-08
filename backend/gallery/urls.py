@@ -54,4 +54,8 @@ urlpatterns = [
         name="stories",
         # get, post
     ),
+    path(
+        "new-stories/",
+        views.NewStoryView.as_view(),
+    )
 ]
