@@ -1,20 +1,20 @@
 package com.example.momentag
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -46,7 +46,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.imePadding
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.RegisterState
@@ -77,6 +76,7 @@ fun RegisterScreen(navController: NavController) {
     var usernameTouched by remember { mutableStateOf(false) }
     var passwordTouched by remember { mutableStateOf(false) }
     var passwordCheckTouched by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
 
     // Email validation helper
     fun isValidEmail(email: String): Boolean =
@@ -95,12 +95,17 @@ fun RegisterScreen(navController: NavController) {
 
     LaunchedEffect(registerState) {
         when (val state = registerState) {
+            is RegisterState.Loading -> {
+                isLoading = true
+            }
             is RegisterState.Success -> {
+                isLoading = false
                 navController.navigate(Screen.Login.route) {
                     popUpTo(Screen.Register.route) { inclusive = true }
                 }
             }
             is RegisterState.BadRequest -> {
+                isLoading = false
                 errorMessage = state.message
                 isEmailError = true
                 isUsernameError = true
@@ -109,6 +114,7 @@ fun RegisterScreen(navController: NavController) {
                 authViewModel.resetRegisterState()
             }
             is RegisterState.Conflict -> {
+                isLoading = false
                 errorMessage = state.message
                 isEmailError = true
                 isUsernameError = true
@@ -117,6 +123,7 @@ fun RegisterScreen(navController: NavController) {
                 authViewModel.resetRegisterState()
             }
             is RegisterState.NetworkError -> {
+                isLoading = false
                 errorMessage = state.message
                 isEmailError = true
                 isUsernameError = true
@@ -125,6 +132,7 @@ fun RegisterScreen(navController: NavController) {
                 authViewModel.resetRegisterState()
             }
             is RegisterState.Error -> {
+                isLoading = false
                 errorMessage = state.message
                 isEmailError = true
                 isUsernameError = true
@@ -509,8 +517,17 @@ fun RegisterScreen(navController: NavController) {
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
+                    enabled = !isLoading,
                 ) {
-                    Text(text = "Register", style = MaterialTheme.typography.headlineMedium)
+                    if (isLoading) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.height(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text(text = "Register", style = MaterialTheme.typography.headlineMedium)
+                    }
                 }
                 Spacer(modifier = Modifier.weight(1f))
             }
