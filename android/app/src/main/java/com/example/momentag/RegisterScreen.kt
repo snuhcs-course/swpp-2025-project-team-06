@@ -155,13 +155,12 @@ fun RegisterScreen(navController: NavController) {
                     .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             // MomenTag title
             Text(
                 text = "MomenTag",
                 style = MaterialTheme.typography.displayLarge,
             )
-            Spacer(modifier = Modifier.height(24.dp))
 
             Column(
                 modifier =
@@ -170,8 +169,9 @@ fun RegisterScreen(navController: NavController) {
                         .weight(1f)
                         .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Top,
             ) {
+                Spacer(modifier = Modifier.weight(0.5f))
                 // Sign Up title
                 Text(
                     text = "Sign Up",
@@ -512,6 +512,7 @@ fun RegisterScreen(navController: NavController) {
                 ) {
                     Text(text = "Register", style = MaterialTheme.typography.headlineMedium)
                 }
+                Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
