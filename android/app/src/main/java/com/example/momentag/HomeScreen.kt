@@ -71,6 +71,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -98,6 +99,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
@@ -404,6 +406,7 @@ fun HomeScreen(navController: NavController) {
                         onSearch = { query ->
                             if (query.isNotEmpty()) {
                                 navController.navigate(Screen.SearchResult.createRoute(query))
+                                focusManager.clearFocus()
                             }
                         },
                         modifier = Modifier.weight(1f),
