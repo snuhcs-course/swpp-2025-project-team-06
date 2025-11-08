@@ -238,28 +238,29 @@ fun AlbumScreen(
                         IconButton(onClick = { showMenu = true }) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options"
+                                contentDescription = "More options",
                             )
                         }
                         DropdownMenu(
                             expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
+                            onDismissRequest = { showMenu = false },
                         ) {
                             if (isTagAlbumPhotoSelectionModeDelay) {
                                 DropdownMenuItem(
                                     text = { Text("Share") },
                                     onClick = {
                                         // TODO: share selectedTagAlbumPhotos
-                                        Toast.makeText(
-                                            context,
-                                            "Share ${selectedTagAlbumPhotos.size} photo(s) (TODO)",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                "Share ${selectedTagAlbumPhotos.size} photo(s) (TODO)",
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
 
                                         showMenu = false
                                         isTagAlbumPhotoSelectionMode = false
                                         albumViewModel.resetTagAlbumPhotoSelection()
-                                    }
+                                    },
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Delete") },
@@ -267,18 +268,19 @@ fun AlbumScreen(
                                         if (selectedTagAlbumPhotos.isNotEmpty()) {
                                             albumViewModel.deleteTagFromPhotos(
                                                 photos = selectedTagAlbumPhotos,
-                                                tagId = tagId
+                                                tagId = tagId,
                                             )
-                                            Toast.makeText(
-                                                context,
-                                                "delete ${selectedTagAlbumPhotos.size} photo(s) from tag",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                                            Toast
+                                                .makeText(
+                                                    context,
+                                                    "delete ${selectedTagAlbumPhotos.size} photo(s) from tag",
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
                                         }
                                         showMenu = false
                                         isTagAlbumPhotoSelectionMode = false
                                         albumViewModel.resetTagAlbumPhotoSelection()
-                                    }
+                                    },
                                 )
                             } else {
                                 DropdownMenuItem(
@@ -286,12 +288,12 @@ fun AlbumScreen(
                                     onClick = {
                                         isTagAlbumPhotoSelectionMode = true
                                         showMenu = false
-                                    }
+                                    },
                                 )
                             }
                         }
                     }
-                }
+                },
             )
         },
     ) { paddingValues ->
@@ -402,7 +404,7 @@ fun AlbumScreen(
                             albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId, tagName)
                         },
                         isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
-                        onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it }
+                        onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
                     )
                 }
             }
@@ -536,7 +538,7 @@ private fun AlbumContent(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Cancel selection",
                                     tint = Color.Gray,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(24.dp),
                                 )
                             }
 
@@ -558,7 +560,7 @@ private fun AlbumContent(
                                     text = "Add to Album (${selectedRecommendPhotos.size})",
                                     color = Color.White,
                                     fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                             }
                         } else {
@@ -576,7 +578,7 @@ private fun AlbumContent(
                                         imageVector = Icons.Default.AutoAwesome,
                                         contentDescription = "AI",
                                         tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(16.dp),
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
@@ -592,10 +594,11 @@ private fun AlbumContent(
                         // Empty recommended result or Loading state - non-clickable button "AI recommend"
                         Button(
                             onClick = {}, // can not click
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Purple80,
-                                disabledContainerColor = Purple80.copy(alpha = 0.5f) // 비활성 색
-                            ),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = Purple80,
+                                    disabledContainerColor = Purple80.copy(alpha = 0.5f), // 비활성 색
+                                ),
                             shape = buttonShape,
                             contentPadding = buttonPadding,
                         ) {
@@ -606,7 +609,7 @@ private fun AlbumContent(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = "AI",
                                     tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(16.dp),
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(

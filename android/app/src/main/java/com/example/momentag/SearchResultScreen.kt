@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,11 +23,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -56,7 +51,6 @@ import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
-import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
@@ -68,10 +62,7 @@ import com.example.momentag.ui.search.components.SearchErrorStateFallbackCustom
 import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Semi_background
 import com.example.momentag.ui.theme.Temp_word
-import com.example.momentag.ui.theme.Word
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SearchViewModel
@@ -151,28 +142,29 @@ fun SearchResultScreen(
             IconButton(onClick = { showMenu = true }) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options"
+                    contentDescription = "More options",
                 )
             }
             DropdownMenu(
                 expanded = showMenu,
-                onDismissRequest = { showMenu = false }
+                onDismissRequest = { showMenu = false },
             ) {
                 if (isSelectionModeDelay) {
                     DropdownMenuItem(
                         text = { Text("Share") },
                         onClick = {
                             // TODO: Share logic
-                            Toast.makeText(
-                                context,
-                                "Share ${selectedPhotos.size} photo(s) (TODO)",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast
+                                .makeText(
+                                    context,
+                                    "Share ${selectedPhotos.size} photo(s) (TODO)",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
 
                             showMenu = false
                             isSelectionMode = false
                             searchViewModel.resetSelection()
-                        }
+                        },
                     )
                     DropdownMenuItem(
                         text = { Text("View") },
@@ -180,7 +172,7 @@ fun SearchResultScreen(
                             isSelectionMode = false
                             searchViewModel.resetSelection()
                             showMenu = false
-                        }
+                        },
                     )
                 } else {
                     DropdownMenuItem(
@@ -188,7 +180,7 @@ fun SearchResultScreen(
                         onClick = {
                             isSelectionMode = true
                             showMenu = false
-                        }
+                        },
                     )
                 }
             }
@@ -261,7 +253,13 @@ fun SearchResultScreen(
                 }
             }
         },
-        topBarActions = if (uiState is SearchUiState.Success) topBarActions else { {} }    )
+        topBarActions =
+            if (uiState is SearchUiState.Success) {
+                topBarActions
+            } else {
+                {}
+            },
+    )
 }
 
 /**
@@ -297,7 +295,7 @@ fun SearchResultScreenUi(
                     title = "Search Results",
                     showBackButton = true,
                     onBackClick = onBackClick,
-                    actions = topBarActions
+                    actions = topBarActions,
                 )
             },
             bottomBar = {

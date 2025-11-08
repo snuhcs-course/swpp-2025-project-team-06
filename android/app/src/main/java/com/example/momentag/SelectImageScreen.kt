@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,7 +25,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -61,7 +59,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
-import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.Background
@@ -187,12 +184,12 @@ fun SelectImageScreen(navController: NavController) {
                         IconButton(onClick = { showMenu = true }) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options"
+                                contentDescription = "More options",
                             )
                         }
                         DropdownMenu(
                             expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
+                            onDismissRequest = { showMenu = false },
                         ) {
                             if (isSelectionModeDelay) {
                                 DropdownMenuItem(
@@ -200,7 +197,7 @@ fun SelectImageScreen(navController: NavController) {
                                     onClick = {
                                         isSelectionMode = false
                                         showMenu = false
-                                    }
+                                    },
                                 )
                             } else {
                                 DropdownMenuItem(
@@ -208,7 +205,7 @@ fun SelectImageScreen(navController: NavController) {
                                     onClick = {
                                         isSelectionMode = true
                                         showMenu = false
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -290,7 +287,7 @@ fun SelectImageScreen(navController: NavController) {
                                                     selectImageViewModel.togglePhoto(photo)
                                                 }
                                             }
-                                        }
+                                        },
                                     ),
                         ) {
                             AsyncImage(

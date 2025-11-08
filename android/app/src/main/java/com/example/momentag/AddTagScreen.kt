@@ -417,9 +417,10 @@ private fun RecommendedPicturesSection(
                     photo = photo,
                     isSelected = false,
                     onClick = { onPhotoClick(photo) },
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(imageCornerRadius)),
+                    modifier =
+                        Modifier
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(imageCornerRadius)),
                 )
             }
         }
@@ -456,7 +457,7 @@ fun PhotoCheckedItem(
                     .size(24.dp)
                     .background(
                         if (isSelected) Color(0xFFFBC4AB) else Color.White.copy(alpha = 0.8f),
-                        RoundedCornerShape(12.dp)
+                        RoundedCornerShape(12.dp),
                     ),
             contentAlignment = Alignment.Center,
         ) {

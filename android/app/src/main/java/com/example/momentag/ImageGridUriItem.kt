@@ -2,21 +2,16 @@ package com.example.momentag
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,30 +56,31 @@ fun ImageGridUriItem(
     topPadding: Dp = 0.dp,
 ) {
     Box(
-        modifier = modifier.aspectRatio(1f)
+        modifier = modifier.aspectRatio(1f),
     ) {
         AsyncImage(
             model = photo.contentUri,
             contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(cornerRadius))
-                .combinedClickable(
-                    onClick = {
-                        if (isSelectionMode && onToggleSelection != null) {
-                            onToggleSelection()
-                        } else {
-                            // Just navigate - ImageContext loaded from Repository
-                            navController.navigate(Screen.Image.createRoute(photo.contentUri, photo.photoId))
-                        }
-                    },
-                    onLongClick = {
-                        if (!isSelectionMode && onLongPress != null) {
-                            onLongPress()
-                            onToggleSelection?.invoke()
-                        }
-                    },
-                ),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(cornerRadius))
+                    .combinedClickable(
+                        onClick = {
+                            if (isSelectionMode && onToggleSelection != null) {
+                                onToggleSelection()
+                            } else {
+                                // Just navigate - ImageContext loaded from Repository
+                                navController.navigate(Screen.Image.createRoute(photo.contentUri, photo.photoId))
+                            }
+                        },
+                        onLongClick = {
+                            if (!isSelectionMode && onLongPress != null) {
+                                onLongPress()
+                                onToggleSelection?.invoke()
+                            }
+                        },
+                    ),
             contentScale = ContentScale.Crop,
         )
 

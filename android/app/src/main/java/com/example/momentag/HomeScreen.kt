@@ -44,8 +44,6 @@ import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -260,12 +258,12 @@ fun HomeScreen(navController: NavController) {
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(
                                     imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "More options"
+                                    contentDescription = "More options",
                                 )
                             }
                             DropdownMenu(
                                 expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
+                                onDismissRequest = { showMenu = false },
                             ) {
                                 if (isSelectionModeDelay) {
                                     DropdownMenuItem(
@@ -274,7 +272,7 @@ fun HomeScreen(navController: NavController) {
                                             isSelectionMode = false
                                             homeViewModel.resetSelection()
                                             showMenu = false
-                                        }
+                                        },
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Share") },
@@ -283,10 +281,15 @@ fun HomeScreen(navController: NavController) {
                                                 Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
                                             } else {
                                                 // TODO: Implement share functionality
-                                                Toast.makeText(context, "Share ${selectedPhotos.size} photo(s) (TODO)", Toast.LENGTH_SHORT).show()
+                                                Toast
+                                                    .makeText(
+                                                        context,
+                                                        "Share ${selectedPhotos.size} photo(s) (TODO)",
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
                                             }
                                             showMenu = false
-                                        }
+                                        },
                                     )
                                 } else {
                                     DropdownMenuItem(
@@ -295,7 +298,7 @@ fun HomeScreen(navController: NavController) {
                                             isSelectionMode = true
                                             homeViewModel.resetSelection()
                                             showMenu = false
-                                        }
+                                        },
                                     )
                                 }
                             }

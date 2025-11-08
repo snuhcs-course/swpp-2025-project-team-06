@@ -259,9 +259,10 @@ class AlbumViewModel(
             // Update the album state locally instead of reloading
             val currentAlbumState = _albumLoadingState.value
             if (currentAlbumState is AlbumLoadingState.Success) {
-                val updatedPhotos = currentAlbumState.photos.filterNot {
-                    removedPhotoIds.contains(it.photoId)
-                }
+                val updatedPhotos =
+                    currentAlbumState.photos.filterNot {
+                        removedPhotoIds.contains(it.photoId)
+                    }
                 _albumLoadingState.value = AlbumLoadingState.Success(updatedPhotos)
             }
         }
