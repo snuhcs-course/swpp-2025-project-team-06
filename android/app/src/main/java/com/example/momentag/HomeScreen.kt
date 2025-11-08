@@ -133,6 +133,15 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
+    val bannerVisible = uiState.isLoading && !isUploadBannerDismissed
+
+    LaunchedEffect(bannerVisible) {
+        if (bannerVisible) {
+            kotlinx.coroutines.delay(5000)
+            isUploadBannerDismissed = true
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (shouldReturnToAllPhotos) {
             showAllPhotos = true
@@ -533,7 +542,7 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 }
-                AnimatedVisibility(visible = uiState.isLoading && !isUploadBannerDismissed) {
+                AnimatedVisibility(visible = bannerVisible) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
                         WarningBanner(
