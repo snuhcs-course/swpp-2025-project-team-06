@@ -93,12 +93,12 @@ fun MyTagsScreen(navController: NavController) {
         },
         bottomBar = {
             BottomNavBar(
-                currentTab = BottomTab.AddTagScreen,
+                currentTab = BottomTab.MyTagsScreen,
                 onTabSelected = { tab ->
                     when (tab) {
                         BottomTab.HomeScreen -> navController.navigate(Screen.Home.route)
                         BottomTab.SearchResultScreen -> navController.navigate(Screen.SearchResult.createRoute(""))
-                        BottomTab.AddTagScreen -> { /* 현재 화면이므로 아무것도 안 함 */ }
+                        BottomTab.MyTagsScreen -> { /* 현재 화면이므로 아무것도 안 함 */ }
                         BottomTab.StoryScreen -> navController.navigate(Screen.Story.route)
                     }
                 },
