@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,7 +26,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /**
  * 재사용 가능한 경고 배너 컴포넌트
@@ -51,18 +51,28 @@ fun WarningBanner(
     message: String,
     onActionClick: () -> Unit,
     onDismiss: (() -> Unit)? = null,
-    backgroundColor: Color = Color(0xFFE57373),
+    backgroundColor: Color? = null,
     icon: ImageVector = Icons.Default.Error,
     actionIcon: ImageVector = Icons.Default.Refresh,
     showActionButton: Boolean = true,
     showDismissButton: Boolean = false,
 ) {
+    val bgColor = backgroundColor ?: MaterialTheme.colorScheme.errorContainer
+    val contentColor =
+        if (backgroundColor ==
+            null
+        ) {
+            MaterialTheme.colorScheme.onErrorContainer
+        } else {
+            MaterialTheme.colorScheme.inverseOnSurface
+        }
+
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
                 .background(
-                    color = backgroundColor,
+                    color = bgColor,
                     shape = RoundedCornerShape(12.dp),
                 ).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -71,7 +81,7 @@ fun WarningBanner(
         Icon(
             imageVector = icon,
             contentDescription = "Warning Icon",
-            tint = Color.White,
+            tint = contentColor,
             modifier = Modifier.size(24.dp),
         )
 
@@ -81,14 +91,13 @@ fun WarningBanner(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 14.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Medium,
+                color = contentColor,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             )
             Text(
                 text = message,
-                fontSize = 14.sp,
-                color = Color.White,
+                color = contentColor,
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
 
@@ -103,7 +112,7 @@ fun WarningBanner(
                 Icon(
                     imageVector = actionIcon,
                     contentDescription = "Action",
-                    tint = Color.White,
+                    tint = contentColor,
                     modifier = Modifier.size(28.dp),
                 )
             }
@@ -118,7 +127,7 @@ fun WarningBanner(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Close",
-                    tint = Color.White,
+                    tint = contentColor,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -161,7 +170,7 @@ private fun previewWarningBannerCustomColor() {
         title = "Update available",
         message = "A new version is ready to install.",
         onActionClick = {},
-        backgroundColor = Color(0xFF4CAF50),
+        backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
         icon = Icons.Default.Warning,
         actionIcon = Icons.Default.Refresh,
         modifier = Modifier.padding(24.dp),
@@ -176,7 +185,7 @@ private fun previewWarningBannerNoAction() {
         message = "This may take a moment.",
         onActionClick = {},
         showActionButton = false,
-        backgroundColor = Color(0xFF2196F3),
+        backgroundColor = MaterialTheme.colorScheme.primaryContainer,
         modifier = Modifier.padding(24.dp),
     )
 }

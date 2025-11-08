@@ -1,6 +1,5 @@
 package com.example.momentag
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -44,24 +43,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.LoginState
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Blue_word
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.TagColor
-import com.example.momentag.ui.theme.Temp_word
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -136,8 +127,8 @@ fun LoginScreen(navController: NavController) {
                             Brush.verticalGradient(
                                 colorStops =
                                     arrayOf(
-                                        0.5f to Background,
-                                        1.0f to TagColor.copy(alpha = 0.7f),
+                                        0.5f to MaterialTheme.colorScheme.surface,
+                                        1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                                     ),
                             ),
                     ).padding(paddingValues)
@@ -148,9 +139,7 @@ fun LoginScreen(navController: NavController) {
             // MomenTag title
             Text(
                 text = "MomenTag",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
+                style = MaterialTheme.typography.displayLarge,
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -166,11 +155,7 @@ fun LoginScreen(navController: NavController) {
                 // Login title
                 Text(
                     text = "Login",
-                    style =
-                        TextStyle(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
+                    style = MaterialTheme.typography.displayLarge,
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -179,7 +164,7 @@ fun LoginScreen(navController: NavController) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Don't have an account? ", color = Color.Gray)
+                    Text("Don't have an account? ", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         text = "Sign Up",
                         modifier =
@@ -188,14 +173,14 @@ fun LoginScreen(navController: NavController) {
                                     popUpTo(Screen.Login.route) { inclusive = true }
                                 }
                             },
-                        style = TextStyle(color = Blue_word, fontWeight = FontWeight.Bold),
+                        style = TextStyle(color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold),
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // username input
-                Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -224,19 +209,19 @@ fun LoginScreen(navController: NavController) {
                             isUsernameError = false
                         }
                     },
-                    placeholder = { Text("Username", color = Temp_word) },
+                    placeholder = { Text("Username", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     isError = isUsernameError,
                     colors =
                         OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            errorBorderColor = Color.Red,
-                            errorContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
                 Box(
@@ -249,14 +234,14 @@ fun LoginScreen(navController: NavController) {
                     if (isUsernameError && username.isEmpty()) {
                         Text(
                             text = "Please enter your username",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
 
                 // password input
-                Text(text = "Password", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                Text(text = "Password", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -285,7 +270,7 @@ fun LoginScreen(navController: NavController) {
                             isPasswordError = false
                         }
                     },
-                    placeholder = { Text("Password", color = Temp_word) },
+                    placeholder = { Text("Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -299,13 +284,13 @@ fun LoginScreen(navController: NavController) {
                     isError = isPasswordError,
                     colors =
                         OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            errorBorderColor = Color.Red,
-                            errorContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
 
@@ -320,13 +305,13 @@ fun LoginScreen(navController: NavController) {
                     if (serverErr != null) {
                         Text(
                             text = serverErr,
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     } else if (isPasswordError && password.isEmpty()) {
                         Text(
                             text = "Please enter your password",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -347,9 +332,9 @@ fun LoginScreen(navController: NavController) {
                         Checkbox(
                             checked = rememberMe,
                             onCheckedChange = { rememberMe = it },
-                            colors = CheckboxDefaults.colors(checkedColor = Button),
+                            colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
                         )
-                        Text("Remember me", color = Color.Gray)
+                        Text("Remember me", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text(
                         text = "Forgot Password?",
@@ -358,7 +343,7 @@ fun LoginScreen(navController: NavController) {
                                 .clickable {
                                     // TODO: finding password
                                 },
-                        style = TextStyle(color = Blue_word, fontWeight = FontWeight.Bold),
+                        style = TextStyle(color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold),
                     )
                 }
 
@@ -382,12 +367,11 @@ fun LoginScreen(navController: NavController) {
                     shape = RoundedCornerShape(12.dp),
                     colors =
                         ButtonDefaults.buttonColors(
-                            containerColor = Button,
-                            contentColor = Color.White,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
-                    border = BorderStroke(0.dp, Color.Transparent),
                 ) {
-                    Text("Log In", fontSize = 18.sp)
+                    Text("Log In", style = MaterialTheme.typography.headlineSmall)
                 }
             }
         }
