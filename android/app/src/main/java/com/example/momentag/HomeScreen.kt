@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -84,6 +86,7 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.HomeViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
@@ -129,6 +132,23 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
         isSelectionModeDelay = isSelectionMode
+    }
+
+    var isUploadBannerDismissed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.isLoading) {
+        if (uiState.isLoading) {
+            isUploadBannerDismissed = false
+        }
+    }
+
+    val bannerVisible = uiState.isLoading && !isUploadBannerDismissed
+
+    LaunchedEffect(bannerVisible) {
+        if (bannerVisible) {
+            kotlinx.coroutines.delay(5000)
+            isUploadBannerDismissed = true
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -540,6 +560,24 @@ fun HomeScreen(navController: NavController) {
                                 )
                             }
                         }
+                    }
+                }
+                AnimatedVisibility(visible = bannerVisible) {
+                    Column {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        WarningBanner(
+                            title = "업로드 진행 중 🚀",
+                            message = "사진을 백그라운드에서 업로드하고 있습니다.",
+                            onActionClick = { },
+                            showActionButton = false,
+                            backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
+                            icon = Icons.Default.Upload,
+                            showDismissButton = true,
+                            onDismiss = {
+                                isUploadBannerDismissed = true
+                            },
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
