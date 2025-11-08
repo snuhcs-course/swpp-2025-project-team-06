@@ -33,6 +33,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from .tasks import (
     tag_recommendation,
+    tag_recommendation_batch,
     is_valid_uuid,
     recommend_photo_from_tag,
     recommend_photo_from_photo,
@@ -1131,20 +1132,24 @@ class StoryView(APIView):
                 .order_by("?")[:size]
             )  # 랜덤 정렬 + 슬라이싱
 
+            # 배치 처리로 병렬 태그 추천
+            photo_ids = [str(photo.photo_id) for photo in photos_queryset]
+            photo_dict = {str(photo.photo_id): photo for photo in photos_queryset}
+            
+            tag_rec_batch = tag_recommendation_batch(request.user, photo_ids)
+            
             story_data = []
-            for photo in photos_queryset:
-                tag_rec = tag_recommendation(request.user, str(photo.photo_id))
-                photo_id = str(photo.photo_id)
-                photo_path_id = photo.photo_path_id
+            for photo_id, tag_list in tag_rec_batch.items():
+                photo = photo_dict[photo_id]
                 tags = [
                     {
                         "tag_id": str(t.tag_id),
                         "tag": t.tag,
-                    } for t in tag_rec
+                    } for t in tag_list
                 ]
                 story_data.append({
                     "photo_id": photo_id,
-                    "photo_path_id": photo_path_id,
+                    "photo_path_id": photo.photo_path_id,
                     "tags": tags,
                 })
             

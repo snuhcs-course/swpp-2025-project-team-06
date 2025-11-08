@@ -168,6 +168,113 @@ def tag_recommendation(user, photo_id):
     return recommendations
 
 
+def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list]:
+    """
+    여러 사진의 태그 추천을 배치로 처리 (병렬 최적화)
+    
+    Args:
+        user: 사용자 객체
+        photo_ids: 사진 ID 리스트 (문자열)
+    
+    Returns:
+        {photo_id: [Tag, Tag, ...], ...}
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    LIMIT = 10
+    client = get_qdrant_client()
+    
+    if not photo_ids:
+        return {}
+    
+    # 1. 배치로 이미지 벡터 조회 (한 번에!)
+    try:
+        retrieved_points = client.retrieve(
+            collection_name=IMAGE_COLLECTION_NAME,
+            ids=photo_ids,
+            with_vectors=True,
+        )
+    except Exception as e:
+        print(f"[ERROR] Batch retrieve failed: {e}")
+        return {}
+    
+    # photo_id -> vector 매핑
+    photo_vectors = {point.id: point.vector for point in retrieved_points if point.vector}
+    
+    if not photo_vectors:
+        return {}
+    
+    user_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="user_id",
+                match=models.MatchValue(value=user.id),
+            )
+        ]
+    )
+    
+    # 2. 병렬로 태그 검색 (ThreadPoolExecutor)
+    def search_tags_for_photo(photo_id, image_vector):
+        try:
+            search_results = client.search(
+                collection_name=REPVEC_COLLECTION_NAME,
+                query_vector=image_vector,
+                query_filter=user_filter,
+                limit=LIMIT,
+                with_payload=True,
+            )
+            
+            tag_ids = list(dict.fromkeys(
+                result.payload["tag_id"] for result in search_results
+            ))
+            
+            return photo_id, tag_ids
+        except Exception as e:
+            print(f"[ERROR] Search failed for photo {photo_id}: {e}")
+            return photo_id, []
+    
+    results = {}
+    
+    # 최대 10개 스레드로 병렬 검색
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {
+            executor.submit(search_tags_for_photo, photo_id, vector): photo_id
+            for photo_id, vector in photo_vectors.items()
+        }
+        
+        for future in as_completed(futures):
+            try:
+                photo_id, tag_ids = future.result()
+                results[photo_id] = tag_ids
+            except Exception as e:
+                photo_id = futures[future]
+                print(f"[ERROR] Future failed for photo {photo_id}: {e}")
+                results[photo_id] = []
+    
+    # 3. 모든 태그 ID를 한 번에 조회 (DB 최적화)
+    all_tag_ids = set()
+    for tag_ids in results.values():
+        all_tag_ids.update(tag_ids)
+    
+    if not all_tag_ids:
+        return {photo_id: [] for photo_id in photo_ids}
+    
+    tags_dict = {
+        str(tag.tag_id): tag 
+        for tag in Tag.objects.filter(tag_id__in=all_tag_ids)
+    }
+    
+    # 4. 최종 결과 조합
+    final_results = {}
+    for photo_id, tag_ids in results.items():
+        final_results[photo_id] = [
+            tags_dict[tag_id] for tag_id in tag_ids 
+            if tag_id in tags_dict
+        ]
+    
+    return final_results
+
+
 def retrieve_all_rep_vectors_of_tag(user: User, tag_id: uuid.UUID):
     client = get_qdrant_client()
     LIMIT = 32  # assert max num of rep vectors <= 32
