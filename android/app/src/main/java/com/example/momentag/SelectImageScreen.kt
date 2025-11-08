@@ -2,10 +2,12 @@ package com.example.momentag
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,9 +27,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -57,11 +62,15 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.Background
 import com.example.momentag.ui.theme.Button
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.Word
+import com.example.momentag.ui.theme.horizontalArrangement
+import com.example.momentag.ui.theme.imageCornerRadius
+import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
@@ -73,6 +82,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun SelectImageScreen(navController: NavController) {
     var hasPermission by remember { mutableStateOf(false) }
     var isSelectionMode by remember { mutableStateOf(false) }
+    var isSelectionModeDelay by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -84,6 +95,10 @@ fun SelectImageScreen(navController: NavController) {
     val isLoading by selectImageViewModel.isLoading.collectAsState()
     val isLoadingMore by selectImageViewModel.isLoadingMore.collectAsState()
 
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionMode = false
+    }
+
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -93,6 +108,11 @@ fun SelectImageScreen(navController: NavController) {
                 }
             },
         )
+
+    LaunchedEffect(isSelectionMode) {
+        kotlinx.coroutines.delay(200L) // 0.2초
+        isSelectionModeDelay = isSelectionMode
+    }
 
     LaunchedEffect(key1 = true) {
         val permission =
@@ -151,10 +171,49 @@ fun SelectImageScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            BackTopBar(
+            CommonTopBar(
                 title = "MomenTag",
-                onBackClick = { navController.popBackStack() },
+                showBackButton = true,
+                onBackClick = {
+                    if (isSelectionMode) {
+                        isSelectionMode = false
+                    } else {
+                        navController.popBackStack()
+                    }
+                },
                 modifier = Modifier.background(Background),
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            if (isSelectionModeDelay) {
+                                DropdownMenuItem(
+                                    text = { Text("View") },
+                                    onClick = {
+                                        isSelectionMode = false
+                                        showMenu = false
+                                    }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text("Select") },
+                                    onClick = {
+                                        isSelectionMode = true
+                                        showMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                },
             )
         },
         containerColor = Background,
@@ -184,30 +243,13 @@ fun SelectImageScreen(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = "Choose more than 5 pictures",
-                    fontSize = 21.sp,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold,
-                    color = Word,
-                    modifier = Modifier.align(Alignment.CenterStart),
-                )
-
-                IconButton(
-                    onClick = { isSelectionMode = !isSelectionMode },
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = if (isSelectionMode) "Exit Selection Mode" else "Enter Selection Mode",
-                        tint = if (isSelectionMode) Button else Word,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
+            Text(
+                text = "Choose more than 5 pictures",
+                fontSize = 21.sp,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                color = Word,
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -223,8 +265,8 @@ fun SelectImageScreen(navController: NavController) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     state = listState,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
+                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
                     modifier = Modifier.height(453.dp),
                 ) {
                     items(
@@ -238,8 +280,18 @@ fun SelectImageScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onPhotoClick(photo) },
+                                    .clip(RoundedCornerShape(imageCornerRadius))
+                                    .combinedClickable(
+                                        onClick = { onPhotoClick(photo) },
+                                        onLongClick = {
+                                            if (!isSelectionMode) {
+                                                isSelectionMode = true
+                                                if (photo !in selectedPhotos) {
+                                                    selectImageViewModel.togglePhoto(photo)
+                                                }
+                                            }
+                                        }
+                                    ),
                         ) {
                             AsyncImage(
                                 model = photo.contentUri,
@@ -248,25 +300,25 @@ fun SelectImageScreen(navController: NavController) {
                                 modifier = Modifier.fillMaxSize(),
                             )
 
-                            if (isSelectionMode && isSelected) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.4f)),
-                                )
-                            }
-
                             if (isSelectionMode) {
                                 Box(
                                     modifier =
                                         Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(8.dp)
-                                            .size(24.dp)
-                                            .clip(RoundedCornerShape(4.dp))
+                                            .fillMaxSize()
                                             .background(
-                                                if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
+                                                if (isSelected) Color.Black.copy(alpha = 0.3f) else Color.Transparent,
+                                            ),
+                                )
+
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(4.dp)
+                                            .size(24.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(
+                                                if (isSelected) Color(0xFFFBC4AB) else Color.White.copy(alpha = 0.8f),
                                             ),
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -274,7 +326,7 @@ fun SelectImageScreen(navController: NavController) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
-                                            tint = Color.Black,
+                                            tint = Color.White,
                                             modifier = Modifier.size(16.dp),
                                         )
                                     }

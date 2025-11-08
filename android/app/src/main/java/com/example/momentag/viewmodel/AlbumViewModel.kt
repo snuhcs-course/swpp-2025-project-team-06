@@ -93,6 +93,9 @@ class AlbumViewModel(
     private val _selectedRecommendPhotos = MutableStateFlow<List<Photo>>(emptyList())
     val selectedRecommendPhotos = _selectedRecommendPhotos.asStateFlow()
 
+    private val _selectedTagAlbumPhotos = MutableStateFlow<List<Photo>>(emptyList())
+    val selectedTagAlbumPhotos = _selectedTagAlbumPhotos.asStateFlow()
+
     private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
     val tagDeleteState = _tagDeleteState.asStateFlow()
 
@@ -179,60 +182,87 @@ class AlbumViewModel(
         _selectedRecommendPhotos.value = emptyList()
     }
 
-    // same function with ImageDetailViewModel
+    fun toggleTagAlbumPhoto(photo: Photo) {
+        val currentSelection = _selectedTagAlbumPhotos.value.toMutableList()
+        if (currentSelection.contains(photo)) {
+            currentSelection.remove(photo)
+        } else {
+            currentSelection.add(photo)
+        }
+        _selectedTagAlbumPhotos.value = currentSelection
+    }
+
+    fun resetTagAlbumPhotoSelection() {
+        _selectedTagAlbumPhotos.value = emptyList()
+    }
+
+    // logic duplicated with ImageDetailViewModel
     // but rewrite to make view & viewmodel 1-1 mapping
-    fun deleteTagFromPhoto(
-        photoId: String,
+    fun deleteTagFromPhotos(
+        photos: List<Photo>,
         tagId: String,
     ) {
         viewModelScope.launch {
             _tagDeleteState.value = TagDeleteState.Loading
 
-            // If photoId is numeric (photo_path_id from local album), find the actual UUID
-            val actualPhotoId =
-                if (photoId.toLongOrNull() != null) {
-                    findPhotoIdByPathId(photoId.toLong())
-                } else {
-                    photoId
+            val removedPhotoIds = mutableListOf<String>()
+
+            for (photo in photos) {
+                // If photoId is numeric (photo_path_id from local album), find the actual UUID
+                val actualPhotoId =
+                    if (photo.photoId.toLongOrNull() != null) {
+                        findPhotoIdByPathId(photo.photoId.toLong())
+                    } else {
+                        photo.photoId
+                    }
+
+                if (actualPhotoId == null) {
+                    _tagDeleteState.value = TagDeleteState.Error("Photo not found in backend")
+                    return@launch // exit for one or more error
                 }
 
-            if (actualPhotoId == null) {
-                _tagDeleteState.value = TagDeleteState.Error("Photo not found in backend")
-                return@launch
-            }
+                when (val result = remoteRepository.removeTagFromPhoto(actualPhotoId, tagId)) {
+                    is RemoteRepository.Result.Success -> {
+                        removedPhotoIds.add(actualPhotoId)
+                    }
 
-            when (val result = remoteRepository.removeTagFromPhoto(actualPhotoId, tagId)) {
-                is RemoteRepository.Result.Success -> {
-                    _tagDeleteState.value = TagDeleteState.Success
+                    is RemoteRepository.Result.Error -> {
+                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        return@launch
+                    }
 
-                    // Update the album state locally instead of reloading
-                    val currentAlbumState = _albumLoadingState.value
-                    if (currentAlbumState is AlbumLoadingState.Success) {
-                        val updatedPhotos = currentAlbumState.photos.filterNot { it.photoId == actualPhotoId }
-                        _albumLoadingState.value = AlbumLoadingState.Success(updatedPhotos)
+                    is RemoteRepository.Result.Unauthorized -> {
+                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        return@launch
+                    }
+
+                    is RemoteRepository.Result.BadRequest -> {
+                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        return@launch
+                    }
+
+                    is RemoteRepository.Result.NetworkError -> {
+                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        return@launch
+                    }
+
+                    is RemoteRepository.Result.Exception -> {
+                        _tagDeleteState.value =
+                            TagDeleteState.Error(result.e.message ?: "Unknown error")
+                        return@launch
                     }
                 }
+            }
 
-                is RemoteRepository.Result.Error -> {
-                    _tagDeleteState.value = TagDeleteState.Error(result.message)
-                }
+            _tagDeleteState.value = TagDeleteState.Success
 
-                is RemoteRepository.Result.Unauthorized -> {
-                    _tagDeleteState.value = TagDeleteState.Error(result.message)
+            // Update the album state locally instead of reloading
+            val currentAlbumState = _albumLoadingState.value
+            if (currentAlbumState is AlbumLoadingState.Success) {
+                val updatedPhotos = currentAlbumState.photos.filterNot {
+                    removedPhotoIds.contains(it.photoId)
                 }
-
-                is RemoteRepository.Result.BadRequest -> {
-                    _tagDeleteState.value = TagDeleteState.Error(result.message)
-                }
-
-                is RemoteRepository.Result.NetworkError -> {
-                    _tagDeleteState.value = TagDeleteState.Error(result.message)
-                }
-
-                is RemoteRepository.Result.Exception -> {
-                    _tagDeleteState.value =
-                        TagDeleteState.Error(result.e.message ?: "Unknown error")
-                }
+                _albumLoadingState.value = AlbumLoadingState.Success(updatedPhotos)
             }
         }
     }

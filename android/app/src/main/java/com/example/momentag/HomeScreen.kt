@@ -40,10 +40,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -276,10 +276,10 @@ fun HomeScreen(navController: NavController) {
                                 },
                             ) {
                                 Icon(
-                                    imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Default.Edit,
-                                    contentDescription = if (isSelectionMode) "Share" else "Edit",
+                                    imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Outlined.CheckBox,
+                                    contentDescription = if (isSelectionMode) "Share" else "Select",
                                     tint = Color.Black,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = if (isSelectionMode) Modifier.size(20.dp) else Modifier.size(24.dp),
                                 )
                             }
                         }
