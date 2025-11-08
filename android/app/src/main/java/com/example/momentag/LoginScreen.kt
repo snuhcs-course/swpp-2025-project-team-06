@@ -2,6 +2,8 @@ package com.example.momentag
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -127,6 +130,7 @@ fun LoginScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .imePadding()
                     .background(
                         brush =
                             Brush.verticalGradient(
@@ -154,7 +158,8 @@ fun LoginScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .fillMaxWidth(0.95f)
-                        .fillMaxHeight(0.75f),
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
