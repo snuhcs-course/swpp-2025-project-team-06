@@ -351,16 +351,24 @@ def execute_hybrid_search(
     photo_uuids = [uuid.UUID(pid) for pid in recommend_photo_ids_str]
 
     # Photo 모델에서 photo_path_id 조회
-    photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
-        "photo_id", "photo_path_id"
-    )
-
-    id_to_path = {str(p["photo_id"]): p["photo_path_id"] for p in photos}
+    photos = Photo.objects.filter(photo_id__in=photo_uuids)
+    
+    id_to_meta = {
+        str(p.photo_id): {
+            "photo_path_id": p.photo_path_id,
+            "created_at": p.created_at
+        }
+        for p in photos
+    }
 
     final_results = [
-        {"photo_id": photo_id_str, "photo_path_id": id_to_path[photo_id_str]}
+        {
+            "photo_id": photo_id_str,
+            "photo_path_id": id_to_meta[photo_id_str]["photo_path_id"],
+            "created_at": id_to_meta[photo_id_str]["created_at"]
+        }
         for photo_id_str in recommend_photo_ids_str
-        if photo_id_str in id_to_path
+        if photo_id_str in id_to_meta 
     ]
 
     return final_results
