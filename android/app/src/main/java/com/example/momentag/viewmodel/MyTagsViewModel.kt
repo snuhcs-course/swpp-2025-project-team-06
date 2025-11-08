@@ -33,66 +33,69 @@ class MyTagsViewModel(
         viewModelScope.launch {
             _uiState.value = MyTagsUiState.Loading
             println("MyTagsViewModel: loadTags() started")
-            
+
             when (val result = remoteRepository.getAllTags()) {
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: getAllTags() Success - ${result.data.size} tags")
                     // Backend에서 photo_count를 제공하는지 확인
                     val hasPhotoCount = result.data.firstOrNull()?.photoCount != null
                     println("MyTagsViewModel: hasPhotoCount = $hasPhotoCount")
-                    
-                    val tags = if (hasPhotoCount) {
-                        // Backend에서 count를 제공하는 경우: 직접 사용
-                        result.data.map { tagResponse ->
-                            TagCntData(
-                                tagId = tagResponse.tagId,
-                                tagName = tagResponse.tagName,
-                                count = tagResponse.photoCount ?: 0,
-                            )
-                        }
-                    } else {
-                        // Backend에서 count를 제공하지 않는 경우: 각 태그의 사진 개수를 병렬로 가져오기
-                        val tagsDeferred = result.data.map { tagResponse ->
-                            async {
-                                val photoCount = when (val photosResult = remoteRepository.getPhotosByTag(tagResponse.tagId)) {
-                                    is RemoteRepository.Result.Success -> photosResult.data.size
-                                    else -> 0 // 에러 시 0으로 표시
-                                }
-                                
+
+                    val tags =
+                        if (hasPhotoCount) {
+                            // Backend에서 count를 제공하는 경우: 직접 사용
+                            result.data.map { tagResponse ->
                                 TagCntData(
                                     tagId = tagResponse.tagId,
                                     tagName = tagResponse.tagName,
-                                    count = photoCount,
+                                    count = tagResponse.photoCount ?: 0,
                                 )
                             }
+                        } else {
+                            // Backend에서 count를 제공하지 않는 경우: 각 태그의 사진 개수를 병렬로 가져오기
+                            val tagsDeferred =
+                                result.data.map { tagResponse ->
+                                    async {
+                                        val photoCount =
+                                            when (val photosResult = remoteRepository.getPhotosByTag(tagResponse.tagId)) {
+                                                is RemoteRepository.Result.Success -> photosResult.data.size
+                                                else -> 0 // 에러 시 0으로 표시
+                                            }
+
+                                        TagCntData(
+                                            tagId = tagResponse.tagId,
+                                            tagName = tagResponse.tagName,
+                                            count = photoCount,
+                                        )
+                                    }
+                                }
+                            tagsDeferred.awaitAll()
                         }
-                        tagsDeferred.awaitAll()
-                    }
-                    
+
                     println("MyTagsViewModel: Final tags count = ${tags.size}")
                     _uiState.value = MyTagsUiState.Success(tags)
                 }
-                
+
                 is RemoteRepository.Result.Error -> {
                     println("MyTagsViewModel: Error ${result.code}: ${result.message}")
                     _uiState.value = MyTagsUiState.Error("Error ${result.code}: ${result.message}")
                 }
-                
+
                 is RemoteRepository.Result.Unauthorized -> {
                     println("MyTagsViewModel: Unauthorized: ${result.message}")
                     _uiState.value = MyTagsUiState.Error("Unauthorized: ${result.message}")
                 }
-                
+
                 is RemoteRepository.Result.BadRequest -> {
                     println("MyTagsViewModel: BadRequest: ${result.message}")
                     _uiState.value = MyTagsUiState.Error("Bad Request: ${result.message}")
                 }
-                
+
                 is RemoteRepository.Result.NetworkError -> {
                     println("MyTagsViewModel: NetworkError: ${result.message}")
                     _uiState.value = MyTagsUiState.Error("Network Error: ${result.message}")
                 }
-                
+
                 is RemoteRepository.Result.Exception -> {
                     println("MyTagsViewModel: Exception: ${result.e.message}")
                     _uiState.value = MyTagsUiState.Error("Exception: ${result.e.message ?: "Unknown error"}")
@@ -123,12 +126,18 @@ class MyTagsViewModel(
         }
     }
 
-    fun showEditDialog(tagId: String, tagName: String) {
+    fun showEditDialog(
+        tagId: String,
+        tagName: String,
+    ) {
         // TODO: 다이얼로그 표시하여 태그 이름 수정
         println("MyTagsViewModel: showEditDialog($tagId, $tagName)")
     }
 
-    fun renameTag(tagId: String, newName: String) {
+    fun renameTag(
+        tagId: String,
+        newName: String,
+    ) {
         viewModelScope.launch {
             println("MyTagsViewModel: renameTag($tagId, $newName)")
             when (val result = remoteRepository.renameTag(tagId, newName)) {

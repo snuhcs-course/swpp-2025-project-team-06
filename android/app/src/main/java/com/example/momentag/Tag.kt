@@ -193,7 +193,7 @@ fun TagChipWithCount(
             }
             Spacer(modifier = Modifier.width(8.dp))
         }
-        
+
         Text(
             text = tagName,
             style = MaterialTheme.typography.bodyLarge,
@@ -205,7 +205,7 @@ fun TagChipWithCount(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
         )
-        
+
         // Edit 모드일 때 X 아이콘을 뒤에 표시
         if (isEditMode && onDelete != null) {
             Spacer(modifier = Modifier.width(8.dp))

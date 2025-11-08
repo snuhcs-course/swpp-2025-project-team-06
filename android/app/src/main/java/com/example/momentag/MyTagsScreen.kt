@@ -2,7 +2,6 @@ package com.example.momentag
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,7 +48,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.MyTagsUiState
@@ -67,10 +65,10 @@ fun MyTagsScreen(navController: NavController) {
     val viewModel: MyTagsViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val uiState by viewModel.uiState.collectAsState()
     val isEditMode by viewModel.isEditMode.collectAsState()
-    
+
     var showDeleteDialog by remember { mutableStateOf(false) }
     var tagToDelete by remember { mutableStateOf<Pair<String, String>?>(null) }
-    
+
     var showEditDialog by remember { mutableStateOf(false) }
     var tagToEdit by remember { mutableStateOf<Pair<String, String>?>(null) }
     var editedTagName by remember { mutableStateOf("") }
@@ -169,7 +167,7 @@ fun MyTagsScreen(navController: NavController) {
             }
         }
     }
-    
+
     // 삭제 확인 다이얼로그
     if (showDeleteDialog && tagToDelete != null) {
         AlertDialog(
@@ -209,7 +207,7 @@ fun MyTagsScreen(navController: NavController) {
             },
         )
     }
-    
+
     // 태그 수정 다이얼로그
     if (showEditDialog && tagToEdit != null) {
         AlertDialog(
@@ -279,7 +277,7 @@ private fun MyTagsContent(
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
-    
+
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = {
@@ -296,123 +294,121 @@ private fun MyTagsContent(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp),
         ) {
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // My Tags 헤더
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "My Tags",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = if (tags.size >= 2) "${tags.size} tags" else "${tags.size} tag",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 태그가 있을 때
-        if (tags.isNotEmpty()) {
-            FlowRow(
+            // My Tags 헤더
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                tags.forEachIndexed { index, tagData ->
-                    TagChipWithCount(
-                        tagName = tagData.tagName,
-                        count = tagData.count,
-                        color = getTagColor(index),
-                        onClick = {
-                            if (!isEditMode) {
-                                navController.navigate(
-                                    Screen.Album.createRoute(
-                                        tagId = tagData.tagId,
-                                        tagName = tagData.tagName,
-                                    ),
-                                )
-                            }
-                        },
-                        isEditMode = isEditMode,
-                        onEdit = { onEditTag(tagData.tagId, tagData.tagName) },
-                        onDelete = { onDeleteTag(tagData.tagId, tagData.tagName) },
-                    )
-                }
+                Text(
+                    text = "My Tags",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = if (tags.size >= 2) "${tags.size} tags" else "${tags.size} tag",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-        } else {
-                    // 태그가 없을 때 - Empty State
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.tag),
-                            contentDescription = "Empty Tag",
-                            modifier =
-                                Modifier
-                                    .size(200.dp)
-                                    .rotate(45f),
-                        )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(
-                            text = "태그를 만들어보세요",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = "키워드로 추억을\n모아보세요",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            // 태그가 있을 때
+            if (tags.isNotEmpty()) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    tags.forEachIndexed { index, tagData ->
+                        TagChipWithCount(
+                            tagName = tagData.tagName,
+                            count = tagData.count,
+                            color = getTagColor(index),
+                            onClick = {
+                                if (!isEditMode) {
+                                    navController.navigate(
+                                        Screen.Album.createRoute(
+                                            tagId = tagData.tagId,
+                                            tagName = tagData.tagName,
+                                        ),
+                                    )
+                                }
+                            },
+                            isEditMode = isEditMode,
+                            onEdit = { onEditTag(tagData.tagId, tagData.tagName) },
+                            onDelete = { onDeleteTag(tagData.tagId, tagData.tagName) },
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Create New Tag Button
-                Button(
-                    onClick = {
-                        navController.navigate(Screen.AddTag.route)
-                    },
+            } else {
+                // 태그가 없을 때 - Empty State
+                Column(
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                    shape = RoundedCornerShape(26.dp),
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                        ),
+                            .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.tag),
+                        contentDescription = "Empty Tag",
+                        modifier =
+                            Modifier
+                                .size(200.dp)
+                                .rotate(45f),
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
                     Text(
-                        text = "+ Create New Tag",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color.White,
+                        text = "태그를 만들어보세요",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "키워드로 추억을\n모아보세요",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Create New Tag Button
+            Button(
+                onClick = {
+                    navController.navigate(Screen.AddTag.route)
+                },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                shape = RoundedCornerShape(26.dp),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                    ),
+            ) {
+                Text(
+                    text = "+ Create New Tag",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
-
-
+}
 
 // UI 디자인의 색상들을 순서대로 할당
 private val tagColors =
@@ -427,6 +423,4 @@ private val tagColors =
         Color(0xFFFF9B9B), // Coral for #home
     )
 
-private fun getTagColor(index: Int): Color {
-    return tagColors.getOrElse(index) { tagColors[index % tagColors.size] }
-}
+private fun getTagColor(index: Int): Color = tagColors.getOrElse(index) { tagColors[index % tagColors.size] }
