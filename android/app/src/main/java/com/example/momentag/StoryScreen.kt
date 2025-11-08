@@ -59,9 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
@@ -402,41 +400,38 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
     )
 
     // Capture color scheme values in composable scope
-    val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val surfaceContainerColor = MaterialTheme.colorScheme.surfaceContainer
 
-    Column(
-        modifier = modifier.offset(y = offsetY.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Box(
+        modifier =
+            modifier
+                .offset(y = offsetY.dp)
+                .shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                    spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                ).background(
+                    color = surfaceContainerColor.copy(alpha = 0.65f),
+                    shape = RoundedCornerShape(16.dp),
+                ).padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Icon(
-            imageVector = Icons.Default.KeyboardArrowUp,
-            contentDescription = null,
-            tint = onSurfaceColor.copy(alpha = 0.4f),
-            modifier =
-                Modifier
-                    .size(24.dp)
-                    .drawBehind {
-                        drawCircle(
-                            color = surfaceColor.copy(alpha = 0.5f), // 빛 색상
-                            radius = this.size.maxDimension / 1.8f, // 번짐 크기
-                            center = this.center,
-                        )
-                    },
-        )
-        Text(
-            text = "스크롤하여 다음 추억",
-            color = onSurfaceColor,
-            style =
-                MaterialTheme.typography.bodySmall.copy(
-                    shadow =
-                        androidx.compose.ui.graphics.Shadow(
-                            color = surfaceColor, // 그림자(빛) 색상
-                            offset = Offset(0f, 0f), // 중심에서 얼마나 이동시킬지
-                            blurRadius = 12f, // 얼마나 번지게 할지
-                        ),
-                ),
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowUp,
+                contentDescription = null,
+                tint = onSurfaceColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(24.dp),
+            )
+            Text(
+                text = "Scroll for more moments",
+                color = onSurfaceColor.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
 }
 
