@@ -225,6 +225,6 @@ MINIO_PREFIX = env('MINIO_PREFIX', default='temp-photos')  # Optional folder pre
 MINIO_REGION = env('MINIO_REGION', default='us-east-1')  # S3 compatibility
 
 # Redis settings for story generation and store
-REDIS_HOST = "127.0.0.1"
+REDIS_HOST = env('REDIS_HOST', default='127.0.0.1')
 REDIS_PORT = 6379      
 REDIS_PASSWORD = None  
