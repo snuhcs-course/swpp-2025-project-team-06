@@ -1,6 +1,7 @@
 package com.example.momentag
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -99,45 +100,9 @@ fun SearchResultScreen(
     var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
-    val topBarActions = @Composable {
-        Box {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options"
-                )
-            }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                if (isSelectionModeDelay) {
-                    DropdownMenuItem(
-                        text = { Text("Share") },
-                        onClick = {
-                            // TODO: Share logic
-                            Toast.makeText(
-                                context,
-                                "Share ${selectedPhotos.size} photo(s) (TODO)",
-                                Toast.LENGTH_SHORT
-                            ).show()
-
-                            showMenu = false
-                            isSelectionMode = false
-                            searchViewModel.resetSelection()
-                        }
-                    )
-                } else {
-                    DropdownMenuItem(
-                        text = { Text("Select") },
-                        onClick = {
-                            isSelectionMode = true
-                            showMenu = false
-                        }
-                    )
-                }
-            }
-        }
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionMode = false
+        searchViewModel.resetSelection()
     }
 
     LaunchedEffect(isSelectionMode) {
@@ -180,6 +145,55 @@ fun SearchResultScreen(
                 }
             }
         }
+
+    val topBarActions = @Composable {
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options"
+                )
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                if (isSelectionModeDelay) {
+                    DropdownMenuItem(
+                        text = { Text("Share") },
+                        onClick = {
+                            // TODO: Share logic
+                            Toast.makeText(
+                                context,
+                                "Share ${selectedPhotos.size} photo(s) (TODO)",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            showMenu = false
+                            isSelectionMode = false
+                            searchViewModel.resetSelection()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("View") },
+                        onClick = {
+                            isSelectionMode = false
+                            searchViewModel.resetSelection()
+                            showMenu = false
+                        }
+                    )
+                } else {
+                    DropdownMenuItem(
+                        text = { Text("Select") },
+                        onClick = {
+                            isSelectionMode = true
+                            showMenu = false
+                        }
+                    )
+                }
+            }
+        }
+    }
 
     SearchResultScreenUi(
         searchText = searchText,
@@ -231,21 +245,23 @@ fun SearchResultScreen(
             currentTab = tab
             when (tab) {
                 BottomTab.HomeScreen -> {
+                    searchViewModel.resetSelection()
                     navController.navigate(Screen.Home.route)
                 }
                 BottomTab.SearchResultScreen -> {
                     // 이미 Search 화면
                 }
                 BottomTab.AddTagScreen -> {
+                    searchViewModel.resetSelection()
                     navController.navigate(Screen.AddTag.route)
                 }
                 BottomTab.StoryScreen -> {
+                    searchViewModel.resetSelection()
                     navController.navigate(Screen.Story.route)
                 }
             }
         },
-        topBarActions = topBarActions,
-    )
+        topBarActions = if (uiState is SearchUiState.Success) topBarActions else { {} }    )
 }
 
 /**
@@ -270,7 +286,7 @@ fun SearchResultScreenUi(
     navController: NavController,
     currentTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit,
-    topBarActions : @Composable () -> Unit = {},
+    topBarActions: @Composable () -> Unit = {},
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(

@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -41,10 +42,13 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -101,14 +105,15 @@ fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
-    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val logoutState by authViewModel.logoutState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
+    val logoutState by authViewModel.logoutState.collectAsState()
     val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
     val homeDeleteState by homeViewModel.homeDeleteState.collectAsState()
     val uiState by photoViewModel.uiState.collectAsState()
@@ -122,9 +127,15 @@ fun HomeScreen(navController: NavController) {
     var showAllPhotos by remember { mutableStateOf(false) }
     var isDeleteMode by remember { mutableStateOf(false) }
     var isSelectionMode by remember { mutableStateOf(false) }
+    var isSelectionModeDelay by remember { mutableStateOf(false) }
 
     val allPhotosListState = homeViewModel.allPhotosListState
     val shouldReturnToAllPhotos by homeViewModel.shouldReturnToAllPhotos.collectAsState()
+
+    LaunchedEffect(isSelectionMode) {
+        kotlinx.coroutines.delay(200L) // 0.2초
+        isSelectionModeDelay = isSelectionMode
+    }
 
     LaunchedEffect(Unit) {
         if (shouldReturnToAllPhotos) {
@@ -225,6 +236,11 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
+    BackHandler(enabled = isSelectionMode && showAllPhotos) {
+        isSelectionMode = false
+        homeViewModel.resetSelection()
+    }
+
     Scaffold(
         topBar = {
             CommonTopBar(
@@ -240,47 +256,48 @@ fun HomeScreen(navController: NavController) {
                 actions = {
                     // 태그 앨범 뷰(!showAllPhotos)에서는 선택 모드 버튼을 표시하지 않음
                     if (showAllPhotos) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (isSelectionMode) {
-                                // Cancel button when in selection mode
-                                IconButton(
-                                    onClick = {
-                                        isSelectionMode = false
-                                        homeViewModel.resetSelection() // draftRepository 초기화!
-                                    },
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Cancel",
-                                        tint = Color.Black,
-                                        modifier = Modifier.size(20.dp),
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "More options"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                if (isSelectionModeDelay) {
+                                    DropdownMenuItem(
+                                        text = { Text("View") },
+                                        onClick = {
+                                            isSelectionMode = false
+                                            homeViewModel.resetSelection()
+                                            showMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Share") },
+                                        onClick = {
+                                            if (selectedPhotos.isEmpty()) {
+                                                Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                // TODO: Implement share functionality
+                                                Toast.makeText(context, "Share ${selectedPhotos.size} photo(s) (TODO)", Toast.LENGTH_SHORT).show()
+                                            }
+                                            showMenu = false
+                                        }
+                                    )
+                                } else {
+                                    DropdownMenuItem(
+                                        text = { Text("Select") },
+                                        onClick = {
+                                            isSelectionMode = true
+                                            homeViewModel.resetSelection()
+                                            showMenu = false
+                                        }
                                     )
                                 }
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    if (isSelectionMode) {
-                                        // Share action
-                                        if (selectedPhotos.isEmpty()) {
-                                            Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Share ${selectedPhotos.size} items", Toast.LENGTH_SHORT).show()
-                                            // TODO: Implement share functionality
-                                        }
-                                    } else {
-                                        // Enter selection mode
-                                        isSelectionMode = true
-                                        homeViewModel.resetSelection() // 진입 시 초기화
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Outlined.CheckBox,
-                                    contentDescription = if (isSelectionMode) "Share" else "Select",
-                                    tint = Color.Black,
-                                    modifier = if (isSelectionMode) Modifier.size(20.dp) else Modifier.size(24.dp),
-                                )
                             }
                         }
                     }
