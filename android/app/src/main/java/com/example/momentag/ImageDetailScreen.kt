@@ -114,6 +114,7 @@ fun ImageDetailScreen(
                 Photo(
                     photoId = imageId, // backend photo_id must be used
                     contentUri = uri,
+                    createdAt = "",
                 ),
             )
         } ?: emptyList()

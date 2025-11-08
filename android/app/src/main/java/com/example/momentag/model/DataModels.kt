@@ -45,11 +45,13 @@ data class PhotoDetailResponse(
 data class PhotoResponse(
     @SerializedName("photo_id") val photoId: String,
     @SerializedName("photo_path_id") val photoPathId: Long,
+    @SerializedName("created_at") val createdAt: String,
 )
 
 data class Photo(
     val photoId: String,
     val contentUri: Uri,
+    val createdAt: String
 )
 
 data class Photos(

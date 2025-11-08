@@ -379,9 +379,12 @@ class LocalRepository(
         return albums.values.toList()
     }
 
-    fun getImagesForAlbum(albumId: Long): List<Uri> {
-        val images = mutableListOf<Uri>()
-        val projection = arrayOf(MediaStore.Images.Media._ID)
+    fun getImagesForAlbum(albumId: Long): List<Photo> {
+        val images = mutableListOf<Photo>()
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATE_TAKEN
+        )
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
         val selectionArgs = arrayOf(albumId.toString())
         val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
@@ -395,14 +398,28 @@ class LocalRepository(
                 sortOrder,
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
+                    val dateValue = cursor.getLong(dateTakenColumn)
                     val contentUri =
                         ContentUris.withAppendedId(
                             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                             id,
                         )
-                    images.add(contentUri)
+                    val createdAt = try {
+                        val date = Date(dateValue)
+                        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                        sdf.timeZone = TimeZone.getTimeZone("UTC")
+                        sdf.format(date)
+                    } catch (e: Exception) {
+                        ""
+                    }
+                    images.add(Photo(
+                        photoId = id.toString(),
+                        contentUri = contentUri,
+                        createdAt = createdAt
+                    ))
                 }
             }
         return images
@@ -439,6 +456,7 @@ class LocalRepository(
                     Photo(
                         photoId = photoResponse.photoId,
                         contentUri = contentUri,
+                        createdAt = photoResponse.createdAt,
                     )
                 } else {
                     null
