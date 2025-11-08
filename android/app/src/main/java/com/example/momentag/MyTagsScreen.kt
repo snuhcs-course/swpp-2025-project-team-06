@@ -299,11 +299,14 @@ private fun MyTagsContent(
                     .verticalScroll(rememberScrollState())
                     .clickable(
                         indication = null,
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        interactionSource =
+                            remember {
+                                androidx.compose.foundation.interaction
+                                    .MutableInteractionSource()
+                            },
                     ) {
                         onExitEditMode()
-                    }
-                    .padding(horizontal = 24.dp),
+                    }.padding(horizontal = 24.dp),
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 

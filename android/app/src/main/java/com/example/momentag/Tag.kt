@@ -188,8 +188,7 @@ fun TagChipWithCount(
                             onLongClick?.invoke()
                         },
                     )
-                }
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+                }.padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Edit 모드일 때 연필 아이콘을 가장 앞에 표시
