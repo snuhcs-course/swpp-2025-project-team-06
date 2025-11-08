@@ -103,7 +103,13 @@ fun ImageGridUriItem(
                         .padding(4.dp)
                         .size(24.dp)
                         .background(
-                            if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface.copy(
+                                    alpha = 0.8f,
+                                )
+                            },
                             RoundedCornerShape(12.dp),
                         ),
                 contentAlignment = Alignment.Center,

@@ -304,7 +304,14 @@ fun SelectImageScreen(navController: NavController) {
                                             .size(24.dp)
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(
-                                                if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.surface
+                                                        .copy(
+                                                            alpha = 0.8f,
+                                                        )
+                                                },
                                             ),
                                     contentAlignment = Alignment.Center,
                                 ) {
