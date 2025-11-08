@@ -42,7 +42,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
@@ -301,7 +300,7 @@ private fun SearchResultContent(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Search for Photo",
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.headlineSmall,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
@@ -339,7 +338,7 @@ private fun SearchResultContent(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = if (isSelectionMode) "선택 모드" else "선택",
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                 }
@@ -399,8 +398,8 @@ private fun SearchResultContent(
 
                 Text(
                     text = "총 ${uiState.results.size}장",
-                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
                     modifier =
                         Modifier
                             .align(Alignment.BottomStart)

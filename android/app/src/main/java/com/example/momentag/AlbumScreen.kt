@@ -64,7 +64,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
@@ -256,7 +255,8 @@ fun AlbumScreen(
                                 .onFocusChanged { focusState ->
                                     isFocused = focusState.isFocused
                                 },
-                        textStyle = MaterialTheme.typography.headlineMedium,
+                        textStyle =
+                            MaterialTheme.typography.displayMedium,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions =
                             KeyboardActions(
@@ -449,8 +449,7 @@ private fun AlbumContent(
                         Text(
                             text = "AI Recommend",
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         )
                     }
 
@@ -485,7 +484,7 @@ private fun AlbumContent(
                         ) {
                             Text(
                                 text = if (isRecommendSelectionMode) "취소" else "선택",
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                             )
                         }
                     }
@@ -555,8 +554,7 @@ private fun AlbumContent(
                                         Text(
                                             text = "Add to Album (${selectedRecommendPhotos.size})",
                                             color = MaterialTheme.colorScheme.onPrimary,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.labelLarge,
                                             modifier = Modifier.padding(vertical = 4.dp),
                                         )
                                     }

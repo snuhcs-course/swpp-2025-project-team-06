@@ -51,13 +51,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -128,8 +127,7 @@ fun LocalAlbumScreen(
                 title = {
                     Text(
                         "MomenTag",
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge,
                     )
                 },
                 navigationIcon = {
@@ -216,7 +214,7 @@ fun LocalAlbumScreen(
                 Text(
                     text = albumName,
                     fontSize = 28.sp,
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = Pretendard,
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),

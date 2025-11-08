@@ -8,42 +8,107 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.momentag.R
 
-val Pretandard =
+// Define Pretendard font family mapping to weights
+val Pretendard =
     FontFamily(
-        Font(R.font.pretendard_regular),
+        Font(R.font.pretendard_regular, FontWeight.Normal),
+        Font(R.font.pretendard_medium, FontWeight.Medium),
         Font(R.font.pretendard_bold, FontWeight.Bold),
+        Font(R.font.pretendard_semibold, FontWeight.SemiBold),
     )
 
 val MomenTagTypography =
     Typography(
+        // 제목/헤더 (Titles/Headers) - 앱 타이틀, 화면 타이틀
         displayLarge =
             TextStyle(
-                fontFamily = Pretandard,
+                fontFamily = Pretendard,
                 fontWeight = FontWeight.Bold,
-                fontSize = 36.sp,
+                fontSize = 32.sp,
+                lineHeight = 40.sp,
+                letterSpacing = 0.sp,
             ),
         displayMedium =
             TextStyle(
-                fontFamily = Pretandard,
+                fontFamily = Pretendard,
                 fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
+                fontSize = 28.sp,
+                lineHeight = 36.sp,
+                letterSpacing = 0.sp,
+            ),
+        displaySmall =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 24.sp,
+                lineHeight = 32.sp,
+                letterSpacing = 0.sp,
+            ),
+        // 큰 제목
+        headlineLarge =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 21.sp,
+                lineHeight = 28.sp,
+                letterSpacing = 0.sp,
             ),
         headlineMedium =
             TextStyle(
-                fontFamily = Pretandard,
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 20.sp,
+                lineHeight = 28.sp,
+                letterSpacing = 0.sp,
+            ),
+        headlineSmall =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.Medium,
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
+                letterSpacing = 0.sp,
+            ),
+        // 본문/설명 텍스트 (Body/Description)
+        bodyMedium =
+            TextStyle(
+                fontFamily = Pretendard,
                 fontWeight = FontWeight.Normal,
-                fontSize = 28.sp,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                letterSpacing = 0.25.sp,
+            ),
+        bodySmall =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.Normal,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                letterSpacing = 0.4.sp,
+            ),
+        // 버튼/라벨 텍스트 (Buttons/Labels)
+        labelLarge =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                lineHeight = 20.sp,
+                letterSpacing = 0.1.sp,
+            ),
+        labelMedium =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                letterSpacing = 0.5.sp,
             ),
         labelSmall =
             TextStyle(
-                fontFamily = Pretandard,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-            ),
-        bodyLarge =
-            TextStyle(
-                fontFamily = Pretandard,
-                fontWeight = FontWeight.Normal,
-                fontSize = 14.sp,
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.Medium,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                letterSpacing = 0.5.sp,
             ),
     )

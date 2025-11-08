@@ -56,7 +56,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,6 +64,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -264,7 +264,7 @@ fun ImageDetailScreen(
                 title = {
                     Text(
                         "MomenTag",
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = Pretendard,
                         fontWeight = FontWeight.Bold,
                     )
                 },

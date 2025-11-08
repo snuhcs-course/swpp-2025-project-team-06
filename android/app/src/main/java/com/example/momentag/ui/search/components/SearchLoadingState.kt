@@ -48,12 +48,11 @@ fun SearchLoadingStateCustom(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("🐻", fontSize = 80.sp, modifier = Modifier.padding(bottom = 16.dp))
+            Text("🐻", style = MaterialTheme.typography.displayLarge.copy(fontSize = 80.sp), modifier = Modifier.padding(bottom = 16.dp))
             Text(
                 text = "Loading ...",
-                fontSize = 18.sp,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium),
                 modifier = Modifier.padding(bottom = 16.dp),
             )
             CircularProgressIndicator(

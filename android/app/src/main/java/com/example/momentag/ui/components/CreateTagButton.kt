@@ -13,7 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /**
  * 📦 CreateTagButton — Home / Gallery 등에서 공용으로 쓰는 버튼
@@ -42,6 +41,6 @@ fun CreateTagButton(
             modifier = Modifier.width(20.dp),
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = text, fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimary)
+        Text(text = text, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge)
     }
 }

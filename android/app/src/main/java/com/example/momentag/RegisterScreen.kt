@@ -40,12 +40,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.RegisterState
@@ -157,9 +155,7 @@ fun RegisterScreen(navController: NavController) {
             // MomenTag title
             Text(
                 text = "MomenTag",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
+                style = MaterialTheme.typography.displayLarge,
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -174,11 +170,7 @@ fun RegisterScreen(navController: NavController) {
                 // Sign Up title
                 Text(
                     text = "Sign Up",
-                    style =
-                        TextStyle(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
+                    style = MaterialTheme.typography.displayLarge,
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -513,7 +505,7 @@ fun RegisterScreen(navController: NavController) {
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
                 ) {
-                    Text(text = "Register", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Register", style = MaterialTheme.typography.headlineMedium)
                 }
             }
         }

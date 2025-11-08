@@ -22,11 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
@@ -100,17 +98,16 @@ fun errorDialog(
                     // 제목
                     Text(
                         text = title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
                     // 에러 메시지
                     Text(
                         text = errorMessage,
-                        fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp),
                     )
@@ -128,8 +125,7 @@ fun errorDialog(
                     ) {
                         Text(
                             text = retryButtonText,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge,
                         )
                     }
                 }
@@ -198,17 +194,16 @@ fun ErrorOverlay(
                     // 제목
                     Text(
                         text = title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
                     // 에러 메시지
                     Text(
                         text = errorMessage,
-                        fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp),
                     )
@@ -226,8 +221,7 @@ fun ErrorOverlay(
                     ) {
                         Text(
                             text = retryButtonText,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge,
                         )
                     }
                 }
@@ -308,7 +302,7 @@ private fun previewErrorOverlay() {
         ) {
             Text(
                 text = "Some Screen Content",
-                fontSize = 24.sp,
+                style = MaterialTheme.typography.displaySmall,
                 modifier = Modifier.padding(32.dp),
             )
         }

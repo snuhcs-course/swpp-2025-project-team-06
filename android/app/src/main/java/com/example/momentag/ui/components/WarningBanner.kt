@@ -26,7 +26,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /**
  * 재사용 가능한 경고 배너 컴포넌트
@@ -92,14 +91,13 @@ fun WarningBanner(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 14.sp,
                 color = contentColor,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             )
             Text(
                 text = message,
-                fontSize = 14.sp,
                 color = contentColor,
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
 

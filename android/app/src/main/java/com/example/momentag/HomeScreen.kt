@@ -71,7 +71,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -292,8 +291,8 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         Text(
                             text = data.visuals.message,
-                            fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.bodyMedium,
                             modifier =
                                 Modifier
                                     .background(
@@ -881,7 +880,7 @@ fun TagGridItem(
         Text(
             text = tagName,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)

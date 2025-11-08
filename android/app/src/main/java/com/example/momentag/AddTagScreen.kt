@@ -60,7 +60,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -300,8 +299,8 @@ private fun TagNameSection(
     Column {
         Text(
             text = "New tag name",
-            fontSize = 20.sp,
             color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.headlineLarge,
         )
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -309,9 +308,9 @@ private fun TagNameSection(
             value = tagName,
             onValueChange = onTagNameChange,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = TextStyle(fontSize = 21.sp),
+            textStyle = MaterialTheme.typography.headlineLarge,
             placeholder = { Text("태그 입력") },
-            leadingIcon = { Text("#", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface) },
+            leadingIcon = { Text("#", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface) },
             colors =
                 TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -347,7 +346,7 @@ private fun SelectPicturesButton(onClick: () -> Unit) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Select Pictures",
-            fontSize = 20.sp,
+            style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
     }
@@ -387,7 +386,7 @@ private fun RecommendedPicturesSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "Recommended Pictures",
-            fontSize = 20.sp,
+            style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(11.dp))

@@ -47,9 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -164,9 +162,8 @@ fun SelectImageScreen(navController: NavController) {
 
             Text(
                 text = "#$tagName",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineLarge,
             )
             HorizontalDivider(
                 modifier =
@@ -182,9 +179,8 @@ fun SelectImageScreen(navController: NavController) {
             ) {
                 Text(
                     text = "Choose more than 5 pictures",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.headlineLarge,
                     modifier = Modifier.align(Alignment.CenterStart),
                 )
 

@@ -45,9 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -188,8 +186,7 @@ fun LocalGalleryScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "Albums",
-                    fontSize = 28.sp,
-                    fontFamily = FontFamily.Serif,
+                    style = MaterialTheme.typography.displayMedium,
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
@@ -287,7 +284,7 @@ fun albumGridItem(
         Text(
             text = albumName,
             color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)

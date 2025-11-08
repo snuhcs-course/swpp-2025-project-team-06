@@ -28,7 +28,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /**
  * 태그 변형(Variant)
@@ -83,7 +82,7 @@ fun tagChip(
     val alpha = if (variant is TagVariant.Recommended) 0.5f else 1f
 
     tagContainer(modifier = modifier.alpha(alpha)) {
-        Text(text = text, fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Text(text = text, color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.width(4.dp))
 
         when (variant) {
