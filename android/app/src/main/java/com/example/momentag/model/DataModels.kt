@@ -19,12 +19,21 @@ data class TagResponse(
     val tagId: String,
     @SerializedName("thumbnail_path_id")
     val thumbnailPhotoPathId: Long?,
+    @SerializedName("created_at")
+    val createdAt: String?,
+    @SerializedName("updated_at")
+    val updatedAt: String?,
+    @SerializedName("photo_count")
+    val photoCount: Int
 )
 
 data class TagItem(
     val tagName: String,
     val coverImageId: Long?,
     val tagId: String,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val photoCount: Int
 )
 
 data class TagName(

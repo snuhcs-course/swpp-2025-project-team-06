@@ -1,5 +1,5 @@
 import uuid
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Count, Subquery
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -786,29 +786,19 @@ class TagView(APIView):
     )
     def get(self, request):
         try:
-            tags = Tag.objects.filter(user=request.user)
+            latest_photo_subquery = Photo_Tag.objects.filter(
+                tag=OuterRef("pk"), 
+                user=request.user
+            ).select_related("photo").order_by("-photo__created_at")
 
-            # Build response data with thumbnail_path_id for each tag
-            tags_data = []
-            for tag in tags:
-                # Get one photo_path_id from photos with this tag
-                photo_tag = (
-                    Photo_Tag.objects.filter(tag=tag, user=request.user)
-                    .select_related("photo")
-                    .first()
-                )
+            tags = Tag.objects.filter(
+                user=request.user
+            ).annotate(
+                photo_count=Count('photo_tag', filter=models.Q(photo_tag__user=request.user)),
+                thumbnail_path_id=Subquery(latest_photo_subquery.values("photo__photo_path_id")[:1])
+            )
 
-                thumbnail_path_id = photo_tag.photo.photo_path_id if photo_tag else None
-
-                tags_data.append(
-                    {
-                        "tag_id": tag.tag_id,
-                        "tag": tag.tag,
-                        "thumbnail_path_id": thumbnail_path_id,
-                    }
-                )
-
-            response_serializer = ResTagThumbnailSerializer(tags_data, many=True)
+            response_serializer = ResTagThumbnailSerializer(tags, many=True)
 
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
