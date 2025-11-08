@@ -23,9 +23,13 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -86,9 +90,7 @@ fun LocalGalleryScreen(
             contract = ActivityResultContracts.RequestPermission(),
             onResult = { isGranted ->
                 if (isGranted) {
-                    // 👇 [수정] 'selectedAlbumId?.let' (단수) -> 'selectedAlbumIds.isNotEmpty' (복수)
                     if (selectedAlbumIds.isNotEmpty()) {
-                        // 👇 [수정] 'uploadPhotosForAlbum(it, ...)' -> 'uploadPhotosForAlbums(selectedAlbumIds, ...)'
                         photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
                     }
                 } else {
@@ -143,21 +145,28 @@ fun LocalGalleryScreen(
                         if (uploadState.isLoading) {
                             Text("업로드 시작됨 (알림 확인)")
                         } else {
-                            // 👇 [수정] 3: 선택된 개수 표시
                             Text("선택한 ${selectedAlbumIds.size}개 앨범 업로드하기")
                         }
                     },
                     icon = {
-                        // ... (로딩 스피너 로직은 동일)
+                        if (uploadState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = "Upload",
+                            )
+                        }
                     },
                     onClick = {
                         if (uploadState.isLoading) return@ExtendedFloatingActionButton
 
-                        // 👇 [수정] 4: 'selectedAlbumId' (단수) -> 'selectedAlbumIds' (복수) 전달
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         } else {
-                            // [수정]
                             photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
                         }
                     },

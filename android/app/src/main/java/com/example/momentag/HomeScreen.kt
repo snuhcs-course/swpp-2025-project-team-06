@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -83,6 +85,7 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Picture
 import com.example.momentag.ui.theme.TagColor
 import com.example.momentag.ui.theme.Word
@@ -125,6 +128,8 @@ fun HomeScreen(navController: NavController) {
 
     val allPhotosListState = homeViewModel.allPhotosListState
     val shouldReturnToAllPhotos by homeViewModel.shouldReturnToAllPhotos.collectAsState()
+
+    val uploadState by photoViewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
         if (shouldReturnToAllPhotos) {
@@ -526,6 +531,19 @@ fun HomeScreen(navController: NavController) {
                                 )
                             }
                         }
+                    }
+                }
+                AnimatedVisibility(visible = uiState.isLoading) {
+                    Column {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        WarningBanner(
+                            title = "업로드 진행 중 🚀",
+                            message = "사진을 백그라운드에서 업로드하고 있습니다. 앱을 종료해도 계속됩니다.",
+                            onActionClick = { },
+                            showActionButton = false,
+                            icon = Icons.Default.Upload,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
