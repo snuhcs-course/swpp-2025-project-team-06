@@ -2,6 +2,7 @@ package com.example.momentag
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -162,6 +163,8 @@ fun MyTagsScreen(navController: NavController) {
                             showDeleteDialog = true
                         },
                         onRefresh = { viewModel.refreshTags() },
+                        onEnterEditMode = { viewModel.toggleEditMode() },
+                        onExitEditMode = { if (isEditMode) viewModel.toggleEditMode() },
                     )
                 }
             }
@@ -274,6 +277,8 @@ private fun MyTagsContent(
     onEditTag: (String, String) -> Unit = { _, _ -> },
     onDeleteTag: (String, String) -> Unit = { _, _ -> },
     onRefresh: () -> Unit = {},
+    onEnterEditMode: () -> Unit = {},
+    onExitEditMode: () -> Unit = {},
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
@@ -292,6 +297,12 @@ private fun MyTagsContent(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    ) {
+                        onExitEditMode()
+                    }
                     .padding(horizontal = 24.dp),
         ) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -341,6 +352,7 @@ private fun MyTagsContent(
                             isEditMode = isEditMode,
                             onEdit = { onEditTag(tagData.tagId, tagData.tagName) },
                             onDelete = { onDeleteTag(tagData.tagId, tagData.tagName) },
+                            onLongClick = { onEnterEditMode() },
                         )
                     }
                 }

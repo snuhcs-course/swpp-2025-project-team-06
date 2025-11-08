@@ -3,6 +3,7 @@ package com.example.momentag
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -28,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 
 /**
@@ -168,13 +170,25 @@ fun TagChipWithCount(
     isEditMode: Boolean = false,
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier =
             modifier
                 .height(48.dp)
                 .background(color = color, shape = RoundedCornerShape(24.dp))
-                .clickable(enabled = !isEditMode) { onClick() }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            if (!isEditMode) {
+                                onClick()
+                            }
+                        },
+                        onLongPress = {
+                            onLongClick?.invoke()
+                        },
+                    )
+                }
                 .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
