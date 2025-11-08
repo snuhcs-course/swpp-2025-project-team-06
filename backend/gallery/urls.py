@@ -52,10 +52,12 @@ urlpatterns = [
         "stories/",
         views.StoryView.as_view(),
         name="stories",
-        # get, post
+        # get
     ),
     path(
         "new-stories/",
         views.NewStoryView.as_view(),
+        name="new_stories",
+        # get, post
     )
 ]
