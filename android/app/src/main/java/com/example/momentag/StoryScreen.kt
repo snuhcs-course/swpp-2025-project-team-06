@@ -37,6 +37,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -77,6 +78,8 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.viewmodel.StoryViewModel
+import com.example.momentag.viewmodel.SubmissionState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // =============== Screen ===============
@@ -90,6 +93,7 @@ fun StoryTagSelectionScreen(
 ) {
     val storyState by viewModel.storyState.collectAsState()
     val selectedTags by viewModel.selectedTags.collectAsState()
+    val submissionStates by viewModel.submissionStates.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
     var currentTab by remember { mutableStateOf(BottomTab.StoryScreen) }
@@ -173,6 +177,7 @@ fun StoryTagSelectionScreen(
                     val story = stories[page]
                     val isFirstStory = page == 0
                     val selectedForThisStory = selectedTags[story.id] ?: emptySet()
+                    val submissionState = submissionStates[story.id] ?: SubmissionState.Idle
 
                     // 각 스토리 페이지
                     Box(
@@ -200,17 +205,26 @@ fun StoryTagSelectionScreen(
                             TagSelectionCard(
                                 tags = story.suggestedTags,
                                 selectedTags = selectedForThisStory,
+                                submissionState = submissionState,
                                 onTagToggle = { tag ->
                                     viewModel.toggleTag(story.id, tag)
                                 },
                                 onDone = {
                                     viewModel.submitTagsForStory(story.id)
-
-                                    // Done 누르면 다음 스토리로 자동 스크롤
+                                },
+                                onRetry = {
+                                    viewModel.submitTagsForStory(story.id)
+                                },
+                                onSuccess = {
+                                    // Auto-advance to next story after success animation
                                     coroutineScope.launch {
+                                        // Brief delay to show checkmark
+                                        delay(500)
+
                                         if (page < stories.lastIndex) {
                                             pagerState.animateScrollToPage(page + 1)
                                             viewModel.setCurrentIndex(page + 1)
+                                            viewModel.resetSubmissionState(story.id)
                                         } else if (!state.hasMore) {
                                             viewModel.resetState()
                                             onBack()
@@ -441,10 +455,19 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
 internal fun TagSelectionCard(
     tags: List<String>,
     selectedTags: Set<String>,
+    submissionState: SubmissionState,
     onTagToggle: (String) -> Unit,
     onDone: () -> Unit,
+    onRetry: () -> Unit,
+    onSuccess: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Trigger auto-advance when submission succeeds
+    LaunchedEffect(submissionState) {
+        if (submissionState is SubmissionState.Success) {
+            onSuccess()
+        }
+    }
     Card(
         modifier =
             modifier
@@ -496,10 +519,26 @@ internal fun TagSelectionCard(
 
             val hasSelection = selectedTags.isNotEmpty()
 
+            // Show error message if submission failed
+            if (submissionState is SubmissionState.Error) {
+                Text(
+                    text = submissionState.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+
             GradientPillButton(
                 text = "Done",
                 enabled = hasSelection,
-                onClick = onDone,
+                submissionState = submissionState,
+                onClick = {
+                    when (submissionState) {
+                        is SubmissionState.Error -> onRetry()
+                        else -> onDone()
+                    }
+                },
             )
         }
     }
@@ -532,17 +571,38 @@ internal fun AddTagChip(onClick: () -> Unit) {
 internal fun GradientPillButton(
     text: String,
     enabled: Boolean,
+    submissionState: SubmissionState,
     onClick: () -> Unit,
 ) {
+    val isLoading = submissionState is SubmissionState.Loading
+    val isSuccess = submissionState is SubmissionState.Success
+    val isError = submissionState is SubmissionState.Error
+
     val bgModifier =
-        if (enabled) {
-            Modifier.background(MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp))
-        } else {
-            Modifier.background(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                RoundedCornerShape(24.dp),
-            )
+        when {
+            isSuccess ->
+                Modifier.background(
+                    MaterialTheme.colorScheme.primary,
+                    RoundedCornerShape(24.dp),
+                )
+            isError ->
+                Modifier.background(
+                    MaterialTheme.colorScheme.errorContainer,
+                    RoundedCornerShape(24.dp),
+                )
+            enabled || isLoading ->
+                Modifier.background(
+                    MaterialTheme.colorScheme.primary,
+                    RoundedCornerShape(24.dp),
+                )
+            else ->
+                Modifier.background(
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    RoundedCornerShape(24.dp),
+                )
         }
+
+    val isClickable = enabled && !isLoading && !isSuccess
 
     Box(
         modifier =
@@ -551,14 +611,40 @@ internal fun GradientPillButton(
                 .height(44.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .then(bgModifier)
-                .clickable(enabled = enabled) { onClick() },
+                .clickable(enabled = isClickable) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = text,
-            color = if (enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-            style = MaterialTheme.typography.labelLarge,
-        )
+        when {
+            isLoading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp,
+                )
+            }
+            isSuccess -> {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Success",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            isError -> {
+                Text(
+                    text = "Retry",
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+            else -> {
+                Text(
+                    text = text,
+                    color = if (enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
     }
 }
 
@@ -700,8 +786,11 @@ private fun StoryPageFullBlockPreviewContent(
             TagSelectionCard(
                 tags = suggestedTags,
                 selectedTags = setOf("#카페", "#디저트"),
+                submissionState = SubmissionState.Idle,
                 onTagToggle = {},
                 onDone = {},
+                onRetry = {},
+                onSuccess = {},
                 modifier = Modifier.fillMaxWidth(),
             )
         }
