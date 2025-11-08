@@ -34,7 +34,6 @@ from rest_framework.permissions import IsAuthenticated
 
 from .tasks import (
     tag_recommendation,
-    tag_recommendation_batch,
     is_valid_uuid,
     recommend_photo_from_tag,
     recommend_photo_from_photo,
