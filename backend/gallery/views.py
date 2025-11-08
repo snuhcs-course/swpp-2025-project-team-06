@@ -1070,6 +1070,8 @@ class StoryView(APIView):
             story_data = json.loads(story_data_json)
             serializer = ResStorySerializer(story_data, many=True)
 
+            r.delete(request.user.id)
+
             return Response(serializer.data, status=status.HTTP_200_OK)
         
         except Exception as e:
