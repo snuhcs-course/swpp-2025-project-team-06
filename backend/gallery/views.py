@@ -14,8 +14,9 @@ from .reponse_serializers import (
     ResPhotoTagListSerializer,
     ResTagIdSerializer,
     ResTagVectorSerializer,
-    ResStorySerializer,
+    NewResStorySerializer,
     ResTagThumbnailSerializer,
+    ResStorySerializer,
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
@@ -1120,7 +1121,7 @@ class NewStoryView(APIView):
         operation_description="Get stories from redis",
         request_body=None,
         responses={
-            200: openapi.Response(description="Success", schema=ResStorySerializer()),
+            200: openapi.Response(description="Success", schema=NewResStorySerializer()),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
@@ -1146,7 +1147,7 @@ class NewStoryView(APIView):
             
             story_data_json = r.get(request.user.id)
             story_data = json.loads(story_data_json)
-            serializer = ResStorySerializer(story_data, many=True)
+            serializer = NewResStorySerializer(story_data, many=True)
 
             r.delete(request.user.id)
 

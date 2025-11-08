@@ -24,10 +24,13 @@ class ResTagVectorSerializer(serializers.Serializer):
     tag = serializers.CharField(help_text="태그 이름")
 
 
-class ResStorySerializer(serializers.Serializer):
+class NewResStorySerializer(serializers.Serializer):
     photo_id = serializers.UUIDField(help_text="사진의 고유 ID")
     photo_path_id = serializers.IntegerField(help_text="사진 파일의 경로 ID")
     tags = TagSerializer(many=True)
+
+class ResStorySerializer(serializers.Serializer):
+    recs = ResPhotoSerializer(many=True)
 
 
 class ResTagAlbumSerializer(serializers.Serializer):
