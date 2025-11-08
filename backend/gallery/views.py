@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.db import IntegrityError
 
 
 from .reponse_serializers import (
@@ -30,8 +31,6 @@ from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-from django.core.cache import cache
-
 from .tasks import (
     tag_recommendation,
     is_valid_uuid,
@@ -42,7 +41,7 @@ from .tasks import (
 from .gpu_tasks import (
     process_and_embed_photos_batch,  # GPU-dependent task (batch)
 )
-from .storage_service import upload_photo
+from .storage_service import upload_photo, delete_photo
 
 
 class PhotoView(APIView):
@@ -139,52 +138,68 @@ class PhotoView(APIView):
 
             photos_data = serializer.validated_data
 
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
-
-            # Collect all photo metadata for batch processing
             all_metadata = []
+            skipped_count = 0
 
             for data in photos_data:
-                image_file = data["photo"]
+                storage_key = None
+                
+                try:
+                    image_file = data["photo"]
 
-                # Upload to shared storage (MinIO or local) - storage key is UUID-based
-                storage_key = upload_photo(image_file)
+                    storage_key = upload_photo(image_file)
 
-                photo = Photo.objects.create(
-                    user=request.user,
-                    photo_id=storage_key,
-                    photo_path_id=data["photo_path_id"],
-                    filename=data["filename"],
-                    created_at=data["created_at"],
-                    lat=data["lat"],
-                    lng=data["lng"],
-                )
+                    photo = Photo.objects.create(
+                        user=request.user,
+                        photo_id=storage_key,
+                        photo_path_id=data["photo_path_id"],
+                        filename=data["filename"],
+                        created_at=data["created_at"],
+                        lat=data["lat"],
+                        lng=data["lng"],
+                    )
 
-                # Add to metadata list
-                all_metadata.append(
-                    {
-                        "storage_key": storage_key,
-                        "user_id": request.user.id,
-                        "filename": data["filename"],
-                        "photo_path_id": data["photo_path_id"],
-                        "created_at": data["created_at"].isoformat(),
-                        "lat": data["lat"],
-                        "lng": data["lng"],
-                    }
-                )
+                    all_metadata.append(
+                        {
+                            "storage_key": storage_key,
+                            "user_id": request.user.id,
+                            "filename": data["filename"],
+                            "photo_path_id": data["photo_path_id"],
+                            "created_at": data["created_at"].isoformat(),
+                            "lat": data["lat"],
+                            "lng": data["lng"],
+                        }
+                    )
+                
+                except IntegrityError:
+                    skipped_count += 1
+                    print(f"[INFO] Skipping duplicate photo: User {request.user.id}, Path ID {data['photo_path_id']}")
+                    
+                    if storage_key:
+                        print(f"       ... Cleaning up orphaned file from storage: {storage_key}")
+                        delete_photo(storage_key)
+                    
+                    continue
 
             # Split into batches of 8 for GPU memory management
+            if not all_metadata:
+                return Response(
+                    {"message": f"Processed {len(photos_data)} photos. All were duplicates."},
+                    status=status.HTTP_200_OK, # 새 작업이 없으므로 200 OK
+                )
+            
+            # all_metadata 리스트 (신규 사진) 기준으로 배치 생성
             BATCH_SIZE = 8
             for i in range(0, len(all_metadata), BATCH_SIZE):
                 batch_metadata = all_metadata[i : i + BATCH_SIZE]
                 process_and_embed_photos_batch.delay(batch_metadata)
                 print(
-                    f"[INFO] Dispatched batch task for {len(batch_metadata)} photos (batch {i // BATCH_SIZE + 1})"
+                    f"[INFO] Dispatched batch task for {len(batch_metadata)} new photos (batch {i // BATCH_SIZE + 1})"
                 )
 
+            # 응답 메시지를 더 명확하게
             return Response(
-                {"message": "Photos are being processed."},
+                {"message": f"Processed {len(photos_data)} photos. {len(all_metadata)} new photos are being processed. {skipped_count} duplicates skipped."},
                 status=status.HTTP_202_ACCEPTED,
             )
         except Exception as e:
@@ -354,9 +369,6 @@ class PhotoDetailView(APIView):
                 wait=True,
             )
 
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
-
             for tag_id in tag_ids_to_recompute:
                 compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
@@ -414,9 +426,6 @@ class BulkDeletePhotoView(APIView):
                 points_selector=[str(photo_id) for photo_id in photo_ids_to_delete],
                 wait=True,
             )
-
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
 
             for tag_id in tag_ids_to_recompute:
                 compute_and_store_rep_vectors.delay(request.user.id, tag_id)
@@ -531,9 +540,6 @@ class PostPhotoTagsView(APIView):
                 Photo_Tag.objects.create(
                     pt_id=uuid.uuid4(), photo=photo, tag=tag, user=request.user
                 )
-
-                print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-                cache.delete(f"user_{request.user.id}_combined_graph")
 
                 compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 

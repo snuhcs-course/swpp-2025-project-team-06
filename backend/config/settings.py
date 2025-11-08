@@ -192,24 +192,18 @@ SIMPLE_JWT = {
 }
 
 HYBRID_SEARCH_SETTINGS = {
-    # 1. search/views.py 용
-    # --------------------------
-    # (views.py) 태그의 가중치 (캡션보다 얼마나 중요한가)
-    "TAG_EDGE_WEIGHT": 40.0,
-    # (views.py) 그래프에 넣을 시맨틱 검색 후보 수
-    "SEMANTIC_LIMIT_FOR_GRAPH": 40,
-
-    # 2. gallery/tasks.py 용
-    # --------------------------
-    # (tasks.py) 그래프 점수 vs 시맨틱 점수 최종 비중
-    "GRAPH_WEIGHT": 0.8,
-    "SEMANTIC_WEIGHT": 0.2,
+    # --- (A) 퓨전(Fusion) 가중치 (tasks.py의 execute_hybrid_search가 사용) ---
+    "TAG_FUSION_WEIGHT": 1.0,
+    "SEMANTIC_FUSION_WEIGHT": 1.0, 
+    "CAPTION_BONUS_WEIGHT": 0.1,
     
-    # (tasks.py) 그래프 점수 내부 (RWR vs Adamic/Adar) 비중
-    "ALPHA_RWR_VS_AA": 0.7,
+    # --- (B) Qdrant 검색 제한값 (tasks.py의 execute_hybrid_search가 사용) ---
+    "RECOMMEND_LIMIT": 50,  # 태그 기반 `recommend` 시 최대 50개
+    "SEMANTIC_LIMIT": 50,   # 자연어 기반 `search` 시 최대 50개
     
-    # (tasks.py) 최종 반환할 사진 개수
-    "FINAL_RESULT_LIMIT": 20,
+    # --- (C) 기존 설정 (계속 사용) ---
+    "FINAL_RESULT_LIMIT": 100, # 최종 퓨전 결과 상위 100개
+    "SEMANTIC_LIMIT_FOR_GRAPH": 50, # SemanticSearchView의 (B)분기(순수 시맨틱)에서 씀
 }
 
 CACHES = {
