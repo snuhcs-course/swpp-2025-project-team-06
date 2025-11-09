@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
 import com.example.momentag.model.TagItem
-import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +21,7 @@ data class DatedPhotoGroup(
 class HomeViewModel(
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
-    private val draftTagRepository: DraftTagRepository,
+    private val photoSelectionRepository: PhotoSelectionRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
 ) : ViewModel() {
     sealed class HomeLoadingState {
@@ -57,7 +57,7 @@ class HomeViewModel(
     val homeDeleteState = _homeDeleteState.asStateFlow()
 
     // Photo selection management (같은 패턴으로 SearchViewModel 처럼!)
-    val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
 
     // Server photos for All Photos view with pagination
     private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
@@ -81,11 +81,11 @@ class HomeViewModel(
     private var hasMorePhotos = true
 
     fun togglePhoto(photo: Photo) {
-        draftTagRepository.togglePhoto(photo)
+        photoSelectionRepository.togglePhoto(photo)
     }
 
     fun resetSelection() {
-        draftTagRepository.clear()
+        photoSelectionRepository.clear()
     }
 
     private fun formatISODate(isoDate: String): String =
@@ -110,6 +110,12 @@ class HomeViewModel(
 
         imageBrowserRepository.setGallery(_allPhotos.value)
     }
+
+    /**
+     * Get photos ready for sharing
+     * Returns list of content URIs to share via Android ShareSheet
+     */
+    fun getPhotosToShare() = selectedPhotos.value
 
     // 처음 로드 (초기화)
     fun loadAllPhotos() {

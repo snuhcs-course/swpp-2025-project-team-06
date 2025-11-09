@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -111,6 +112,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
@@ -294,18 +296,15 @@ fun HomeScreen(navController: NavController) {
                                 onClick = {
                                     if (isSelectionMode) {
                                         // Share action
-                                        if (selectedPhotos.isEmpty()) {
-                                            Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Share ${selectedPhotos.size} items", Toast.LENGTH_SHORT).show()
-                                            // TODO: Implement share functionality
-                                        }
+                                        val photos = homeViewModel.getPhotosToShare()
+                                        ShareUtils.sharePhotos(context, photos)
                                     } else {
                                         // Enter selection mode
                                         isSelectionMode = true
                                         homeViewModel.resetSelection() // 진입 시 초기화
                                     }
                                 },
+                                enabled = selectedPhotos.isNotEmpty(),
                             ) {
                                 Icon(
                                     imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Default.Edit,
@@ -422,6 +421,7 @@ fun HomeScreen(navController: NavController) {
                         onSearch = { query ->
                             if (query.isNotEmpty()) {
                                 navController.navigate(Screen.SearchResult.createRoute(query))
+                                focusManager.clearFocus()
                             }
                         },
                         modifier = Modifier.weight(1f),
