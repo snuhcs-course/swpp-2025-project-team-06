@@ -296,8 +296,8 @@ fun StoryTagSelectionScreen(
                             BottomTab.SearchResultScreen -> {
                                 navController.navigate(Screen.SearchResult.initialRoute())
                             }
-                            BottomTab.MyTagsScreen -> {
-                                navController.navigate(Screen.MyTags.route)
+                            BottomTab.AddTagScreen -> {
+                                navController.navigate(Screen.AddTag.route)
                             }
                             BottomTab.StoryScreen -> {
                                 // 이미 Story 화면
