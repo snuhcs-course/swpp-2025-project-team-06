@@ -198,7 +198,8 @@ class SelectedPhotoUploadWorker(
         var finalLat = 0.0
         var finalLng = 0.0
 
-        val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
+        val projection =
+            arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
         applicationContext.contentResolver.query(contentUri, projection, null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) {
                 filename = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)) ?: "unknown.jpg"
