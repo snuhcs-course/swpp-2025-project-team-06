@@ -8,6 +8,7 @@ import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.SearchRepository
+import com.example.momentag.repository.TokenRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,11 +27,43 @@ class SearchViewModel(
     private val draftTagRepository: DraftTagRepository,
     private val localRepository: LocalRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
+    private val tokenRepository: TokenRepository,
 ) : ViewModel() {
     private val _searchState = MutableStateFlow<SemanticSearchState>(SemanticSearchState.Idle)
     val searchState = _searchState.asStateFlow()
 
     val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
+
+    private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
+    val searchHistory = _searchHistory.asStateFlow()
+
+    // TokenRepository의 로그인 상태 Flow 구독
+    private val isLoggedInFlow = tokenRepository.isLoggedIn
+
+    init {
+        loadSearchHistory()
+
+        viewModelScope.launch {
+            isLoggedInFlow.collect { accessToken ->
+                if (accessToken == null) {
+                    clearHistoryAndReload()
+                }
+            }
+        }
+    }
+
+    fun loadSearchHistory() {
+        viewModelScope.launch {
+            _searchHistory.value = localRepository.getSearchHistory()
+        }
+    }
+
+    private fun clearHistoryAndReload() {
+        viewModelScope.launch {
+            localRepository.clearSearchHistory()
+            _searchHistory.value = emptyList()
+        }
+    }
 
     /**
      * Semantic Search 수행 (GET 방식)
@@ -47,6 +80,9 @@ class SearchViewModel(
         }
 
         viewModelScope.launch {
+            localRepository.addSearchHistory(query)
+            loadSearchHistory()
+
             _searchState.value = SemanticSearchState.Loading
 
             when (val result = searchRepository.semanticSearch(query, offset)) {
@@ -81,6 +117,13 @@ class SearchViewModel(
                     _searchState.value = SemanticSearchState.Error(result.message)
                 }
             }
+        }
+    }
+
+    fun removeSearchHistory(query: String) {
+        viewModelScope.launch {
+            localRepository.removeSearchHistory(query)
+            loadSearchHistory()
         }
     }
 

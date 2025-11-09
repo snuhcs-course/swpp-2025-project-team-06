@@ -2,6 +2,7 @@ package com.example.momentag.repository
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
@@ -15,6 +16,7 @@ import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.PhotoUploadData
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -32,6 +34,18 @@ data class PhotoInfoForUpload(
 class LocalRepository(
     private val context: Context,
 ) {
+    private val gson: Gson = Gson()
+
+    companion object {
+        private const val SEARCH_PREFS_NAME = "SearchHistoryPrefs"
+        private const val KEY_SEARCH_HISTORY = "search_history"
+        private const val MAX_HISTORY_SIZE = 10
+    }
+
+    private val searchPrefs: SharedPreferences by lazy {
+        context.getSharedPreferences(SEARCH_PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
     fun getImages(): List<Uri> {
         val imageUriList = mutableListOf<Uri>()
         val projection = arrayOf(MediaStore.Images.Media._ID)
@@ -333,7 +347,6 @@ class LocalRepository(
             }
 
         // convert metadata to JSON
-        val gson = Gson()
         val metadataJson = gson.toJson(metadataList)
         val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
 
@@ -605,5 +618,57 @@ class LocalRepository(
         val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
 
         return PhotoUploadData(photoParts, metadataBody)
+    }
+
+    fun getSearchHistory(): List<String> {
+        val json = searchPrefs.getString(KEY_SEARCH_HISTORY, null)
+        if (json.isNullOrEmpty()) {
+            return emptyList()
+        }
+
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type)
+        } catch (e: Exception) {
+            searchPrefs.edit().remove(KEY_SEARCH_HISTORY).apply()
+            emptyList()
+        }
+    }
+
+    /**
+     * 새 검색어를 최근 검색 기록에 추가합니다.
+     * - 이미 존재하면, 맨 위로 이동시킵니다.
+     * - 최대 10(MAX_HISTORY_SIZE)개까지만 유지합니다.
+     *
+     * @param query 추가할 검색어
+     */
+    fun addSearchHistory(query: String) {
+        val currentHistory = getSearchHistory().toMutableList()
+
+        currentHistory.remove(query)
+        currentHistory.add(0, query)
+
+        val updatedHistory = currentHistory.take(MAX_HISTORY_SIZE)
+        val json = gson.toJson(updatedHistory)
+
+        searchPrefs.edit().putString(KEY_SEARCH_HISTORY, json).apply()
+    }
+
+    /**
+     * 특정 검색어를 기록에서 삭제합니다.
+     *
+     * @param query 삭제할 검색어
+     */
+    fun removeSearchHistory(query: String) {
+        val currentHistory = getSearchHistory().toMutableList()
+
+        if (currentHistory.remove(query)) {
+            val json = gson.toJson(currentHistory)
+            searchPrefs.edit().putString(KEY_SEARCH_HISTORY, json).apply()
+        }
+    }
+
+    fun clearSearchHistory() {
+        searchPrefs.edit().remove(KEY_SEARCH_HISTORY).apply()
     }
 }
