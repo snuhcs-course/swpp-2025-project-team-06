@@ -261,7 +261,7 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     
     tags_dict = {
         str(tag.tag_id): tag 
-        for tag in Tag.objects.filter(tag_id__in=all_tag_ids)
+        for tag in Tag.objects.filter(tag_id__in=all_tag_ids).values_list(tag_id__in=all_tag_ids)
     }
     
     # 4. 최종 결과 조합

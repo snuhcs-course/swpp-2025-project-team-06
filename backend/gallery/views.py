@@ -1140,7 +1140,7 @@ class NewStoryView(APIView):
             exists = r.exists(request.user.id)
             if not exists:
                 return Response(
-                    {"error": "No stories found. Please generate stories first or try again later."},
+                    {"error": "We're working on your stories! Please wait a moment."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
             
