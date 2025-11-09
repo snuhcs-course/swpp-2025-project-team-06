@@ -64,6 +64,7 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlin.math.abs
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -356,7 +357,7 @@ private fun MyTagsContent(
                         TagChipWithCount(
                             tagName = tagData.tagName,
                             count = tagData.count,
-                            color = getTagColor(index),
+                            color = getTagColor(tagData.tagId),
                             onClick = {
                                 if (!isEditMode) {
                                     navController.navigate(
@@ -443,14 +444,27 @@ private fun MyTagsContent(
 // UI 디자인의 색상들을 순서대로 할당
 private val tagColors =
     listOf(
-        Color(0xFF000000), // Black for #302
-        Color(0xFFFF9B9B), // Light Coral for #cozy
-        Color(0xFF9BBAFF), // Blue for #game
-        Color(0xFF9BFFB0), // Green for #study
-        Color(0xFF9BFFE5), // Mint for #cool
-        Color(0xFFFFE59B), // Yellow for #hobby
-        Color(0xFFFFB0E5), // Pink for #dream
-        Color(0xFFFF9B9B), // Coral for #home
+        Color(0xFF00BFFF), // DeepSkyBlue
+        Color(0xFFFF9B9B), // Light Coral
+        Color(0xFF9BBAFF), // Light Blue
+        Color(0xFF9BFFB0), // Light Green
+        Color(0xFF9BFFE5), // Mint
+        Color(0xFFFFE59B), // Light Yellow
+        Color(0xFFFFB0E5), // Light Pink
+        Color(0xFF1E90FF), // DodgerBlue
+        Color(0xFFFF1493), // DeepPink
+        Color(0xFF228B22), // ForestGreen
+        Color(0xFF696969), // DimGray
+        Color(0xFFFF6B6B), // Soft Red
+        Color(0xFF4ECDC4), // Turquoise
+        Color(0xFFAA96DA), // Light Purple
+        Color(0xFFFFBE76), // Peach
+        Color(0xFF38B2AC), // Teal
+        Color(0xFF9333EA), // Purple
+        Color(0xFFDC2626), // Red
+        Color(0xFF0891B2), // Cyan
+        Color(0xFFCA8A04), // Amber
+        Color(0xFF7C3AED), // Violet
     )
 
-private fun getTagColor(index: Int): Color = tagColors.getOrElse(index) { tagColors[index % tagColors.size] }
+private fun getTagColor(tagId: String): Color = tagColors[abs(tagId.hashCode()) % tagColors.size]
