@@ -118,15 +118,25 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     # Fetch photo_path_id from Photo model instead of Qdrant
     photo_uuids = list(map(uuid.UUID, (point.id for point in points)))
     photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
-        "photo_id", "photo_path_id"
+        "photo_id", "photo_path_id", "created_at"
     )
-    id_to_path = {str(p["photo_id"]): p["photo_path_id"] for p in photos}
+    
+    id_to_meta = {
+        str(p["photo_id"]): {
+            "photo_path_id": p["photo_path_id"],
+            "created_at": p["created_at"]
+        }
+        for p in photos
+    }
 
-    # Maintain order from sorted scores
     return [
-        {"photo_id": point.id, "photo_path_id": id_to_path[point.id]}
+        {
+            "photo_id": point.id, 
+            "photo_path_id": id_to_meta[point.id]["photo_path_id"],
+            "created_at": id_to_meta[point.id]["created_at"]
+        }
         for point in points
-        if point.id in id_to_path
+        if point.id in id_to_meta
     ]
 
 
