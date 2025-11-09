@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.momentag.data.SessionManager
 import com.example.momentag.network.RetrofitInstance
-import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.repository.TokenRepository
@@ -84,9 +84,9 @@ class ViewModelFactory private constructor(
         ImageBrowserRepository()
     }
 
-    // DraftTagRepository (태그 생성 워크플로우 상태 관리)
-    private val draftTagRepository by lazy {
-        DraftTagRepository()
+    // PhotoSelectionRepository (사진 선택 상태 관리 - 태그 생성, 공유 등)
+    private val photoSelectionRepository by lazy {
+        PhotoSelectionRepository()
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -94,7 +94,7 @@ class ViewModelFactory private constructor(
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
         when {
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
-                HomeViewModel(localRepository, remoteRepository, draftTagRepository, imageBrowserRepository) as T
+                HomeViewModel(localRepository, remoteRepository, photoSelectionRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(LocalViewModel::class.java) -> {
                 LocalViewModel(localRepository, imageBrowserRepository, albumUploadSuccessEvent) as T
@@ -103,7 +103,7 @@ class ViewModelFactory private constructor(
                 AuthViewModel(tokenRepository) as T
             }
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
-                SearchViewModel(searchRepository, draftTagRepository, localRepository, imageBrowserRepository) as T
+                SearchViewModel(searchRepository, photoSelectionRepository, localRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(ImageDetailViewModel::class.java) -> {
                 ImageDetailViewModel(imageBrowserRepository, remoteRepository, recommendRepository) as T
@@ -112,16 +112,19 @@ class ViewModelFactory private constructor(
                 PhotoViewModel(remoteRepository, localRepository, albumUploadJobCount) as T
             }
             modelClass.isAssignableFrom(AddTagViewModel::class.java) -> {
-                AddTagViewModel(draftTagRepository, recommendRepository, localRepository, remoteRepository) as T
+                AddTagViewModel(photoSelectionRepository, recommendRepository, localRepository, remoteRepository) as T
             }
             modelClass.isAssignableFrom(SelectImageViewModel::class.java) -> {
-                SelectImageViewModel(draftTagRepository, localRepository, remoteRepository, imageBrowserRepository) as T
+                SelectImageViewModel(photoSelectionRepository, localRepository, remoteRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(AlbumViewModel::class.java) -> {
                 AlbumViewModel(localRepository, remoteRepository, recommendRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(StoryViewModel::class.java) -> {
                 StoryViewModel(recommendRepository, localRepository, remoteRepository) as T
+            }
+            modelClass.isAssignableFrom(MyTagsViewModel::class.java) -> {
+                MyTagsViewModel(remoteRepository) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

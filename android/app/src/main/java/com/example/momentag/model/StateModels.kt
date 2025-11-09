@@ -135,6 +135,17 @@ sealed interface ImageDetailTagState {
     ) : ImageDetailTagState
 }
 
+sealed class MyTagsUiState {
+    object Loading : MyTagsUiState()
+
+    data class Success(
+        val tags: List<TagCntData>,
+    ) : MyTagsUiState()
+
+    data class Error(
+        val message: String,
+    ) : MyTagsUiState()
+}
 
 /**
  * Represents the state of tag submission for a story

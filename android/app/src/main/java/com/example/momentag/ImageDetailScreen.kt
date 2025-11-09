@@ -28,7 +28,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,8 +38,6 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
@@ -54,14 +51,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
-import com.example.momentag.ui.theme.Pretendard
+import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -257,6 +253,7 @@ fun ImageDetailScreen(
                 Photo(
                     photoId = imageId, // backend photo_id must be used
                     contentUri = uri,
+                    createdAt = "",
                 ),
             )
         } ?: emptyList()
@@ -361,9 +358,6 @@ fun ImageDetailScreen(
         }
     }
 
-    // 현재 페이지의 이미지 Uri
-    val currentImageUri = currentPhoto?.contentUri
-
     var dateTime: String? by remember { mutableStateOf(null) }
     var latLong: DoubleArray? by remember { mutableStateOf(null) }
 
@@ -413,26 +407,9 @@ fun ImageDetailScreen(
             }
         },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "MomenTag",
-                        fontFamily = Pretendard,
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
+            BackTopBar(
+                title = "MomenTag",
+                onBackClick = onNavigateBack,
             )
         }
     ) { paddingValues ->

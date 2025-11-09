@@ -1,5 +1,5 @@
 import uuid
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Count, Subquery, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,8 +14,9 @@ from .reponse_serializers import (
     ResPhotoTagListSerializer,
     ResTagIdSerializer,
     ResTagVectorSerializer,
-    ResStorySerializer,
+    NewResStorySerializer,
     ResTagThumbnailSerializer,
+    ResStorySerializer,
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
@@ -36,12 +37,17 @@ from .tasks import (
     recommend_photo_from_tag,
     recommend_photo_from_photo,
     compute_and_store_rep_vectors,
+    generate_stories_task,
 )
 from .gpu_tasks import (
     process_and_embed_photos_batch,  # GPU-dependent task (batch)
 )
 from .storage_service import upload_photo, delete_photo
+import logging
+logger = logging.getLogger(__name__)
 
+from config.redis import get_redis
+import json
 
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -475,7 +481,7 @@ class GetPhotosByTagView(APIView):
             photos = [photo_tag.photo for photo_tag in photo_tags]
 
             photos_data = [
-                {"photo_id": photo.photo_id, "photo_path_id": photo.photo_path_id}
+                {"photo_id": photo.photo_id, "photo_path_id": photo.photo_path_id, "created_at": photo.created_at}
                 for photo in photos
             ]
 
@@ -539,6 +545,7 @@ class PostPhotoTagsView(APIView):
                 Photo_Tag.objects.create(
                     pt_id=uuid.uuid4(), photo=photo, tag=tag, user=request.user
                 )
+                tag.save()
 
                 compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
@@ -587,6 +594,7 @@ class DeletePhotoTagsView(APIView):
             photo_tag = Photo_Tag.objects.get(photo=photo, tag=tag, user=request.user)
 
             photo_tag.delete()
+            tag.save()
 
             compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
@@ -775,29 +783,19 @@ class TagView(APIView):
     )
     def get(self, request):
         try:
-            tags = Tag.objects.filter(user=request.user)
+            latest_photo_subquery = Photo_Tag.objects.filter(
+                tag=OuterRef("pk"), 
+                user=request.user
+            ).select_related("photo").order_by("-photo__created_at")
 
-            # Build response data with thumbnail_path_id for each tag
-            tags_data = []
-            for tag in tags:
-                # Get one photo_path_id from photos with this tag
-                photo_tag = (
-                    Photo_Tag.objects.filter(tag=tag, user=request.user)
-                    .select_related("photo")
-                    .first()
-                )
+            tags = Tag.objects.filter(
+                user=request.user
+            ).annotate(
+                photo_count=Count('photo_tag', filter=Q(photo_tag__user=request.user)),
+                thumbnail_path_id=Subquery(latest_photo_subquery.values("photo__photo_path_id")[:1])
+            )
 
-                thumbnail_path_id = photo_tag.photo.photo_path_id if photo_tag else None
-
-                tags_data.append(
-                    {
-                        "tag_id": tag.tag_id,
-                        "tag": tag.tag,
-                        "thumbnail_path_id": thumbnail_path_id,
-                    }
-                )
-
-            response_serializer = ResTagThumbnailSerializer(tags_data, many=True)
+            response_serializer = ResTagThumbnailSerializer(tags, many=True)
 
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
@@ -805,6 +803,7 @@ class TagView(APIView):
                 {"error": "The user has no tags"}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.error(f"[TagView GET] 500 ERROR for user: {request.user.id}. Exception: {str(e)}", exc_info=True)
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -1077,7 +1076,7 @@ class StoryView(APIView):
 
             # QuerySet을 유지하면서 데이터 직렬화
             photos_data = [
-                {"photo_id": str(photo.photo_id), "photo_path_id": photo.photo_path_id}
+                {"photo_id": str(photo.photo_id), "photo_path_id": photo.photo_path_id, "created_at": photo.created_at}
                 for photo in photos_queryset
             ]
 
@@ -1093,4 +1092,108 @@ class StoryView(APIView):
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class NewStoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Stories from redis",
+        operation_description="Get stories from redis",
+        request_body=None,
+        responses={
+            200: openapi.Response(description="Success", schema=NewResStorySerializer()),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ]
+    )
+    def get(self, request):
+        try:
+            r = get_redis()
+            exists = r.exists(request.user.id)
+            if not exists:
+                return Response(
+                    {"error": "We're working on your stories! Please wait a moment."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            
+            story_data_json = r.get(request.user.id)
+            story_data = json.loads(story_data_json)
+            serializer = NewResStorySerializer(story_data, many=True)
+
+            r.delete(request.user.id)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+    @swagger_auto_schema(
+        operation_summary="Generate and save stories into redis",
+        operation_description="Generate and save stories into redis",
+        request_body=None,
+        responses={
+            202: openapi.Response(description="Accepted - Story generation started"),
+            400: openapi.Response(description="Bad Request - Invalid size parameter"),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            ),
+            openapi.Parameter(
+                "size",
+                openapi.IN_QUERY,
+                description="number of photos",
+                type=openapi.TYPE_INTEGER,
+            ),
+        ],
+    )
+    def post(self, request):
+        try:
+            # 페이지네이션 파라미터 가져오기 및 검증
+            try:
+                size = int(request.GET.get("size", 20))
+                if size < 1:
+                    return Response(
+                        {"error": "Size parameter must be positive"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                size = min(size, 200)  # 최대 200개 제한
+            except ValueError:
+                return Response(
+                    {"error": "Invalid size parameter"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Celery 백그라운드 작업으로 위임
+            generate_stories_task.delay(request.user.id, size)
+
+            return Response(
+                {"message": "Story generation started"},
+                status=status.HTTP_202_ACCEPTED
+            )
+
+        except Exception as e:
+            return Response(
+                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
