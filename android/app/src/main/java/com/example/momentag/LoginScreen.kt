@@ -7,20 +7,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,7 +52,6 @@ import com.example.momentag.model.LoginState
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -63,7 +61,6 @@ fun LoginScreen(navController: NavController) {
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var rememberMe by remember { mutableStateOf(false) }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     var isUsernameError by remember { mutableStateOf(false) }
@@ -71,6 +68,7 @@ fun LoginScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var usernameTouched by remember { mutableStateOf(false) }
     var passwordTouched by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
 
     val clearAllErrors = {
         isUsernameError = false
@@ -80,30 +78,38 @@ fun LoginScreen(navController: NavController) {
 
     LaunchedEffect(loginState) {
         when (val state = loginState) {
+            is LoginState.Loading -> {
+                isLoading = true
+            }
             is LoginState.Success -> {
+                isLoading = false
                 navController.navigate(Screen.Home.route) {
                     popUpTo(Screen.Login.route) { inclusive = true }
                 }
             }
             is LoginState.BadRequest -> {
+                isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Unauthorized -> {
+                isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
                 authViewModel.resetLoginState()
             }
             is LoginState.NetworkError -> {
+                isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Error -> {
+                isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
@@ -118,6 +124,7 @@ fun LoginScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .imePadding()
                     .background(
                         brush =
                             Brush.verticalGradient(
@@ -131,22 +138,23 @@ fun LoginScreen(navController: NavController) {
                     .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             // MomenTag title
             Text(
-                text = "MomenTag",
+                text = "#MomenTag",
                 style = MaterialTheme.typography.displayLarge,
             )
-            Spacer(modifier = Modifier.height(24.dp))
 
             Column(
                 modifier =
                     Modifier
                         .fillMaxWidth(0.95f)
-                        .fillMaxHeight(0.75f),
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Top,
             ) {
+                Spacer(modifier = Modifier.weight(0.5f))
                 // Login title
                 Text(
                     text = "Login",
@@ -312,36 +320,6 @@ fun LoginScreen(navController: NavController) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // "Remember me" checkbox & "Forgot Password?"
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        modifier = Modifier.offset(x = (-8).dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = rememberMe,
-                            onCheckedChange = { rememberMe = it },
-                            colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
-                        )
-                        Text("Remember me", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Text(
-                        text = "Forgot Password?",
-                        modifier =
-                            Modifier
-                                .clickable {
-                                    // TODO: finding password
-                                },
-                        style = TextStyle(color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold),
-                    )
-                }
-
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // login button
@@ -365,9 +343,19 @@ fun LoginScreen(navController: NavController) {
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
+                    enabled = !isLoading,
                 ) {
-                    Text("Log In", style = MaterialTheme.typography.headlineSmall)
+                    if (isLoading) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.height(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text("Log In", style = MaterialTheme.typography.headlineSmall)
+                    }
                 }
+                Spacer(modifier = Modifier.weight(1f))
             }
         }
     }

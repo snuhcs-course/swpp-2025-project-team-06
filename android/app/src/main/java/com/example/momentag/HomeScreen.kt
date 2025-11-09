@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -40,24 +41,31 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -71,6 +79,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -91,6 +100,7 @@ import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
 import com.example.momentag.viewmodel.HomeViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
+import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -131,9 +141,22 @@ fun HomeScreen(navController: NavController) {
 
     var isUploadBannerDismissed by remember { mutableStateOf(false) }
 
+    val currentSortOrder by homeViewModel.sortOrder.collectAsState()
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     LaunchedEffect(uiState.isLoading) {
         if (uiState.isLoading) {
             isUploadBannerDismissed = false
+        }
+    }
+
+    val bannerVisible = uiState.isLoading && !isUploadBannerDismissed
+
+    LaunchedEffect(bannerVisible) {
+        if (bannerVisible) {
+            kotlinx.coroutines.delay(5000)
+            isUploadBannerDismissed = true
         }
     }
 
@@ -425,18 +448,38 @@ fun HomeScreen(navController: NavController) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                ViewToggle(
-                    onlyTag = onlyTag,
-                    showAllPhotos = showAllPhotos,
-                    onToggle = { tagOnly, allPhotos ->
-                        onlyTag = tagOnly
-                        showAllPhotos = allPhotos
-                        if (isSelectionMode) {
-                            isSelectionMode = false
-                            homeViewModel.resetSelection() // draftRepository 초기화
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // 7. "태그 앨범" 뷰일 때만 정렬 버튼 표시
+                    if (!showAllPhotos) {
+                        IconButton(onClick = { scope.launch { sheetState.show() } }) {
+                            Icon(
+                                imageVector = Icons.Default.Sort,
+                                contentDescription = "Sort Tag Albums",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
-                    },
-                )
+                    } else {
+                        // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
+                        Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
+                    }
+                    ViewToggle(
+                        onlyTag = onlyTag,
+                        showAllPhotos = showAllPhotos,
+                        onToggle = { tagOnly, allPhotos ->
+                            onlyTag = tagOnly
+                            showAllPhotos = allPhotos
+                            if (isSelectionMode) {
+                                isSelectionMode = false
+                                homeViewModel.resetSelection() // draftRepository 초기화
+                            }
+                        },
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
                 if (!hasPermission) {
@@ -591,6 +634,22 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
             }
+        }
+    }
+    if (sheetState.isVisible) {
+        ModalBottomSheet(
+            onDismissRequest = { scope.launch { sheetState.hide() } },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ) {
+            SortOptionsSheet(
+                currentOrder = currentSortOrder,
+                onOrderChange = { newOrder ->
+                    homeViewModel.setSortOrder(newOrder)
+                    scope.launch { sheetState.hide() }
+                },
+            )
         }
     }
 }
@@ -971,6 +1030,88 @@ fun TagGridItem(
                     modifier = Modifier.size(16.dp),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SortOptionsSheet(
+    currentOrder: TagSortOrder,
+    onOrderChange: (TagSortOrder) -> Unit,
+) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        Text(
+            "정렬 기준",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+
+        SortOptionItem(
+            text = "이름 (가나다순)",
+            icon = Icons.Default.ArrowUpward,
+            isSelected = currentOrder == TagSortOrder.NAME_ASC,
+            onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
+        )
+        SortOptionItem(
+            text = "이름 (가나다 역순)",
+            icon = Icons.Default.ArrowDownward,
+            isSelected = currentOrder == TagSortOrder.NAME_DESC,
+            onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
+        )
+        SortOptionItem(
+            text = "최근 추가 순",
+            icon = Icons.Default.FiberNew,
+            isSelected = currentOrder == TagSortOrder.CREATED_DESC,
+            onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
+        )
+        SortOptionItem(
+            text = "항목 많은 순",
+            icon = Icons.Default.ArrowUpward,
+            isSelected = currentOrder == TagSortOrder.COUNT_DESC,
+            onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
+        )
+        SortOptionItem(
+            text = "항목 적은 순",
+            icon = Icons.Default.ArrowUpward,
+            isSelected = currentOrder == TagSortOrder.COUNT_ASC,
+            onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
+        )
+    }
+}
+
+@Composable
+private fun SortOptionItem(
+    text: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }
