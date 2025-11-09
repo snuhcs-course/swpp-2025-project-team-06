@@ -175,8 +175,8 @@ fun SearchResultScreen(
                 BottomTab.SearchResultScreen -> {
                     // 이미 Search 화면
                 }
-                BottomTab.AddTagScreen -> {
-                    navController.navigate(Screen.AddTag.route)
+                BottomTab.MyTagsScreen -> {
+                    navController.navigate(Screen.MyTags.route)
                 }
                 BottomTab.StoryScreen -> {
                     navController.navigate(Screen.Story.route)

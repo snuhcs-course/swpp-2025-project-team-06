@@ -44,7 +44,7 @@ class LocalViewModel(
         }
     }
 
-    private val _imagesInAlbum = MutableStateFlow<List<Uri>>(emptyList())
+    private val _imagesInAlbum = MutableStateFlow<List<Photo>>(emptyList())
     val imagesInAlbum = _imagesInAlbum.asStateFlow()
 
     private val _selectedPhotosInAlbum = MutableStateFlow<Set<Photo>>(emptySet())
@@ -66,6 +66,7 @@ class LocalViewModel(
 
     fun getImagesForAlbum(albumId: Long) {
         viewModelScope.launch {
+            clearPhotoSelection()
             _imagesInAlbum.value =
                 withContext(Dispatchers.IO) {
                     localRepository.getImagesForAlbum(albumId)
@@ -84,8 +85,9 @@ class LocalViewModel(
         val photos =
             uris.map { uri ->
                 Photo(
-                    photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
+                    photoId = uri.lastPathSegment ?: uri.toString(),
                     contentUri = uri,
+                    createdAt = "",
                 )
             }
         imageBrowserRepository.setTagAlbum(photos, tagName)
@@ -96,16 +98,9 @@ class LocalViewModel(
      * Converts URIs to Photos and stores in ImageBrowserRepository
      */
     fun setLocalAlbumBrowsingSession(
-        uris: List<Uri>,
+        photos: List<Photo>,
         albumName: String,
     ) {
-        val photos =
-            uris.map { uri ->
-                Photo(
-                    photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
-                    contentUri = uri,
-                )
-            }
         imageBrowserRepository.setLocalAlbum(photos, albumName)
     }
 
@@ -117,8 +112,9 @@ class LocalViewModel(
         val photos =
             uris.map { uri ->
                 Photo(
-                    photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
+                    photoId = uri.lastPathSegment ?: uri.toString(),
                     contentUri = uri,
+                    createdAt = "",
                 )
             }
         imageBrowserRepository.setGallery(photos)
