@@ -253,6 +253,7 @@ class LocalRepository(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DISPLAY_NAME,
                 MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED, // <<< [수정] DATE_ADDED 추가
             )
         val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
 
@@ -266,6 +267,8 @@ class LocalRepository(
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) // <<< [수정]
+                val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) // <<< [수정]
                 var count = 0 // for testing
 
                 while (cursor.moveToNext() && count-- > 0) {
@@ -278,7 +281,15 @@ class LocalRepository(
 
                     val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
 
-                    val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
+                    // --- [수정] DATE_TAKEN이 없으면 DATE_ADDED 사용 ---
+                    var dateValue = cursor.getLong(dateTakenColumn)
+                    if (dateValue == 0L) { // DATE_TAKEN이 0이거나 없는 경우
+                        val dateAddedSeconds = cursor.getLong(dateAddedColumn)
+                        if (dateAddedSeconds > 0L) {
+                            dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                        }
+                    }
+                    // --- [수정] 끝 ---
                     val date = Date(dateValue)
 
                     val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
@@ -385,6 +396,7 @@ class LocalRepository(
             arrayOf(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED, // <<< [수정] DATE_ADDED 추가
             )
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
         val selectionArgs = arrayOf(albumId.toString())
@@ -400,9 +412,21 @@ class LocalRepository(
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+                val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) // <<< [수정] 인덱스 가져오기
+
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
-                    val dateValue = cursor.getLong(dateTakenColumn)
+
+                    // --- [수정] DATE_TAKEN이 없으면 DATE_ADDED 사용 ---
+                    var dateValue = cursor.getLong(dateTakenColumn)
+                    if (dateValue == 0L) { // DATE_TAKEN이 0이거나 없는 경우
+                        val dateAddedSeconds = cursor.getLong(dateAddedColumn)
+                        if (dateAddedSeconds > 0L) {
+                            dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                        }
+                    }
+                    // --- [수정] 끝 ---
+
                     val contentUri =
                         ContentUris.withAppendedId(
                             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -485,17 +509,31 @@ class LocalRepository(
                     photoPathId,
                 )
 
-            val projection = arrayOf(MediaStore.Images.Media.DATE_TAKEN)
+            // --- [수정] DATE_ADDED를 projection에 추가 ---
+            val projection = arrayOf(MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
             context.contentResolver
                 .query(contentUri, projection, null, null, null)
                 ?.use { cursor ->
                     if (cursor.moveToFirst()) {
                         val dateTakenIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)
+                        val dateAddedIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED) // <<< [수정]
+
                         if (dateTakenIndex != -1) {
-                            val dateTaken = cursor.getLong(dateTakenIndex)
-                            val date = Date(dateTaken)
-                            val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
-                            return sdf.format(date)
+                            // --- [수정] DATE_TAKEN이 없으면 DATE_ADDED 사용 ---
+                            var dateValue = cursor.getLong(dateTakenIndex)
+                            if (dateValue == 0L && dateAddedIndex != -1) {
+                                val dateAddedSeconds = cursor.getLong(dateAddedIndex)
+                                if (dateAddedSeconds > 0L) {
+                                    dateValue = dateAddedSeconds * 1000L // 밀리초로 변환
+                                }
+                            }
+                            // --- [수정] 끝 ---
+
+                            if (dateValue > 0L) { // 유효한 날짜 값이 있을 때만 포맷
+                                val date = Date(dateValue)
+                                val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
+                                return sdf.format(date)
+                            }
                         }
                     }
                     "Unknown date"
@@ -541,6 +579,7 @@ class LocalRepository(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DISPLAY_NAME,
                 MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED, // <<< [수정] DATE_ADDED 추가
             )
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
         val selectionArgs = arrayOf(albumId.toString())
@@ -557,13 +596,23 @@ class LocalRepository(
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
                 val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+                val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) // <<< [수정] 인덱스 가져오기
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
                     val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
                     val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
 
-                    val dateValue = cursor.getLong(dateTakenColumn)
+                    // --- [수정] DATE_TAKEN이 없으면 DATE_ADDED 사용 ---
+                    var dateValue = cursor.getLong(dateTakenColumn)
+                    if (dateValue == 0L) { // DATE_TAKEN이 0이거나 없는 경우
+                        val dateAddedSeconds = cursor.getLong(dateAddedColumn)
+                        if (dateAddedSeconds > 0L) {
+                            dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                        }
+                    }
+                    // --- [수정] 끝 ---
+
                     val createdAt =
                         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
                             .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
