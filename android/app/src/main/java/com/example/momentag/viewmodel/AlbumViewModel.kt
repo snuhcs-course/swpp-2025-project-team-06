@@ -398,4 +398,10 @@ class AlbumViewModel(
     fun resetAddState() {
         _tagAddState.value = TagAddState.Idle
     }
+
+    /**
+     * Get photos ready for sharing
+     * Returns list of content URIs to share via Android ShareSheet
+     */
+    fun getPhotosToShare() = selectedTagAlbumPhotos.value
 }
