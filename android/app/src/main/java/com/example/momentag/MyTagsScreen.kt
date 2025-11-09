@@ -1,5 +1,6 @@
 package com.example.momentag
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -204,6 +205,7 @@ fun MyTagsScreen(navController: NavController) {
                 TextButton(
                     onClick = {
                         tagToDelete?.first?.let { viewModel.deleteTag(it) }
+                        Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
                         showDeleteDialog = false
                         tagToDelete = null
                     },
