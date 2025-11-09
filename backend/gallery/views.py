@@ -1,5 +1,5 @@
 import uuid
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Count, Subquery, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -41,6 +41,8 @@ from .gpu_tasks import (
     process_and_embed_photos_batch,  # GPU-dependent task (batch)
 )
 from .storage_service import upload_photo, delete_photo
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PhotoView(APIView):
@@ -539,6 +541,7 @@ class PostPhotoTagsView(APIView):
                 Photo_Tag.objects.create(
                     pt_id=uuid.uuid4(), photo=photo, tag=tag, user=request.user
                 )
+                tag.save()
 
                 compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
@@ -587,6 +590,7 @@ class DeletePhotoTagsView(APIView):
             photo_tag = Photo_Tag.objects.get(photo=photo, tag=tag, user=request.user)
 
             photo_tag.delete()
+            tag.save()
 
             compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
@@ -775,29 +779,19 @@ class TagView(APIView):
     )
     def get(self, request):
         try:
-            tags = Tag.objects.filter(user=request.user)
+            latest_photo_subquery = Photo_Tag.objects.filter(
+                tag=OuterRef("pk"), 
+                user=request.user
+            ).select_related("photo").order_by("-photo__created_at")
 
-            # Build response data with thumbnail_path_id for each tag
-            tags_data = []
-            for tag in tags:
-                # Get one photo_path_id from photos with this tag
-                photo_tag = (
-                    Photo_Tag.objects.filter(tag=tag, user=request.user)
-                    .select_related("photo")
-                    .first()
-                )
+            tags = Tag.objects.filter(
+                user=request.user
+            ).annotate(
+                photo_count=Count('photo_tag', filter=Q(photo_tag__user=request.user)),
+                thumbnail_path_id=Subquery(latest_photo_subquery.values("photo__photo_path_id")[:1])
+            )
 
-                thumbnail_path_id = photo_tag.photo.photo_path_id if photo_tag else None
-
-                tags_data.append(
-                    {
-                        "tag_id": tag.tag_id,
-                        "tag": tag.tag,
-                        "thumbnail_path_id": thumbnail_path_id,
-                    }
-                )
-
-            response_serializer = ResTagThumbnailSerializer(tags_data, many=True)
+            response_serializer = ResTagThumbnailSerializer(tags, many=True)
 
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
@@ -805,6 +799,7 @@ class TagView(APIView):
                 {"error": "The user has no tags"}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.error(f"[TagView GET] 500 ERROR for user: {request.user.id}. Exception: {str(e)}", exc_info=True)
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

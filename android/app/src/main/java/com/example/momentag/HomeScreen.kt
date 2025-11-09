@@ -1072,7 +1072,7 @@ private fun SortOptionsSheet(
         )
         SortOptionItem(
             text = "항목 적은 순",
-            icon = Icons.Default.ArrowUpward,
+            icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.COUNT_ASC,
             onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
         )

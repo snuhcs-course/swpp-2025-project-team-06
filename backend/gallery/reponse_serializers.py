@@ -39,3 +39,6 @@ class ResTagThumbnailSerializer(serializers.Serializer):
     thumbnail_path_id = serializers.IntegerField(
         allow_null=True, help_text="태그 썸네일 경로 ID"
     )
+    created_at = serializers.DateTimeField(read_only=True, help_text="태그 생성 시각")
+    updated_at = serializers.DateTimeField(read_only=True, help_text="태그 수정 시각")
+    photo_count = serializers.IntegerField(read_only=True, help_text="태그에 포함된 사진 수")
