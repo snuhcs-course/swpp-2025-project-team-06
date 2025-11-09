@@ -14,8 +14,9 @@ from .reponse_serializers import (
     ResPhotoTagListSerializer,
     ResTagIdSerializer,
     ResTagVectorSerializer,
-    ResStorySerializer,
+    NewResStorySerializer,
     ResTagThumbnailSerializer,
+    ResStorySerializer,
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
@@ -36,6 +37,7 @@ from .tasks import (
     recommend_photo_from_tag,
     recommend_photo_from_photo,
     compute_and_store_rep_vectors,
+    generate_stories_task,
 )
 from .gpu_tasks import (
     process_and_embed_photos_batch,  # GPU-dependent task (batch)
@@ -44,6 +46,8 @@ from .storage_service import upload_photo, delete_photo
 import logging
 logger = logging.getLogger(__name__)
 
+from config.redis import get_redis
+import json
 
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -1088,4 +1092,108 @@ class StoryView(APIView):
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class NewStoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Stories from redis",
+        operation_description="Get stories from redis",
+        request_body=None,
+        responses={
+            200: openapi.Response(description="Success", schema=NewResStorySerializer()),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ]
+    )
+    def get(self, request):
+        try:
+            r = get_redis()
+            exists = r.exists(request.user.id)
+            if not exists:
+                return Response(
+                    {"error": "We're working on your stories! Please wait a moment."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            
+            story_data_json = r.get(request.user.id)
+            story_data = json.loads(story_data_json)
+            serializer = NewResStorySerializer(story_data, many=True)
+
+            r.delete(request.user.id)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+    @swagger_auto_schema(
+        operation_summary="Generate and save stories into redis",
+        operation_description="Generate and save stories into redis",
+        request_body=None,
+        responses={
+            202: openapi.Response(description="Accepted - Story generation started"),
+            400: openapi.Response(description="Bad Request - Invalid size parameter"),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            ),
+            openapi.Parameter(
+                "size",
+                openapi.IN_QUERY,
+                description="number of photos",
+                type=openapi.TYPE_INTEGER,
+            ),
+        ],
+    )
+    def post(self, request):
+        try:
+            # 페이지네이션 파라미터 가져오기 및 검증
+            try:
+                size = int(request.GET.get("size", 20))
+                if size < 1:
+                    return Response(
+                        {"error": "Size parameter must be positive"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                size = min(size, 200)  # 최대 200개 제한
+            except ValueError:
+                return Response(
+                    {"error": "Invalid size parameter"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Celery 백그라운드 작업으로 위임
+            generate_stories_task.delay(request.user.id, size)
+
+            return Response(
+                {"message": "Story generation started"},
+                status=status.HTTP_202_ACCEPTED
+            )
+
+        except Exception as e:
+            return Response(
+                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

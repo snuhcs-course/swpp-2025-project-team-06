@@ -1,10 +1,11 @@
 package com.example.momentag
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -22,11 +23,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,9 +51,9 @@ import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
-import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
+import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.SearchBarControlledCustom
@@ -61,6 +61,8 @@ import com.example.momentag.ui.search.components.SearchEmptyStateCustom
 import com.example.momentag.ui.search.components.SearchErrorStateFallbackCustom
 import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
+import com.example.momentag.ui.theme.horizontalArrangement
+import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -84,6 +86,18 @@ fun SearchResultScreen(
     var isSelectionMode by remember { mutableStateOf(false) }
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
     var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
+    var showMenu by remember { mutableStateOf(false) }
+    var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
+
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionMode = false
+        searchViewModel.resetSelection()
+    }
+
+    LaunchedEffect(isSelectionMode) {
+        kotlinx.coroutines.delay(200L) // 0.2초
+        isSelectionModeDelay = isSelectionMode
+    }
 
     val focusManager = LocalFocusManager.current
 
@@ -123,11 +137,65 @@ fun SearchResultScreen(
             }
         }
 
+    val topBarActions = @Composable {
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options",
+                )
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+            ) {
+                if (isSelectionModeDelay) {
+                    DropdownMenuItem(
+                        text = { Text("Share") },
+                        onClick = {
+                            // TODO: Share logic
+                            Toast
+                                .makeText(
+                                    context,
+                                    "Share ${selectedPhotos.size} photo(s) (TODO)",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+
+                            showMenu = false
+                            isSelectionMode = false
+                            searchViewModel.resetSelection()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Cancel") },
+                        onClick = {
+                            isSelectionMode = false
+                            searchViewModel.resetSelection()
+                            showMenu = false
+                        },
+                    )
+                } else {
+                    DropdownMenuItem(
+                        text = { Text("Select") },
+                        onClick = {
+                            isSelectionMode = true
+                            showMenu = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+
     SearchResultScreenUi(
         searchText = searchText,
         onSearchTextChange = { searchText = it },
         onSearchSubmit = {
             if (searchText.isNotEmpty()) {
+                if (isSelectionMode) {
+                    isSelectionMode = false
+                    searchViewModel.resetSelection()
+                }
                 searchViewModel.search(searchText)
                 focusManager.clearFocus()
             }
@@ -170,19 +238,28 @@ fun SearchResultScreen(
             currentTab = tab
             when (tab) {
                 BottomTab.HomeScreen -> {
+                    searchViewModel.resetSelection()
                     navController.navigate(Screen.Home.route)
                 }
                 BottomTab.SearchResultScreen -> {
                     // 이미 Search 화면
                 }
                 BottomTab.MyTagsScreen -> {
+                    searchViewModel.resetSelection()
                     navController.navigate(Screen.MyTags.route)
                 }
                 BottomTab.StoryScreen -> {
+                    searchViewModel.resetSelection()
                     navController.navigate(Screen.Story.route)
                 }
             }
         },
+        topBarActions =
+            if (uiState is SearchUiState.Success) {
+                topBarActions
+            } else {
+                {}
+            },
     )
 }
 
@@ -208,32 +285,19 @@ fun SearchResultScreenUi(
     navController: NavController,
     currentTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit,
+    topBarActions: @Composable () -> Unit = {},
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = modifier,
             containerColor = MaterialTheme.colorScheme.surface,
             topBar = {
-                val context = LocalContext.current
-                BackTopBar(
+                val context = LocalContext.current // ???
+                CommonTopBar(
                     title = "Search Results",
+                    showBackButton = true,
                     onBackClick = onBackClick,
-                    actions = {
-                        if (isSelectionMode && selectedPhotos.isNotEmpty()) {
-                            IconButton(
-                                onClick = {
-                                    ShareUtils.sharePhotos(context, selectedPhotos)
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Share,
-                                    contentDescription = "Share",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                        }
-                    },
+                    actions = topBarActions,
                 )
             },
             bottomBar = {
@@ -317,7 +381,7 @@ private fun SearchResultContent(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -331,41 +395,8 @@ private fun SearchResultContent(
                         contentDescription = "카메라 아이콘",
                     )
                 }
-
-                if (uiState is SearchUiState.Success && uiState.results.isNotEmpty()) {
-                    Button(
-                        onClick = onToggleSelectionMode,
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor =
-                                    if (isSelectionMode) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerLow
-                                    },
-                                contentColor =
-                                    if (isSelectionMode) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    },
-                            ),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = if (isSelectionMode) "선택 모드 해제" else "선택 모드",
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isSelectionMode) "선택 모드" else "선택",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
             }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Input
@@ -475,8 +506,8 @@ private fun SearchResultsFromState(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
                 ) {
                     items(
                         count = uiState.results.size,
@@ -492,10 +523,7 @@ private fun SearchResultsFromState(
                             onToggleSelection = { onToggleImageSelection(photo) },
                             onLongPress = {
                                 onImageLongPress()
-                                onToggleImageSelection(photo)
                             },
-                            cornerRadius = 12.dp,
-                            topPadding = 0.dp,
                         )
                     }
                 }
