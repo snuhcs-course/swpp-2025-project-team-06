@@ -149,7 +149,6 @@ fun RegisterScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .imePadding()
                     .background(
                         brush =
                             Brush.verticalGradient(

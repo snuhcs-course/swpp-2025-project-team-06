@@ -62,6 +62,4 @@ sealed class Screen(
     object AddTag : Screen("add_tag_screen")
 
     object SelectImage : Screen("select_image_screen")
-
-    object MyTags : Screen("my_tags_screen")
 }

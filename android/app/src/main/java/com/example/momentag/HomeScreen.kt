@@ -362,8 +362,8 @@ fun HomeScreen(navController: NavController) {
                         BottomTab.SearchResultScreen -> {
                             navController.navigate(Screen.SearchResult.initialRoute())
                         }
-                        BottomTab.MyTagsScreen -> {
-                            navController.navigate(Screen.MyTags.route)
+                        BottomTab.AddTagScreen -> {
+                            navController.navigate(Screen.AddTag.route)
                         }
                         BottomTab.StoryScreen -> {
                             navController.navigate(Screen.Story.route)
