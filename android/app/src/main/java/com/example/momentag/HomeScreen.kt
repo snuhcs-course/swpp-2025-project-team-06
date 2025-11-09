@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image // [추가] Image import
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues // [추가]
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,7 +33,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width // [추가]
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -46,6 +50,8 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.Button // [추가]
+import androidx.compose.material3.ButtonDefaults // [추가]
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -72,8 +78,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource // [추가]
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp // [추가]
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -444,102 +453,100 @@ fun HomeScreen(navController: NavController) {
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // [수정] 로직 순서 변경
                 if (!hasPermission) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
                     }
-                } else if (showAllPhotos) {
-                    // All Photos 모드: 서버에서 가져온 사진 표시
-                    if (isLoadingPhotos) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        MainContent(
-                            onlyTag = false,
-                            showAllPhotos = true,
-                            tagItems = emptyList(),
-                            serverPhotos = allPhotos,
-                            navController = navController,
-                            onDeleteClick = { },
-                            modifier = Modifier.weight(1f),
-                            isDeleteMode = false,
-                            onEnterDeleteMode = {
-                                isSelectionMode = true
-                            },
-                            onExitDeleteMode = { },
-                            isSelectionMode = isSelectionMode,
-                            selectedItems = selectedPhotos.map { it.photoId }.toSet(), // Photo -> photoId
-                            onItemSelectionToggle = { photoId ->
-                                // photoId로 Photo 객체 찾아서 togglePhoto 호출
-                                val photo = allPhotos.find { it.photoId == photoId }
-                                photo?.let { homeViewModel.togglePhoto(it) }
-                            },
-                            homeViewModel = homeViewModel,
-                            isLoadingMorePhotos = isLoadingMorePhotos,
-                            allPhotosListState = allPhotosListState,
-                        )
+                }
+                // [수정] 로딩 상태를 최우선으로 확인
+                else if (isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
                     }
-                } else {
-                    when (homeLoadingState) {
-                        is HomeViewModel.HomeLoadingState.Success -> {
-                            val tagItems = (homeLoadingState as HomeViewModel.HomeLoadingState.Success).tags
-                            MainContent(
-                                onlyTag = onlyTag,
-                                showAllPhotos = showAllPhotos,
-                                tagItems = tagItems,
-                                serverPhotos = emptyList(), // 태그 앨범 뷰에서는 사용 안함
-                                navController = navController,
-                                onDeleteClick = { tagId ->
-                                    homeViewModel.deleteTag(tagId)
-                                },
-                                modifier = Modifier.weight(1f),
-                                isDeleteMode = isDeleteMode,
-                                onEnterDeleteMode = {
-                                    isDeleteMode = true
-                                },
-                                onExitDeleteMode = { isDeleteMode = false },
-                                isSelectionMode = false, // 태그 앨범 뷰에서는 선택 모드 비활성화
-                                selectedItems = emptySet(),
-                                onItemSelectionToggle = { }, // 사용되지 않음
-                                homeViewModel = homeViewModel,
-                                isLoadingMorePhotos = isLoadingMorePhotos,
-                                allPhotosListState = null,
-                            )
-                        }
+                }
+                // [수정] 로딩이 끝난 후, 데이터 상태에 따라 분기
+                else {
+                    // 로딩이 끝났으므로, 태그 데이터 추출
+                    val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
 
-                        is HomeViewModel.HomeLoadingState.Loading -> {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator()
+                    // [수정] listState를 여기서 생성
+                    val listState = if (showAllPhotos) allPhotosListState else null
+
+                    MainContent(
+                        modifier = Modifier.weight(1f),
+                        onlyTag = onlyTag, // Pass the actual state
+                        showAllPhotos = showAllPhotos, // Pass the actual state
+                        tagItems = tagItems, // Pass the loaded tags
+                        serverPhotos = allPhotos, // Pass the loaded photos
+                        navController = navController,
+                        onDeleteClick = { tagId ->
+                            homeViewModel.deleteTag(tagId)
+                        },
+                        isDeleteMode = isDeleteMode,
+                        onEnterDeleteMode = { isDeleteMode = true },
+                        onExitDeleteMode = { isDeleteMode = false },
+                        isSelectionMode = isSelectionMode,
+                        selectedItems = selectedPhotos.map { it.photoId }.toSet(),
+                        onItemSelectionToggle = { photoId ->
+                            val photo = allPhotos.find { it.photoId == photoId }
+                            photo?.let { homeViewModel.togglePhoto(it) }
+                        },
+                        homeViewModel = homeViewModel,
+                        allPhotosListState = listState, // [수정] 생성한 state 주입
+                        isLoadingMorePhotos = isLoadingMorePhotos,
+
+                        // [수정] 로딩 완료 상태 전달
+                        isLoadingPhotos = false, // 이 블록은 로딩이 끝났을 때만 실행됨
+                        homeLoadingState = homeLoadingState // Success 또는 Error 상태 전달
+                    )
+
+                    // [수정] 페이지네이션 로직을 MainContent 밖으로 이동
+                    if (showAllPhotos && listState != null) {
+                        LaunchedEffect(listState, isLoadingMorePhotos) {
+                            // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
+                            if (!isLoadingMorePhotos) {
+                                snapshotFlow {
+                                    listState.layoutInfo.visibleItemsInfo
+                                        .lastOrNull()
+                                        ?.index
+                                }.distinctUntilChanged() // 같은 값이 연속으로 올 때 필터링
+                                    .debounce(150) // 빠른 스크롤 시 150ms 대기 후 처리 렉 방지
+                                    .collect { lastVisibleIndex ->
+                                        if (lastVisibleIndex != null && allPhotos.isNotEmpty()) {
+                                            val totalItems = allPhotos.size
+                                            val remainingItems = totalItems - (lastVisibleIndex + 1)
+
+                                            // 남은 아이템이 33개 미만이면 다음 페이지 로드
+                                            if (remainingItems < 33) {
+                                                homeViewModel?.loadMorePhotos()
+                                            }
+                                        }
+                                    }
                             }
                         }
+                    }
+                }
 
-                        else -> { // Error, NetworkError, Idle
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    "태그를 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.",
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
+                if (showAllPhotos && isLoadingMorePhotos) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
                     }
                 }
                 AnimatedVisibility(visible = bannerVisible) {
@@ -649,52 +656,33 @@ private fun MainContent(
     homeViewModel: HomeViewModel? = null,
     isLoadingMorePhotos: Boolean = false,
     allPhotosListState: LazyGridState? = null,
+    // [추가] 로딩 상태를 받아옴
+    isLoadingPhotos: Boolean,
+    homeLoadingState: HomeViewModel.HomeLoadingState,
 ) {
+    // [수정] 데이터 로딩 완료 시점 정의
+    val isTagsLoaded = homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
+    val arePhotosLoaded = !isLoadingPhotos
+    // [수정] 태그와 사진 로딩이 모두 끝나야 빈 화면 여부를 최종 결정
+    val isDataReady = isTagsLoaded && arePhotosLoaded
+
+    // [수정] 데이터 상태 정의
+    val arePhotosEmpty = serverPhotos.isEmpty()
+    val areTagsEmpty = tagItems.isEmpty()
+
     when {
-        onlyTag -> {
-            // Tag List View
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                tagItems.forEach { item ->
-                    tagX(
-                        text = item.tagName,
-                        onDismiss = {
-                            onDeleteClick(item.tagId)
-                        },
-                    )
-                }
-            }
+        // [수정] 로직 1순위: 데이터 로딩이 완료되었고, 사진이 아예 없는 경우
+        isDataReady && arePhotosEmpty -> {
+            // 시나리오 1 & 2-a: 뷰와 상관없이 "사진 업로드" 표시
+            EmptyStatePhotos(modifier = modifier)
         }
+
+        // [수정] 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
         showAllPhotos -> {
-            // All Photos Grid View - 서버에서 가져온 사진들 with pagination
+            // 사진이 있거나, 아직 로딩 중
             val listState = allPhotosListState ?: rememberLazyGridState()
 
-            // 스크롤 지점 감지 - isLoadingMorePhotos 변경 시 LaunchedEffect 재시작
-            LaunchedEffect(listState, isLoadingMorePhotos) {
-                // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
-                if (!isLoadingMorePhotos) {
-                    snapshotFlow {
-                        listState.layoutInfo.visibleItemsInfo
-                            .lastOrNull()
-                            ?.index
-                    }.distinctUntilChanged() // 같은 값이 연속으로 올 때 필터링
-                        .debounce(150) // 빠른 스크롤 시 150ms 대기 후 처리 렉 방지
-                        .collect { lastVisibleIndex ->
-                            if (lastVisibleIndex != null && serverPhotos.isNotEmpty()) {
-                                val totalItems = serverPhotos.size
-                                val remainingItems = totalItems - (lastVisibleIndex + 1)
-
-                                // 남은 아이템이 33개 미만이면 다음 페이지 로드
-                                if (remainingItems < 33) {
-                                    homeViewModel?.loadMorePhotos()
-                                }
-                            }
-                        }
-                }
-            }
+            // [삭제] 페이지네이션 LaunchedEffect (HomeScreen으로 이동됨)
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
@@ -808,25 +796,51 @@ private fun MainContent(
                 }
             }
         }
-        else -> {
-            // Tag Albums Grid View
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                items(tagItems) { item ->
-                    TagGridItem(
-                        tagId = item.tagId,
-                        tagName = item.tagName,
-                        imageId = item.coverImageId,
-                        navController = navController,
-                        onDeleteClick = onDeleteClick,
-                        isDeleteMode = isDeleteMode,
-                        onEnterDeleteMode = onEnterDeleteMode,
-                        onExitDeleteMode = onExitDeleteMode,
-                    )
+
+        // [수정] 로직 3순위: 'Tag Album' 뷰 (사진이 반드시 있음)
+        !showAllPhotos && !arePhotosEmpty -> {
+            if (areTagsEmpty && isDataReady) {
+                // 시나리오 2-b: 사진은 있으나, 태그가 없음
+                EmptyStateTags(navController = navController, modifier = modifier)
+            } else {
+                // 시나리오 3: 사진도 있고, 태그도 있음 (또는 태그 로딩 중)
+                if (onlyTag) {
+                    // 태그 Flow 뷰
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        tagItems.forEach { item ->
+                            tagX(
+                                text = item.tagName,
+                                onDismiss = {
+                                    onDeleteClick(item.tagId)
+                                },
+                            )
+                        }
+                    }
+                } else {
+                    // 태그 Grid 뷰
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        modifier = modifier,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        items(tagItems) { item ->
+                            TagGridItem(
+                                tagId = item.tagId,
+                                tagName = item.tagName,
+                                imageId = item.coverImageId,
+                                navController = navController,
+                                onDeleteClick = onDeleteClick,
+                                isDeleteMode = isDeleteMode,
+                                onEnterDeleteMode = onEnterDeleteMode,
+                                onExitDeleteMode = onExitDeleteMode,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -948,5 +962,114 @@ fun TagGridItem(
                 )
             }
         }
+    }
+}
+
+// ======================================================================
+// [추가] Empty State Composable 함수들
+// ======================================================================
+
+/**
+ * 태그 앨범이 비어있을 때 표시할 화면 (image_72d4b7.png)
+ */
+@Composable
+fun EmptyStateTags(
+    navController: NavController,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        // 1. 일러스트레이션 (ic_empty_tags.png)
+        // [주의] 이 파일을 res/drawable에 추가해야 합니다.
+        Image(
+            painter = painterResource(id = R.drawable.ic_empty_tags),
+            contentDescription = "추억을 만들어보세요",
+            modifier = Modifier.size(120.dp),
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 2. 텍스트
+        Text(
+            text = "추억을 만들어보세요",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "키워드로 추억을\n모아보세요",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            lineHeight = 22.sp,
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // 3. "Create New Tag" 버튼
+        Button(
+            onClick = {
+                navController.navigate(Screen.AddTag.route)
+            },
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.8f)
+                    .height(52.dp),
+            shape = RoundedCornerShape(50.dp),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            contentPadding = PaddingValues(horizontal = 32.dp),
+        ) {
+            Text(
+                text = "+ Create New Tag",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+/**
+ * '모든 사진' 뷰가 비어있을 때 표시할 화면 (image_72d81f.png)
+ */
+@Composable
+fun EmptyStatePhotos(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        // 1. 일러스트레이션 (ic_empty_photos.png)
+        // [주의] 이 파일을 res/drawable에 추가해야 합니다.
+        Image(
+            painter = painterResource(id = R.drawable.ic_empty_photos),
+            contentDescription = "사진을 업로드해주세요",
+            modifier = Modifier.size(120.dp),
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 2. 텍스트
+        Text(
+            text = "사진을 업로드해주세요",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "추억을 담을 사진들을\n골라보아요",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            lineHeight = 22.sp,
+        )
     }
 }
