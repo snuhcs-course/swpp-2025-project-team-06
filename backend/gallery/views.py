@@ -41,6 +41,8 @@ from .gpu_tasks import (
     process_and_embed_photos_batch,  # GPU-dependent task (batch)
 )
 from .storage_service import upload_photo, delete_photo
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PhotoView(APIView):
@@ -798,6 +800,7 @@ class TagView(APIView):
                 {"error": "The user has no tags"}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.error(f"[TagView GET] 500 ERROR for user: {request.user.id}. Exception: {str(e)}", exc_info=True)
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
