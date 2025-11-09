@@ -71,7 +71,7 @@ import kotlin.math.abs
 fun MyTagsScreen(navController: NavController) {
     val context = LocalContext.current
     val viewModel: MyTagsViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val uiState by viewModel.uiState.collectAsState()
+    val currentUiState = viewModel.uiState.collectAsState().value
     val isEditMode by viewModel.isEditMode.collectAsState()
 
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -88,7 +88,7 @@ fun MyTagsScreen(navController: NavController) {
                 showBackButton = true,
                 onBackClick = { navController.popBackStack() },
                 actions = {
-                    if (uiState is MyTagsUiState.Success && uiState.tags.isNotEmpty()) {
+                    if (currentUiState is MyTagsUiState.Success && currentUiState.tags.isNotEmpty()) {
                         IconButton(onClick = { viewModel.toggleEditMode() }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -172,7 +172,7 @@ fun MyTagsScreen(navController: NavController) {
                             ),
                     ).padding(paddingValues),
         ) {
-            when (val state = uiState) {
+            when (val state = currentUiState) {
                 is MyTagsUiState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
