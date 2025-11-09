@@ -10,8 +10,8 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.ExperimentalFoundationApi // [병합] dev의 import 유지
-import androidx.compose.foundation.Image // [병합] HEAD의 import 유지
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues // [병합] HEAD의 import 유지
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -43,33 +43,32 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Sort // [병합] dev의 import 유지
-import androidx.compose.material.icons.filled.ArrowDownward // [병합] dev의 import 유지
-import androidx.compose.material.icons.filled.ArrowUpward // [병합] dev의 import 유지
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FiberNew // [병합] dev의 import 유지
+import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Sort // [병합] dev의 import 유지
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.Button // [병합] HEAD의 import 유지
-import androidx.compose.material3.ButtonDefaults // [병합] HEAD의 import 유지
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet // [병합] dev의 import 유지
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.rememberModalBottomSheetState // [병합] dev의 import 유지
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -83,15 +82,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector // [병합] dev의 import 유지
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.painterResource // [병합] HEAD의 import 유지
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp // [병합] HEAD의 import 유지
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -105,7 +104,7 @@ import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
-import com.example.momentag.viewmodel.DatedPhotoGroup // [병합] dev의 DatedPhotoGroup import 유지
+import com.example.momentag.viewmodel.DatedPhotoGroup
 import com.example.momentag.viewmodel.HomeViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.TagSortOrder
@@ -145,7 +144,7 @@ fun HomeScreen(navController: NavController) {
 
     val shouldReturnToAllPhotos by homeViewModel.shouldReturnToAllPhotos.collectAsState()
 
-    val groupedPhotos by homeViewModel.groupedPhotos.collectAsState() // [병합] dev의 groupedPhotos 사용
+    val groupedPhotos by homeViewModel.groupedPhotos.collectAsState()
     val allPhotos by homeViewModel.allPhotos.collectAsState()
 
     var isUploadBannerDismissed by remember { mutableStateOf(false) }
@@ -456,7 +455,6 @@ fun HomeScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // [병합] dev의 정렬 버튼 로직과 HEAD의 ViewToggle 로직을 합침
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -466,7 +464,6 @@ fun HomeScreen(navController: NavController) {
                     if (!showAllPhotos) {
                         IconButton(onClick = { scope.launch { sheetState.show() } }) {
                             Icon(
-                                // [병합] dev의 Icons.Default.Sort 사용
                                 imageVector = Icons.Default.Sort, 
                                 contentDescription = "Sort Tag Albums",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -492,7 +489,6 @@ fun HomeScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // [병합] HEAD의 리팩토링된 로직 선택 (Conflict 6)
                 if (!hasPermission) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
@@ -514,8 +510,7 @@ fun HomeScreen(navController: NavController) {
                 else {
                     // 로딩이 끝났으므로, 태그 데이터 추출
                     val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
-                    
-                    // [병합] dev의 groupedPhotos를 MainContent로 전달
+
                     val listState = if (showAllPhotos) rememberLazyGridState() else null
 
                     MainContent(
@@ -523,7 +518,7 @@ fun HomeScreen(navController: NavController) {
                         onlyTag = onlyTag, // Pass the actual state
                         showAllPhotos = showAllPhotos, // Pass the actual state
                         tagItems = tagItems, // Pass the loaded tags
-                        groupedPhotos = groupedPhotos, // [병합] dev의 groupedPhotos 전달
+                        groupedPhotos = groupedPhotos,
                         navController = navController,
                         onDeleteClick = { tagId ->
                             homeViewModel.deleteTag(tagId)
@@ -538,10 +533,9 @@ fun HomeScreen(navController: NavController) {
                             photo?.let { homeViewModel.togglePhoto(it) }
                         },
                         homeViewModel = homeViewModel,
-                        lazyGridState = listState, // [병합] lazyGridState 전달
+                        lazyGridState = listState,
                         isLoadingMorePhotos = isLoadingMorePhotos,
 
-                        // [병합] HEAD에서 추가된 파라미터 전달
                         isLoadingPhotos = false, // 이 블록은 로딩이 끝났을 때만 실행됨
                         homeLoadingState = homeLoadingState // Success 또는 Error 상태 전달
                     )
@@ -558,7 +552,6 @@ fun HomeScreen(navController: NavController) {
                                 }.distinctUntilChanged() // 같은 값이 연속으로 올 때 필터링
                                     .debounce(150) // 빠른 스크롤 시 150ms 대기 후 처리 렉 방지
                                     .collect { lastVisibleIndex ->
-                                        // [병합] dev의 페이지네이션 로직 사용
                                         val totalItemCount = groupedPhotos.size + allPhotos.size
                                         if (lastVisibleIndex != null && totalItemCount > 0) {
                                             val remainingItems = totalItemCount - (lastVisibleIndex + 1)
@@ -587,7 +580,7 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
                 }
-                AnimatedVisibility(visible = bannerVisible) { // [병합] uiState.isLoading -> bannerVisible
+                AnimatedVisibility(visible = bannerVisible) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
                         WarningBanner(
@@ -608,7 +601,7 @@ fun HomeScreen(navController: NavController) {
             }
         }
     }
-    // [병합] dev의 ModalBottomSheet 로직 전체 유지
+
     if (sheetState.isVisible) {
         ModalBottomSheet(
             onDismissRequest = { scope.launch { sheetState.hide() } },
@@ -711,12 +704,10 @@ private fun MainContent(
     homeViewModel: HomeViewModel? = null,
     lazyGridState: LazyGridState? = null,
     isLoadingMorePhotos: Boolean = false,
-    // [병합] HEAD에서 추가된 파라미터들
     isLoadingPhotos: Boolean, 
     homeLoadingState: HomeViewModel.HomeLoadingState,
 ) {
-    // [병합] HEAD의 새 로직 (Conflict 7)
-    // 데이터 로딩 완료 시점 정의
+
     val isTagsLoaded = homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
     val arePhotosLoaded = !isLoadingPhotos
     // 태그와 사진 로딩이 모두 끝나야 빈 화면 여부를 최종 결정
@@ -743,7 +734,6 @@ private fun MainContent(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                // [병합] dev의 groupedPhotos 로직 사용
                 groupedPhotos.forEach { group ->
                     item(
                         key = group.date,
@@ -870,7 +860,6 @@ private fun MainContent(
             }
         }
 
-        // [병합] HEAD의 'Tag Album' 뷰 로직
         // 로직 3순위: 'Tag Album' 뷰 (사진이 반드시 있음)
         !showAllPhotos && !arePhotosEmpty -> {
             if (areTagsEmpty && isDataReady) {
@@ -928,7 +917,7 @@ private fun requiredImagePermission(): String =
         Manifest.permission.READ_EXTERNAL_STORAGE
     }
 
-@OptIn(ExperimentalFoundationApi::class) // [병합] dev의 ExperimentalFoundationApi 추가
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagGridItem(
     tagId: String,
@@ -1040,14 +1029,6 @@ fun TagGridItem(
     }
 }
 
-// [병합] HEAD의 Empty State 함수들 추가 (Conflict 8)
-// ======================================================================
-// [추가] Empty State Composable 함수들
-// ======================================================================
-
-/**
- * 태그 앨범이 비어있을 때 표시할 화면 (image_72d4b7.png)
- */
 @Composable
 fun EmptyStateTags(
     navController: NavController,
@@ -1058,8 +1039,6 @@ fun EmptyStateTags(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        // 1. 일러스트레이션 (ic_empty_tags.png)
-        // [주의] 이 파일을 res/drawable에 추가해야 합니다.
         Image(
             painter = painterResource(id = R.drawable.ic_empty_tags),
             contentDescription = "추억을 만들어보세요",
@@ -1122,8 +1101,6 @@ fun EmptyStatePhotos(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        // 1. 일러스트레이션 (ic_empty_photos.png)
-        // [주의] 이 파일을 res/drawable에 추가해야 합니다.
         Image(
             painter = painterResource(id = R.drawable.ic_empty_photos),
             contentDescription = "사진을 업로드해주세요",
@@ -1150,7 +1127,6 @@ fun EmptyStatePhotos(modifier: Modifier = Modifier) {
     }
 }
 
-// [병합] dev의 SortOptionsSheet 함수들 추가 (Conflict 8)
 @Composable
 private fun SortOptionsSheet(
     currentOrder: TagSortOrder,
