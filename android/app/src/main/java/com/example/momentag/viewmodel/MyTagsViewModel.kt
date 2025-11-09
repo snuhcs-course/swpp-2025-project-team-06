@@ -35,14 +35,15 @@ class MyTagsViewModel(
             when (val result = remoteRepository.getAllTags()) {
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: getAllTags() Success - ${result.data.size} tags")
-                    
-                    val tags = result.data.map { tagResponse ->
-                        TagCntData(
-                            tagId = tagResponse.tagId,
-                            tagName = tagResponse.tagName,
-                            count = tagResponse.photoCount ?: 0,
-                        )
-                    }
+
+                    val tags =
+                        result.data.map { tagResponse ->
+                            TagCntData(
+                                tagId = tagResponse.tagId,
+                                tagName = tagResponse.tagName,
+                                count = tagResponse.photoCount ?: 0,
+                            )
+                        }
 
                     println("MyTagsViewModel: Final tags count = ${tags.size}")
                     _uiState.value = MyTagsUiState.Success(tags)
