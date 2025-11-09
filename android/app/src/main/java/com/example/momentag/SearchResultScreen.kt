@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -244,9 +243,9 @@ fun SearchResultScreen(
                 BottomTab.SearchResultScreen -> {
                     // 이미 Search 화면
                 }
-                BottomTab.AddTagScreen -> {
+                BottomTab.MyTagsScreen -> {
                     searchViewModel.resetSelection()
-                    navController.navigate(Screen.AddTag.route)
+                    navController.navigate(Screen.MyTags.route)
                 }
                 BottomTab.StoryScreen -> {
                     searchViewModel.resetSelection()

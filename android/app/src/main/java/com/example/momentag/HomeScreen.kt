@@ -52,7 +52,6 @@ import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -387,9 +386,9 @@ fun HomeScreen(navController: NavController) {
                             homeViewModel.resetSelection()
                             navController.navigate(Screen.SearchResult.initialRoute())
                         }
-                        BottomTab.AddTagScreen -> {
+                        BottomTab.MyTagsScreen -> {
                             homeViewModel.resetSelection()
-                            navController.navigate(Screen.AddTag.route)
+                            navController.navigate(Screen.MyTags.route)
                         }
                         BottomTab.StoryScreen -> {
                             homeViewModel.resetSelection()
@@ -485,7 +484,7 @@ fun HomeScreen(navController: NavController) {
                     if (!showAllPhotos) {
                         IconButton(onClick = { scope.launch { sheetState.show() } }) {
                             Icon(
-                                imageVector = Icons.Default.Sort,
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
                                 contentDescription = "Sort Tag Albums",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

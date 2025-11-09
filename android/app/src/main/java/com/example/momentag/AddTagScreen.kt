@@ -14,15 +14,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -71,12 +66,7 @@ import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
 import com.example.momentag.ui.components.BackTopBar
-import com.example.momentag.ui.components.BottomNavBar
-import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.theme.horizontalArrangement
-import com.example.momentag.ui.theme.imageCornerRadius
-import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.AddTagViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -97,7 +87,6 @@ fun AddTagScreen(navController: NavController) {
     val saveState by addTagViewModel.saveState.collectAsState()
 
     val recommendedPhotos = remember { mutableStateListOf<Photo>() }
-    var currentTab by remember { mutableStateOf(BottomTab.AddTagScreen) }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -174,39 +163,6 @@ fun AddTagScreen(navController: NavController) {
                     navController.popBackStack()
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-            )
-        },
-        bottomBar = {
-            BottomNavBar(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            WindowInsets.navigationBars
-                                .only(WindowInsetsSides.Bottom)
-                                .asPaddingValues(),
-                        ),
-                currentTab = currentTab,
-                onTabSelected = { tab ->
-                    currentTab = tab
-                    when (tab) {
-                        BottomTab.HomeScreen -> {
-                            addTagViewModel.clearDraft()
-                            navController.navigate(Screen.Home.route)
-                        }
-                        BottomTab.SearchResultScreen -> {
-                            addTagViewModel.clearDraft()
-                            navController.navigate(Screen.SearchResult.initialRoute())
-                        }
-                        BottomTab.AddTagScreen -> {
-                            // 이미 Tag 화면
-                        }
-                        BottomTab.StoryScreen -> {
-                            addTagViewModel.clearDraft()
-                            navController.navigate(Screen.Story.route)
-                        }
-                    }
-                },
             )
         },
         containerColor = MaterialTheme.colorScheme.surface,
@@ -391,8 +347,8 @@ private fun SelectedPhotosSection(
                 .fillMaxWidth()
                 .height(120.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
-        horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
-        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(21.dp),
+        contentPadding = PaddingValues(vertical = 8.dp),
     ) {
         items(photos) { photo ->
             PhotoCheckedItem(
@@ -420,8 +376,8 @@ private fun RecommendedPicturesSection(
         Spacer(modifier = Modifier.height(11.dp))
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
-            verticalArrangement = Arrangement.spacedBy(verticalArrangement),
-            horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(21.dp),
             modifier = Modifier.height(193.dp),
         ) {
             items(photos) { photo ->
@@ -429,10 +385,7 @@ private fun RecommendedPicturesSection(
                     photo = photo,
                     isSelected = false,
                     onClick = { onPhotoClick(photo) },
-                    modifier =
-                        Modifier
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(imageCornerRadius)),
+                    modifier = Modifier.aspectRatio(1f),
                 )
             }
         }
@@ -449,7 +402,7 @@ fun PhotoCheckedItem(
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(imageCornerRadius))
+                .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(onClick = onClick),
     ) {
@@ -459,34 +412,34 @@ fun PhotoCheckedItem(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
+        CheckboxOverlay(
+            isSelected = isSelected,
+            modifier = Modifier.align(Alignment.TopEnd),
+        )
+    }
+}
 
-        // checkbox
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .background(
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surface.copy(
-                                alpha = 0.8f,
-                            )
-                        }, // Color(0xFFFBC4AB)
-                        RoundedCornerShape(12.dp),
-                    ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
+@Composable
+private fun CheckboxOverlay(
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .padding(8.dp)
+                .size(24.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surface),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(16.dp),
+            )
         }
     }
 }

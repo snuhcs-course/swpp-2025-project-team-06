@@ -46,6 +46,12 @@ data class TagId(
     val id: String,
 )
 
+data class TagCntData(
+    val tagId: String,
+    val tagName: String,
+    val count: Int,
+)
+
 data class PhotoDetailResponse(
     @SerializedName("photo_path_id") val photoPathId: Long,
     val tags: List<Tag>,
