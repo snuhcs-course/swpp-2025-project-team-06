@@ -81,7 +81,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
-
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import kotlin.math.abs
 @Composable
 fun ZoomableImage(
     model: Any?,
@@ -90,14 +93,19 @@ fun ZoomableImage(
     onScaleChanged: (isZoomed: Boolean) -> Unit,
 ) {
     // 1. 상태 변수 선언
+    val scaleAnim = remember { Animatable(1f) }
     var scale by remember { mutableFloatStateOf(1f) }
+
     var offset by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(IntSize.Zero) }
+
+    val scope = rememberCoroutineScope()
 
     // 2. 페이지 전환 시 모든 상태를 완벽하게 초기화
     LaunchedEffect(model) {
         scale = 1f
         offset = Offset.Zero
+        scaleAnim.snapTo(1f)
         onScaleChanged(false)
     }
 
@@ -124,19 +132,32 @@ fun ZoomableImage(
                                 // 화면 좌표 → 이미지 중심 좌표로 보정
                                 val centroidInImageSpace = centroid - Offset(size.width / 2f, size.height / 2f)
 
-                                val newOffset =
-                                    offset - (centroidInImageSpace * (newScale / oldScale - 1f)) + pan
+                                val rawOffset = offset - (centroidInImageSpace * (newScale / oldScale - 1f)) + pan
 
                                 // 계산된 오프셋을 경계 내로 제한하여 상태에 저장 (오프셋 누적 방지)
                                 val maxX = (size.width * (newScale - 1) / 2f).coerceAtLeast(0f)
                                 val maxY = (size.height * (newScale - 1) / 2f).coerceAtLeast(0f)
-                                offset = Offset(
-                                    x = newOffset.x.coerceIn(-maxX, maxX),
-                                    y = newOffset.y.coerceIn(-maxY, maxY)
-                                )
+
+                                val clampedX = rawOffset.x.coerceIn(-maxX, maxX)
+                                val clampedY = rawOffset.y.coerceIn(-maxY, maxY)
+                                val overScrollX = rawOffset.x - clampedX
+                                val overScrollY = rawOffset.y - clampedY
+
+                                offset = Offset(clampedX, clampedY)
 
                                 scale = newScale
+                                scope.launch {
+                                    scaleAnim.snapTo(scale)
+                                }
                                 onScaleChanged(scale > 1f)
+
+                                if (overScrollX != 0f || overScrollY != 0f) {
+                                    val overScrollAmount = abs(overScrollX) + abs(overScrollY)
+                                    val bounceScale = 1f + (overScrollAmount / size.width) * 0.05f
+                                    scope.launch{
+                                        scaleAnim.snapTo(scale * bounceScale)
+                                    }
+                                }
 
                                 // 현재 이벤트를 소비하여 HorizontalPager로 전파되는 것을 막음
                                 event.changes.forEach {
@@ -147,14 +168,23 @@ fun ZoomableImage(
                             }
                             // 그 외의 경우 (줌 안 된 상태에서의 한 손가락 스와이프)는 이벤트를 소비하지 않고 Pager로 전달
                         } while (event.changes.any { it.pressed })
+                        scope.launch {
+                            scaleAnim.animateTo(
+                                targetValue = scale,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            )
+                        }
                     }
                 }
             }
             .graphicsLayer {
                 translationX = offset.x
                 translationY = offset.y
-                scaleX = scale
-                scaleY = scale
+                scaleX = scaleAnim.value
+                scaleY = scaleAnim.value
             },
     ) {
         AsyncImage(
