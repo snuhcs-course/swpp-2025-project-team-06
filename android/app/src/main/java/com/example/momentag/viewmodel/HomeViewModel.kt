@@ -313,7 +313,7 @@ class HomeViewModel(
             when (_sortOrder.value) {
                 TagSortOrder.NAME_ASC -> currentList.sortedBy { it.tagName }
                 TagSortOrder.NAME_DESC -> currentList.sortedByDescending { it.tagName }
-                TagSortOrder.CREATED_DESC -> currentList.sortedByDescending { parseDate(it.createdAt) }
+                TagSortOrder.CREATED_DESC -> currentList.sortedByDescending { parseDate(it.updatedAt) }
                 TagSortOrder.COUNT_ASC -> currentList.sortedBy { it.photoCount }
                 TagSortOrder.COUNT_DESC -> currentList.sortedByDescending { it.photoCount }
             }

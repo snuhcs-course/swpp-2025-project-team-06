@@ -785,7 +785,7 @@ class TagView(APIView):
             tags = Tag.objects.filter(
                 user=request.user
             ).annotate(
-                photo_count=Count('photo_tag_set', filter=Q(user=request.user)),
+                photo_count=Count('photo_tag_set'),
                 thumbnail_path_id=Subquery(latest_photo_subquery.values("photo__photo_path_id")[:1])
             )
 
