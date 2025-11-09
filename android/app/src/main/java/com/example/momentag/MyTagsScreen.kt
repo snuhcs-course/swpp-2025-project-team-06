@@ -83,12 +83,13 @@ fun MyTagsScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
+            val currentState = uiState
             CommonTopBar(
                 title = "#Tag",
                 showBackButton = true,
                 onBackClick = { navController.popBackStack() },
                 actions = {
-                    if (uiState is MyTagsUiState.Success && uiState.tags.isNotEmpty()) {
+                    if (currentState is MyTagsUiState.Success && currentState.tags.isNotEmpty()) {
                         IconButton(onClick = { viewModel.toggleEditMode() }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
