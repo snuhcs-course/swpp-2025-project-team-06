@@ -60,7 +60,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusManager
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -469,7 +468,13 @@ fun PhotoCheckedItem(
                     .padding(4.dp)
                     .size(24.dp)
                     .background(
-                        if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), // Color(0xFFFBC4AB)
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(
+                                alpha = 0.8f,
+                            )
+                        }, // Color(0xFFFBC4AB)
                         RoundedCornerShape(12.dp),
                     ),
             contentAlignment = Alignment.Center,
