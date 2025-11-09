@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,17 +52,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocalAlbumScreen(
@@ -78,7 +74,7 @@ fun LocalAlbumScreen(
     var hasPermission by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val imageUris by localViewModel.imagesInAlbum.collectAsState()
+    val photos by localViewModel.imagesInAlbum.collectAsState()
 
     val selectedPhotos by localViewModel.selectedPhotosInAlbum.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
@@ -105,9 +101,9 @@ fun LocalAlbumScreen(
     }
 
     // Set browsing session when album images are loaded
-    LaunchedEffect(imageUris, albumName) {
-        if (imageUris.isNotEmpty()) {
-            localViewModel.setLocalAlbumBrowsingSession(imageUris, albumName)
+    LaunchedEffect(photos, albumName) {
+        if (photos.isNotEmpty()) {
+            localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
         }
     }
 
@@ -223,21 +219,12 @@ fun LocalAlbumScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = albumName,
-                    fontSize = 28.sp,
-                    fontFamily = Pretendard,
+                    style = MaterialTheme.typography.headlineMedium,
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
-                // Convert Uri list to Photo list (use URI's last path segment as photoId)
-                val photos =
-                    imageUris.map { uri ->
-                        com.example.momentag.model.Photo(
-                            photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
-                            contentUri = uri,
-                        )
-                    }
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -263,10 +250,7 @@ fun LocalAlbumScreen(
                                                 localViewModel.togglePhotoSelection(photo)
                                             } else {
                                                 // 기존 로직: 이미지 상세 보기
-                                                localViewModel.setLocalAlbumBrowsingSession(
-                                                    imageUris,
-                                                    albumName,
-                                                )
+                                                localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
                                                 navController.navigate(
                                                     Screen.Image.createRoute(
                                                         uri = photo.contentUri,

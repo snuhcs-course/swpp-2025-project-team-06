@@ -33,9 +33,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,6 +47,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,7 +72,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
-import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.theme.horizontalArrangement
+import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.AlbumViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -91,9 +98,7 @@ fun AlbumScreen(
     val tagDeleteState by albumViewModel.tagDeleteState.collectAsState()
     val tagRenameState by albumViewModel.tagRenameState.collectAsState()
     val tagAddState by albumViewModel.tagAddState.collectAsState()
-
-    // State for main album delete mode
-    var isAlbumDeleteMode by remember { mutableStateOf(false) }
+    val selectedTagAlbumPhotos by albumViewModel.selectedTagAlbumPhotos.collectAsState()
 
     // State for tag name text field
     var currentTagName by remember(tagName) { mutableStateOf(tagName) } // actual name, updates on successful rename
@@ -106,9 +111,21 @@ fun AlbumScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // Handle back press to exit delete mode
-    BackHandler(enabled = isAlbumDeleteMode) {
-        isAlbumDeleteMode = false
+    var isTagAlbumPhotoSelectionMode by remember { mutableStateOf(false) }
+    var isTagAlbumPhotoSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
+
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+
+    // BackHandler for Selection Mode
+    BackHandler(enabled = isTagAlbumPhotoSelectionMode) {
+        isTagAlbumPhotoSelectionMode = false
+        albumViewModel.resetTagAlbumPhotoSelection()
+    }
+
+    LaunchedEffect(isTagAlbumPhotoSelectionMode) {
+        kotlinx.coroutines.delay(200L) // 0.2초
+        isTagAlbumPhotoSelectionModeDelay = isTagAlbumPhotoSelectionMode
     }
 
     LaunchedEffect(tagDeleteState) {
@@ -167,7 +184,7 @@ fun AlbumScreen(
         )
 
     LaunchedEffect(hasPermission, tagId) {
-        if (hasPermission) {
+        if (hasPermission && imageLoadState is AlbumViewModel.AlbumLoadingState.Idle) {
             albumViewModel.loadAlbum(tagId, tagName)
         }
     }
@@ -198,16 +215,119 @@ fun AlbumScreen(
         focusManager.clearFocus() // Remove focus (cursor)
     }
 
+    if (showDeleteConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmationDialog = false },
+            title = {
+                Text(
+                    text = "Remove Photos",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to remove ${selectedTagAlbumPhotos.size} photo(s) from '$currentTagName' tag?",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        albumViewModel.deleteTagFromPhotos(
+                            photos = selectedTagAlbumPhotos,
+                            tagId = tagId,
+                        )
+                        Toast.makeText(context, "${selectedTagAlbumPhotos.size} photo(s) removed", Toast.LENGTH_SHORT).show()
+
+                        showDeleteConfirmationDialog = false
+                        isTagAlbumPhotoSelectionMode = false
+                        showMenu = false
+                        albumViewModel.resetTagAlbumPhotoSelection()
+                    },
+                ) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmationDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            BackTopBar(
+            CommonTopBar(
                 title = "MomenTag",
+                showBackButton = true,
                 onBackClick = {
-                    if (isAlbumDeleteMode) {
-                        isAlbumDeleteMode = false
+                    if (isTagAlbumPhotoSelectionMode) {
+                        isTagAlbumPhotoSelectionMode = false
+                        albumViewModel.resetTagAlbumPhotoSelection()
                     } else {
                         onNavigateBack()
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                        ) {
+                            if (isTagAlbumPhotoSelectionModeDelay) {
+                                DropdownMenuItem(
+                                    text = { Text("Share") },
+                                    onClick = {
+                                        // TODO: share selectedTagAlbumPhotos
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                "Share ${selectedTagAlbumPhotos.size} photo(s) (TODO)",
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+
+                                        showMenu = false
+                                        isTagAlbumPhotoSelectionMode = false
+                                        albumViewModel.resetTagAlbumPhotoSelection()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete") },
+                                    onClick = {
+                                        if (selectedTagAlbumPhotos.isNotEmpty()) {
+                                            showDeleteConfirmationDialog = true
+                                        } else {
+                                            Toast.makeText(context, "Please select photos", Toast.LENGTH_SHORT).show()
+                                        }
+                                        showMenu = false
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Cancel") },
+                                    onClick = {
+                                        albumViewModel.resetTagAlbumPhotoSelection()
+                                        isTagAlbumPhotoSelectionMode = false
+                                        showMenu = false
+                                    },
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text("Select") },
+                                    onClick = {
+                                        isTagAlbumPhotoSelectionMode = true
+                                        showMenu = false
+                                    },
+                                )
+                            }
+                        }
                     }
                 },
             )
@@ -305,18 +425,18 @@ fun AlbumScreen(
                         albumLoadState = imageLoadState,
                         recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
                         selectedRecommendPhotos = albumViewModel.selectedRecommendPhotos.collectAsState().value,
+                        selectedTagAlbumPhotos = selectedTagAlbumPhotos,
                         navController = navController,
                         onToggleRecommendPhoto = { photo -> albumViewModel.toggleRecommendPhoto(photo) },
-                        onResetSelection = { albumViewModel.resetRecommendSelection() },
+                        onResetRecommendSelection = { albumViewModel.resetRecommendSelection() },
+                        onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
+                        onResetTagAlbumPhotoSelection = { albumViewModel.resetTagAlbumPhotoSelection() },
                         tagId = tagId,
-                        isAlbumDeleteMode = isAlbumDeleteMode,
-                        onEnterAlbumDeleteMode = { isAlbumDeleteMode = true },
-                        onDeleteTagFromPhoto = { photoId, tagIdValue ->
-                            albumViewModel.deleteTagFromPhoto(photoId, tagIdValue)
-                        },
                         onAddPhotosToAlbum = { photos ->
                             albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId, tagName)
                         },
+                        isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
+                        onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
                     )
                 }
             }
@@ -329,19 +449,24 @@ private fun AlbumContent(
     albumLoadState: AlbumViewModel.AlbumLoadingState,
     recommendLoadState: AlbumViewModel.RecommendLoadingState,
     selectedRecommendPhotos: List<Photo>,
+    selectedTagAlbumPhotos: List<Photo>,
     navController: NavController,
     onToggleRecommendPhoto: (Photo) -> Unit,
-    onResetSelection: () -> Unit,
+    onResetRecommendSelection: () -> Unit,
+    onToggleTagAlbumPhoto: (Photo) -> Unit,
+    onResetTagAlbumPhotoSelection: () -> Unit,
     tagId: String,
-    isAlbumDeleteMode: Boolean,
-    onEnterAlbumDeleteMode: () -> Unit,
-    onDeleteTagFromPhoto: (String, String) -> Unit,
     onAddPhotosToAlbum: (List<Photo>) -> Unit,
+    isTagAlbumPhotoSelectionMode: Boolean,
+    onSetTagAlbumPhotoSelectionMode: (Boolean) -> Unit,
 ) {
     var isRecommendSelectionMode by remember { mutableStateOf(false) }
     var recommendOffsetY by remember { mutableFloatStateOf(600f) }
     val minOffset = 0f
     val maxOffset = 600f
+
+    val buttonShape = RoundedCornerShape(16.dp)
+    val buttonPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Tag Album Grid
@@ -356,8 +481,8 @@ private fun AlbumContent(
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
+                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
                     contentPadding = PaddingValues(bottom = 450.dp), // Space for AI Recommend section
                 ) {
                     items(
@@ -367,14 +492,13 @@ private fun AlbumContent(
                         ImageGridUriItem(
                             photo = photos[index],
                             navController = navController,
-                            onLongPress = {
-                                onEnterAlbumDeleteMode()
+                            isSelectionMode = isTagAlbumPhotoSelectionMode,
+                            isSelected = selectedTagAlbumPhotos.contains(photos[index]),
+                            onToggleSelection = {
+                                onToggleTagAlbumPhoto(photos[index])
                             },
-                            cornerRadius = 12.dp,
-                            topPadding = 0.dp,
-                            isAlbumDeleteMode = isAlbumDeleteMode,
-                            onDeleteClick = {
-                                onDeleteTagFromPhoto(photos[index].photoId, tagId)
+                            onLongPress = {
+                                onSetTagAlbumPhotoSelectionMode(true)
                             },
                         )
                     }
@@ -428,64 +552,102 @@ private fun AlbumContent(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // AI Recommend Badge
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                Box(
                     modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier =
-                            Modifier
-                                .background(MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(16.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "AI",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "AI Recommend",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    // Selection mode toggle (only show when recommendations loaded)
                     if (recommendLoadState is AlbumViewModel.RecommendLoadingState.Success && recommendLoadState.photos.isNotEmpty()) {
-                        Button(
-                            onClick = {
-                                isRecommendSelectionMode = !isRecommendSelectionMode
-                                if (!isRecommendSelectionMode) {
-                                    onResetSelection()
+                        if (isRecommendSelectionMode) {
+                            // X button
+                            IconButton(
+                                onClick = {
+                                    isRecommendSelectionMode = false
+                                    onResetRecommendSelection()
+                                },
+                                modifier = Modifier.align(Alignment.CenterStart),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cancel selection",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant, // Color.Gray,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Add to album button
+                            Button(
+                                onClick = {
+                                    onAddPhotosToAlbum(selectedRecommendPhotos)
+                                    isRecommendSelectionMode = false
+                                    onResetRecommendSelection()
+                                },
+                                enabled = selectedRecommendPhotos.isNotEmpty(), // 선택된 사진이 있어야 활성화
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                                shape = buttonShape,
+                                contentPadding = buttonPadding,
+                            ) {
+                                Text(
+                                    text = "Add to Album (${selectedRecommendPhotos.size})",
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                )
+                            }
+                        } else {
+                            // Non-selection mode
+                            Button(
+                                onClick = { isRecommendSelectionMode = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                                shape = buttonShape,
+                                contentPadding = buttonPadding,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = "AI",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "AI Recommend",
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    )
                                 }
-                            },
+                            }
+                        }
+                    } else {
+                        // Empty recommended result or Loading state - non-clickable button "AI recommend"
+                        Button(
+                            onClick = {}, // can not click
                             colors =
                                 ButtonDefaults.buttonColors(
-                                    containerColor =
-                                        if (isRecommendSelectionMode) {
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                                        },
-                                    contentColor =
-                                        if (isRecommendSelectionMode) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                        },
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), // 비활성 색
                                 ),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            shape = buttonShape,
+                            contentPadding = buttonPadding,
                         ) {
-                            Text(
-                                text = if (isRecommendSelectionMode) "취소" else "선택",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = "AI",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "AI Recommend",
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                )
+                            }
                         }
                     }
                 }
@@ -510,8 +672,8 @@ private fun AlbumContent(
                             Column {
                                 LazyVerticalGrid(
                                     columns = GridCells.Fixed(3),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
+                                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
                                     modifier = Modifier.height(300.dp),
                                 ) {
                                     items(
@@ -529,33 +691,6 @@ private fun AlbumContent(
                                             onLongPress = {
                                                 isRecommendSelectionMode = true
                                             },
-                                            cornerRadius = 12.dp,
-                                            topPadding = 0.dp,
-                                        )
-                                    }
-                                }
-
-                                // Add to Album button
-                                if (isRecommendSelectionMode && selectedRecommendPhotos.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Button(
-                                        onClick = {
-                                            // Call the new lambda from ViewModel
-                                            onAddPhotosToAlbum(selectedRecommendPhotos)
-
-                                            // Reset UI state
-                                            isRecommendSelectionMode = false
-                                            onResetSelection()
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp),
-                                    ) {
-                                        Text(
-                                            text = "Add to Album (${selectedRecommendPhotos.size})",
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            modifier = Modifier.padding(vertical = 4.dp),
                                         )
                                     }
                                 }

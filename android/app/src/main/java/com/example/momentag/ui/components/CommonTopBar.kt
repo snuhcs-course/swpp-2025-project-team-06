@@ -105,18 +105,21 @@ fun CommonTopBar(
  * @param title 화면 제목
  * @param onBackClick 뒤로가기 클릭 핸들러
  * @param modifier Modifier
+ * @param actions 추가 액션 버튼들 (커스텀)
  */
 @Composable
 fun BackTopBar(
     title: String,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    actions: @Composable () -> Unit = {},
 ) {
     CommonTopBar(
         title = title,
         showBackButton = true,
         onBackClick = onBackClick,
         modifier = modifier,
+        actions = actions,
     )
 }
 
