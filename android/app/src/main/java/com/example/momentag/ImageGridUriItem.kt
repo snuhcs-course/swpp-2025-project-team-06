@@ -16,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -53,11 +52,8 @@ fun ImageGridUriItem(
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
-    cornerRadius: Dp = 16.dp,
-    topPadding: Dp = 12.dp,
-    isAlbumDeleteMode: Boolean = false,
-    onDeleteClick: (() -> Unit)? = null,
     cornerRadius: Dp = imageCornerRadius,
+    topPadding: Dp = 0.dp,
 ) {
     Box(
         modifier = modifier.aspectRatio(1f),
