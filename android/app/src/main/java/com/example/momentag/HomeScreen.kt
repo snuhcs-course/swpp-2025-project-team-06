@@ -81,6 +81,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -279,7 +280,7 @@ fun HomeScreen(navController: NavController) {
                 isLogoutLoading = logoutState is LogoutState.Loading,
                 actions = {
                     // 태그 앨범 뷰(!showAllPhotos)에서는 선택 모드 버튼을 표시하지 않음
-                    if (showAllPhotos) {
+                    if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (isSelectionMode) {
                                 // Cancel button when in selection mode
@@ -381,7 +382,7 @@ fun HomeScreen(navController: NavController) {
         containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
             // 태그 앨범 뷰(!showAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
-            if (showAllPhotos) {
+            if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
                     text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Create with ${selectedPhotos.size}" else "Create Tag",
@@ -713,7 +714,7 @@ private fun MainContent(
 
     when {
         isDataReady && arePhotosEmpty -> {
-            EmptyStatePhotos(modifier = modifier)
+            EmptyStatePhotos(modifier = modifier, navController = navController)
         }
 
         // 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
@@ -1036,7 +1037,7 @@ fun EmptyStateTags(
         Image(
             painter = painterResource(id = R.drawable.ic_empty_tags),
             contentDescription = "추억을 만들어보세요",
-            modifier = Modifier.size(120.dp),
+            modifier = Modifier.size(120.dp).rotate(45f),
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -1089,7 +1090,10 @@ fun EmptyStateTags(
  * '모든 사진' 뷰가 비어있을 때 표시할 화면 (image_72d81f.png)
  */
 @Composable
-fun EmptyStatePhotos(modifier: Modifier = Modifier) {
+fun EmptyStatePhotos(
+    modifier: Modifier = Modifier,
+    navController: NavController,
+) {
     Column(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1118,6 +1122,30 @@ fun EmptyStatePhotos(modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center,
             lineHeight = 22.sp,
         )
+
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = {
+                navController.navigate(Screen.LocalGallery.route)
+            },
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.8f)
+                    .height(52.dp),
+            shape = RoundedCornerShape(50.dp),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            contentPadding = PaddingValues(horizontal = 32.dp),
+        ) {
+            Text(
+                text = "Upload Photos",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+            )
+        }
     }
 }
 
