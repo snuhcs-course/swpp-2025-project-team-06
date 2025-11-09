@@ -539,6 +539,7 @@ class PostPhotoTagsView(APIView):
                 Photo_Tag.objects.create(
                     pt_id=uuid.uuid4(), photo=photo, tag=tag, user=request.user
                 )
+                tag.save()
 
                 compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
@@ -587,6 +588,7 @@ class DeletePhotoTagsView(APIView):
             photo_tag = Photo_Tag.objects.get(photo=photo, tag=tag, user=request.user)
 
             photo_tag.delete()
+            tag.save()
 
             compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
@@ -783,7 +785,7 @@ class TagView(APIView):
             tags = Tag.objects.filter(
                 user=request.user
             ).annotate(
-                photo_count=Count('photo_tag', filter=Q(user=request.user)),
+                photo_count=Count('photo_tag_set', filter=Q(user=request.user)),
                 thumbnail_path_id=Subquery(latest_photo_subquery.values("photo__photo_path_id")[:1])
             )
 
