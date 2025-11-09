@@ -35,6 +35,7 @@ import retrofit2.http.Query
 import java.io.InputStream
 import java.security.KeyStore
 import java.security.cert.CertificateFactory
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManagerFactory
@@ -211,9 +212,9 @@ object RetrofitInstance {
                     .authenticator(tokenAuthenticator)
                     .sslSocketFactory(customSslSocketFactory, customTrustManager)
                     .hostnameVerifier { _, _ -> true }
-//                    .connectTimeout(30, TimeUnit.SECONDS)
-//                    .readTimeout(30, TimeUnit.SECONDS)
-//                    .writeTimeout(30, TimeUnit.SECONDS)
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .writeTimeout(30, TimeUnit.SECONDS)
                     .build()
 
             val retrofit =

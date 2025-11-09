@@ -70,6 +70,52 @@ import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 import java.io.IOException
 
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+
+@Composable
+fun ZoomableImage(
+    model: Any?, // AsyncImage의 model과 동일
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+    contentScale: ContentScale = ContentScale.Fit,
+) {
+    // 1. 확대/축소(scale)와 이동(offset) 상태를 기억
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    // 2. 제스처를 처리하고 상태를 업데이트하는 transformable 상태
+    val state = rememberTransformableState { zoomChange, offsetChange, _ ->
+        // 확대/축소 비율 계산 (최소 1배, 최대 5배로 제한)
+        scale = (scale * zoomChange).coerceIn(1f, 5f)
+
+        // 이동 위치 계산
+        offset += offsetChange
+    }
+
+    // 3. 확대/축소 상태가 초기화되었을 때 이동 위치도 초기화
+    if (scale == 1f) {
+        offset = Offset.Zero
+    }
+
+    AsyncImage(
+        model = model,
+        contentDescription = contentDescription,
+        contentScale = contentScale,
+        modifier = modifier
+            .graphicsLayer(
+                // 4. 계산된 상태를 graphicsLayer에 적용
+                scaleX = scale,
+                scaleY = scale,
+                translationX = offset.x,
+                translationY = offset.y,
+            )
+            .transformable(state = state) // 5. 이 Composable이 제스처를 처리하도록 설정
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ImageDetailScreen(
@@ -326,7 +372,7 @@ fun ImageDetailScreen(
                             .align(Alignment.Center),
                 ) { page ->
                     val photo = photos.getOrNull(page)
-                    AsyncImage(
+                    ZoomableImage(
                         model = photo?.contentUri,
                         contentDescription = null,
                         modifier =
