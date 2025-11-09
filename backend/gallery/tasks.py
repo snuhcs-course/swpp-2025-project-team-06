@@ -198,11 +198,15 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
         print(f"[ERROR] Batch retrieve failed: {e}")
         return {}
     
-    # photo_id -> vector 매핑
-    photo_vectors = {point.id: point.vector for point in retrieved_points if point.vector}
+    # photo_id -> vector 매핑 (입력받은 photo_ids만 사용)
+    photo_vectors = {}
+    for point in retrieved_points:
+        if point.vector and point.id in photo_ids:  # ✅ 입력 photo_ids에 있는 것만
+            photo_vectors[point.id] = point.vector
     
     if not photo_vectors:
-        return {}
+        # 벡터가 없는 경우 빈 리스트 반환
+        return {photo_id: [] for photo_id in photo_ids}
     
     user_filter = models.Filter(
         must=[
@@ -251,6 +255,11 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
                 print(f"[ERROR] Future failed for photo {photo_id}: {e}")
                 results[photo_id] = []
     
+    # ✅ 입력받은 모든 photo_ids에 대해 결과 생성
+    for photo_id in photo_ids:
+        if photo_id not in results:
+            results[photo_id] = []  # 벡터가 없거나 검색 실패한 경우
+    
     # 3. values_list로 태그 정보 조회
     all_tag_ids = set()
     for tag_ids in results.values():
@@ -265,7 +274,8 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     
     # 4. 최종 결과 조합
     final_results = {}
-    for photo_id, tag_ids in results.items():
+    for photo_id in photo_ids:  # ✅ 입력 순서대로 처리
+        tag_ids = results.get(photo_id, [])
         final_results[photo_id] = [
             {
                 "tag_id": tag_id,
