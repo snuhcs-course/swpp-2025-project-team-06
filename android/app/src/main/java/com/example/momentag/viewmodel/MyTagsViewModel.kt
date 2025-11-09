@@ -5,8 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.MyTagsUiState
 import com.example.momentag.model.TagCntData
 import com.example.momentag.repository.RemoteRepository
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,40 +35,14 @@ class MyTagsViewModel(
             when (val result = remoteRepository.getAllTags()) {
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: getAllTags() Success - ${result.data.size} tags")
-                    // Backend에서 photo_count를 제공하는지 확인
-                    val hasPhotoCount = result.data.firstOrNull()?.photoCount != null
-                    println("MyTagsViewModel: hasPhotoCount = $hasPhotoCount")
-
-                    val tags =
-                        if (hasPhotoCount) {
-                            // Backend에서 count를 제공하는 경우: 직접 사용
-                            result.data.map { tagResponse ->
-                                TagCntData(
-                                    tagId = tagResponse.tagId,
-                                    tagName = tagResponse.tagName,
-                                    count = tagResponse.photoCount ?: 0,
-                                )
-                            }
-                        } else {
-                            // Backend에서 count를 제공하지 않는 경우: 각 태그의 사진 개수를 병렬로 가져오기
-                            val tagsDeferred =
-                                result.data.map { tagResponse ->
-                                    async {
-                                        val photoCount =
-                                            when (val photosResult = remoteRepository.getPhotosByTag(tagResponse.tagId)) {
-                                                is RemoteRepository.Result.Success -> photosResult.data.size
-                                                else -> 0 // 에러 시 0으로 표시
-                                            }
-
-                                        TagCntData(
-                                            tagId = tagResponse.tagId,
-                                            tagName = tagResponse.tagName,
-                                            count = photoCount,
-                                        )
-                                    }
-                                }
-                            tagsDeferred.awaitAll()
-                        }
+                    
+                    val tags = result.data.map { tagResponse ->
+                        TagCntData(
+                            tagId = tagResponse.tagId,
+                            tagName = tagResponse.tagName,
+                            count = tagResponse.photoCount ?: 0,
+                        )
+                    }
 
                     println("MyTagsViewModel: Final tags count = ${tags.size}")
                     _uiState.value = MyTagsUiState.Success(tags)
