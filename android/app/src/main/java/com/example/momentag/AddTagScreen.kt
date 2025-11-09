@@ -78,7 +78,7 @@ fun AddTagScreen(navController: NavController) {
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
 
-    // Screen-scoped ViewModels using DraftTagRepository
+    // Screen-scoped ViewModels using PhotoSelectionRepository
     val addTagViewModel: AddTagViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
     val tagName by addTagViewModel.tagName.collectAsState()
