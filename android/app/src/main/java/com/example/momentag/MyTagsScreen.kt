@@ -102,9 +102,10 @@ fun MyTagsScreen(navController: NavController) {
         },
         bottomBar = {
             Column(
-                modifier = Modifier
-                    .background(Color.Transparent)
-                    .fillMaxWidth()
+                modifier =
+                    Modifier
+                        .background(Color.Transparent)
+                        .fillMaxWidth(),
             ) {
                 // Create New Tag 버튼
                 Button(
