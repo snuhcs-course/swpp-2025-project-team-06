@@ -80,10 +80,12 @@ fun SearchResultScreen(
     val context = LocalContext.current
     val searchViewModel: SearchViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
-    var searchText by remember { mutableStateOf(initialQuery) }
     val semanticSearchState by searchViewModel.searchState.collectAsState()
-    var isSelectionMode by remember { mutableStateOf(false) }
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
+    val searchHistory by searchViewModel.searchHistory.collectAsState()
+    val searchText by searchViewModel.searchText.collectAsState()
+
+    var isSelectionMode by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
     var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
@@ -103,6 +105,7 @@ fun SearchResultScreen(
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
         if (initialQuery.isNotEmpty()) {
+            searchViewModel.onSearchTextChanged(initialQuery)
             searchViewModel.search(initialQuery)
         }
     }
@@ -152,11 +155,13 @@ fun SearchResultScreen(
                     DropdownMenuItem(
                         text = { Text("Share") },
                         onClick = {
-                            // TODO: Share logic
+                            val photos = searchViewModel.getPhotosToShare()
+                            ShareUtils.sharePhotos(context, photos)
+
                             Toast
                                 .makeText(
                                     context,
-                                    "Share ${selectedPhotos.size} photo(s) (TODO)",
+                                    "Share ${photos.size} photo(s)",
                                     Toast.LENGTH_SHORT,
                                 ).show()
 
@@ -188,7 +193,7 @@ fun SearchResultScreen(
 
     SearchResultScreenUi(
         searchText = searchText,
-        onSearchTextChange = { searchText = it },
+        onSearchTextChange = { searchViewModel.onSearchTextChanged(it) },
         onSearchSubmit = {
             if (searchText.isNotEmpty()) {
                 if (isSelectionMode) {
@@ -259,6 +264,14 @@ fun SearchResultScreen(
             } else {
                 {}
             },
+        searchHistory = searchHistory,
+        onHistoryClick = { query ->
+            searchViewModel.onSearchTextChanged(query)
+            searchViewModel.search(query)
+        },
+        onHistoryDelete = { query ->
+            searchViewModel.removeSearchHistory(query)
+        },
     )
 }
 
@@ -285,13 +298,15 @@ fun SearchResultScreenUi(
     currentTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit,
     topBarActions: @Composable () -> Unit = {},
+    searchHistory: List<String>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = modifier,
             containerColor = MaterialTheme.colorScheme.surface,
             topBar = {
-                val context = LocalContext.current // ???
                 CommonTopBar(
                     title = "Search Results",
                     showBackButton = true,
@@ -332,6 +347,9 @@ fun SearchResultScreenUi(
                 onCreateTagClick = onCreateTagClick,
                 onRetry = onRetry,
                 navController = navController,
+                searchHistory = searchHistory,
+                onHistoryClick = onHistoryClick,
+                onHistoryDelete = onHistoryDelete,
             )
         }
         // TODO : 혹시 네트워크 에러일 때만 오버레이 띄울거면 NetworkError 상태로 바꾸기
@@ -366,6 +384,9 @@ private fun SearchResultContent(
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    searchHistory: List<String>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
 ) {
     Box(modifier = modifier) {
         Column(
@@ -419,6 +440,9 @@ private fun SearchResultContent(
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
                 navController = navController,
+                searchHistory = searchHistory,
+                onHistoryClick = onHistoryClick,
+                onHistoryDelete = onHistoryDelete,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -480,11 +504,19 @@ private fun SearchResultsFromState(
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    searchHistory: List<String>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
             is SearchUiState.Idle -> {
-                SearchIdleCustom(modifier)
+                SearchIdleCustom(
+                    history = searchHistory,
+                    onHistoryClick = onHistoryClick,
+                    onHistoryDelete = onHistoryDelete,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
 
             is SearchUiState.Loading -> {

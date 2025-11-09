@@ -286,11 +286,13 @@ fun AlbumScreen(
                                 DropdownMenuItem(
                                     text = { Text("Share") },
                                     onClick = {
-                                        // TODO: share selectedTagAlbumPhotos
+                                        val photos = albumViewModel.getPhotosToShare()
+                                        ShareUtils.sharePhotos(context, photos)
+
                                         Toast
                                             .makeText(
                                                 context,
-                                                "Share ${selectedTagAlbumPhotos.size} photo(s) (TODO)",
+                                                "Share ${photos.size} photo(s)",
                                                 Toast.LENGTH_SHORT,
                                             ).show()
 
