@@ -99,25 +99,55 @@ fun MyTagsScreen(navController: NavController) {
             )
         },
         bottomBar = {
-            BottomNavBar(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            WindowInsets.navigationBars
-                                .only(WindowInsetsSides.Bottom)
-                                .asPaddingValues(),
+            Column {
+                // Create New Tag 버튼
+                Button(
+                    onClick = {
+                        navController.navigate(Screen.AddTag.route)
+                    },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 8.dp)
+                            .height(52.dp),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
-                currentTab = BottomTab.MyTagsScreen,
-                onTabSelected = { tab ->
-                    when (tab) {
-                        BottomTab.HomeScreen -> navController.navigate(Screen.Home.route)
-                        BottomTab.SearchResultScreen -> navController.navigate(Screen.SearchResult.createRoute(""))
-                        BottomTab.MyTagsScreen -> { /* 현재 화면이므로 아무것도 안 함 */ }
-                        BottomTab.StoryScreen -> navController.navigate(Screen.Story.route)
-                    }
-                },
-            )
+                    shape = RoundedCornerShape(26.dp),
+                ) {
+                    Text(
+                        text = "+ Create New Tag",
+                        style =
+                            MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                            ),
+                    )
+                }
+
+                // Bottom Navigation Bar
+                BottomNavBar(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                WindowInsets.navigationBars
+                                    .only(WindowInsetsSides.Bottom)
+                                    .asPaddingValues(),
+                            ),
+                    currentTab = BottomTab.MyTagsScreen,
+                    onTabSelected = { tab ->
+                        when (tab) {
+                            BottomTab.HomeScreen -> navController.navigate(Screen.Home.route)
+                            BottomTab.SearchResultScreen -> navController.navigate(Screen.SearchResult.createRoute(""))
+                            BottomTab.MyTagsScreen -> { /* 현재 화면이므로 아무것도 안 함 */ }
+                            BottomTab.StoryScreen -> navController.navigate(Screen.Story.route)
+                        }
+                    },
+                )
+            }
         },
     ) { paddingValues ->
         Box(
@@ -308,46 +338,46 @@ private fun MyTagsContent(
         },
         state = pullToRefreshState,
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .clickable(
-                        indication = null,
-                        interactionSource =
-                            remember {
-                                androidx.compose.foundation.interaction
-                                    .MutableInteractionSource()
-                            },
-                    ) {
-                        onExitEditMode()
-                    }.padding(horizontal = 24.dp),
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // My Tags 헤더
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+        if (tags.isNotEmpty()) {
+            // 태그가 있을 때 - 스크롤 가능한 컨텐츠
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .clickable(
+                            indication = null,
+                            interactionSource =
+                                remember {
+                                    androidx.compose.foundation.interaction
+                                        .MutableInteractionSource()
+                                },
+                        ) {
+                            onExitEditMode()
+                        }.padding(horizontal = 24.dp),
             ) {
-                Text(
-                    text = "My Tags",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = if (tags.size >= 2) "${tags.size} tags" else "${tags.size} tag",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
+                // My Tags 헤더
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "My Tags",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = if (tags.size >= 2) "${tags.size} tags" else "${tags.size} tag",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
-            // 태그가 있을 때
-            if (tags.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -375,68 +405,45 @@ private fun MyTagsContent(
                         )
                     }
                 }
-            } else {
-                // 태그가 없을 때 - Empty State
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.tag),
-                        contentDescription = "Empty Tag",
-                        modifier =
-                            Modifier
-                                .size(200.dp)
-                                .rotate(45f),
-                    )
 
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Text(
-                        text = "태그를 만들어보세요",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "키워드로 추억을\n모아보세요",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                }
+                Spacer(modifier = Modifier.height(80.dp)) // 하단 버튼 공간 확보
             }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Create New Tag Button
-            Button(
-                onClick = {
-                    navController.navigate(Screen.AddTag.route)
-                },
+        } else {
+            // 태그가 없을 때 - Empty State (Pull-to-Refresh 지원을 위해 스크롤 가능한 컨텐츠로 변경)
+            Column(
                 modifier =
                     Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                shape = RoundedCornerShape(26.dp),
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                    ),
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()), // 스크롤 추가로 Pull-to-Refresh 활성화
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
             ) {
+                Image(
+                    painter = painterResource(id = R.drawable.tag),
+                    contentDescription = "Empty Tag",
+                    modifier =
+                        Modifier
+                            .size(200.dp)
+                            .rotate(45f),
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
                 Text(
-                    text = "+ Create New Tag",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color.White,
+                    text = "태그를 만들어보세요",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "키워드로 추억을\n모아보세요",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
