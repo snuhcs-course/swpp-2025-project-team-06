@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
-import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,19 +17,19 @@ import kotlinx.coroutines.launch
  * AddTagViewModel
  *
  * ViewModel for AddTagScreen
- * - Delegates state management to DraftTagRepository
+ * - Delegates state management to PhotoSelectionRepository
  * - Provides convenient methods for tag creation workflow
  * - Each screen instance gets its own ViewModel, but they share the Repository
  */
 class AddTagViewModel(
-    private val draftTagRepository: DraftTagRepository,
+    private val photoSelectionRepository: PhotoSelectionRepository,
     private val recommendRepository: RecommendRepository,
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
 ) : ViewModel() {
     // Expose repository state as read-only flows
-    val tagName: StateFlow<String> = draftTagRepository.tagName
-    val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
+    val tagName: StateFlow<String> = photoSelectionRepository.tagName
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
     private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
     val recommendState = _recommendState.asStateFlow()
 
@@ -56,35 +56,35 @@ class AddTagViewModel(
         initialTagName: String?,
         initialPhotos: List<Photo>,
     ) {
-        draftTagRepository.initialize(initialTagName, initialPhotos)
+        photoSelectionRepository.initialize(initialTagName, initialPhotos)
     }
 
     /**
      * Update the tag name
      */
     fun updateTagName(name: String) {
-        draftTagRepository.updateTagName(name)
+        photoSelectionRepository.updateTagName(name)
     }
 
     /**
      * Add a photo to the selection
      */
     fun addPhoto(photo: Photo) {
-        draftTagRepository.addPhoto(photo)
+        photoSelectionRepository.addPhoto(photo)
     }
 
     /**
      * Remove a photo from the selection
      */
     fun removePhoto(photo: Photo) {
-        draftTagRepository.removePhoto(photo)
+        photoSelectionRepository.removePhoto(photo)
     }
 
     /**
      * Clear the draft when workflow is complete or cancelled
      */
     fun clearDraft() {
-        draftTagRepository.clear()
+        photoSelectionRepository.clear()
     }
 
     fun recommendPhoto() {
@@ -166,7 +166,7 @@ class AddTagViewModel(
     /**
      * Check if there are unsaved changes
      */
-    fun hasChanges(): Boolean = draftTagRepository.hasChanges()
+    fun hasChanges(): Boolean = photoSelectionRepository.hasChanges()
 
     /**
      * Reset save state (e.g., after showing error to user)

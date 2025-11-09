@@ -6,20 +6,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * DraftTagRepository
+ * PhotoSelectionRepository
  *
- * Manages the temporary state of tag creation workflow
- * - Stores tag name and selected photos during tag creation
- * - Shared between AddTagScreen and SelectImageScreen
- * - Must be cleared when workflow completes or is cancelled
+ * Manages the state of photo selections across different features:
+ * - Tag creation workflow (tag name + selected photos)
+ * - Photo sharing (selected photos)
+ * - Batch operations on photos
  *
- * This repository serves as the single source of truth for draft tag data,
- * allowing multiple screens to access and modify the same workflow state
+ * This repository serves as the single source of truth for photo selection state,
+ * allowing multiple screens to access and modify the same selection state
  * without tight coupling through shared ViewModels.
  *
  * Instance is shared via singleton ViewModelFactory
  */
-class DraftTagRepository {
+class PhotoSelectionRepository {
     private val _tagName = MutableStateFlow("")
     val tagName: StateFlow<String> = _tagName.asStateFlow()
 
@@ -27,7 +27,7 @@ class DraftTagRepository {
     val selectedPhotos: StateFlow<List<Photo>> = _selectedPhotos.asStateFlow()
 
     /**
-     * Initialize draft with existing data
+     * Initialize selection with existing data
      * Used when navigating from other screens with pre-selected photos
      */
     fun initialize(
@@ -39,7 +39,7 @@ class DraftTagRepository {
     }
 
     /**
-     * Update the tag name
+     * Update the tag name (used in tag creation workflow)
      */
     fun updateTagName(name: String) {
         _tagName.value = name
@@ -75,7 +75,7 @@ class DraftTagRepository {
     }
 
     /**
-     * Clear all draft data
+     * Clear all selection data
      * Should be called when workflow is completed or cancelled
      */
     fun clear() {

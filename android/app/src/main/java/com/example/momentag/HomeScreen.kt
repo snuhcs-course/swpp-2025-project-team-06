@@ -278,18 +278,15 @@ fun HomeScreen(navController: NavController) {
                                 onClick = {
                                     if (isSelectionMode) {
                                         // Share action
-                                        if (selectedPhotos.isEmpty()) {
-                                            Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Share ${selectedPhotos.size} items", Toast.LENGTH_SHORT).show()
-                                            // TODO: Implement share functionality
-                                        }
+                                        val photos = homeViewModel.getPhotosToShare()
+                                        ShareUtils.sharePhotos(context, photos)
                                     } else {
                                         // Enter selection mode
                                         isSelectionMode = true
                                         homeViewModel.resetSelection() // 진입 시 초기화
                                     }
                                 },
+                                enabled = selectedPhotos.isNotEmpty(),
                             ) {
                                 Icon(
                                     imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Default.Edit,

@@ -24,10 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -212,9 +214,26 @@ fun SearchResultScreenUi(
             modifier = modifier,
             containerColor = MaterialTheme.colorScheme.surface,
             topBar = {
+                val context = LocalContext.current
                 BackTopBar(
                     title = "Search Results",
                     onBackClick = onBackClick,
+                    actions = {
+                        if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                            IconButton(
+                                onClick = {
+                                    ShareUtils.sharePhotos(context, selectedPhotos)
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Share",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                    },
                 )
             },
             bottomBar = {
