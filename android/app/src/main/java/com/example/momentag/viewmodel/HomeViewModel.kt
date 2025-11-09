@@ -86,6 +86,12 @@ class HomeViewModel(
         photoSelectionRepository.clear()
     }
 
+    /**
+     * Get photos ready for sharing
+     * Returns list of content URIs to share via Android ShareSheet
+     */
+    fun getPhotosToShare() = selectedPhotos.value
+
     // 처음 로드 (초기화)
     fun loadAllPhotos() {
         viewModelScope.launch {

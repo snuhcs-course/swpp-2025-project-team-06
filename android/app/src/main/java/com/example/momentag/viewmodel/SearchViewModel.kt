@@ -93,6 +93,12 @@ class SearchViewModel(
     }
 
     /**
+     * Get photos ready for sharing
+     * Returns list of content URIs to share via Android ShareSheet
+     */
+    fun getPhotosToShare() = selectedPhotos.value
+
+    /**
      * 검색 상태 초기화
      */
     fun resetSearchState() {
