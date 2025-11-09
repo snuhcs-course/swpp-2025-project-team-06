@@ -184,7 +184,7 @@ fun AlbumScreen(
         )
 
     LaunchedEffect(hasPermission, tagId) {
-        if (hasPermission) {
+        if (hasPermission && imageLoadState is AlbumViewModel.AlbumLoadingState.Idle) {
             albumViewModel.loadAlbum(tagId, tagName)
         }
     }
