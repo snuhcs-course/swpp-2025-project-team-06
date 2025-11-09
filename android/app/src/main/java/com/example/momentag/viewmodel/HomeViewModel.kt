@@ -1,6 +1,5 @@
 package com.example.momentag.viewmodel
 
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
@@ -13,6 +12,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+data class DatedPhotoGroup(
+    val date: String,
+    val photos: List<Photo>,
+)
 
 class HomeViewModel(
     private val localRepository: LocalRepository,
@@ -72,8 +76,6 @@ class HomeViewModel(
         _shouldReturnToAllPhotos.value = value
     }
 
-    val allPhotosListState = LazyGridState()
-
     private var currentOffset = 0
     private val pageSize = 66
     private var hasMorePhotos = true
@@ -84,6 +86,29 @@ class HomeViewModel(
 
     fun resetSelection() {
         photoSelectionRepository.clear()
+    }
+
+    private fun formatISODate(isoDate: String): String =
+        try {
+            val datePart = isoDate.substring(0, 10) // [수정 후] (YYYY-MM-DD 가정)
+            datePart.replace('-', '.')
+        } catch (e: Exception) {
+            "Unknown Date"
+        }
+
+    private val _groupedPhotos = MutableStateFlow<List<DatedPhotoGroup>>(emptyList())
+    val groupedPhotos = _groupedPhotos.asStateFlow()
+
+    private fun updateGroupedPhotos() {
+        val grouped =
+            _allPhotos.value
+                .groupBy { formatISODate(it.createdAt) }
+                .map { (date, photos) ->
+                    DatedPhotoGroup(date, photos)
+                }
+        _groupedPhotos.value = grouped
+
+        imageBrowserRepository.setGallery(_allPhotos.value)
     }
 
     /**
@@ -104,6 +129,7 @@ class HomeViewModel(
                     is RemoteRepository.Result.Success -> {
                         val serverPhotos = localRepository.toPhotos(result.data)
                         _allPhotos.value = serverPhotos
+                        updateGroupedPhotos()
                         currentOffset = pageSize // 다음 요청은 66부터 시작
                         hasMorePhotos = serverPhotos.size == pageSize // 정확히 pageSize개 받았으면 더 있을 가능성
                     }
@@ -134,6 +160,7 @@ class HomeViewModel(
                         val newPhotos = localRepository.toPhotos(result.data)
                         if (newPhotos.isNotEmpty()) {
                             _allPhotos.value = _allPhotos.value + newPhotos
+                            updateGroupedPhotos()
                             currentOffset += pageSize // 다음 요청을 위해 pageSize만큼 증가
                             hasMorePhotos = newPhotos.size == pageSize // 정확히 pageSize개 받았으면 더 있을 가능성
 

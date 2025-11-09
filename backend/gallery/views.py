@@ -475,7 +475,7 @@ class GetPhotosByTagView(APIView):
             photos = [photo_tag.photo for photo_tag in photo_tags]
 
             photos_data = [
-                {"photo_id": photo.photo_id, "photo_path_id": photo.photo_path_id}
+                {"photo_id": photo.photo_id, "photo_path_id": photo.photo_path_id, "created_at": photo.created_at}
                 for photo in photos
             ]
 
@@ -1077,7 +1077,7 @@ class StoryView(APIView):
 
             # QuerySet을 유지하면서 데이터 직렬화
             photos_data = [
-                {"photo_id": str(photo.photo_id), "photo_path_id": photo.photo_path_id}
+                {"photo_id": str(photo.photo_id), "photo_path_id": photo.photo_path_id, "created_at": photo.created_at}
                 for photo in photos_queryset
             ]
 
