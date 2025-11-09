@@ -87,12 +87,13 @@ class ImageDetailViewModel(
 
             if (actualPhotoId == null) {
                 // Photo not found in backend (not uploaded yet)
-                _imageDetailTagState.value = ImageDetailTagState.Success(
-                    existingTags = emptyList(),
-                    recommendedTags = emptyList(),
-                    isExistingLoading = false,
-                    isRecommendedLoading = false
-                )
+                _imageDetailTagState.value =
+                    ImageDetailTagState.Success(
+                        existingTags = emptyList(),
+                        recommendedTags = emptyList(),
+                        isExistingLoading = false,
+                        isRecommendedLoading = false,
+                    )
                 return@launch
             }
 
@@ -104,11 +105,12 @@ class ImageDetailViewModel(
                     val existingTags = photoDetailResult.data.tags
                     val existingTagNames = existingTags.map { it.tagName }
 
-                    _imageDetailTagState.value = ImageDetailTagState.Success(
-                        existingTags = existingTags,
-                        isExistingLoading = false,
-                        isRecommendedLoading = true // 추천 태그는 아직 로딩 중
-                    )
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Success(
+                            existingTags = existingTags,
+                            isExistingLoading = false,
+                            isRecommendedLoading = true, // 추천 태그는 아직 로딩 중
+                        )
 
                     // Load recommended tags
                     val recommendResult = recommendRepository.recommendTagFromPhoto(actualPhotoId)
@@ -124,23 +126,26 @@ class ImageDetailViewModel(
 
                             val currentState = _imageDetailTagState.value
                             if (currentState is ImageDetailTagState.Success) {
-                                _imageDetailTagState.value = currentState.copy(
-                                    recommendedTags = recommendedTags,
-                                    isRecommendedLoading = false
-                                )
+                                _imageDetailTagState.value =
+                                    currentState.copy(
+                                        recommendedTags = recommendedTags,
+                                        isRecommendedLoading = false,
+                                    )
                             }
                         }
 
                         is RecommendRepository.RecommendResult.BadRequest,
                         is RecommendRepository.RecommendResult.Unauthorized,
                         is RecommendRepository.RecommendResult.NetworkError,
-                        is RecommendRepository.RecommendResult.Error -> {
+                        is RecommendRepository.RecommendResult.Error,
+                        -> {
                             // If recommendation fails, still show existing tags
                             val currentState = _imageDetailTagState.value
                             if (currentState is ImageDetailTagState.Success) {
-                                _imageDetailTagState.value = currentState.copy(
-                                    isRecommendedLoading = false
-                                )
+                                _imageDetailTagState.value =
+                                    currentState.copy(
+                                        isRecommendedLoading = false,
+                                    )
                             }
                         }
                     }

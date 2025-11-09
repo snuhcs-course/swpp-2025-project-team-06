@@ -7,7 +7,10 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -29,10 +32,12 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -44,17 +49,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
 import com.example.momentag.ui.components.BackTopBar
@@ -62,21 +76,6 @@ import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 import java.io.IOException
-
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChanged
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Scaffold
-import androidx.compose.ui.text.style.TextAlign
-import com.example.momentag.model.ImageDetailTagState
 import kotlin.math.abs
 
 @Composable
@@ -104,84 +103,85 @@ fun ZoomableImage(
     }
 
     Box(
-        modifier = modifier
-            .onSizeChanged { size = it }
-            .pointerInput(Unit) {
-                forEachGesture {
-                    awaitPointerEventScope {
-                        awaitFirstDown(requireUnconsumed = false) // 다른 제스처와 경쟁하기 위해 false로 설정
-                        do {
-                            val event = awaitPointerEvent()
-                            val zoom = event.calculateZoom()
-                            val pan = event.calculatePan()
+        modifier =
+            modifier
+                .onSizeChanged { size = it }
+                .pointerInput(Unit) {
+                    forEachGesture {
+                        awaitPointerEventScope {
+                            awaitFirstDown(requireUnconsumed = false) // 다른 제스처와 경쟁하기 위해 false로 설정
+                            do {
+                                val event = awaitPointerEvent()
+                                val zoom = event.calculateZoom()
+                                val pan = event.calculatePan()
 
-                            // 두 손가락 제스처(줌)이거나, 이미 확대된 상태에서의 한 손가락 드래그일 경우
-                            if (event.changes.size > 1 || scale > 1.01f) { // scale > 1.01f 로 약간의 여유를 줌
-                                val oldScale = scale
-                                val newScale = (scale * (1f + (zoom - 1f) * 1f)).coerceIn(1f, 5f)
+                                // 두 손가락 제스처(줌)이거나, 이미 확대된 상태에서의 한 손가락 드래그일 경우
+                                if (event.changes.size > 1 || scale > 1.01f) { // scale > 1.01f 로 약간의 여유를 줌
+                                    val oldScale = scale
+                                    val newScale = (scale * (1f + (zoom - 1f) * 1f)).coerceIn(1f, 5f)
 
-                                // 줌 중심점을 기준으로 오프셋 계산
-                                val centroid = event.calculateCentroid(useCurrentPosition = true)
+                                    // 줌 중심점을 기준으로 오프셋 계산
+                                    val centroid = event.calculateCentroid(useCurrentPosition = true)
 
-                                // 화면 좌표 → 이미지 중심 좌표로 보정
-                                val centroidInImageSpace =
-                                    centroid - Offset(size.width / 2f, size.height / 2f)
+                                    // 화면 좌표 → 이미지 중심 좌표로 보정
+                                    val centroidInImageSpace =
+                                        centroid - Offset(size.width / 2f, size.height / 2f)
 
-                                val rawOffset =
-                                    offset - (centroidInImageSpace * (newScale / oldScale - 1f)) + pan
+                                    val rawOffset =
+                                        offset - (centroidInImageSpace * (newScale / oldScale - 1f)) + pan
 
-                                // 계산된 오프셋을 경계 내로 제한하여 상태에 저장 (오프셋 누적 방지)
-                                val maxX = (size.width * (newScale - 1) / 2f).coerceAtLeast(0f)
-                                val maxY = (size.height * (newScale - 1) / 2f).coerceAtLeast(0f)
+                                    // 계산된 오프셋을 경계 내로 제한하여 상태에 저장 (오프셋 누적 방지)
+                                    val maxX = (size.width * (newScale - 1) / 2f).coerceAtLeast(0f)
+                                    val maxY = (size.height * (newScale - 1) / 2f).coerceAtLeast(0f)
 
-                                val clampedX = rawOffset.x.coerceIn(-maxX, maxX)
-                                val clampedY = rawOffset.y.coerceIn(-maxY, maxY)
-                                val overScrollX = rawOffset.x - clampedX
-                                val overScrollY = rawOffset.y - clampedY
+                                    val clampedX = rawOffset.x.coerceIn(-maxX, maxX)
+                                    val clampedY = rawOffset.y.coerceIn(-maxY, maxY)
+                                    val overScrollX = rawOffset.x - clampedX
+                                    val overScrollY = rawOffset.y - clampedY
 
-                                offset = Offset(clampedX, clampedY)
+                                    offset = Offset(clampedX, clampedY)
 
-                                scale = newScale
-                                scope.launch {
-                                    scaleAnim.snapTo(scale)
-                                }
-                                onScaleChanged(scale > 1f)
-
-                                if (overScrollX != 0f || overScrollY != 0f) {
-                                    val overScrollAmount = abs(overScrollX) + abs(overScrollY)
-                                    val bounceScale = 1f + (overScrollAmount / size.width) * 0.05f
+                                    scale = newScale
                                     scope.launch {
-                                        scaleAnim.snapTo(scale * bounceScale)
+                                        scaleAnim.snapTo(scale)
                                     }
-                                }
+                                    onScaleChanged(scale > 1f)
 
-                                // 현재 이벤트를 소비하여 HorizontalPager로 전파되는 것을 막음
-                                event.changes.forEach {
-                                    if (it.positionChanged()) {
-                                        it.consume()
+                                    if (overScrollX != 0f || overScrollY != 0f) {
+                                        val overScrollAmount = abs(overScrollX) + abs(overScrollY)
+                                        val bounceScale = 1f + (overScrollAmount / size.width) * 0.05f
+                                        scope.launch {
+                                            scaleAnim.snapTo(scale * bounceScale)
+                                        }
+                                    }
+
+                                    // 현재 이벤트를 소비하여 HorizontalPager로 전파되는 것을 막음
+                                    event.changes.forEach {
+                                        if (it.positionChanged()) {
+                                            it.consume()
+                                        }
                                     }
                                 }
-                            }
-                            // 그 외의 경우 (줌 안 된 상태에서의 한 손가락 스와이프)는 이벤트를 소비하지 않고 Pager로 전달
-                        } while (event.changes.any { it.pressed })
-                        scope.launch {
-                            scaleAnim.animateTo(
-                                targetValue = scale,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessLow
+                                // 그 외의 경우 (줌 안 된 상태에서의 한 손가락 스와이프)는 이벤트를 소비하지 않고 Pager로 전달
+                            } while (event.changes.any { it.pressed })
+                            scope.launch {
+                                scaleAnim.animateTo(
+                                    targetValue = scale,
+                                    animationSpec =
+                                        spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessLow,
+                                        ),
                                 )
-                            )
+                            }
                         }
                     }
-                }
-            }
-            .graphicsLayer {
-                translationX = offset.x
-                translationY = offset.y
-                scaleX = scaleAnim.value
-                scaleY = scaleAnim.value
-            },
+                }.graphicsLayer {
+                    translationX = offset.x
+                    translationY = offset.y
+                    scaleX = scaleAnim.value
+                    scaleY = scaleAnim.value
+                },
     ) {
         AsyncImage(
             model = model,
@@ -208,7 +208,7 @@ internal fun androidx.compose.ui.input.pointer.PointerEvent.calculateCentroid(us
 @OptIn(
     ExperimentalMaterial3Api::class,
     ExperimentalLayoutApi::class,
-    ExperimentalFoundationApi::class
+    ExperimentalFoundationApi::class,
 )
 @Composable
 fun ImageDetailScreen(
@@ -310,11 +310,11 @@ fun ImageDetailScreen(
 
     val overlappingTagsAlpha by animateFloatAsState(
         targetValue = if (isSheetExpanded) 0f else 1f,
-        label = "tagsAlpha"
+        label = "tagsAlpha",
     )
     val metadataAlpha by animateFloatAsState(
         targetValue = if (isSheetExpanded) 1f else 0f,
-        label = "metadataAlpha"
+        label = "metadataAlpha",
     )
 
     var hasPermission by remember { mutableStateOf(false) }
@@ -394,7 +394,6 @@ fun ImageDetailScreen(
         isDeleteMode = false
     }
 
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = {
@@ -411,7 +410,7 @@ fun ImageDetailScreen(
                 title = "MomenTag",
                 onBackClick = onNavigateBack,
             )
-        }
+        },
     ) { paddingValues ->
         Column(
             modifier =
@@ -435,7 +434,7 @@ fun ImageDetailScreen(
                         modifier = Modifier.fillMaxSize(),
                         onScaleChanged = { zoomed ->
                             isZoomed = zoomed
-                        }
+                        },
                     )
                 }
             }
@@ -443,22 +442,24 @@ fun ImageDetailScreen(
             // 2. 태그가 표시될 새로운 영역
             if (isError) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "태그를 불러오는 중 오류가 발생했습니다.\n($errorMessage)",
                         color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
                     )
                 }
             } else {
                 TagsSection(
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp)
-                        .padding(bottom = 32.dp),
+                    modifier =
+                        Modifier
+                            .padding(horizontal = 8.dp)
+                            .padding(bottom = 32.dp),
                     existingTags = existingTags,
                     recommendedTags = recommendedTags,
                     isExistingTagsLoading = isExistingLoading,

@@ -124,7 +124,10 @@ sealed class PhotoTagState {
 sealed interface ImageDetailTagState {
     // 공통 상태: 초기 상태, 에러 상태
     data object Idle : ImageDetailTagState
-    data class Error(val message: String) : ImageDetailTagState
+
+    data class Error(
+        val message: String,
+    ) : ImageDetailTagState
 
     // 데이터 상태: 기존 태그와 추천 태그 목록을 각각 관리
     data class Success(
