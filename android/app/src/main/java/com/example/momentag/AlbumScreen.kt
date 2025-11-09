@@ -485,7 +485,7 @@ private fun AlbumContent(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(verticalArrangement),
                     horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
-                    contentPadding = PaddingValues(bottom = 650.dp), // Space for AI Recommend section
+                    contentPadding = PaddingValues(bottom = 450.dp), // Space for AI Recommend section
                 ) {
                     items(
                         count = photos.size,
