@@ -369,8 +369,7 @@ fun HomeScreen(navController: NavController) {
                         BottomTab.SearchResultScreen -> {
                             navController.navigate(Screen.SearchResult.initialRoute())
                         }
-                        // [병합] dev의 MyTagsScreen -> HEAD의 AddTagScreen으로 변경됨
-                        BottomTab.MyTagsScreen-> {
+                        BottomTab.AddTagScreen -> {
                             navController.navigate(Screen.AddTag.route)
                         }
                         BottomTab.StoryScreen -> {

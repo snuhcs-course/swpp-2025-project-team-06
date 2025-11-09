@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -52,14 +53,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.ui.theme.Pretendard
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
+@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocalAlbumScreen(
@@ -219,7 +223,8 @@ fun LocalAlbumScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = albumName,
-                    style = MaterialTheme.typography.headlineMedium,
+                    fontSize = 28.sp,
+                    fontFamily = Pretendard,
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
