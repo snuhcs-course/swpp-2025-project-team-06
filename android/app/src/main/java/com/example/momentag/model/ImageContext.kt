@@ -17,5 +17,6 @@ data class ImageContext(
         TAG_ALBUM, // 태그 앨범
         SEARCH_RESULT, // 검색 결과
         GALLERY, // 전체 갤러리
+        STORY, // 스토리
     }
 }

@@ -224,6 +224,24 @@ fun StoryTagSelectionScreen(
                                 StoryPageFullBlock(
                                     story = story,
                                     showScrollHint = isFirstStory,
+                                    onImageClick = {
+                                        // Create Photo object from story data
+                                        val photo =
+                                            com.example.momentag.model.Photo(
+                                                photoId = story.photoId,
+                                                contentUri = android.net.Uri.parse(story.images.firstOrNull() ?: ""),
+                                                createdAt = "",
+                                            )
+                                        // Set browsing session
+                                        viewModel.setStoryBrowsingSession(photo)
+                                        // Navigate to image detail
+                                        navController.navigate(
+                                            Screen.Image.createRoute(
+                                                uri = photo.contentUri,
+                                                imageId = photo.photoId,
+                                            ),
+                                        )
+                                    },
                                 )
                             }
 
@@ -346,6 +364,7 @@ fun StoryTagSelectionScreen(
 private fun StoryPageFullBlock(
     story: StoryModel,
     showScrollHint: Boolean,
+    onImageClick: () -> Unit = {},
 ) {
     var isScrollHintVisible by remember { mutableStateOf(showScrollHint) }
 
@@ -416,7 +435,8 @@ private fun StoryPageFullBlock(
                         .fillMaxWidth()
                         .height(480.dp) // 고정된 높이로 모든 스토리에서 일관된 크기 유지
                         .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { onImageClick() },
                 contentAlignment = Alignment.Center,
             ) {
                 AsyncImage(

@@ -74,6 +74,18 @@ class ImageBrowserRepository {
     }
 
     /**
+     * 스토리를 세션으로 저장
+     */
+    fun setStory(photo: Photo) {
+        currentSession =
+            BrowserSession(
+                photos = listOf(photo),
+                contextType = ImageContext.ContextType.STORY,
+                metadata = "Story",
+            )
+    }
+
+    /**
      * 특정 사진의 ImageContext를 반환 (photoId 기반)
      * @param photoId 현재 보고 있는 사진의 ID
      * @return ImageContext 또는 null (세션이 없거나 사진을 찾을 수 없는 경우)

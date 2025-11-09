@@ -121,7 +121,7 @@ class ViewModelFactory private constructor(
                 AlbumViewModel(localRepository, remoteRepository, recommendRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(StoryViewModel::class.java) -> {
-                StoryViewModel(recommendRepository, localRepository, remoteRepository) as T
+                StoryViewModel(recommendRepository, localRepository, remoteRepository, imageBrowserRepository) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
