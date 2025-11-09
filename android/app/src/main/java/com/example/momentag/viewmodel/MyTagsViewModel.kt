@@ -1,0 +1,122 @@
+package com.example.momentag.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.momentag.model.MyTagsUiState
+import com.example.momentag.model.TagCntData
+import com.example.momentag.repository.RemoteRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+class MyTagsViewModel(
+    private val remoteRepository: RemoteRepository,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow<MyTagsUiState>(MyTagsUiState.Loading)
+    val uiState: StateFlow<MyTagsUiState> = _uiState.asStateFlow()
+
+    private val _isEditMode = MutableStateFlow(false)
+    val isEditMode: StateFlow<Boolean> = _isEditMode.asStateFlow()
+
+    init {
+        loadTags()
+    }
+
+    fun toggleEditMode() {
+        _isEditMode.value = !_isEditMode.value
+    }
+
+    fun loadTags() {
+        viewModelScope.launch {
+            _uiState.value = MyTagsUiState.Loading
+            println("MyTagsViewModel: loadTags() started")
+
+            when (val result = remoteRepository.getAllTags()) {
+                is RemoteRepository.Result.Success -> {
+                    println("MyTagsViewModel: getAllTags() Success - ${result.data.size} tags")
+
+                    val tags =
+                        result.data.map { tagResponse ->
+                            TagCntData(
+                                tagId = tagResponse.tagId,
+                                tagName = tagResponse.tagName,
+                                count = tagResponse.photoCount ?: 0,
+                            )
+                        }
+
+                    println("MyTagsViewModel: Final tags count = ${tags.size}")
+                    _uiState.value = MyTagsUiState.Success(tags)
+                }
+
+                is RemoteRepository.Result.Error -> {
+                    println("MyTagsViewModel: Error ${result.code}: ${result.message}")
+                    _uiState.value = MyTagsUiState.Error("Error ${result.code}: ${result.message}")
+                }
+
+                is RemoteRepository.Result.Unauthorized -> {
+                    println("MyTagsViewModel: Unauthorized: ${result.message}")
+                    _uiState.value = MyTagsUiState.Error("Unauthorized: ${result.message}")
+                }
+
+                is RemoteRepository.Result.BadRequest -> {
+                    println("MyTagsViewModel: BadRequest: ${result.message}")
+                    _uiState.value = MyTagsUiState.Error("Bad Request: ${result.message}")
+                }
+
+                is RemoteRepository.Result.NetworkError -> {
+                    println("MyTagsViewModel: NetworkError: ${result.message}")
+                    _uiState.value = MyTagsUiState.Error("Network Error: ${result.message}")
+                }
+
+                is RemoteRepository.Result.Exception -> {
+                    println("MyTagsViewModel: Exception: ${result.e.message}")
+                    _uiState.value = MyTagsUiState.Error("Exception: ${result.e.message ?: "Unknown error"}")
+                }
+            }
+        }
+    }
+
+    fun refreshTags() {
+        loadTags()
+    }
+
+    fun deleteTag(tagId: String) {
+        viewModelScope.launch {
+            println("MyTagsViewModel: deleteTag($tagId)")
+            when (val result = remoteRepository.removeTag(tagId)) {
+                is RemoteRepository.Result.Success -> {
+                    println("MyTagsViewModel: Tag deleted successfully")
+                    loadTags() // 태그 목록 새로고침
+                }
+                is RemoteRepository.Result.Error -> {
+                    println("MyTagsViewModel: Failed to delete tag - ${result.message}")
+                }
+                else -> {
+                    println("MyTagsViewModel: Failed to delete tag")
+                }
+            }
+        }
+    }
+
+    fun renameTag(
+        tagId: String,
+        newName: String,
+    ) {
+        viewModelScope.launch {
+            println("MyTagsViewModel: renameTag($tagId, $newName)")
+            when (val result = remoteRepository.renameTag(tagId, newName)) {
+                is RemoteRepository.Result.Success -> {
+                    println("MyTagsViewModel: Tag renamed successfully")
+                    loadTags() // 태그 목록 새로고침
+                }
+                is RemoteRepository.Result.Error -> {
+                    println("MyTagsViewModel: Failed to rename tag - ${result.message}")
+                }
+                else -> {
+                    println("MyTagsViewModel: Failed to rename tag")
+                }
+            }
+        }
+    }
+}

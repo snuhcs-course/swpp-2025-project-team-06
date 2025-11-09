@@ -7,9 +7,11 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -31,31 +33,40 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,15 +80,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.LogoutState
-import com.example.momentag.model.Photo
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -86,33 +99,36 @@ import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
+import com.example.momentag.viewmodel.DatedPhotoGroup
 import com.example.momentag.viewmodel.HomeViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
+import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
-    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val logoutState by authViewModel.logoutState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
+    val logoutState by authViewModel.logoutState.collectAsState()
     val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
     val homeDeleteState by homeViewModel.homeDeleteState.collectAsState()
     val uiState by photoViewModel.uiState.collectAsState()
     val selectedPhotos by homeViewModel.selectedPhotos.collectAsState() // draftTagRepository에서 가져옴!
-    val allPhotos by homeViewModel.allPhotos.collectAsState() // 서버에서 가져온 사진들
     val isLoadingPhotos by homeViewModel.isLoadingPhotos.collectAsState()
     val isLoadingMorePhotos by homeViewModel.isLoadingMorePhotos.collectAsState()
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
@@ -121,11 +137,23 @@ fun HomeScreen(navController: NavController) {
     var showAllPhotos by remember { mutableStateOf(false) }
     var isDeleteMode by remember { mutableStateOf(false) }
     var isSelectionMode by remember { mutableStateOf(false) }
+    var isSelectionModeDelay by remember { mutableStateOf(false) }
 
-    val allPhotosListState = homeViewModel.allPhotosListState
     val shouldReturnToAllPhotos by homeViewModel.shouldReturnToAllPhotos.collectAsState()
 
+    val groupedPhotos by homeViewModel.groupedPhotos.collectAsState()
+    val allPhotos by homeViewModel.allPhotos.collectAsState()
+
+    LaunchedEffect(isSelectionMode) {
+        kotlinx.coroutines.delay(200L) // 0.2초
+        isSelectionModeDelay = isSelectionMode
+    }
+
     var isUploadBannerDismissed by remember { mutableStateOf(false) }
+
+    val currentSortOrder by homeViewModel.sortOrder.collectAsState()
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(uiState.isLoading) {
         if (uiState.isLoading) {
@@ -241,6 +269,11 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
+    BackHandler(enabled = isSelectionMode && showAllPhotos) {
+        isSelectionMode = false
+        homeViewModel.resetSelection()
+    }
+
     Scaffold(
         topBar = {
             CommonTopBar(
@@ -254,47 +287,54 @@ fun HomeScreen(navController: NavController) {
                 actions = {
                     // 태그 앨범 뷰(!showAllPhotos)에서는 선택 모드 버튼을 표시하지 않음
                     if (showAllPhotos) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (isSelectionMode) {
-                                // Cancel button when in selection mode
-                                IconButton(
-                                    onClick = {
-                                        isSelectionMode = false
-                                        homeViewModel.resetSelection() // draftRepository 초기화!
-                                    },
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Cancel",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(20.dp),
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "More options",
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false },
+                            ) {
+                                if (isSelectionModeDelay) {
+                                    DropdownMenuItem(
+                                        text = { Text("Share") },
+                                        onClick = {
+                                            val photos = homeViewModel.getPhotosToShare()
+                                            ShareUtils.sharePhotos(context, photos)
+
+                                            Toast
+                                                .makeText(
+                                                    context,
+                                                    "Share ${selectedPhotos.size} photo(s) (TODO)",
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
+
+                                            homeViewModel.resetSelection()
+                                            showMenu = false
+                                        },
+                                        enabled = selectedPhotos.isNotEmpty(),
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Cancel") },
+                                        onClick = {
+                                            isSelectionMode = false
+                                            homeViewModel.resetSelection()
+                                            showMenu = false
+                                        },
+                                    )
+                                } else {
+                                    DropdownMenuItem(
+                                        text = { Text("Select") },
+                                        onClick = {
+                                            isSelectionMode = true
+                                            homeViewModel.resetSelection()
+                                            showMenu = false
+                                        },
                                     )
                                 }
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    if (isSelectionMode) {
-                                        // Share action
-                                        if (selectedPhotos.isEmpty()) {
-                                            Toast.makeText(context, "No items selected", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Share ${selectedPhotos.size} items", Toast.LENGTH_SHORT).show()
-                                            // TODO: Implement share functionality
-                                        }
-                                    } else {
-                                        // Enter selection mode
-                                        isSelectionMode = true
-                                        homeViewModel.resetSelection() // 진입 시 초기화
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = if (isSelectionMode) Icons.Default.Share else Icons.Default.Edit,
-                                    contentDescription = if (isSelectionMode) "Share" else "Edit",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(20.dp),
-                                )
                             }
                         }
                     }
@@ -343,12 +383,15 @@ fun HomeScreen(navController: NavController) {
                             // 이미 홈 화면
                         }
                         BottomTab.SearchResultScreen -> {
+                            homeViewModel.resetSelection()
                             navController.navigate(Screen.SearchResult.initialRoute())
                         }
-                        BottomTab.AddTagScreen -> {
-                            navController.navigate(Screen.AddTag.route)
+                        BottomTab.MyTagsScreen -> {
+                            homeViewModel.resetSelection()
+                            navController.navigate(Screen.MyTags.route)
                         }
                         BottomTab.StoryScreen -> {
+                            homeViewModel.resetSelection()
                             navController.navigate(Screen.Story.route)
                         }
                     }
@@ -404,6 +447,7 @@ fun HomeScreen(navController: NavController) {
                         onSearch = { query ->
                             if (query.isNotEmpty()) {
                                 navController.navigate(Screen.SearchResult.createRoute(query))
+                                focusManager.clearFocus()
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -430,18 +474,38 @@ fun HomeScreen(navController: NavController) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                ViewToggle(
-                    onlyTag = onlyTag,
-                    showAllPhotos = showAllPhotos,
-                    onToggle = { tagOnly, allPhotos ->
-                        onlyTag = tagOnly
-                        showAllPhotos = allPhotos
-                        if (isSelectionMode) {
-                            isSelectionMode = false
-                            homeViewModel.resetSelection() // draftRepository 초기화
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // 7. "태그 앨범" 뷰일 때만 정렬 버튼 표시
+                    if (!showAllPhotos) {
+                        IconButton(onClick = { scope.launch { sheetState.show() } }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = "Sort Tag Albums",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
-                    },
-                )
+                    } else {
+                        // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
+                        Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
+                    }
+                    ViewToggle(
+                        onlyTag = onlyTag,
+                        showAllPhotos = showAllPhotos,
+                        onToggle = { tagOnly, allPhotos ->
+                            onlyTag = tagOnly
+                            showAllPhotos = allPhotos
+                            if (isSelectionMode) {
+                                isSelectionMode = false
+                                homeViewModel.resetSelection() // draftRepository 초기화
+                            }
+                        },
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
                 if (!hasPermission) {
@@ -449,7 +513,6 @@ fun HomeScreen(navController: NavController) {
                         Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
                     }
                 } else if (showAllPhotos) {
-                    // All Photos 모드: 서버에서 가져온 사진 표시
                     if (isLoadingPhotos) {
                         Box(
                             modifier =
@@ -461,11 +524,12 @@ fun HomeScreen(navController: NavController) {
                             CircularProgressIndicator()
                         }
                     } else {
+                        val listState = rememberLazyGridState()
                         MainContent(
                             onlyTag = false,
                             showAllPhotos = true,
                             tagItems = emptyList(),
-                            serverPhotos = allPhotos,
+                            groupedPhotos = groupedPhotos,
                             navController = navController,
                             onDeleteClick = { },
                             modifier = Modifier.weight(1f),
@@ -475,16 +539,37 @@ fun HomeScreen(navController: NavController) {
                             },
                             onExitDeleteMode = { },
                             isSelectionMode = isSelectionMode,
-                            selectedItems = selectedPhotos.map { it.photoId }.toSet(), // Photo -> photoId
+                            selectedItems = selectedPhotos.map { it.photoId }.toSet(),
                             onItemSelectionToggle = { photoId ->
-                                // photoId로 Photo 객체 찾아서 togglePhoto 호출
                                 val photo = allPhotos.find { it.photoId == photoId }
                                 photo?.let { homeViewModel.togglePhoto(it) }
                             },
                             homeViewModel = homeViewModel,
+                            lazyGridState = listState,
                             isLoadingMorePhotos = isLoadingMorePhotos,
-                            allPhotosListState = allPhotosListState,
                         )
+                        LaunchedEffect(listState, isLoadingMorePhotos) {
+                            if (!isLoadingMorePhotos) {
+                                snapshotFlow {
+                                    listState.layoutInfo.visibleItemsInfo
+                                        .lastOrNull()
+                                        ?.index
+                                }.distinctUntilChanged()
+                                    .debounce(150)
+                                    .collect { lastVisibleIndex ->
+                                        // 총 아이템 개수 = (날짜 헤더 개수) + (총 사진 개수)
+                                        val totalItemCount = groupedPhotos.size + allPhotos.size
+                                        if (lastVisibleIndex != null && totalItemCount > 0) {
+                                            // 남은 아이템 수 = 총 아이템 - (마지막 인덱스 + 1)
+                                            val remainingItems = totalItemCount - (lastVisibleIndex + 1)
+                                            // 3열 그리드 기준, 약 11줄(33개) 미만일 때 로드
+                                            if (remainingItems < 33) {
+                                                homeViewModel.loadMorePhotos()
+                                            }
+                                        }
+                                    }
+                            }
+                        }
                     }
                 } else {
                     when (homeLoadingState) {
@@ -494,7 +579,7 @@ fun HomeScreen(navController: NavController) {
                                 onlyTag = onlyTag,
                                 showAllPhotos = showAllPhotos,
                                 tagItems = tagItems,
-                                serverPhotos = emptyList(), // 태그 앨범 뷰에서는 사용 안함
+                                groupedPhotos = emptyList(),
                                 navController = navController,
                                 onDeleteClick = { tagId ->
                                     homeViewModel.deleteTag(tagId)
@@ -509,8 +594,8 @@ fun HomeScreen(navController: NavController) {
                                 selectedItems = emptySet(),
                                 onItemSelectionToggle = { }, // 사용되지 않음
                                 homeViewModel = homeViewModel,
-                                isLoadingMorePhotos = isLoadingMorePhotos,
-                                allPhotosListState = null,
+                                lazyGridState = null,
+                                isLoadingMorePhotos = false,
                             )
                         }
 
@@ -542,7 +627,21 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 }
-                AnimatedVisibility(visible = bannerVisible) {
+                if (showAllPhotos && isLoadingMorePhotos) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+                AnimatedVisibility(visible = uiState.isLoading && !isUploadBannerDismissed) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
                         WarningBanner(
@@ -561,6 +660,22 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
             }
+        }
+    }
+    if (sheetState.isVisible) {
+        ModalBottomSheet(
+            onDismissRequest = { scope.launch { sheetState.hide() } },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ) {
+            SortOptionsSheet(
+                currentOrder = currentSortOrder,
+                onOrderChange = { newOrder ->
+                    homeViewModel.setSortOrder(newOrder)
+                    scope.launch { sheetState.hide() }
+                },
+            )
         }
     }
 }
@@ -630,14 +745,14 @@ private fun ViewToggle(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class, FlowPreview::class)
+@OptIn(ExperimentalLayoutApi::class, FlowPreview::class, ExperimentalFoundationApi::class)
 @Composable
 private fun MainContent(
     modifier: Modifier = Modifier,
     onlyTag: Boolean,
     showAllPhotos: Boolean,
     tagItems: List<TagItem>,
-    serverPhotos: List<Photo> = emptyList(),
+    groupedPhotos: List<DatedPhotoGroup> = emptyList(),
     navController: NavController,
     onDeleteClick: (String) -> Unit,
     isDeleteMode: Boolean,
@@ -647,12 +762,11 @@ private fun MainContent(
     selectedItems: Set<String>,
     onItemSelectionToggle: (String) -> Unit,
     homeViewModel: HomeViewModel? = null,
+    lazyGridState: LazyGridState? = null,
     isLoadingMorePhotos: Boolean = false,
-    allPhotosListState: LazyGridState? = null,
 ) {
     when {
         onlyTag -> {
-            // Tag List View
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -668,34 +782,9 @@ private fun MainContent(
                 }
             }
         }
+
         showAllPhotos -> {
-            // All Photos Grid View - 서버에서 가져온 사진들 with pagination
-            val listState = allPhotosListState ?: rememberLazyGridState()
-
-            // 스크롤 지점 감지 - isLoadingMorePhotos 변경 시 LaunchedEffect 재시작
-            LaunchedEffect(listState, isLoadingMorePhotos) {
-                // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
-                if (!isLoadingMorePhotos) {
-                    snapshotFlow {
-                        listState.layoutInfo.visibleItemsInfo
-                            .lastOrNull()
-                            ?.index
-                    }.distinctUntilChanged() // 같은 값이 연속으로 올 때 필터링
-                        .debounce(150) // 빠른 스크롤 시 150ms 대기 후 처리 렉 방지
-                        .collect { lastVisibleIndex ->
-                            if (lastVisibleIndex != null && serverPhotos.isNotEmpty()) {
-                                val totalItems = serverPhotos.size
-                                val remainingItems = totalItems - (lastVisibleIndex + 1)
-
-                                // 남은 아이템이 33개 미만이면 다음 페이지 로드
-                                if (remainingItems < 33) {
-                                    homeViewModel?.loadMorePhotos()
-                                }
-                            }
-                        }
-                }
-            }
-
+            val listState = lazyGridState ?: rememberLazyGridState()
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 state = listState,
@@ -703,106 +792,126 @@ private fun MainContent(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(
-                    count = serverPhotos.size,
-                    key = { index -> serverPhotos[index].photoId }, // 성능 최적화
-                ) { index ->
-                    val photo = serverPhotos[index]
-                    val isSelected = selectedItems.contains(photo.photoId)
-
-                    Box(modifier = Modifier.aspectRatio(1f)) {
-                        AsyncImage(
-                            model = photo.contentUri,
-                            contentDescription = "Photo ${index + 1}",
+                groupedPhotos.forEach { group ->
+                    item(
+                        key = group.date,
+                        span = { GridItemSpan(3) },
+                    ) {
+                        Text(
+                            text = group.date,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier =
                                 Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .combinedClickable(
-                                        onClick = {
-                                            if (isSelectionMode) {
-                                                onItemSelectionToggle(photo.photoId)
-                                            } else {
-                                                homeViewModel?.setGalleryBrowsingSession()
-                                                homeViewModel?.setShouldReturnToAllPhotos(true)
-
-                                                navController.navigate(
-                                                    Screen.Image.createRoute(
-                                                        uri = photo.contentUri,
-                                                        imageId = photo.photoId,
-                                                    ),
-                                                )
-                                            }
-                                        },
-                                        onLongClick = {
-                                            if (!isSelectionMode) {
-                                                onEnterDeleteMode()
-                                                onItemSelectionToggle(photo.photoId)
-                                            }
-                                        },
-                                    ),
-                            contentScale = ContentScale.Crop,
+                                    .padding(horizontal = 4.dp)
+                                    .padding(top = 16.dp, bottom = 8.dp),
                         )
+                    }
 
-                        if (isSelectionMode) {
-                            Box(
+                    items(
+                        items = group.photos,
+                        key = { photo -> photo.photoId },
+                    ) { photo ->
+                        val isSelected = selectedItems.contains(photo.photoId)
+
+                        Box(modifier = Modifier.aspectRatio(1f)) {
+                            AsyncImage(
+                                model = photo.contentUri,
+                                contentDescription = "Photo ${photo.photoId}",
                                 modifier =
                                     Modifier
                                         .fillMaxSize()
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f) else Color.Transparent,
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .combinedClickable(
+                                            onClick = {
+                                                if (isSelectionMode) {
+                                                    onItemSelectionToggle(photo.photoId)
+                                                } else {
+                                                    homeViewModel?.setGalleryBrowsingSession()
+                                                    homeViewModel?.setShouldReturnToAllPhotos(true)
+
+                                                    navController.navigate(
+                                                        Screen.Image.createRoute(
+                                                            uri = photo.contentUri,
+                                                            imageId = photo.photoId,
+                                                        ),
+                                                    )
+                                                }
+                                            },
+                                            onLongClick = {
+                                                if (!isSelectionMode) {
+                                                    onEnterDeleteMode()
+                                                    onItemSelectionToggle(photo.photoId)
+                                                }
+                                            },
                                         ),
+                                contentScale = ContentScale.Crop,
                             )
 
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(4.dp)
-                                        .size(24.dp)
-                                        .background(
-                                            if (isSelected) {
-                                                MaterialTheme.colorScheme.primaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.surface
-                                                    .copy(
-                                                        alpha = 0.8f,
+                            if (isSelectionMode) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.onSurface.copy(
+                                                        alpha = 0.3f,
                                                     )
-                                            },
-                                            RoundedCornerShape(12.dp),
-                                        ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(16.dp),
-                                    )
+                                                } else {
+                                                    Color.Transparent
+                                                },
+                                            ),
+                                )
+
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(4.dp)
+                                            .size(24.dp)
+                                            .background(
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.surface
+                                                        .copy(
+                                                            alpha = 0.8f,
+                                                        )
+                                                },
+                                                RoundedCornerShape(12.dp),
+                                            ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                // 로딩 인디케이터
-                if (isLoadingMorePhotos) {
-                    item(span = {
-                        androidx.compose.foundation.lazy.grid
-                            .GridItemSpan(3)
-                    }) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                    // 로딩 인디케이터
+                    if (isLoadingMorePhotos) {
+                        item(span = { GridItemSpan(3) }) {
+                            // 3칸 모두 차지
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(32.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                     }
                 }
@@ -947,6 +1056,88 @@ fun TagGridItem(
                     modifier = Modifier.size(16.dp),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SortOptionsSheet(
+    currentOrder: TagSortOrder,
+    onOrderChange: (TagSortOrder) -> Unit,
+) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        Text(
+            "정렬 기준",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+
+        SortOptionItem(
+            text = "이름 (가나다순)",
+            icon = Icons.Default.ArrowUpward,
+            isSelected = currentOrder == TagSortOrder.NAME_ASC,
+            onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
+        )
+        SortOptionItem(
+            text = "이름 (가나다 역순)",
+            icon = Icons.Default.ArrowDownward,
+            isSelected = currentOrder == TagSortOrder.NAME_DESC,
+            onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
+        )
+        SortOptionItem(
+            text = "최근 추가 순",
+            icon = Icons.Default.FiberNew,
+            isSelected = currentOrder == TagSortOrder.CREATED_DESC,
+            onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
+        )
+        SortOptionItem(
+            text = "항목 많은 순",
+            icon = Icons.Default.ArrowUpward,
+            isSelected = currentOrder == TagSortOrder.COUNT_DESC,
+            onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
+        )
+        SortOptionItem(
+            text = "항목 적은 순",
+            icon = Icons.Default.ArrowDownward,
+            isSelected = currentOrder == TagSortOrder.COUNT_ASC,
+            onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
+        )
+    }
+}
+
+@Composable
+private fun SortOptionItem(
+    text: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }

@@ -19,7 +19,7 @@ import com.example.momentag.R
 import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.repository.LocalRepository
-import com.example.momentag.repository.PhotoInfoForUpload // [추가] 3단계에서 만든 클래스 재사용
+import com.example.momentag.repository.PhotoInfoForUpload
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.viewmodel.ViewModelFactory
 import com.google.gson.Gson
@@ -149,6 +149,7 @@ class AlbumUploadWorker(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DISPLAY_NAME,
                 MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED,
             )
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
         val selectionArgs = arrayOf(albumId.toString())
@@ -167,6 +168,7 @@ class AlbumUploadWorker(
         val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
         val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
         val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+        val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
 
         var chunkCount = 0
         val totalPhotos = cursor.count // (진행률 표시를 위해 전체 카운트만 가져옴)
@@ -180,8 +182,13 @@ class AlbumUploadWorker(
             val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
             val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
 
-            // 메타데이터 추출 (기존 getAlbumPhotoInfo 로직과 동일)
-            val dateValue = cursor.getLong(dateTakenColumn)
+            var dateValue = cursor.getLong(dateTakenColumn)
+            if (dateValue == 0L) { // DATE_TAKEN이 0이거나 없는 경우
+                val dateAddedSeconds = cursor.getLong(dateAddedColumn)
+                if (dateAddedSeconds > 0L) {
+                    dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                }
+            }
             val createdAt =
                 SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
                     .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
