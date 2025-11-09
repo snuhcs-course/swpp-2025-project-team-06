@@ -1,5 +1,6 @@
 package com.example.momentag.viewmodel
 
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
@@ -38,6 +39,11 @@ class SelectImageViewModel(
 
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _isSelectionMode = MutableStateFlow(true)
+    val isSelectionMode = _isSelectionMode.asStateFlow()
+
+    val lazyGridState = LazyGridState()
 
     private var currentOffset = 0
     private val pageSize = 100
@@ -153,5 +159,9 @@ class SelectImageViewModel(
      */
     fun setGalleryBrowsingSession() {
         imageBrowserRepository.setGallery(_allPhotos.value)
+    }
+
+    fun setSelectionMode(isSelection: Boolean) {
+        _isSelectionMode.value = isSelection
     }
 }
