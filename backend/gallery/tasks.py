@@ -251,7 +251,7 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
                 print(f"[ERROR] Future failed for photo {photo_id}: {e}")
                 results[photo_id] = []
     
-    # 3. 모든 태그 ID를 한 번에 조회 (DB 최적화)
+    # 3. values_list로 태그 정보 조회
     all_tag_ids = set()
     for tag_ids in results.values():
         all_tag_ids.update(tag_ids)
@@ -259,16 +259,19 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     if not all_tag_ids:
         return {photo_id: [] for photo_id in photo_ids}
     
-    tags_dict = {
-        str(tag.tag_id): tag 
-        for tag in Tag.objects.filter(tag_id__in=all_tag_ids)
-    }
+    # 필요한 필드만 조회
+    tags_data = Tag.objects.filter(tag_id__in=all_tag_ids).values_list('tag_id', 'tag')
+    tags_dict = {str(tag_id): tag_name for tag_id, tag_name in tags_data}
     
     # 4. 최종 결과 조합
     final_results = {}
     for photo_id, tag_ids in results.items():
         final_results[photo_id] = [
-            tags_dict[tag_id] for tag_id in tag_ids 
+            {
+                "tag_id": tag_id,
+                "tag": tags_dict[tag_id]
+            }
+            for tag_id in tag_ids 
             if tag_id in tags_dict
         ]
     
@@ -501,28 +504,26 @@ def generate_stories_task(user_id: int, size: int):
         
         # 배치 처리로 병렬 태그 추천
         photo_ids = [str(photo.photo_id) for photo in photos_queryset]
-        photo_dict = {str(photo.photo_id): photo for photo in photos_queryset}
+        
+        # Photo 데이터 values_list로 최적화
+        photo_data = {
+            str(photo_id): photo_path_id 
+            for photo_id, photo_path_id in photos_queryset.values_list('photo_id', 'photo_path_id')
+        }
         
         tag_rec_batch = tag_recommendation_batch(user, photo_ids)
         
         story_data = []
         for photo_id, tag_list in tag_rec_batch.items():
-            photo = photo_dict[photo_id]
-            tags = [
-                {
-                    "tag_id": str(t.tag_id),
-                    "tag": t.tag,
-                } for t in tag_list
-            ]
             story_data.append({
                 "photo_id": photo_id,
-                "photo_path_id": photo.photo_path_id,
-                "tags": tags,
+                "photo_path_id": photo_data[photo_id],  # 딕셔너리에서 조회
+                "tags": tag_list,  # 이미 최적화된 형태 (dict with tag_id, tag)
             })
         
-        # Redis에 저장
+        # Redis에 저장 (prefix로 key 구분)
         r = get_redis()
-        r.set(user_id, json.dumps(story_data))
+        r.setex(f"story:{user_id}", 3600, json.dumps(story_data))  # 1시간 TTL
         
         print(f"[Task Success] Story generation completed for User: {user_id}, Generated: {len(story_data)} stories")
         

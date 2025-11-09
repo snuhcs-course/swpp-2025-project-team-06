@@ -1137,18 +1137,19 @@ class NewStoryView(APIView):
     def get(self, request):
         try:
             r = get_redis()
-            exists = r.exists(request.user.id)
-            if not exists:
+            key = f"story:{request.user.id}"  # ✅ 동일한 key 형식 사용
+            story_data_json = r.get(key)
+            
+            if story_data_json is None:
                 return Response(
-                    {"error": "No stories found. Please generate stories first or try again later."},
+                    {"error": "We're working on your stories! Please wait a moment."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
             
-            story_data_json = r.get(request.user.id)
             story_data = json.loads(story_data_json)
             serializer = NewResStorySerializer(story_data, many=True)
 
-            r.delete(request.user.id)
+            r.delete(key)  # ✅ 동일한 key 변수 사용
 
             return Response(serializer.data, status=status.HTTP_200_OK)
         

@@ -3,12 +3,7 @@ services:
     image: redis
     ports:
       - "6379:6379"
-
-  redis-story:
-    image: redis
-    ports:
-      - "6380:6379"
-
+      
   qdrant:
     image: qdrant/qdrant
     ports:
