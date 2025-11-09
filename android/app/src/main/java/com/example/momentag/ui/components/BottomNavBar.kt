@@ -63,8 +63,8 @@ fun BottomNavBar(
 
             BottomNavItem(
                 icon = Icons.AutoMirrored.Filled.Label,
-                isSelected = currentTab == BottomTab.AddTagScreen,
-            ) { onTabSelected(BottomTab.AddTagScreen) }
+                isSelected = currentTab == BottomTab.MyTagsScreen,
+            ) { onTabSelected(BottomTab.MyTagsScreen) }
 
             BottomNavItem(
                 icon = Icons.Default.AutoStories,
@@ -77,7 +77,7 @@ fun BottomNavBar(
 enum class BottomTab {
     HomeScreen,
     SearchResultScreen,
-    AddTagScreen,
+    MyTagsScreen,
     StoryScreen,
 }
 
