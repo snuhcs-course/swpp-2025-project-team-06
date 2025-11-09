@@ -243,11 +243,14 @@ fun StoryTagChip(
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier =
             modifier
-                .clickable { onClick() },
+                .padding(top = 4.dp, end = 4.dp) // Add padding to accommodate overflowing checkmark badge
+                .clickable(enabled = enabled) { onClick() }
+                .alpha(if (enabled) 1f else 0.6f),
         // 전체 칩 클릭 가능하게
         contentAlignment = Alignment.CenterStart, // 기본 칩은 왼쪽부터 배치되니까 큰 의미는 없음
     ) {

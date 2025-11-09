@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -116,6 +117,12 @@ fun LocalAlbumScreen(
         permissionLauncher.launch(permission)
     }
 
+    LaunchedEffect(selectedPhotos) {
+        if (selectedPhotos.isEmpty()) {
+            isSelectionMode = false
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -153,7 +160,7 @@ fun LocalAlbumScreen(
             )
         },
         floatingActionButton = {
-            if (selectedPhotos.isNotEmpty()) {
+            if (isSelectionMode && selectedPhotos.isNotEmpty()) {
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
@@ -164,18 +171,21 @@ fun LocalAlbumScreen(
                     },
                     icon = {
                         if (uploadState.isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = "Upload",
+                            )
                         }
                     },
                     onClick = {
                         if (uploadState.isLoading) return@ExtendedFloatingActionButton
 
-                        // 👇 [변경] 앨범 ID 대신 선택된 사진 객체들(Set<Photo>)을 전달
                         photoViewModel.uploadSelectedPhotos(selectedPhotos, context)
-
-                        // 업로드 후 선택 모드 해제
-                        isSelectionMode = false
-                        localViewModel.clearPhotoSelection()
                     },
                 )
             }

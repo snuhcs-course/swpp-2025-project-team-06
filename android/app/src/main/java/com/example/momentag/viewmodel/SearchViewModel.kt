@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SemanticSearchState
-import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.SearchRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,14 +23,14 @@ import kotlinx.coroutines.launch
  */
 class SearchViewModel(
     private val searchRepository: SearchRepository,
-    private val draftTagRepository: DraftTagRepository,
+    private val photoSelectionRepository: PhotoSelectionRepository,
     private val localRepository: LocalRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
 ) : ViewModel() {
     private val _searchState = MutableStateFlow<SemanticSearchState>(SemanticSearchState.Idle)
     val searchState = _searchState.asStateFlow()
 
-    val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
 
     /**
      * Semantic Search 수행 (GET 방식)
@@ -85,12 +85,18 @@ class SearchViewModel(
     }
 
     fun togglePhoto(photo: Photo) {
-        draftTagRepository.togglePhoto(photo)
+        photoSelectionRepository.togglePhoto(photo)
     }
 
     fun resetSelection() {
-        draftTagRepository.clear()
+        photoSelectionRepository.clear()
     }
+
+    /**
+     * Get photos ready for sharing
+     * Returns list of content URIs to share via Android ShareSheet
+     */
+    fun getPhotosToShare() = selectedPhotos.value
 
     /**
      * 검색 상태 초기화

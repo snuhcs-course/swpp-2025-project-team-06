@@ -11,12 +11,12 @@ import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class DraftTagRepositoryTest {
-    private lateinit var repository: DraftTagRepository
+class PhotoSelectionRepositoryTest {
+    private lateinit var repository: PhotoSelectionRepository
 
     @Before
     fun setUp() {
-        repository = DraftTagRepository()
+        repository = PhotoSelectionRepository()
     }
 
     // Helper function

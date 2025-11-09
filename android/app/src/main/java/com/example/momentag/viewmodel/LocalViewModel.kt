@@ -130,8 +130,12 @@ class LocalViewModel(
     init {
         viewModelScope.launch {
             albumUploadSuccessEvent.collect { successfulAlbumId ->
-                _selectedAlbumIds.update { currentSet ->
-                    currentSet - successfulAlbumId
+                if (successfulAlbumId == 0L) {
+                    clearPhotoSelection()
+                } else {
+                    _selectedAlbumIds.update { currentSet ->
+                        currentSet - successfulAlbumId
+                    }
                 }
             }
         }

@@ -33,7 +33,6 @@ from rest_framework.permissions import IsAuthenticated
 
 from .tasks import (
     tag_recommendation,
-    is_valid_uuid,
     recommend_photo_from_tag,
     recommend_photo_from_photo,
     compute_and_store_rep_vectors,
@@ -638,17 +637,7 @@ class GetRecommendTagView(APIView):
     )
     def get(self, request, photo_id, *args, **kwargs):
         try:
-            client = get_qdrant_client()
-            if not is_valid_uuid(photo_id):
-                return Response(
-                    {"error": "Request form mismatch."},
-                    status=status.HTTP_400_NOT_FOUND,
-                )
-
-            points = client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME, ids=[str(photo_id)]
-            )
-            if not points:
+            if not Photo.objects.filter(photo_id=photo_id).exists():
                 return Response(
                     {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
                 )

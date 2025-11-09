@@ -3,6 +3,8 @@ package com.example.momentag.model
 sealed class LoginState {
     object Idle : LoginState()
 
+    object Loading : LoginState()
+
     object Success : LoginState()
 
     data class BadRequest(
@@ -24,6 +26,8 @@ sealed class LoginState {
 
 sealed class RegisterState {
     object Idle : RegisterState()
+
+    object Loading : RegisterState()
 
     data class Success(
         val id: Int,
@@ -127,4 +131,17 @@ sealed class MyTagsUiState {
     data class Error(
         val message: String,
     ) : MyTagsUiState()
+/**
+ * Represents the state of tag submission for a story
+ */
+sealed class StoryTagSubmissionState {
+    object Idle : StoryTagSubmissionState()
+
+    object Loading : StoryTagSubmissionState()
+
+    object Success : StoryTagSubmissionState()
+
+    data class Error(
+        val message: String,
+    ) : StoryTagSubmissionState()
 }
