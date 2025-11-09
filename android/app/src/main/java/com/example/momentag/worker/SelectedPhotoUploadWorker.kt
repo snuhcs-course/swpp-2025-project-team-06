@@ -198,11 +198,18 @@ class SelectedPhotoUploadWorker(
         var finalLat = 0.0
         var finalLng = 0.0
 
-        val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_TAKEN)
+        val projection =
+            arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
         applicationContext.contentResolver.query(contentUri, projection, null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) {
                 filename = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)) ?: "unknown.jpg"
-                val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
+                var dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
+                if (dateValue == 0L) {
+                    val dateAddedSeconds = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
+                    if (dateAddedSeconds > 0L) {
+                        dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                    }
+                }
                 createdAt =
                     SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
                         .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }

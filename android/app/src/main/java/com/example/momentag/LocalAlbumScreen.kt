@@ -74,7 +74,7 @@ fun LocalAlbumScreen(
     var hasPermission by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val imageUris by localViewModel.imagesInAlbum.collectAsState()
+    val photos by localViewModel.imagesInAlbum.collectAsState()
 
     val selectedPhotos by localViewModel.selectedPhotosInAlbum.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
@@ -101,9 +101,9 @@ fun LocalAlbumScreen(
     }
 
     // Set browsing session when album images are loaded
-    LaunchedEffect(imageUris, albumName) {
-        if (imageUris.isNotEmpty()) {
-            localViewModel.setLocalAlbumBrowsingSession(imageUris, albumName)
+    LaunchedEffect(photos, albumName) {
+        if (photos.isNotEmpty()) {
+            localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
         }
     }
 
@@ -225,14 +225,6 @@ fun LocalAlbumScreen(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
-                // Convert Uri list to Photo list (use URI's last path segment as photoId)
-                val photos =
-                    imageUris.map { uri ->
-                        com.example.momentag.model.Photo(
-                            photoId = uri.lastPathSegment ?: uri.toString(), // Use media ID from URI
-                            contentUri = uri,
-                        )
-                    }
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -257,10 +249,7 @@ fun LocalAlbumScreen(
                                                 localViewModel.togglePhotoSelection(photo)
                                             } else {
                                                 // 기존 로직: 이미지 상세 보기
-                                                localViewModel.setLocalAlbumBrowsingSession(
-                                                    imageUris,
-                                                    albumName,
-                                                )
+                                                localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
                                                 navController.navigate(
                                                     Screen.Image.createRoute(
                                                         uri = photo.contentUri,

@@ -96,13 +96,14 @@ class SemanticSearchView(APIView):
 
                 if photo_tags:
                     photos = Photo.objects.filter(photo_id__in=photo_tags).values(
-                        "photo_id", "photo_path_id"
+                        "photo_id", "photo_path_id", "created_at"
                     )
 
                     final_results = [
                         {
                             "photo_id": str(p["photo_id"]),
                             "photo_path_id": p["photo_path_id"],
+                            "created_at": p["created_at"],
                         }
                         for p in photos
                     ]
@@ -137,20 +138,27 @@ class SemanticSearchView(APIView):
                         photo_uuids = [uuid.UUID(pid) for pid in semantic_photo_ids]
 
                         photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
-                            "photo_id", "photo_path_id"
+                            "photo_id", "photo_path_id", "created_at"
                         )
 
-                        id_to_path = {
-                            str(p["photo_id"]): p["photo_path_id"] for p in photos
+                        id_to_meta = {
+                            str(p["photo_id"]): {
+                                "photo_path_id": p["photo_path_id"],
+                                "created_at": p["created_at"]
+                            }
+                            for p in photos
                         }
 
                         # Qdrant 검색 순서 유지
                         final_results = [
-                            {"photo_id": pid, "photo_path_id": id_to_path[pid]}
+                            {
+                                "photo_id": pid, 
+                                "photo_path_id": id_to_meta[pid]["photo_path_id"],
+                                "created_at": id_to_meta[pid]["created_at"]
+                            }
                             for pid in semantic_photo_ids
-                            if pid in id_to_path
+                            if pid in id_to_meta 
                         ]
-
                 except Exception as e:
                     return Response(
                         {"error": f"Semantic search failed: {str(e)}"},
