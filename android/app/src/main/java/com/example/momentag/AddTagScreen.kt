@@ -393,7 +393,7 @@ private fun RecommendedPicturesSection(
             columns = GridCells.Fixed(3),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalArrangement = Arrangement.spacedBy(21.dp),
-            modifier = Modifier.height(193.dp),
+            modifier = Modifier.weight(1f),
         ) {
             items(photos) { photo ->
                 PhotoCheckedItem(

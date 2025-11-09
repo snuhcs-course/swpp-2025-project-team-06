@@ -419,7 +419,7 @@ private fun SearchResultContent(
  */
 @Composable
 private fun SearchResultsFromState(
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
     selectedPhotos: List<Photo>,
@@ -431,12 +431,12 @@ private fun SearchResultsFromState(
     Box(modifier = modifier) {
         when (uiState) {
             is SearchUiState.Idle -> {
-                SearchIdleCustom(Modifier.fillMaxSize())
+                SearchIdleCustom(modifier)
             }
 
             is SearchUiState.Loading -> {
                 SearchLoadingStateCustom(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier,
                     onRefresh = onRetry,
                 )
             }
@@ -444,14 +444,14 @@ private fun SearchResultsFromState(
             is SearchUiState.Empty -> {
                 SearchEmptyStateCustom(
                     query = uiState.query,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier,
                 )
             }
 
             is SearchUiState.Success -> {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -479,7 +479,7 @@ private fun SearchResultsFromState(
             }
 
             is SearchUiState.Error -> {
-                SearchErrorStateFallbackCustom(Modifier.fillMaxSize())
+                SearchErrorStateFallbackCustom(modifier)
             }
         }
     }

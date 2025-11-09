@@ -213,7 +213,7 @@ fun SelectImageScreen(navController: NavController) {
                     state = listState,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.height(453.dp),
+                    modifier = Modifier.weight(1f),
                 ) {
                     items(
                         count = allPhotos.size,

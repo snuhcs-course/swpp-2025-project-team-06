@@ -241,6 +241,7 @@ fun LocalAlbumScreen(
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
