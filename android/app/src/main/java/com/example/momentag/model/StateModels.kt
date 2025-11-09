@@ -116,3 +116,18 @@ sealed class PhotoTagState {
         val message: String,
     ) : PhotoTagState()
 }
+
+/**
+ * Represents the state of tag submission for a story
+ */
+sealed class StoryTagSubmissionState {
+    object Idle : StoryTagSubmissionState()
+
+    object Loading : StoryTagSubmissionState()
+
+    object Success : StoryTagSubmissionState()
+
+    data class Error(
+        val message: String,
+    ) : StoryTagSubmissionState()
+}

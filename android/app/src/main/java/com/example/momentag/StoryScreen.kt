@@ -76,11 +76,11 @@ import com.example.momentag.Screen
 import com.example.momentag.StoryTagChip
 import com.example.momentag.model.StoryModel
 import com.example.momentag.model.StoryState
+import com.example.momentag.model.StoryTagSubmissionState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.viewmodel.StoryViewModel
-import com.example.momentag.viewmodel.SubmissionState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -95,7 +95,7 @@ fun StoryTagSelectionScreen(
 ) {
     val storyState by viewModel.storyState.collectAsState()
     val selectedTags by viewModel.selectedTags.collectAsState()
-    val submissionStates by viewModel.submissionStates.collectAsState()
+    val submissionStates by viewModel.storyTagSubmissionStates.collectAsState()
     val viewedStories by viewModel.viewedStories.collectAsState()
     val editModeStory by viewModel.editModeStory.collectAsState()
 
@@ -201,7 +201,7 @@ fun StoryTagSelectionScreen(
                     val story = stories[page]
                     val isFirstStory = page == 0
                     val selectedForThisStory = selectedTags[story.id] ?: emptySet()
-                    val submissionState = submissionStates[story.id] ?: SubmissionState.Idle
+                    val storyTagSubmissionState = submissionStates[story.id] ?: StoryTagSubmissionState.Idle
                     val isViewed = viewedStories.contains(story.id)
                     val isEditMode = editModeStory == story.id
 
@@ -231,7 +231,7 @@ fun StoryTagSelectionScreen(
                             TagSelectionCard(
                                 tags = story.suggestedTags,
                                 selectedTags = selectedForThisStory,
-                                submissionState = submissionState,
+                                storyTagSubmissionState = storyTagSubmissionState,
                                 isViewed = isViewed,
                                 isEditMode = isEditMode,
                                 onTagToggle = { tag ->
@@ -485,7 +485,7 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
                 modifier = Modifier.size(24.dp),
             )
             Text(
-                text = "Scroll for more moments",
+                text = "Scroll for next moments",
                 color = onSurfaceColor.copy(alpha = 0.8f),
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -499,7 +499,7 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
 internal fun TagSelectionCard(
     tags: List<String>,
     selectedTags: Set<String>,
-    submissionState: SubmissionState,
+    storyTagSubmissionState: StoryTagSubmissionState,
     isViewed: Boolean,
     isEditMode: Boolean,
     onTagToggle: (String) -> Unit,
@@ -513,8 +513,8 @@ internal fun TagSelectionCard(
     val isReadOnly = isViewed && !isEditMode
 
     // Trigger auto-advance when submission succeeds (both initial submission and edits)
-    LaunchedEffect(submissionState) {
-        if (submissionState is SubmissionState.Success) {
+    LaunchedEffect(storyTagSubmissionState) {
+        if (storyTagSubmissionState is StoryTagSubmissionState.Success) {
             onSuccess()
         }
     }
@@ -596,9 +596,9 @@ internal fun TagSelectionCard(
             val canSubmit = if (isEditMode) true else hasSelection
 
             // Show error message if submission failed
-            if (submissionState is SubmissionState.Error) {
+            if (storyTagSubmissionState is StoryTagSubmissionState.Error) {
                 Text(
-                    text = submissionState.message,
+                    text = storyTagSubmissionState.message,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 8.dp),
@@ -610,17 +610,17 @@ internal fun TagSelectionCard(
                 GradientPillButton(
                     text = "Edit",
                     enabled = true,
-                    submissionState = SubmissionState.Idle,
+                    storyTagSubmissionState = StoryTagSubmissionState.Idle,
                     onClick = onEdit,
                 )
             } else {
                 GradientPillButton(
                     text = if (isEditMode) "Done" else "Done",
                     enabled = canSubmit,
-                    submissionState = submissionState,
+                    storyTagSubmissionState = storyTagSubmissionState,
                     onClick = {
-                        when (submissionState) {
-                            is SubmissionState.Error -> onRetry()
+                        when (storyTagSubmissionState) {
+                            is StoryTagSubmissionState.Error -> onRetry()
                             else -> onDone()
                         }
                     },
@@ -657,12 +657,12 @@ internal fun AddTagChip(onClick: () -> Unit) {
 internal fun GradientPillButton(
     text: String,
     enabled: Boolean,
-    submissionState: SubmissionState,
+    storyTagSubmissionState: StoryTagSubmissionState,
     onClick: () -> Unit,
 ) {
-    val isLoading = submissionState is SubmissionState.Loading
-    val isSuccess = submissionState is SubmissionState.Success
-    val isError = submissionState is SubmissionState.Error
+    val isLoading = storyTagSubmissionState is StoryTagSubmissionState.Loading
+    val isSuccess = storyTagSubmissionState is StoryTagSubmissionState.Success
+    val isError = storyTagSubmissionState is StoryTagSubmissionState.Error
 
     val bgModifier =
         when {
@@ -872,7 +872,7 @@ private fun StoryPageFullBlockPreviewContent(
             TagSelectionCard(
                 tags = suggestedTags,
                 selectedTags = setOf("#카페", "#디저트"),
-                submissionState = SubmissionState.Idle,
+                storyTagSubmissionState = StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},

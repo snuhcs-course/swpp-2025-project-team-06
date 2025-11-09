@@ -4,27 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.StoryModel
 import com.example.momentag.model.StoryState
+import com.example.momentag.model.StoryTagSubmissionState
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-
-/**
- * Represents the state of tag submission for a story
- */
-sealed class SubmissionState {
-    object Idle : SubmissionState()
-
-    object Loading : SubmissionState()
-
-    object Success : SubmissionState()
-
-    data class Error(
-        val message: String,
-    ) : SubmissionState()
-}
 
 /**
  * StoryViewModel
@@ -49,8 +35,8 @@ class StoryViewModel(
     val selectedTags = _selectedTags.asStateFlow()
 
     // Track submission state per story: Map<storyId, SubmissionState>
-    private val _submissionStates = MutableStateFlow<Map<String, SubmissionState>>(emptyMap())
-    val submissionStates = _submissionStates.asStateFlow()
+    private val _storyTagSubmissionStates = MutableStateFlow<Map<String, StoryTagSubmissionState>>(emptyMap())
+    val storyTagSubmissionStates = _storyTagSubmissionStates.asStateFlow()
 
     // Track viewed/submitted stories (read-only stories)
     private val _viewedStories = MutableStateFlow<Set<String>>(emptySet())
@@ -323,9 +309,9 @@ class StoryViewModel(
         val photoId = story.photoId
 
         // Set loading state
-        _submissionStates.value =
-            _submissionStates.value.toMutableMap().apply {
-                this[storyId] = SubmissionState.Loading
+        _storyTagSubmissionStates.value =
+            _storyTagSubmissionStates.value.toMutableMap().apply {
+                this[storyId] = StoryTagSubmissionState.Loading
             }
 
         viewModelScope.launch {
@@ -359,9 +345,9 @@ class StoryViewModel(
                         android.util.Log.e("StoryViewModel", "Unauthorized: ${removeResult.message}")
                         hasError = true
                         errorMessage = "Please login again"
-                        _submissionStates.value =
-                            _submissionStates.value.toMutableMap().apply {
-                                this[storyId] = SubmissionState.Error(errorMessage)
+                        _storyTagSubmissionStates.value =
+                            _storyTagSubmissionStates.value.toMutableMap().apply {
+                                this[storyId] = StoryTagSubmissionState.Error(errorMessage)
                             }
                         return@launch
                     }
@@ -369,9 +355,9 @@ class StoryViewModel(
                         android.util.Log.e("StoryViewModel", "Network error: ${removeResult.message}")
                         hasError = true
                         errorMessage = "Network error. Please try again."
-                        _submissionStates.value =
-                            _submissionStates.value.toMutableMap().apply {
-                                this[storyId] = SubmissionState.Error(errorMessage)
+                        _storyTagSubmissionStates.value =
+                            _storyTagSubmissionStates.value.toMutableMap().apply {
+                                this[storyId] = StoryTagSubmissionState.Error(errorMessage)
                             }
                         return@launch
                     }
@@ -379,9 +365,9 @@ class StoryViewModel(
                         android.util.Log.e("StoryViewModel", "Exception: ${removeResult.e.message}")
                         hasError = true
                         errorMessage = "An error occurred. Please try again."
-                        _submissionStates.value =
-                            _submissionStates.value.toMutableMap().apply {
-                                this[storyId] = SubmissionState.Error(errorMessage)
+                        _storyTagSubmissionStates.value =
+                            _storyTagSubmissionStates.value.toMutableMap().apply {
+                                this[storyId] = StoryTagSubmissionState.Error(errorMessage)
                             }
                         return@launch
                     }
@@ -411,9 +397,9 @@ class StoryViewModel(
                                 android.util.Log.e("StoryViewModel", "Unauthorized: ${associateResult.message}")
                                 hasError = true
                                 errorMessage = "Please login again"
-                                _submissionStates.value =
-                                    _submissionStates.value.toMutableMap().apply {
-                                        this[storyId] = SubmissionState.Error(errorMessage)
+                                _storyTagSubmissionStates.value =
+                                    _storyTagSubmissionStates.value.toMutableMap().apply {
+                                        this[storyId] = StoryTagSubmissionState.Error(errorMessage)
                                     }
                                 return@launch
                             }
@@ -421,9 +407,9 @@ class StoryViewModel(
                                 android.util.Log.e("StoryViewModel", "Network error: ${associateResult.message}")
                                 hasError = true
                                 errorMessage = "Network error. Please try again."
-                                _submissionStates.value =
-                                    _submissionStates.value.toMutableMap().apply {
-                                        this[storyId] = SubmissionState.Error(errorMessage)
+                                _storyTagSubmissionStates.value =
+                                    _storyTagSubmissionStates.value.toMutableMap().apply {
+                                        this[storyId] = StoryTagSubmissionState.Error(errorMessage)
                                     }
                                 return@launch
                             }
@@ -431,9 +417,9 @@ class StoryViewModel(
                                 android.util.Log.e("StoryViewModel", "Exception: ${associateResult.e.message}")
                                 hasError = true
                                 errorMessage = "An error occurred. Please try again."
-                                _submissionStates.value =
-                                    _submissionStates.value.toMutableMap().apply {
-                                        this[storyId] = SubmissionState.Error(errorMessage)
+                                _storyTagSubmissionStates.value =
+                                    _storyTagSubmissionStates.value.toMutableMap().apply {
+                                        this[storyId] = StoryTagSubmissionState.Error(errorMessage)
                                     }
                                 return@launch
                             }
@@ -453,9 +439,9 @@ class StoryViewModel(
                         android.util.Log.e("StoryViewModel", "Unauthorized: ${createResult.message}")
                         hasError = true
                         errorMessage = "Please login again"
-                        _submissionStates.value =
-                            _submissionStates.value.toMutableMap().apply {
-                                this[storyId] = SubmissionState.Error(errorMessage)
+                        _storyTagSubmissionStates.value =
+                            _storyTagSubmissionStates.value.toMutableMap().apply {
+                                this[storyId] = StoryTagSubmissionState.Error(errorMessage)
                             }
                         return@launch
                     }
@@ -463,9 +449,9 @@ class StoryViewModel(
                         android.util.Log.e("StoryViewModel", "Network error: ${createResult.message}")
                         hasError = true
                         errorMessage = "Network error. Please try again."
-                        _submissionStates.value =
-                            _submissionStates.value.toMutableMap().apply {
-                                this[storyId] = SubmissionState.Error(errorMessage)
+                        _storyTagSubmissionStates.value =
+                            _storyTagSubmissionStates.value.toMutableMap().apply {
+                                this[storyId] = StoryTagSubmissionState.Error(errorMessage)
                             }
                         return@launch
                     }
@@ -473,9 +459,9 @@ class StoryViewModel(
                         android.util.Log.e("StoryViewModel", "Exception: ${createResult.e.message}")
                         hasError = true
                         errorMessage = "An error occurred. Please try again."
-                        _submissionStates.value =
-                            _submissionStates.value.toMutableMap().apply {
-                                this[storyId] = SubmissionState.Error(errorMessage)
+                        _storyTagSubmissionStates.value =
+                            _storyTagSubmissionStates.value.toMutableMap().apply {
+                                this[storyId] = StoryTagSubmissionState.Error(errorMessage)
                             }
                         return@launch
                     }
@@ -490,13 +476,13 @@ class StoryViewModel(
             // Don't exit edit mode here - let UI handle it after showing checkmark
 
             // Set final state
-            _submissionStates.value =
-                _submissionStates.value.toMutableMap().apply {
+            _storyTagSubmissionStates.value =
+                _storyTagSubmissionStates.value.toMutableMap().apply {
                     this[storyId] =
                         if (hasError) {
-                            SubmissionState.Error(errorMessage.ifEmpty { "Failed to save tags" })
+                            StoryTagSubmissionState.Error(errorMessage.ifEmpty { "Failed to save tags" })
                         } else {
-                            SubmissionState.Success
+                            StoryTagSubmissionState.Success
                         }
                 }
         }
@@ -518,9 +504,9 @@ class StoryViewModel(
      * @param storyId Story ID
      */
     fun resetSubmissionState(storyId: String) {
-        _submissionStates.value =
-            _submissionStates.value.toMutableMap().apply {
-                this[storyId] = SubmissionState.Idle
+        _storyTagSubmissionStates.value =
+            _storyTagSubmissionStates.value.toMutableMap().apply {
+                this[storyId] = StoryTagSubmissionState.Idle
             }
     }
 
@@ -611,7 +597,7 @@ class StoryViewModel(
     fun resetState() {
         _storyState.value = StoryState.Idle
         _selectedTags.value = emptyMap()
-        _submissionStates.value = emptyMap()
+        _storyTagSubmissionStates.value = emptyMap()
         _viewedStories.value = emptySet()
         _editModeStory.value = null
         _originalTags.value = emptyMap()
