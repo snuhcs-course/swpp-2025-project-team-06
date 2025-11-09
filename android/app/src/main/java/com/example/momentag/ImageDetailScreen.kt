@@ -9,7 +9,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -21,10 +20,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -33,7 +30,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,11 +53,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -73,7 +67,6 @@ import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 import java.io.IOException
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,6 +82,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.ui.text.style.TextAlign
 import com.example.momentag.model.ImageDetailTagState
 import kotlin.math.abs
+
 @Composable
 fun ZoomableImage(
     model: Any?,
@@ -215,7 +209,11 @@ internal fun androidx.compose.ui.input.pointer.PointerEvent.calculateCentroid(us
     return if (count == 0) Offset.Zero else Offset(totalX / count, totalY / count)
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalLayoutApi::class,
+    ExperimentalFoundationApi::class
+)
 @Composable
 fun ImageDetailScreen(
     imageUri: Uri?,
@@ -227,7 +225,8 @@ fun ImageDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Screen-scoped ViewModel - fresh instance per screen
-    val imageDetailViewModel: ImageDetailViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val imageDetailViewModel: ImageDetailViewModel =
+        viewModel(factory = ViewModelFactory.getInstance(context))
 
     // Observe ImageContext from ViewModel
     val imageContext by imageDetailViewModel.imageContext.collectAsState()
@@ -312,8 +311,14 @@ fun ImageDetailScreen(
 
     val isSheetExpanded = sheetState.targetValue == SheetValue.Expanded
 
-    val overlappingTagsAlpha by animateFloatAsState(targetValue = if (isSheetExpanded) 0f else 1f, label = "tagsAlpha")
-    val metadataAlpha by animateFloatAsState(targetValue = if (isSheetExpanded) 1f else 0f, label = "metadataAlpha")
+    val overlappingTagsAlpha by animateFloatAsState(
+        targetValue = if (isSheetExpanded) 0f else 1f,
+        label = "tagsAlpha"
+    )
+    val metadataAlpha by animateFloatAsState(
+        targetValue = if (isSheetExpanded) 1f else 0f,
+        label = "metadataAlpha"
+    )
 
     var hasPermission by remember { mutableStateOf(false) }
     val permissionLauncher =
@@ -345,11 +350,13 @@ fun ImageDetailScreen(
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
             }
+
             is ImageDetailViewModel.TagDeleteState.Error -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
             }
+
             else -> Unit
         }
     }
@@ -483,7 +490,8 @@ fun ImageDetailScreen(
                     onEnterDeleteMode = { isDeleteMode = true },
                     onExitDeleteMode = { isDeleteMode = false },
                     onDeleteClick = { tagId ->
-                        val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                        val currentPhotoId =
+                            currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
                         if (currentPhotoId.isNotEmpty()) {
                             imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
                         } else {

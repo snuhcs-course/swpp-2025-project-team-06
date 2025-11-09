@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.ImageContext
 import com.example.momentag.model.ImageDetailTagState
-import com.example.momentag.model.PhotoTagState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
@@ -41,7 +40,8 @@ class ImageDetailViewModel(
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
     val imageContext = _imageContext.asStateFlow()
 
-    private val _imageDetailTagState = MutableStateFlow<ImageDetailTagState>(ImageDetailTagState.Idle)
+    private val _imageDetailTagState =
+        MutableStateFlow<ImageDetailTagState>(ImageDetailTagState.Idle)
     val imageDetailTagState: StateFlow<ImageDetailTagState> = _imageDetailTagState.asStateFlow()
 
     private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
@@ -130,6 +130,7 @@ class ImageDetailViewModel(
                                 )
                             }
                         }
+
                         is RecommendRepository.RecommendResult.BadRequest,
                         is RecommendRepository.RecommendResult.Unauthorized,
                         is RecommendRepository.RecommendResult.NetworkError,
@@ -144,20 +145,30 @@ class ImageDetailViewModel(
                         }
                     }
                 }
+
                 is RemoteRepository.Result.Error -> {
-                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.message)
                 }
+
                 is RemoteRepository.Result.BadRequest -> {
-                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.message)
                 }
+
                 is RemoteRepository.Result.Unauthorized -> {
-                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.message)
                 }
+
                 is RemoteRepository.Result.NetworkError -> {
-                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.message)
                 }
+
                 is RemoteRepository.Result.Exception -> {
-                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.e.message ?: "Unknown error")
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.e.message ?: "Unknown error")
                 }
             }
         }
@@ -229,6 +240,7 @@ class ImageDetailViewModel(
                     val photo = allPhotosResult.data.find { it.photoPathId == photoPathId }
                     photo?.photoId
                 }
+
                 else -> null
             }
         } catch (e: Exception) {
