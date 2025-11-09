@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -56,8 +59,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -75,6 +81,7 @@ import com.example.momentag.viewmodel.ViewModelFactory
 @Composable
 fun AddTagScreen(navController: NavController) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
 
@@ -203,7 +210,13 @@ fun AddTagScreen(navController: NavController) {
                 Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(vertical = 16.dp),
+                    .padding(vertical = 16.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        focusManager.clearFocus()
+                    },
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 24.dp),
@@ -211,6 +224,7 @@ fun AddTagScreen(navController: NavController) {
                 TagNameSection(
                     tagName = tagName,
                     onTagNameChange = { addTagViewModel.updateTagName(it) },
+                    focusManager = focusManager,
                 )
 
                 Spacer(modifier = Modifier.height(41.dp))
@@ -294,6 +308,7 @@ fun AddTagScreen(navController: NavController) {
 private fun TagNameSection(
     tagName: String,
     onTagNameChange: (String) -> Unit,
+    focusManager: FocusManager,
 ) {
     Column {
         Text(
@@ -318,6 +333,13 @@ private fun TagNameSection(
                     unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions =
+                KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()
+                    },
+                ),
         )
     }
 }
