@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,6 +47,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -112,8 +114,8 @@ fun AlbumScreen(
     var isTagAlbumPhotoSelectionMode by remember { mutableStateOf(false) }
     var isTagAlbumPhotoSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
-    // Dropdown Menu States
     var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
     // BackHandler for Selection Mode
     BackHandler(enabled = isTagAlbumPhotoSelectionMode) {
@@ -213,6 +215,47 @@ fun AlbumScreen(
         focusManager.clearFocus() // Remove focus (cursor)
     }
 
+    if (showDeleteConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmationDialog = false },
+            title = {
+                Text(
+                    text = "Remove Photos",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to remove ${selectedTagAlbumPhotos.size} photo(s) from '$currentTagName' tag?",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        albumViewModel.deleteTagFromPhotos(
+                            photos = selectedTagAlbumPhotos,
+                            tagId = tagId,
+                        )
+                        Toast.makeText(context, "${selectedTagAlbumPhotos.size} photo(s) removed", Toast.LENGTH_SHORT).show()
+
+                        showDeleteConfirmationDialog = false
+                        isTagAlbumPhotoSelectionMode = false
+                        showMenu = false
+                        albumViewModel.resetTagAlbumPhotoSelection()
+                    },
+                ) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmationDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -260,20 +303,19 @@ fun AlbumScreen(
                                     text = { Text("Delete") },
                                     onClick = {
                                         if (selectedTagAlbumPhotos.isNotEmpty()) {
-                                            albumViewModel.deleteTagFromPhotos(
-                                                photos = selectedTagAlbumPhotos,
-                                                tagId = tagId,
-                                            )
-                                            Toast
-                                                .makeText(
-                                                    context,
-                                                    "delete ${selectedTagAlbumPhotos.size} photo(s) from tag",
-                                                    Toast.LENGTH_SHORT,
-                                                ).show()
+                                            showDeleteConfirmationDialog = true
+                                        } else {
+                                            Toast.makeText(context, "Please select photos", Toast.LENGTH_SHORT).show()
                                         }
                                         showMenu = false
-                                        isTagAlbumPhotoSelectionMode = false
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Cancel") },
+                                    onClick = {
                                         albumViewModel.resetTagAlbumPhotoSelection()
+                                        isTagAlbumPhotoSelectionMode = false
+                                        showMenu = false
                                     },
                                 )
                             } else {
@@ -573,7 +615,7 @@ private fun AlbumContent(
                                     Text(
                                         text = "AI Recommend",
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        style = MaterialTheme.typography.labelLarge,
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                     )
                                 }
                             }

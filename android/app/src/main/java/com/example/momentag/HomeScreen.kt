@@ -281,14 +281,6 @@ fun HomeScreen(navController: NavController) {
                             ) {
                                 if (isSelectionModeDelay) {
                                     DropdownMenuItem(
-                                        text = { Text("View") },
-                                        onClick = {
-                                            isSelectionMode = false
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
-                                    )
-                                    DropdownMenuItem(
                                         text = { Text("Share") },
                                         onClick = {
                                             if (selectedPhotos.isEmpty()) {
@@ -302,6 +294,15 @@ fun HomeScreen(navController: NavController) {
                                                         Toast.LENGTH_SHORT,
                                                     ).show()
                                             }
+                                            homeViewModel.resetSelection()
+                                            showMenu = false
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Cancel") },
+                                        onClick = {
+                                            isSelectionMode = false
+                                            homeViewModel.resetSelection()
                                             showMenu = false
                                         },
                                     )
@@ -363,12 +364,15 @@ fun HomeScreen(navController: NavController) {
                             // 이미 홈 화면
                         }
                         BottomTab.SearchResultScreen -> {
+                            homeViewModel.resetSelection()
                             navController.navigate(Screen.SearchResult.initialRoute())
                         }
                         BottomTab.AddTagScreen -> {
+                            homeViewModel.resetSelection()
                             navController.navigate(Screen.AddTag.route)
                         }
                         BottomTab.StoryScreen -> {
+                            homeViewModel.resetSelection()
                             navController.navigate(Screen.Story.route)
                         }
                     }

@@ -164,7 +164,7 @@ fun SearchResultScreen(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("View") },
+                        text = { Text("Cancel") },
                         onClick = {
                             isSelectionMode = false
                             searchViewModel.resetSelection()

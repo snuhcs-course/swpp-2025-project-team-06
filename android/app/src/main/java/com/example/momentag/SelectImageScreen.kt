@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -70,11 +69,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun SelectImageScreen(navController: NavController) {
-    var hasPermission by remember { mutableStateOf(false) }
-    var isSelectionMode by remember { mutableStateOf(false) }
-    var isSelectionModeDelay by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
-
     val context = LocalContext.current
 
     val selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
@@ -84,9 +78,22 @@ fun SelectImageScreen(navController: NavController) {
     val selectedPhotos by selectImageViewModel.selectedPhotos.collectAsState()
     val isLoading by selectImageViewModel.isLoading.collectAsState()
     val isLoadingMore by selectImageViewModel.isLoadingMore.collectAsState()
+    val isSelectionMode by selectImageViewModel.isSelectionMode.collectAsState()
 
-    BackHandler(enabled = isSelectionMode) {
-        isSelectionMode = false
+    var isSelectionModeDelay by remember { mutableStateOf(true) }
+    var showMenu by remember { mutableStateOf(false) }
+
+    val permission =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+    var hasPermission by remember {
+        mutableStateOf(
+            context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED,
+        )
     }
 
     val permissionLauncher =
@@ -99,19 +106,19 @@ fun SelectImageScreen(navController: NavController) {
             },
         )
 
+    LaunchedEffect(key1 = true) {
+        if (!hasPermission) {
+            permissionLauncher.launch(permission)
+        }
+    }
+
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
         isSelectionModeDelay = isSelectionMode
     }
 
-    LaunchedEffect(key1 = true) {
-        val permission =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                Manifest.permission.READ_MEDIA_IMAGES
-            } else {
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            }
-        permissionLauncher.launch(permission)
+    BackHandler(enabled = !isSelectionMode) {
+        selectImageViewModel.setSelectionMode(true)
     }
 
     val onPhotoClick: (Photo) -> Unit = { photo ->
@@ -129,13 +136,13 @@ fun SelectImageScreen(navController: NavController) {
     }
 
     LaunchedEffect(hasPermission) {
-        if (hasPermission) {
+        if (hasPermission && selectImageViewModel.allPhotos.value.isEmpty()) {
             selectImageViewModel.getAllPhotos()
         }
     }
 
     // LazyGrid state for pagination
-    val listState = rememberLazyGridState()
+    val listState = selectImageViewModel.lazyGridState
 
     // Scroll detection for pagination
     LaunchedEffect(listState, isLoadingMore) {
@@ -165,11 +172,7 @@ fun SelectImageScreen(navController: NavController) {
                 title = "MomenTag",
                 showBackButton = true,
                 onBackClick = {
-                    if (isSelectionMode) {
-                        isSelectionMode = false
-                    } else {
-                        navController.popBackStack()
-                    }
+                    navController.popBackStack()
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
                 actions = {
@@ -188,7 +191,7 @@ fun SelectImageScreen(navController: NavController) {
                                 DropdownMenuItem(
                                     text = { Text("View") },
                                     onClick = {
-                                        isSelectionMode = false
+                                        selectImageViewModel.setSelectionMode(false)
                                         showMenu = false
                                     },
                                 )
@@ -196,7 +199,7 @@ fun SelectImageScreen(navController: NavController) {
                                 DropdownMenuItem(
                                     text = { Text("Select") },
                                     onClick = {
-                                        isSelectionMode = true
+                                        selectImageViewModel.setSelectionMode(true)
                                         showMenu = false
                                     },
                                 )
@@ -271,7 +274,7 @@ fun SelectImageScreen(navController: NavController) {
                                         onClick = { onPhotoClick(photo) },
                                         onLongClick = {
                                             if (!isSelectionMode) {
-                                                isSelectionMode = true
+                                                selectImageViewModel.setSelectionMode(true)
                                                 if (photo !in selectedPhotos) {
                                                     selectImageViewModel.togglePhoto(photo)
                                                 }
