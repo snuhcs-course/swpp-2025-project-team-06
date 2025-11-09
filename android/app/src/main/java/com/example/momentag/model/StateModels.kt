@@ -131,6 +131,8 @@ sealed class MyTagsUiState {
     data class Error(
         val message: String,
     ) : MyTagsUiState()
+}
+
 /**
  * Represents the state of tag submission for a story
  */
