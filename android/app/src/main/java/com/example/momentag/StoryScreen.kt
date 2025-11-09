@@ -49,6 +49,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -109,79 +110,108 @@ fun StoryTagSelectionScreen(
         }
     }
 
-    // Handle different states
-    when (val state = storyState) {
-        is StoryState.Idle -> {
-            // Show nothing while idle
-        }
-        is StoryState.Loading -> {
-            // Show loading screen
-            Box(
-                modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("추억을 불러오는 중...", color = MaterialTheme.colorScheme.onSurface)
-                }
-            }
-        }
-        is StoryState.Success -> {
-            val stories = state.stories
-            val pagerState = rememberPagerState(pageCount = { stories.size })
-
-            // Track previous page to detect scroll direction
-            var previousPage by remember { mutableStateOf(0) }
-
-            // Lazy-load tags for current page
-            val currentPage = pagerState.currentPage
-            LaunchedEffect(currentPage) {
-                if (currentPage < stories.size) {
-                    val currentStory = stories[currentPage]
-                    viewModel.loadTagsForStory(currentStory.id, currentStory.photoId)
-                }
-            }
-
-            // Handle scroll: mark as viewed when scrolling down, exit edit mode when scrolling
-            LaunchedEffect(currentPage) {
-                if (currentPage != previousPage) {
-                    // Exit edit mode for any story being edited
-                    editModeStory?.let { editingStoryId ->
-                        viewModel.exitEditMode(editingStoryId)
-                    }
-
-                    // Mark story as viewed when scrolling down (to next page)
-                    if (currentPage > previousPage && previousPage < stories.size) {
-                        val previousStory = stories[previousPage]
-                        viewModel.markStoryAsViewed(previousStory.id)
-                    }
-                }
-                previousPage = currentPage
-            }
-
-            // Detect when to load more stories (when approaching the last page)
-            LaunchedEffect(currentPage) {
-                if (currentPage >= stories.size - 2 && state.hasMore) {
-                    viewModel.loadMoreStories(10)
-                }
-            }
-
-            Column(
+    // Use Scaffold for consistent top/bottom bar structure
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            BackTopBar(
+                title = "Moment",
+                onBackClick = {
+                    viewModel.resetState()
+                    onBack()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        bottomBar = {
+            BottomNavBar(
                 modifier =
-                    modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface),
-            ) {
-                // 상단 앱바
-                BackTopBar(
-                    title = "Moment",
-                    onBackClick = {
-                        viewModel.resetState()
-                        onBack()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            WindowInsets.navigationBars
+                                .only(WindowInsetsSides.Bottom)
+                                .asPaddingValues(),
+                        ),
+                currentTab = currentTab,
+                onTabSelected = { tab ->
+                    currentTab = tab
+                    when (tab) {
+                        BottomTab.HomeScreen -> {
+                            navController.navigate(Screen.Home.route)
+                        }
+                        BottomTab.SearchResultScreen -> {
+                            navController.navigate(Screen.SearchResult.initialRoute())
+                        }
+                        BottomTab.AddTagScreen -> {
+                            navController.navigate(Screen.AddTag.route)
+                        }
+                        BottomTab.StoryScreen -> {
+                            // 이미 Story 화면
+                        }
+                    }
+                },
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) { paddingValues ->
+        // Handle different states
+        when (val state = storyState) {
+            is StoryState.Idle -> {
+                // Show nothing while idle
+            }
+            is StoryState.Loading -> {
+                // Show loading screen
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("추억을 불러오는 중...", color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+            is StoryState.Success -> {
+                val stories = state.stories
+                val pagerState = rememberPagerState(pageCount = { stories.size })
+
+                // Track previous page to detect scroll direction
+                var previousPage by remember { mutableStateOf(0) }
+
+                // Lazy-load tags for current page
+                val currentPage = pagerState.currentPage
+                LaunchedEffect(currentPage) {
+                    if (currentPage < stories.size) {
+                        val currentStory = stories[currentPage]
+                        viewModel.loadTagsForStory(currentStory.id, currentStory.photoId)
+                    }
+                }
+
+                // Handle scroll: mark as viewed when scrolling down, exit edit mode when scrolling
+                LaunchedEffect(currentPage) {
+                    if (currentPage != previousPage) {
+                        // Exit edit mode for any story being edited
+                        editModeStory?.let { editingStoryId ->
+                            viewModel.exitEditMode(editingStoryId)
+                        }
+
+                        // Mark story as viewed when scrolling down (to next page)
+                        if (currentPage > previousPage && previousPage < stories.size) {
+                            val previousStory = stories[previousPage]
+                            viewModel.markStoryAsViewed(previousStory.id)
+                        }
+                    }
+                    previousPage = currentPage
+                }
+
+                // Detect when to load more stories (when approaching the last page)
+                LaunchedEffect(currentPage) {
+                    if (currentPage >= stories.size - 2 && state.hasMore) {
+                        viewModel.loadMoreStories(10)
+                    }
+                }
 
                 // 스토리 페이저 (페이지 기반 스크롤)
                 val flingBehavior =
@@ -195,8 +225,8 @@ fun StoryTagSelectionScreen(
                     flingBehavior = flingBehavior,
                     modifier =
                         Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
+                            .fillMaxSize()
+                            .padding(paddingValues),
                 ) { page ->
                     val story = stories[page]
                     val isFirstStory = page == 0
@@ -275,64 +305,34 @@ fun StoryTagSelectionScreen(
                         }
                     }
                 }
-
-                // 하단 네비게이션 바
-                BottomNavBar(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                WindowInsets.navigationBars
-                                    .only(WindowInsetsSides.Bottom)
-                                    .asPaddingValues(),
-                            ),
-                    currentTab = currentTab,
-                    onTabSelected = { tab ->
-                        currentTab = tab
-                        when (tab) {
-                            BottomTab.HomeScreen -> {
-                                navController.navigate(Screen.Home.route)
-                            }
-                            BottomTab.SearchResultScreen -> {
-                                navController.navigate(Screen.SearchResult.initialRoute())
-                            }
-                            BottomTab.AddTagScreen -> {
-                                navController.navigate(Screen.AddTag.route)
-                            }
-                            BottomTab.StoryScreen -> {
-                                // 이미 Story 화면
-                            }
-                        }
-                    },
-                )
             }
-        }
-        is StoryState.Error -> {
-            // Show error screen
-            Box(
-                modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
-                        Text("Retry")
+            is StoryState.Error -> {
+                // Show error screen
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
+                            Text("Retry")
+                        }
                     }
                 }
             }
-        }
-        is StoryState.NetworkError -> {
-            // Show network error screen
-            Box(
-                modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Network Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
-                        Text("Retry")
+            is StoryState.NetworkError -> {
+                // Show network error screen
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Network Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
+                            Text("Retry")
+                        }
                     }
                 }
             }

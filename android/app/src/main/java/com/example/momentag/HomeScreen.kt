@@ -189,6 +189,9 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         val permission = requiredImagePermission()
         permissionLauncher.launch(permission)
+
+        // Pre-generate stories once on app launch
+        homeViewModel.preGenerateStoriesOnce()
     }
 
     // 성공 시 로그인 화면으로 이동(백스택 초기화)
