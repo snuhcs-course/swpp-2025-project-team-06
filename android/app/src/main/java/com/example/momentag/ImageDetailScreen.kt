@@ -84,6 +84,10 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Scaffold
+import androidx.compose.ui.text.style.TextAlign
+import com.example.momentag.model.ImageDetailTagState
 import kotlin.math.abs
 @Composable
 fun ZoomableImage(
@@ -130,9 +134,11 @@ fun ZoomableImage(
                                 val centroid = event.calculateCentroid(useCurrentPosition = true)
 
                                 // 화면 좌표 → 이미지 중심 좌표로 보정
-                                val centroidInImageSpace = centroid - Offset(size.width / 2f, size.height / 2f)
+                                val centroidInImageSpace =
+                                    centroid - Offset(size.width / 2f, size.height / 2f)
 
-                                val rawOffset = offset - (centroidInImageSpace * (newScale / oldScale - 1f)) + pan
+                                val rawOffset =
+                                    offset - (centroidInImageSpace * (newScale / oldScale - 1f)) + pan
 
                                 // 계산된 오프셋을 경계 내로 제한하여 상태에 저장 (오프셋 누적 방지)
                                 val maxX = (size.width * (newScale - 1) / 2f).coerceAtLeast(0f)
@@ -154,7 +160,7 @@ fun ZoomableImage(
                                 if (overScrollX != 0f || overScrollY != 0f) {
                                     val overScrollAmount = abs(overScrollX) + abs(overScrollY)
                                     val bounceScale = 1f + (overScrollAmount / size.width) * 0.05f
-                                    scope.launch{
+                                    scope.launch {
                                         scaleAnim.snapTo(scale * bounceScale)
                                     }
                                 }
@@ -227,7 +233,7 @@ fun ImageDetailScreen(
     val imageContext by imageDetailViewModel.imageContext.collectAsState()
 
     // Observe PhotoTagState from ViewModel
-    val photoTagState by imageDetailViewModel.photoTagState.collectAsState()
+    val imageDetailTagState by imageDetailViewModel.imageDetailTagState.collectAsState()
     val tagDeleteState by imageDetailViewModel.tagDeleteState.collectAsState()
 
     // Load ImageContext from Repository when screen opens
@@ -288,21 +294,14 @@ fun ImageDetailScreen(
     var isDeleteMode by remember { mutableStateOf(false) }
 
     // Extract tags from photoTagState
-    val existingTags =
-        when (photoTagState) {
-            is com.example.momentag.model.PhotoTagState.Success ->
-                (photoTagState as com.example.momentag.model.PhotoTagState.Success)
-                    .existingTags
-            else -> emptyList()
-        }
+    val successState = imageDetailTagState as? ImageDetailTagState.Success
+    val existingTags = successState?.existingTags ?: emptyList()
+    val recommendedTags = successState?.recommendedTags ?: emptyList()
+    val isExistingLoading = successState?.isExistingLoading ?: false
+    val isRecommendedLoading = successState?.isRecommendedLoading ?: false
 
-    val recommendedTags =
-        when (photoTagState) {
-            is com.example.momentag.model.PhotoTagState.Success ->
-                (photoTagState as com.example.momentag.model.PhotoTagState.Success)
-                    .recommendedTags
-            else -> emptyList()
-        }
+    val isError = imageDetailTagState is ImageDetailTagState.Error
+    val errorMessage = (imageDetailTagState as? ImageDetailTagState.Error)?.message
 
     val sheetState =
         rememberStandardBottomSheetState(
@@ -395,10 +394,7 @@ fun ImageDetailScreen(
     }
 
 
-
-
-    BottomSheetScaffold(
-        scaffoldState = scaffoldState,
+    Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
@@ -431,36 +427,7 @@ fun ImageDetailScreen(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ),
             )
-        },
-        sheetContent = {
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text(
-                    text = "$dateTime\n(${latLong?.get(0)}, ${latLong?.get(1)})",
-                    modifier = Modifier
-                        .alpha(metadataAlpha)
-                        .padding(vertical = 16.dp),
-                    lineHeight = 22.sp,
-                )
-                TagsSection(
-                    existingTags = existingTags,
-                    recommendedTags = recommendedTags,
-                    isDeleteMode = isDeleteMode,
-                    onEnterDeleteMode = { isDeleteMode = true },
-                    onExitDeleteMode = { isDeleteMode = false },
-                    onDeleteClick = { tagId ->
-                        val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                        if (currentPhotoId.isNotEmpty()) {
-                            imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
-                        } else {
-                            Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    snackbarHostState = snackbarHostState,
-                )
-                Spacer(modifier = Modifier.height(200.dp))
-            }
-        },
-        sheetPeekHeight = 100.dp,
+        }
     ) { paddingValues ->
         Column(
             modifier =
@@ -468,7 +435,8 @@ fun ImageDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            Box(modifier = Modifier) {
+            // 1. 이미지가 표시될 영역 (나머지 공간 전체를 차지)
+            Box(modifier = Modifier.weight(1f)) {
                 // HorizontalPager로 이미지 스와이프 기능 구현
                 HorizontalPager(
                     state = pagerState,
@@ -486,75 +454,45 @@ fun ImageDetailScreen(
                         }
                     )
                 }
-                val scrollState = rememberScrollState()
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomStart)
-                            .padding(start = 8.dp)
-                            .padding(bottom = 8.dp)
-                            .alpha(overlappingTagsAlpha)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null, // 리플 효과 없음
-                                enabled = false, // 클릭 자체를 비활성화
-                                onClick = {} // 빈 동작
-                            ),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Display existing tags with delete mode
-                    existingTags.forEach { tagItem ->
-                        Box(
-                            modifier =
-                                Modifier.combinedClickable(
-                                    onLongClick = { isDeleteMode = true },
-                                    onClick = {
-                                        if (isDeleteMode) isDeleteMode = false
-                                    },
-                                ),
-                        ) {
-                            tagXMode(
-                                text = tagItem.tagName,
-                                isDeleteMode = isDeleteMode,
-                                onDismiss = {
-                                    val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-
-                                    if (currentPhotoId.isNotEmpty()) {
-                                        imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagItem.tagId)
-                                    } else {
-                                        Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                            )
-                        }
-                    }
-
-                    // Display recommended tags with transparency
-                    recommendedTags.forEach { tagName ->
-                        Box {
-                            tagRecommended(text = tagName)
-                        }
-                    }
-
-                    IconButton(
-                        onClick = {
-                            scope.launch {
-                                snackbarHostState.showSnackbar("🛠️개발예정")
-                            }
-                        },
-                        modifier = Modifier.size(32.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Tag",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
             }
-            Spacer(modifier = Modifier.height(32.dp))
+
+            // 2. 태그가 표시될 새로운 영역
+            if (isError) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "태그를 불러오는 중 오류가 발생했습니다.\n($errorMessage)",
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                TagsSection(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .padding(bottom = 32.dp),
+                    existingTags = existingTags,
+                    recommendedTags = recommendedTags,
+                    isExistingTagsLoading = isExistingLoading,
+                    isRecommendedTagsLoading = isRecommendedLoading,
+                    isDeleteMode = isDeleteMode,
+                    onEnterDeleteMode = { isDeleteMode = true },
+                    onExitDeleteMode = { isDeleteMode = false },
+                    onDeleteClick = { tagId ->
+                        val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                        if (currentPhotoId.isNotEmpty()) {
+                            imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
+                        } else {
+                            Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    snackbarHostState = snackbarHostState,
+                )
+            }
         }
     }
 }
@@ -565,6 +503,8 @@ fun TagsSection(
     existingTags: List<Tag>,
     recommendedTags: List<String>,
     modifier: Modifier = Modifier,
+    isExistingTagsLoading: Boolean,
+    isRecommendedTagsLoading: Boolean,
     isDeleteMode: Boolean,
     onDeleteClick: (String) -> Unit,
     onEnterDeleteMode: () -> Unit,
@@ -578,34 +518,45 @@ fun TagsSection(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Display existing tags
-        existingTags.forEach { tagItem ->
-            Box(
-                modifier =
-                    Modifier.combinedClickable(
-                        onLongClick = onEnterDeleteMode,
-                        onClick = {
-                            if (isDeleteMode) onExitDeleteMode()
-                        },
-                    ),
-            ) {
-                tagXMode(
-                    text = tagItem.tagName,
-                    isDeleteMode = isDeleteMode,
-                    onDismiss = { onDeleteClick(tagItem.tagId) },
-                )
+        // --- 1. 기존 태그 로딩 처리 ---
+        if (isExistingTagsLoading) {
+            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+        } else {
+            // Display existing tags
+            existingTags.forEach { tagItem ->
+                Box(
+                    modifier =
+                        Modifier.combinedClickable(
+                            onLongClick = onEnterDeleteMode,
+                            onClick = {
+                                if (isDeleteMode) onExitDeleteMode()
+                            },
+                        ),
+                ) {
+                    tagXMode(
+                        text = tagItem.tagName,
+                        isDeleteMode = isDeleteMode,
+                        onDismiss = { onDeleteClick(tagItem.tagId) },
+                    )
+                }
             }
         }
 
-        // Display recommended tags with transparency
-        recommendedTags.forEach { tagName ->
-            Box {
-                tagRecommended(
-                    text = tagName,
-                )
+        // --- 2. 추천 태그 로딩 처리 ---
+        if (isRecommendedTagsLoading) {
+            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+        } else {
+            // Display recommended tags
+            recommendedTags.forEach { tagName ->
+                Box {
+                    tagRecommended(
+                        text = tagName,
+                    )
+                }
             }
         }
 
+        // Add Tag 버튼 (기존과 동일)
         IconButton(
             onClick = {
                 scope.launch {
@@ -614,7 +565,7 @@ fun TagsSection(
             },
             modifier = Modifier.size(32.dp),
         ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag")
         }
     }
 }

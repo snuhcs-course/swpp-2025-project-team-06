@@ -4,11 +4,13 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.ImageContext
+import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.PhotoTagState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -39,8 +41,8 @@ class ImageDetailViewModel(
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
     val imageContext = _imageContext.asStateFlow()
 
-    private val _photoTagState = MutableStateFlow<PhotoTagState>(PhotoTagState.Idle)
-    val photoTagState = _photoTagState.asStateFlow()
+    private val _imageDetailTagState = MutableStateFlow<ImageDetailTagState>(ImageDetailTagState.Idle)
+    val imageDetailTagState: StateFlow<ImageDetailTagState> = _imageDetailTagState.asStateFlow()
 
     private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
     val tagDeleteState = _tagDeleteState.asStateFlow()
@@ -68,13 +70,11 @@ class ImageDetailViewModel(
      */
     fun loadPhotoTags(photoId: String) {
         if (photoId.isEmpty()) {
-            _photoTagState.value = PhotoTagState.Idle
+            _imageDetailTagState.value = ImageDetailTagState.Idle
             return
         }
 
         viewModelScope.launch {
-            _photoTagState.value = PhotoTagState.Loading
-
             // If photoId is numeric (photo_path_id from local album), find the actual UUID
             val actualPhotoId =
                 if (photoId.toLongOrNull() != null) {
@@ -87,11 +87,12 @@ class ImageDetailViewModel(
 
             if (actualPhotoId == null) {
                 // Photo not found in backend (not uploaded yet)
-                _photoTagState.value =
-                    PhotoTagState.Success(
-                        existingTags = emptyList(),
-                        recommendedTags = emptyList(),
-                    )
+                _imageDetailTagState.value = ImageDetailTagState.Success(
+                    existingTags = emptyList(),
+                    recommendedTags = emptyList(),
+                    isExistingLoading = false,
+                    isRecommendedLoading = false
+                )
                 return@launch
             }
 
@@ -101,12 +102,16 @@ class ImageDetailViewModel(
             when (photoDetailResult) {
                 is RemoteRepository.Result.Success -> {
                     val existingTags = photoDetailResult.data.tags
-
                     val existingTagNames = existingTags.map { it.tagName }
+
+                    _imageDetailTagState.value = ImageDetailTagState.Success(
+                        existingTags = existingTags,
+                        isExistingLoading = false,
+                        isRecommendedLoading = true // 추천 태그는 아직 로딩 중
+                    )
 
                     // Load recommended tags
                     val recommendResult = recommendRepository.recommendTagFromPhoto(actualPhotoId)
-
                     when (recommendResult) {
                         is RecommendRepository.RecommendResult.Success -> {
                             val recommendedTags =
@@ -117,47 +122,42 @@ class ImageDetailViewModel(
                                         it !in existingTagNames
                                     }.take(1)
 
-                            _photoTagState.value =
-                                PhotoTagState.Success(
-                                    existingTags = existingTags,
+                            val currentState = _imageDetailTagState.value
+                            if (currentState is ImageDetailTagState.Success) {
+                                _imageDetailTagState.value = currentState.copy(
                                     recommendedTags = recommendedTags,
+                                    isRecommendedLoading = false
                                 )
-                        }
-                        is RecommendRepository.RecommendResult.Error -> {
-                            // If recommendation fails, still show existing tags
-                            _photoTagState.value =
-                                PhotoTagState.Success(
-                                    existingTags = existingTags,
-                                    recommendedTags = emptyList(),
-                                )
+                            }
                         }
                         is RecommendRepository.RecommendResult.BadRequest,
                         is RecommendRepository.RecommendResult.Unauthorized,
                         is RecommendRepository.RecommendResult.NetworkError,
-                        -> {
+                        is RecommendRepository.RecommendResult.Error -> {
                             // If recommendation fails, still show existing tags
-                            _photoTagState.value =
-                                PhotoTagState.Success(
-                                    existingTags = existingTags,
-                                    recommendedTags = emptyList(),
+                            val currentState = _imageDetailTagState.value
+                            if (currentState is ImageDetailTagState.Success) {
+                                _imageDetailTagState.value = currentState.copy(
+                                    isRecommendedLoading = false
                                 )
+                            }
                         }
                     }
                 }
                 is RemoteRepository.Result.Error -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.message)
                 }
                 is RemoteRepository.Result.BadRequest -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.message)
                 }
                 is RemoteRepository.Result.Unauthorized -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.message)
                 }
                 is RemoteRepository.Result.NetworkError -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.message)
                 }
                 is RemoteRepository.Result.Exception -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.e.message ?: "Unknown error")
+                    _imageDetailTagState.value = ImageDetailTagState.Error(photoDetailResult.e.message ?: "Unknown error")
                 }
             }
         }
@@ -240,6 +240,6 @@ class ImageDetailViewModel(
      */
     fun clearImageContext() {
         _imageContext.value = null
-        _photoTagState.value = PhotoTagState.Idle
+        _imageDetailTagState.value = ImageDetailTagState.Idle
     }
 }
