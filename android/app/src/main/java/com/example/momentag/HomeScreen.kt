@@ -308,7 +308,7 @@ fun HomeScreen(navController: NavController) {
                                             Toast
                                                 .makeText(
                                                     context,
-                                                    "Share ${selectedPhotos.size} photo(s) (TODO)",
+                                                    "Share ${photos.size} photo(s)",
                                                     Toast.LENGTH_SHORT,
                                                 ).show()
 
