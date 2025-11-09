@@ -83,8 +83,8 @@ fun SearchResultScreen(
     val semanticSearchState by searchViewModel.searchState.collectAsState()
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
     val searchHistory by searchViewModel.searchHistory.collectAsState()
+    val searchText by searchViewModel.searchText.collectAsState()
 
-    var searchText by remember { mutableStateOf(initialQuery) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
     var showMenu by remember { mutableStateOf(false) }
@@ -105,6 +105,7 @@ fun SearchResultScreen(
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
         if (initialQuery.isNotEmpty()) {
+            searchViewModel.onSearchTextChanged(initialQuery)
             searchViewModel.search(initialQuery)
         }
     }
@@ -192,7 +193,7 @@ fun SearchResultScreen(
 
     SearchResultScreenUi(
         searchText = searchText,
-        onSearchTextChange = { searchText = it },
+        onSearchTextChange = { searchViewModel.onSearchTextChanged(it) },
         onSearchSubmit = {
             if (searchText.isNotEmpty()) {
                 if (isSelectionMode) {
@@ -265,7 +266,7 @@ fun SearchResultScreen(
             },
         searchHistory = searchHistory,
         onHistoryClick = { query ->
-            searchText = query
+            searchViewModel.onSearchTextChanged(query)
             searchViewModel.search(query)
         },
         onHistoryDelete = { query ->
@@ -306,7 +307,6 @@ fun SearchResultScreenUi(
             modifier = modifier,
             containerColor = MaterialTheme.colorScheme.surface,
             topBar = {
-                val context = LocalContext.current // ???
                 CommonTopBar(
                     title = "Search Results",
                     showBackButton = true,

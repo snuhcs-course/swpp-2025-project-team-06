@@ -37,6 +37,9 @@ class SearchViewModel(
     private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
     val searchHistory = _searchHistory.asStateFlow()
 
+    private val _searchText = MutableStateFlow("")
+    val searchText: StateFlow<String> = _searchText.asStateFlow()
+
     // TokenRepository의 로그인 상태 Flow 구독
     private val isLoggedInFlow = tokenRepository.isLoggedIn
 
@@ -65,6 +68,10 @@ class SearchViewModel(
         }
     }
 
+    fun onSearchTextChanged(query: String) {
+        _searchText.value = query
+    }
+
     /**
      * Semantic Search 수행 (GET 방식)
      * @param query 검색 쿼리
@@ -84,6 +91,7 @@ class SearchViewModel(
             loadSearchHistory()
 
             _searchState.value = SemanticSearchState.Loading
+            _searchText.value = query
 
             when (val result = searchRepository.semanticSearch(query, offset)) {
                 is SearchRepository.SearchResult.Success -> {
