@@ -464,7 +464,7 @@ fun HomeScreen(navController: NavController) {
                     if (!showAllPhotos) {
                         IconButton(onClick = { scope.launch { sheetState.show() } }) {
                             Icon(
-                                imageVector = Icons.Default.Sort, 
+                                imageVector = Icons.Default.Sort,
                                 contentDescription = "Sort Tag Albums",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -493,9 +493,7 @@ fun HomeScreen(navController: NavController) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
                     }
-                }
-                // 로딩 상태를 최우선으로 확인
-                else if (isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) {
+                } else if (isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) {
                     Box(
                         modifier =
                             Modifier
@@ -505,10 +503,7 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         CircularProgressIndicator()
                     }
-                }
-                // 로딩이 끝난 후, 데이터 상태에 따라 분기
-                else {
-                    // 로딩이 끝났으므로, 태그 데이터 추출
+                } else {
                     val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
 
                     val listState = if (showAllPhotos) rememberLazyGridState() else null
@@ -535,9 +530,8 @@ fun HomeScreen(navController: NavController) {
                         homeViewModel = homeViewModel,
                         lazyGridState = listState,
                         isLoadingMorePhotos = isLoadingMorePhotos,
-
                         isLoadingPhotos = false, // 이 블록은 로딩이 끝났을 때만 실행됨
-                        homeLoadingState = homeLoadingState // Success 또는 Error 상태 전달
+                        homeLoadingState = homeLoadingState, // Success 또는 Error 상태 전달
                     )
 
                     // 페이지네이션 로직을 MainContent 밖으로 이동
@@ -704,11 +698,11 @@ private fun MainContent(
     homeViewModel: HomeViewModel? = null,
     lazyGridState: LazyGridState? = null,
     isLoadingMorePhotos: Boolean = false,
-    isLoadingPhotos: Boolean, 
+    isLoadingPhotos: Boolean,
     homeLoadingState: HomeViewModel.HomeLoadingState,
 ) {
-
-    val isTagsLoaded = homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
+    val isTagsLoaded =
+        homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
     val arePhotosLoaded = !isLoadingPhotos
     // 태그와 사진 로딩이 모두 끝나야 빈 화면 여부를 최종 결정
     val isDataReady = isTagsLoaded && arePhotosLoaded
