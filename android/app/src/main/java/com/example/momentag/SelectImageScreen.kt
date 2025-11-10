@@ -111,7 +111,7 @@ fun SelectImageScreen(navController: NavController) {
 
     var isSelectionModeDelay by remember { mutableStateOf(true) }
     var showMenu by remember { mutableStateOf(false) }
-    var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
+    var currentTab by remember { mutableStateOf(BottomTab.MyTagsScreen) }
 
     val permission =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -218,7 +218,7 @@ fun SelectImageScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "MomenTag",
+                title = "Select Picture",
                 showBackButton = true,
                 onBackClick = {
                     navController.popBackStack()
