@@ -328,7 +328,7 @@ class PhotoDetailView(APIView):
             lng = photo.lng
 
             # URL for kakaomap lacation query
-            URL = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
+            URL = f"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x={lng}&y={lat}"
 
             # Headers for authentication
             KM_REST_API_KEY = os.getenv("KM_REST_API_KEY")
