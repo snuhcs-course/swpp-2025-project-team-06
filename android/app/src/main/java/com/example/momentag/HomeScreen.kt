@@ -573,6 +573,7 @@ fun HomeScreen(navController: NavController) {
                         onEnterDeleteMode = { isDeleteMode = true },
                         onExitDeleteMode = { isDeleteMode = false },
                         isSelectionMode = isSelectionMode,
+                        onEnterSelectionMode = { isSelectionMode = true },
                         selectedItems = selectedPhotos.map { it.photoId }.toSet(),
                         onItemSelectionToggle = { photoId ->
                             val photo = allPhotos.find { it.photoId == photoId }
@@ -744,6 +745,7 @@ private fun MainContent(
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
     isSelectionMode: Boolean,
+    onEnterSelectionMode: () -> Unit,
     selectedItems: Set<String>,
     onItemSelectionToggle: (String) -> Unit,
     homeViewModel: HomeViewModel? = null,
@@ -827,7 +829,7 @@ private fun MainContent(
                                             },
                                             onLongClick = {
                                                 if (!isSelectionMode) {
-                                                    onEnterDeleteMode()
+                                                    onEnterSelectionMode()
                                                     onItemSelectionToggle(photo.photoId)
                                                 }
                                             },
