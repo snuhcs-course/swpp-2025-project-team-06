@@ -111,6 +111,7 @@ import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
 import com.example.momentag.viewmodel.HomeViewModel
@@ -156,6 +157,9 @@ fun HomeScreen(navController: NavController) {
 
     val groupedPhotos by homeViewModel.groupedPhotos.collectAsState()
     val allPhotos by homeViewModel.allPhotos.collectAsState()
+
+    var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+    var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
@@ -287,6 +291,11 @@ fun HomeScreen(navController: NavController) {
         homeViewModel.resetSelection()
     }
 
+    BackHandler(enabled = showDeleteConfirmationDialog) {
+        showDeleteConfirmationDialog = false
+        tagToDeleteInfo = null
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, hasPermission) {
         val observer =
@@ -413,14 +422,17 @@ fun HomeScreen(navController: NavController) {
                         BottomTab.HomeScreen -> {
                             // 이미 홈 화면
                         }
+
                         BottomTab.SearchResultScreen -> {
                             homeViewModel.resetSelection()
                             navController.navigate(Screen.SearchResult.initialRoute())
                         }
+
                         BottomTab.MyTagsScreen -> {
                             homeViewModel.resetSelection()
                             navController.navigate(Screen.MyTags.route)
                         }
+
                         BottomTab.StoryScreen -> {
                             homeViewModel.resetSelection()
                             navController.navigate(Screen.Story.route)
@@ -555,7 +567,9 @@ fun HomeScreen(navController: NavController) {
                         CircularProgressIndicator()
                     }
                 } else {
-                    val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
+                    val tagItems =
+                        (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags
+                            ?: emptyList()
 
                     val listState = if (showAllPhotos) rememberLazyGridState() else null
 
@@ -567,7 +581,12 @@ fun HomeScreen(navController: NavController) {
                         groupedPhotos = groupedPhotos,
                         navController = navController,
                         onDeleteClick = { tagId ->
-                            homeViewModel.deleteTag(tagId)
+                            val tagItem = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags?.find { it.tagId == tagId }
+                            if (tagItem != null) {
+                                tagToDeleteInfo = Pair(tagItem.tagId, tagItem.tagName)
+                                showDeleteConfirmationDialog = true
+                                isDeleteMode = false
+                            }
                         },
                         isDeleteMode = isDeleteMode,
                         onEnterDeleteMode = { isDeleteMode = true },
@@ -600,7 +619,8 @@ fun HomeScreen(navController: NavController) {
                                     .collect { lastVisibleIndex ->
                                         val totalItemCount = groupedPhotos.size + allPhotos.size
                                         if (lastVisibleIndex != null && totalItemCount > 0) {
-                                            val remainingItems = totalItemCount - (lastVisibleIndex + 1)
+                                            val remainingItems =
+                                                totalItemCount - (lastVisibleIndex + 1)
                                             // 3열 그리드 기준, 약 11줄(33개) 미만일 때 로드
                                             if (remainingItems < 33) {
                                                 homeViewModel.loadMorePhotos()
@@ -646,6 +666,27 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         }
+    }
+
+    if (showDeleteConfirmationDialog && tagToDeleteInfo != null) {
+        val (tagId, tagName) = tagToDeleteInfo!!
+
+        confirmDialog(
+            title = "태그 삭제",
+            message = "'$tagName' 태그를 삭제하시겠습니까?",
+            confirmButtonText = "Delete Tag",
+            onConfirm = {
+                homeViewModel.deleteTag(tagId)
+                Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
+                showDeleteConfirmationDialog = false
+                tagToDeleteInfo = null
+            },
+            onDismiss = {
+                showDeleteConfirmationDialog = false
+                tagToDeleteInfo = null
+            },
+            dismissible = true,
+        )
     }
 
     if (sheetState.isVisible) {
