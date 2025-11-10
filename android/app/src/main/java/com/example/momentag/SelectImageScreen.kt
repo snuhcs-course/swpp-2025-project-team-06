@@ -146,8 +146,10 @@ fun SelectImageScreen(navController: NavController) {
         selectImageViewModel.setSelectionMode(false)
     }
 
-    // Call recommendPhoto when screen is entered
+    // Delay AI recommendation to improve initial screen load performance
     LaunchedEffect(Unit) {
+        // Wait for initial photos to load first
+        kotlinx.coroutines.delay(500L) // 0.5초 지연으로 화면 로딩 우선
         selectImageViewModel.recommendPhoto()
     }
 
@@ -171,9 +173,14 @@ fun SelectImageScreen(navController: NavController) {
     }
 
     // Re-recommend when AI recommendation is collapsed after adding photos
+    // Only re-recommend if recommendation was successful before
     LaunchedEffect(isRecommendationExpanded) {
-        if (!isRecommendationExpanded && selectedPhotos.isNotEmpty()) {
-            // 축소될 때 다시 추천
+        if (!isRecommendationExpanded && 
+            selectedPhotos.isNotEmpty() && 
+            recommendState is RecommendState.Success
+        ) {
+            // Background 작업으로 지연 실행
+            kotlinx.coroutines.delay(300L)
             selectImageViewModel.recommendPhoto()
         }
     }

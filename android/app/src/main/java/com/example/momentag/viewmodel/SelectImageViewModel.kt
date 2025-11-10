@@ -10,10 +10,12 @@ import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * SelectImageViewModel
@@ -62,8 +64,11 @@ class SelectImageViewModel(
     fun getAllPhotos() {
         if (_isLoading.value) return
 
-        viewModelScope.launch {
-            _isLoading.value = true
+        // Launch in IO dispatcher for better performance
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _isLoading.value = true
+            }
             currentOffset = 0
             hasMorePages = true
 
@@ -80,20 +85,28 @@ class SelectImageViewModel(
                         val unselected = serverPhotos.filter { it.photoId !in selectedIds }
 
                         // Selected photos + remaining photos from server
-                        _allPhotos.value = selected + unselected
+                        withContext(Dispatchers.Main) {
+                            _allPhotos.value = selected + unselected
+                        }
                         currentOffset = pageSize
                         hasMorePages = serverPhotos.size == pageSize
                     }
                     else -> {
-                        _allPhotos.value = emptyList()
+                        withContext(Dispatchers.Main) {
+                            _allPhotos.value = emptyList()
+                        }
                         hasMorePages = false
                     }
                 }
             } catch (e: Exception) {
-                _allPhotos.value = emptyList()
+                withContext(Dispatchers.Main) {
+                    _allPhotos.value = emptyList()
+                }
                 hasMorePages = false
             } finally {
-                _isLoading.value = false
+                withContext(Dispatchers.Main) {
+                    _isLoading.value = false
+                }
             }
         }
     }
@@ -101,8 +114,11 @@ class SelectImageViewModel(
     fun loadMorePhotos() {
         if (_isLoadingMore.value || !hasMorePages || _isLoading.value) return
 
-        viewModelScope.launch {
-            _isLoadingMore.value = true
+        // Launch in IO dispatcher for better performance
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _isLoadingMore.value = true
+            }
 
             try {
                 when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = currentOffset)) {
@@ -115,7 +131,10 @@ class SelectImageViewModel(
 
                             // Remove duplicates before adding
                             val uniqueNewPhotos = newPhotos.filter { it.photoId !in existingIds }
-                            _allPhotos.value = _allPhotos.value + uniqueNewPhotos
+                            
+                            withContext(Dispatchers.Main) {
+                                _allPhotos.value = _allPhotos.value + uniqueNewPhotos
+                            }
 
                             currentOffset += pageSize
                             hasMorePages = newPhotos.size == pageSize
@@ -133,7 +152,9 @@ class SelectImageViewModel(
             } catch (e: Exception) {
                 hasMorePages = false
             } finally {
-                _isLoadingMore.value = false
+                withContext(Dispatchers.Main) {
+                    _isLoadingMore.value = false
+                }
             }
         }
     }
@@ -142,8 +163,11 @@ class SelectImageViewModel(
      * Recommend photos based on currently selected photos
      */
     fun recommendPhoto() {
-        viewModelScope.launch {
-            _recommendState.value = RecommendState.Loading
+        // Launch in IO dispatcher for background execution (non-blocking)
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _recommendState.value = RecommendState.Loading
+            }
 
             when (
                 val result =
@@ -153,22 +177,32 @@ class SelectImageViewModel(
             ) {
                 is RecommendRepository.RecommendResult.Success -> {
                     val photos = localRepository.toPhotos(result.data)
-                    _recommendState.value = RecommendState.Success(photos = photos)
+                    withContext(Dispatchers.Main) {
+                        _recommendState.value = RecommendState.Success(photos = photos)
+                    }
 
                     // Update recommended photos, filtering out already selected ones
                     updateRecommendedPhotos(photos)
                 }
                 is RecommendRepository.RecommendResult.Error -> {
-                    _recommendState.value = RecommendState.Error(result.message)
+                    withContext(Dispatchers.Main) {
+                        _recommendState.value = RecommendState.Error(result.message)
+                    }
                 }
                 is RecommendRepository.RecommendResult.Unauthorized -> {
-                    _recommendState.value = RecommendState.Error("Please login again")
+                    withContext(Dispatchers.Main) {
+                        _recommendState.value = RecommendState.Error("Please login again")
+                    }
                 }
                 is RecommendRepository.RecommendResult.NetworkError -> {
-                    _recommendState.value = RecommendState.NetworkError(result.message)
+                    withContext(Dispatchers.Main) {
+                        _recommendState.value = RecommendState.NetworkError(result.message)
+                    }
                 }
                 is RecommendRepository.RecommendResult.BadRequest -> {
-                    _recommendState.value = RecommendState.Error(result.message)
+                    withContext(Dispatchers.Main) {
+                        _recommendState.value = RecommendState.Error(result.message)
+                    }
                 }
             }
         }
