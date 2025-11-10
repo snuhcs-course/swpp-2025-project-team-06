@@ -232,7 +232,7 @@ fun SelectImageScreen(navController: NavController) {
                         ) {
                             if (isSelectionModeDelay) {
                                 DropdownMenuItem(
-                                    text = { Text("View") },
+                                    text = { Text("Cancel") },
                                     onClick = {
                                         isSelectionModeDelay = false
                                         selectImageViewModel.setSelectionMode(false)
