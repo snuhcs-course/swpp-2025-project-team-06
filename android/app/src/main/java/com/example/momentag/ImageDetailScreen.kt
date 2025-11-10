@@ -13,10 +13,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -107,73 +107,71 @@ fun ZoomableImage(
             modifier
                 .onSizeChanged { size = it }
                 .pointerInput(Unit) {
-                    forEachGesture {
-                        awaitPointerEventScope {
-                            awaitFirstDown(requireUnconsumed = false) // 다른 제스처와 경쟁하기 위해 false로 설정
-                            do {
-                                val event = awaitPointerEvent()
-                                val zoom = event.calculateZoom()
-                                val pan = event.calculatePan()
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false) // 다른 제스처와 경쟁하기 위해 false로 설정
+                        do {
+                            val event = awaitPointerEvent()
+                            val zoom = event.calculateZoom()
+                            val pan = event.calculatePan()
 
-                                // 두 손가락 제스처(줌)이거나, 이미 확대된 상태에서의 한 손가락 드래그일 경우
-                                if (event.changes.size > 1 || scale > 1.01f) { // scale > 1.01f 로 약간의 여유를 줌
-                                    val oldScale = scale
-                                    val newScale = (scale * (1f + (zoom - 1f) * 1f)).coerceIn(1f, 5f)
+                            // 두 손가락 제스처(줌)이거나, 이미 확대된 상태에서의 한 손가락 드래그일 경우
+                            if (event.changes.size > 1 || scale > 1.01f) { // scale > 1.01f 로 약간의 여유를 줌
+                                val oldScale = scale
+                                val newScale = (scale * (1f + (zoom - 1f) * 1f)).coerceIn(1f, 5f)
 
-                                    // 줌 중심점을 기준으로 오프셋 계산
-                                    val centroid = event.calculateCentroid(useCurrentPosition = true)
+                                // 줌 중심점을 기준으로 오프셋 계산
+                                val centroid = event.calculateCentroid(useCurrentPosition = true)
 
-                                    // 화면 좌표 → 이미지 중심 좌표로 보정
-                                    val centroidInImageSpace =
-                                        centroid - Offset(size.width / 2f, size.height / 2f)
+                                // 화면 좌표 → 이미지 중심 좌표로 보정
+                                val centroidInImageSpace =
+                                    centroid - Offset(size.width / 2f, size.height / 2f)
 
-                                    val rawOffset =
-                                        offset - (centroidInImageSpace * (newScale / oldScale - 1f)) + pan
+                                val rawOffset =
+                                    offset - (centroidInImageSpace * (newScale / oldScale - 1f)) + pan
 
-                                    // 계산된 오프셋을 경계 내로 제한하여 상태에 저장 (오프셋 누적 방지)
-                                    val maxX = (size.width * (newScale - 1) / 2f).coerceAtLeast(0f)
-                                    val maxY = (size.height * (newScale - 1) / 2f).coerceAtLeast(0f)
+                                // 계산된 오프셋을 경계 내로 제한하여 상태에 저장 (오프셋 누적 방지)
+                                val maxX = (size.width * (newScale - 1) / 2f).coerceAtLeast(0f)
+                                val maxY = (size.height * (newScale - 1) / 2f).coerceAtLeast(0f)
 
-                                    val clampedX = rawOffset.x.coerceIn(-maxX, maxX)
-                                    val clampedY = rawOffset.y.coerceIn(-maxY, maxY)
-                                    val overScrollX = rawOffset.x - clampedX
-                                    val overScrollY = rawOffset.y - clampedY
+                                val clampedX = rawOffset.x.coerceIn(-maxX, maxX)
+                                val clampedY = rawOffset.y.coerceIn(-maxY, maxY)
+                                val overScrollX = rawOffset.x - clampedX
+                                val overScrollY = rawOffset.y - clampedY
 
-                                    offset = Offset(clampedX, clampedY)
+                                offset = Offset(clampedX, clampedY)
 
-                                    scale = newScale
+                                scale = newScale
+                                scope.launch {
+                                    scaleAnim.snapTo(scale)
+                                }
+                                onScaleChanged(scale > 1f)
+
+                                if (overScrollX != 0f || overScrollY != 0f) {
+                                    val overScrollAmount = abs(overScrollX) + abs(overScrollY)
+                                    val bounceScale = 1f + (overScrollAmount / size.width) * 0.05f
                                     scope.launch {
-                                        scaleAnim.snapTo(scale)
-                                    }
-                                    onScaleChanged(scale > 1f)
-
-                                    if (overScrollX != 0f || overScrollY != 0f) {
-                                        val overScrollAmount = abs(overScrollX) + abs(overScrollY)
-                                        val bounceScale = 1f + (overScrollAmount / size.width) * 0.05f
-                                        scope.launch {
-                                            scaleAnim.snapTo(scale * bounceScale)
-                                        }
-                                    }
-
-                                    // 현재 이벤트를 소비하여 HorizontalPager로 전파되는 것을 막음
-                                    event.changes.forEach {
-                                        if (it.positionChanged()) {
-                                            it.consume()
-                                        }
+                                        scaleAnim.snapTo(scale * bounceScale)
                                     }
                                 }
-                                // 그 외의 경우 (줌 안 된 상태에서의 한 손가락 스와이프)는 이벤트를 소비하지 않고 Pager로 전달
-                            } while (event.changes.any { it.pressed })
-                            scope.launch {
-                                scaleAnim.animateTo(
-                                    targetValue = scale,
-                                    animationSpec =
-                                        spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessLow,
-                                        ),
-                                )
+
+                                // 현재 이벤트를 소비하여 HorizontalPager로 전파되는 것을 막음
+                                event.changes.forEach {
+                                    if (it.positionChanged()) {
+                                        it.consume()
+                                    }
+                                }
                             }
+                            // 그 외의 경우 (줌 안 된 상태에서의 한 손가락 스와이프)는 이벤트를 소비하지 않고 Pager로 전달
+                        } while (event.changes.any { it.pressed })
+                        scope.launch {
+                            scaleAnim.animateTo(
+                                targetValue = scale,
+                                animationSpec =
+                                    spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessLow,
+                                    ),
+                            )
                         }
                     }
                 }.graphicsLayer {
