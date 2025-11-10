@@ -686,7 +686,7 @@ fun HomeScreen(navController: NavController) {
                     tagToDeleteInfo = null
                 },
                 title = "태그 삭제",
-                retryButtonText = "Delete Tag"
+                retryButtonText = "Delete Tag",
             )
         }
 
