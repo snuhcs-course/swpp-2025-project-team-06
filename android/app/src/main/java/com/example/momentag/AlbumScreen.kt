@@ -1,11 +1,18 @@
 package com.example.momentag
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -19,7 +26,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,11 +39,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -45,6 +54,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,21 +63,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -78,7 +91,7 @@ import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.AlbumViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -432,8 +445,6 @@ fun AlbumScreen(
                         onToggleRecommendPhoto = { photo -> albumViewModel.toggleRecommendPhoto(photo) },
                         onResetRecommendSelection = { albumViewModel.resetRecommendSelection() },
                         onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
-                        onResetTagAlbumPhotoSelection = { albumViewModel.resetTagAlbumPhotoSelection() },
-                        tagId = tagId,
                         onAddPhotosToAlbum = { photos ->
                             albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId, tagName)
                         },
@@ -446,6 +457,7 @@ fun AlbumScreen(
     }
 }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 private fun AlbumContent(
     albumLoadState: AlbumViewModel.AlbumLoadingState,
@@ -456,19 +468,17 @@ private fun AlbumContent(
     onToggleRecommendPhoto: (Photo) -> Unit,
     onResetRecommendSelection: () -> Unit,
     onToggleTagAlbumPhoto: (Photo) -> Unit,
-    onResetTagAlbumPhotoSelection: () -> Unit,
-    tagId: String,
     onAddPhotosToAlbum: (List<Photo>) -> Unit,
     isTagAlbumPhotoSelectionMode: Boolean,
     onSetTagAlbumPhotoSelectionMode: (Boolean) -> Unit,
 ) {
-    var isRecommendSelectionMode by remember { mutableStateOf(false) }
-    var recommendOffsetY by remember { mutableFloatStateOf(600f) }
-    val minOffset = 0f
-    val maxOffset = 600f
-
-    val buttonShape = RoundedCornerShape(16.dp)
-    val buttonPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+    var isRecommendationExpanded by remember { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    
+    // 사용자가 조절 가능한 패널 높이
+    val minHeight = 200.dp
+    val maxHeight = (configuration.screenHeightDp * 0.6f).dp
+    var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Tag Album Grid
@@ -485,7 +495,10 @@ private fun AlbumContent(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(verticalArrangement),
                     horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
-                    contentPadding = PaddingValues(bottom = 450.dp), // Space for AI Recommend section
+                    contentPadding = PaddingValues(
+                        bottom = if (isRecommendationExpanded) panelHeight else 80.dp
+                    ),
+                    modifier = Modifier.fillMaxSize(),
                 ) {
                     items(
                         count = photos.size,
@@ -511,201 +524,341 @@ private fun AlbumContent(
                     Text("사진을 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.")
                 }
             }
-            is AlbumViewModel.AlbumLoadingState.Idle -> {
-            }
+            is AlbumViewModel.AlbumLoadingState.Idle -> {}
         }
 
-        // AI Recommend Section (draggable)
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .offset { IntOffset(0, recommendOffsetY.roundToInt()) }
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onDragEnd = {
-                                // Snap to closest position
-                                recommendOffsetY =
-                                    if (recommendOffsetY < (minOffset + maxOffset) / 2) {
-                                        minOffset
-                                    } else {
-                                        maxOffset
-                                    }
-                            },
-                        ) { _, dragAmount ->
-                            val newOffset = recommendOffsetY + dragAmount
-                            recommendOffsetY = newOffset.coerceIn(minOffset, maxOffset)
-                        }
-                    }.background(MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .padding(16.dp),
+        // AI Recommend Section - 축소/확장 가능
+        AnimatedVisibility(
+            visible = !isRecommendationExpanded,
+            enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+            exit = fadeOut(tween(300)) + shrinkVertically(tween(300)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp)
         ) {
-            Column {
-                // Drag handle
-                Box(
-                    modifier =
-                        Modifier
-                            .width(40.dp)
-                            .height(4.dp)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), shape = CircleShape)
-                            .align(Alignment.CenterHorizontally),
+            RecommendChip(
+                recommendLoadState = recommendLoadState,
+                onExpand = { isRecommendationExpanded = true }
+            )
+        }
+
+        if (isRecommendationExpanded) {
+            Box(
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                // 확장 상태: 하단 패널 (패딩 없이 딱 붙임)
+                RecommendExpandedPanel(
+                    recommendLoadState = recommendLoadState,
+                    selectedRecommendPhotos = selectedRecommendPhotos,
+                    navController = navController,
+                    onToggleRecommendPhoto = onToggleRecommendPhoto,
+                    onResetRecommendSelection = onResetRecommendSelection,
+                    onAddPhotosToAlbum = onAddPhotosToAlbum,
+                    panelHeight = panelHeight,
+                    onHeightChange = { delta ->
+                        panelHeight = (panelHeight - delta).coerceIn(minHeight, maxHeight)
+                    },
+                    onCollapse = { isRecommendationExpanded = false }
                 )
+            }
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.height(16.dp))
+@Composable
+private fun RecommendChip(
+    recommendLoadState: AlbumViewModel.RecommendLoadingState,
+    onExpand: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .shadow(elevation = 4.dp, shape = RoundedCornerShape(20.dp))
+            .background(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onExpand)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
+        when (recommendLoadState) {
+            is AlbumViewModel.RecommendLoadingState.Loading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "AI Recommending...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            is AlbumViewModel.RecommendLoadingState.Success -> {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = "AI",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "AI Recommend",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            is AlbumViewModel.RecommendLoadingState.Error -> {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Error",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Recommendation Failed",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            is AlbumViewModel.RecommendLoadingState.Idle -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Preparing...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.width(4.dp))
+        Icon(
+            imageVector = Icons.Default.ExpandLess,
+            contentDescription = "Expand",
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
 
-                // AI Recommend Badge
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (recommendLoadState is AlbumViewModel.RecommendLoadingState.Success && recommendLoadState.photos.isNotEmpty()) {
-                        if (isRecommendSelectionMode) {
-                            // X button
-                            IconButton(
-                                onClick = {
-                                    isRecommendSelectionMode = false
-                                    onResetRecommendSelection()
-                                },
-                                modifier = Modifier.align(Alignment.CenterStart),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Cancel selection",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant, // Color.Gray,
-                                    modifier = Modifier.size(24.dp),
-                                )
+@Composable
+private fun RecommendExpandedPanel(
+    recommendLoadState: AlbumViewModel.RecommendLoadingState,
+    selectedRecommendPhotos: List<Photo>,
+    navController: NavController,
+    onToggleRecommendPhoto: (Photo) -> Unit,
+    onResetRecommendSelection: () -> Unit,
+    onAddPhotosToAlbum: (List<Photo>) -> Unit,
+    panelHeight: Dp,
+    onHeightChange: (Dp) -> Unit,
+    onCollapse: () -> Unit
+) {
+    val density = LocalDensity.current
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(panelHeight)
+            .shadow(elevation = 8.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .background(
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            )
+            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+    ) {
+        Column {
+            // Drag Handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures { change, dragAmount ->
+                            change.consume()
+                            with(density) {
+                                onHeightChange(dragAmount.toDp())
                             }
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            RoundedCornerShape(2.dp)
+                        )
+                )
+            }
 
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Add to album button
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    if (recommendLoadState is AlbumViewModel.RecommendLoadingState.Success &&
+                        recommendLoadState.photos.isNotEmpty() &&
+                        selectedRecommendPhotos.isNotEmpty()
+                    ) {
+                        // 사진 선택 시: Add와 Cancel 버튼
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = onResetRecommendSelection) {
+                                Text("Cancel")
+                            }
                             Button(
                                 onClick = {
                                     onAddPhotosToAlbum(selectedRecommendPhotos)
-                                    isRecommendSelectionMode = false
                                     onResetRecommendSelection()
+                                    onCollapse()
                                 },
-                                enabled = selectedRecommendPhotos.isNotEmpty(), // 선택된 사진이 있어야 활성화
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                                shape = buttonShape,
-                                contentPadding = buttonPadding,
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                             ) {
                                 Text(
-                                    text = "Add to Album (${selectedRecommendPhotos.size})",
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    text = "Add ${selectedRecommendPhotos.size} Photo${if (selectedRecommendPhotos.size > 1) "s" else ""}",
+                                    style = MaterialTheme.typography.labelLarge
                                 )
-                            }
-                        } else {
-                            // Non-selection mode
-                            Button(
-                                onClick = { isRecommendSelectionMode = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                                shape = buttonShape,
-                                contentPadding = buttonPadding,
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = "AI",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "AI Recommend",
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    )
-                                }
                             }
                         }
                     } else {
-                        // Empty recommended result or Loading state - non-clickable button "AI recommend"
-                        Button(
-                            onClick = {}, // can not click
-                            colors =
-                                ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), // 비활성 색
-                                ),
-                            shape = buttonShape,
-                            contentPadding = buttonPadding,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = "AI",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "AI Recommend",
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                )
+                        // 선택 없을 시: AI Recommend 텍스트 (왼쪽)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            when (recommendLoadState) {
+                                is AlbumViewModel.RecommendLoadingState.Loading -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                                is AlbumViewModel.RecommendLoadingState.Success -> {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = "AI",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                else -> {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = "AI",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "AI Recommend",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
+                    }
+
+                    // 오른쪽: 닫기 버튼 (항상 표시)
+                    IconButton(onClick = onCollapse) {
+                        Icon(
+                            imageVector = Icons.Default.ExpandMore,
+                            contentDescription = "Collapse",
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // AI Recommendations Grid
+                // Grid
                 when (recommendLoadState) {
                     is AlbumViewModel.RecommendLoadingState.Loading -> {
-                        Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(48.dp),
+                                strokeWidth = 4.dp
+                            )
                         }
                     }
                     is AlbumViewModel.RecommendLoadingState.Success -> {
                         val recommendPhotos = recommendLoadState.photos
 
                         if (recommendPhotos.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                                Text("추천 사진이 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No recommendations available",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         } else {
-                            Column {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(3),
-                                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
-                                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
-                                    modifier = Modifier.height(300.dp),
-                                ) {
-                                    items(
-                                        count = recommendPhotos.size,
-                                        key = { index -> index },
-                                    ) { index ->
-                                        ImageGridUriItem(
-                                            photo = recommendPhotos[index],
-                                            navController = navController,
-                                            isSelectionMode = isRecommendSelectionMode,
-                                            isSelected = selectedRecommendPhotos.contains(recommendPhotos[index]),
-                                            onToggleSelection = {
-                                                onToggleRecommendPhoto(recommendPhotos[index])
-                                            },
-                                            onLongPress = {
-                                                isRecommendSelectionMode = true
-                                            },
-                                        )
-                                    }
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                verticalArrangement = Arrangement.spacedBy(verticalArrangement),
+                                horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                                modifier = Modifier.weight(1f),
+                                userScrollEnabled = true
+                            ) {
+                                items(
+                                    count = recommendPhotos.size,
+                                    key = { index -> recommendPhotos[index].photoId }
+                                ) { index ->
+                                    ImageGridUriItem(
+                                        photo = recommendPhotos[index],
+                                        navController = navController,
+                                        isSelectionMode = true,
+                                        isSelected = selectedRecommendPhotos.contains(recommendPhotos[index]),
+                                        onToggleSelection = {
+                                            onToggleRecommendPhoto(recommendPhotos[index])
+                                        },
+                                        onLongPress = {}
+                                    )
                                 }
                             }
                         }
                     }
                     is AlbumViewModel.RecommendLoadingState.Error -> {
-                        Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                            Text("추천 사진을 불러오지 못했습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Failed to load recommendations",
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                     is AlbumViewModel.RecommendLoadingState.Idle -> {
-                        Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
                             CircularProgressIndicator()
                         }
                     }
