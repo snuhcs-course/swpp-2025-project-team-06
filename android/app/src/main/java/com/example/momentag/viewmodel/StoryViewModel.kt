@@ -26,6 +26,7 @@ class StoryViewModel(
     private val recommendRepository: RecommendRepository,
     private val localRepository: LocalRepository,
     private val remoteRepository: com.example.momentag.repository.RemoteRepository,
+    private val imageBrowserRepository: com.example.momentag.repository.ImageBrowserRepository,
 ) : ViewModel() {
     private val _storyState = MutableStateFlow<StoryState>(StoryState.Idle)
     val storyState = _storyState.asStateFlow()
@@ -588,6 +589,15 @@ class StoryViewModel(
      */
     fun clearEditMode() {
         _editModeStory.value = null
+    }
+
+    /**
+     * Set story browsing session
+     * Stores a single photo in ImageBrowserRepository for image detail navigation
+     * @param photo Photo to view in detail
+     */
+    fun setStoryBrowsingSession(photo: com.example.momentag.model.Photo) {
+        imageBrowserRepository.setStory(photo)
     }
 
     /**

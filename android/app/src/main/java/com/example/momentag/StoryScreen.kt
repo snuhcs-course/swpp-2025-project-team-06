@@ -16,7 +16,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -34,20 +33,16 @@ import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -224,6 +219,24 @@ fun StoryTagSelectionScreen(
                                 StoryPageFullBlock(
                                     story = story,
                                     showScrollHint = isFirstStory,
+                                    onImageClick = {
+                                        // Create Photo object from story data
+                                        val photo =
+                                            com.example.momentag.model.Photo(
+                                                photoId = story.photoId,
+                                                contentUri = android.net.Uri.parse(story.images.firstOrNull() ?: ""),
+                                                createdAt = "",
+                                            )
+                                        // Set browsing session
+                                        viewModel.setStoryBrowsingSession(photo)
+                                        // Navigate to image detail
+                                        navController.navigate(
+                                            Screen.Image.createRoute(
+                                                uri = photo.contentUri,
+                                                imageId = photo.photoId,
+                                            ),
+                                        )
+                                    },
                                 )
                             }
 
@@ -346,6 +359,7 @@ fun StoryTagSelectionScreen(
 private fun StoryPageFullBlock(
     story: StoryModel,
     showScrollHint: Boolean,
+    onImageClick: () -> Unit = {},
 ) {
     var isScrollHintVisible by remember { mutableStateOf(showScrollHint) }
 
@@ -368,46 +382,14 @@ private fun StoryPageFullBlock(
         ) {
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 상단 정보 + 즐겨찾기
-            Row(
+            Text(
+                text = story.date,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        text = story.date,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = story.location,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.headlineMedium,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
+            )
 
-                var isFavorite by remember { mutableStateOf(false) }
-                IconButton(
-                    onClick = { isFavorite = !isFavorite },
-                    modifier =
-                        Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)),
-                ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(36.dp))
 
             // 이미지 영역 - 고정 높이로 일관성 유지
             Box(
@@ -416,7 +398,8 @@ private fun StoryPageFullBlock(
                         .fillMaxWidth()
                         .height(480.dp) // 고정된 높이로 모든 스토리에서 일관된 크기 유지
                         .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { onImageClick() },
                 contentAlignment = Alignment.Center,
             ) {
                 AsyncImage(
