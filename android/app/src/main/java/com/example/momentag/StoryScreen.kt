@@ -166,7 +166,11 @@ fun StoryTagSelectionScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(24.dp),
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("추억을 불러오는 중...", color = MaterialTheme.colorScheme.onSurface)
                     }
