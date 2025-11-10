@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -76,6 +78,7 @@ import com.example.momentag.viewmodel.ViewModelFactory
 @Composable
 fun AddTagScreen(navController: NavController) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
     var selectedTab by remember { mutableStateOf(0) } // Add this line to manage selected tab state
@@ -185,7 +188,13 @@ fun AddTagScreen(navController: NavController) {
             )
 
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = {
+                            focusManager.clearFocus()
+                        })
+                    },
             ) {
                 Column(
                     modifier =
@@ -199,12 +208,12 @@ fun AddTagScreen(navController: NavController) {
                         onTagNameChange = { addTagViewModel.updateTagName(it) },
                     )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Added Pictures Section
                     Text(
                         text = "Added Pictures",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
 
@@ -388,23 +397,22 @@ private fun TagNameSection(
 ) {
     val focusManager = LocalFocusManager.current
     Column {
-        Text(
-            text = "New tag name",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
         TextField(
             value = tagName,
             onValueChange = onTagNameChange,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = MaterialTheme.typography.headlineMedium,
+            textStyle = MaterialTheme.typography.headlineSmall,
             placeholder = {
                 Text(
-                    "Insert Your Tag Name",
-                    style = MaterialTheme.typography.headlineMedium,
+                    "Insert your tag name",
+                    style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                )
+            },
+            leadingIcon = {
+                Text(
+                    text = "#",
+                    style = MaterialTheme.typography.headlineSmall,
                 )
             },
             colors =

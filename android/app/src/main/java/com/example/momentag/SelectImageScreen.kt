@@ -322,7 +322,7 @@ fun SelectImageScreen(navController: NavController) {
                     Text(
                         text = "Add to #$tagName",
                         color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.headlineLarge,
+                        style = MaterialTheme.typography.headlineMedium,
                     )
 
                     if (isSelectionMode && selectedPhotos.isNotEmpty()) {
