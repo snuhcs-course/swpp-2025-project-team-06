@@ -1,4 +1,6 @@
+import os
 import uuid
+import requests
 from django.db.models import Exists, OuterRef, Count, Subquery, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -322,7 +324,30 @@ class PhotoDetailView(APIView):
                 for tag in tags
             ]
 
-            photo_data = {"photo_path_id": photo.photo_path_id, "tags": tag_list}
+            lat = photo.lat
+            lng = photo.lng
+
+            # URL for kakaomap lacation query
+            URL = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={lng}&y={lat}"
+
+            # Headers for authentication
+            KM_REST_API_KEY = os.getenv("KM_REST_API_KEY")
+            headers = {"Authorization": f"KakaoAK {KM_REST_API_KEY}"}
+
+            # Call
+            resp = requests.get(URL, headers=headers, timeout=5)
+
+            address = ""
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("documents"):
+                    address = data["documents"][0]["address_name"]            
+
+            photo_data = {
+                "photo_path_id": photo.photo_path_id,
+                "address": address,
+                "tags": tag_list
+            }
 
             serializer = ResPhotoTagListSerializer(photo_data)
 
