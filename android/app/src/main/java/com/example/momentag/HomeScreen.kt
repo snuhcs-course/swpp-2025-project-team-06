@@ -166,6 +166,21 @@ fun HomeScreen(navController: NavController) {
         isSelectionModeDelay = isSelectionMode
     }
 
+    // TODO : Make it work (select mode remain for backstack of create tag)
+    val navBackStackEntry = navController.currentBackStackEntry
+
+    LaunchedEffect(navBackStackEntry) {
+        navBackStackEntry
+            ?.savedStateHandle
+            ?.getLiveData<Boolean>("tagCreationComplete") // 1. "tagCreationComplete" 키를 구독
+            ?.observe(navBackStackEntry) { isSuccess ->
+                if (isSuccess) {
+                    isSelectionMode = false
+                    navBackStackEntry.savedStateHandle.remove<Boolean>("tagCreationComplete")
+                }
+            }
+    }
+
     var isUploadBannerDismissed by remember { mutableStateOf(false) }
 
     val currentSortOrder by homeViewModel.sortOrder.collectAsState()
@@ -454,8 +469,8 @@ fun HomeScreen(navController: NavController) {
                     onClick = {
                         // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
                         // SearchResultScreen과 동일한 패턴
-                        isSelectionMode = false
-                        navController.navigate(Screen.AddTag.route)
+                        isSelectionMode = false // TODO : erase it
+                        navController.navigate(Screen.MyTags.route)
                     },
                 )
             }

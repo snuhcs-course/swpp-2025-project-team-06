@@ -90,6 +90,8 @@ fun SearchResultScreen(
     var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
+    val focusManager = LocalFocusManager.current
+
     BackHandler(enabled = isSelectionMode) {
         isSelectionMode = false
         searchViewModel.resetSelection()
@@ -100,7 +102,19 @@ fun SearchResultScreen(
         isSelectionModeDelay = isSelectionMode
     }
 
-    val focusManager = LocalFocusManager.current
+    // TODO : make it work (select mode remain for backstack of create tag)
+    val navBackStackEntry = navController.currentBackStackEntry
+
+    LaunchedEffect(navBackStackEntry) {
+        navBackStackEntry?.savedStateHandle
+            ?.getLiveData<Boolean>("tagCreationComplete")
+            ?.observe(navBackStackEntry) { isSuccess ->
+                if (isSuccess) {
+                    isSelectionMode = false
+                    navBackStackEntry.savedStateHandle.remove<Boolean>("tagCreationComplete")
+                }
+            }
+    }
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
@@ -227,8 +241,8 @@ fun SearchResultScreen(
             val currentState = uiState as? SearchUiState.Success
             if (currentState != null) {
                 // photo selection already stored in draftRepository
-                isSelectionMode = false
-                navController.navigate(Screen.AddTag.route)
+                isSelectionMode = false // TODO : remove it
+                navController.navigate(Screen.MyTags.route)
             }
         },
         onRetry = {

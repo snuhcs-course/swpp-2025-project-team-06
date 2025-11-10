@@ -1,6 +1,7 @@
 package com.example.momentag
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -49,6 +51,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -72,6 +76,7 @@ import com.example.momentag.model.TagCntData
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -82,10 +87,11 @@ import kotlin.math.abs
 @Composable
 fun MyTagsScreen(navController: NavController) {
     val context = LocalContext.current
-    val viewModel: MyTagsViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val uiState by viewModel.uiState.collectAsState()
-    val isEditMode by viewModel.isEditMode.collectAsState()
-    val sortOrder by viewModel.sortOrder.collectAsState()
+    val myTagsViewModel: MyTagsViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val uiState by myTagsViewModel.uiState.collectAsState()
+    val isEditMode by myTagsViewModel.isEditMode.collectAsState()
+    val sortOrder by myTagsViewModel.sortOrder.collectAsState()
+    val saveState by myTagsViewModel.saveState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
@@ -98,6 +104,29 @@ fun MyTagsScreen(navController: NavController) {
     var tagToEdit by remember { mutableStateOf<Pair<String, String>?>(null) }
     var editedTagName by remember { mutableStateOf("") }
 
+    var showErrorBanner by remember { mutableStateOf(false) }
+
+    BackHandler {
+        myTagsViewModel.clearDraft()
+        navController.popBackStack()
+    }
+
+    LaunchedEffect(saveState) {
+        when (saveState) {
+            is MyTagsViewModel.SaveState.Success -> {
+                navController.previousBackStackEntry?.savedStateHandle?.set("tagCreationComplete", true)
+                myTagsViewModel.clearDraft()
+                myTagsViewModel.refreshTags()
+            }
+            is MyTagsViewModel.SaveState.Error -> {
+                showErrorBanner = true
+                kotlinx.coroutines.delay(2000) // 2초 후 자동 사라짐
+                showErrorBanner = false
+            }
+            else -> { }
+        }
+    }
+
     Scaffold(
         topBar = {
             val currentState = uiState
@@ -106,7 +135,10 @@ fun MyTagsScreen(navController: NavController) {
                 showBackButton = true,
                 onBackClick = { navController.popBackStack() },
                 actions = {
-                    if (currentState is MyTagsUiState.Success && currentState.tags.isNotEmpty()) {
+                    if (myTagsViewModel.isSelectedPhotosEmpty() &&
+                        currentState is MyTagsUiState.Success &&
+                        currentState.tags.isNotEmpty()
+                    ) {
                         // Sort Button
                         IconButton(onClick = { showSortSheet = true }) {
                             Icon(
@@ -116,7 +148,7 @@ fun MyTagsScreen(navController: NavController) {
                             )
                         }
                         // Edit Button
-                        IconButton(onClick = { viewModel.toggleEditMode() }) {
+                        IconButton(onClick = { myTagsViewModel.toggleEditMode() }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Edit",
@@ -134,6 +166,19 @@ fun MyTagsScreen(navController: NavController) {
                         .background(Color.Transparent)
                         .fillMaxWidth(),
             ) {
+                // Error Banner
+                if (showErrorBanner && saveState is MyTagsViewModel.SaveState.Error) {
+                    WarningBanner(
+                        title = "Save failed",
+                        message = (saveState as MyTagsViewModel.SaveState.Error).message,
+                        onActionClick = { },
+                        onDismiss = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 // Create New Tag 버튼
                 Button(
                     onClick = {
@@ -174,10 +219,19 @@ fun MyTagsScreen(navController: NavController) {
                     currentTab = BottomTab.MyTagsScreen,
                     onTabSelected = { tab ->
                         when (tab) {
-                            BottomTab.HomeScreen -> navController.navigate(Screen.Home.route)
-                            BottomTab.SearchResultScreen -> navController.navigate(Screen.SearchResult.createRoute(""))
+                            BottomTab.HomeScreen -> {
+                                myTagsViewModel.clearDraft()
+                                navController.navigate(Screen.Home.route)
+                            }
+                            BottomTab.SearchResultScreen -> {
+                                myTagsViewModel.clearDraft()
+                                navController.navigate(Screen.SearchResult.createRoute(""))
+                            }
                             BottomTab.MyTagsScreen -> { /* 현재 화면이므로 아무것도 안 함 */ }
-                            BottomTab.StoryScreen -> navController.navigate(Screen.Story.route)
+                            BottomTab.StoryScreen -> {
+                                myTagsViewModel.clearDraft()
+                                navController.navigate(Screen.Story.route)
+                            }
                         }
                     },
                 )
@@ -220,7 +274,7 @@ fun MyTagsScreen(navController: NavController) {
                                 color = MaterialTheme.colorScheme.error,
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { viewModel.refreshTags() }) {
+                            Button(onClick = { myTagsViewModel.refreshTags() }) {
                                 Text("Retry")
                             }
                         }
@@ -241,9 +295,34 @@ fun MyTagsScreen(navController: NavController) {
                             tagToDelete = Pair(tagId, tagName)
                             showDeleteDialog = true
                         },
-                        onRefresh = { viewModel.refreshTags() },
-                        onEnterEditMode = { viewModel.toggleEditMode() },
-                        onExitEditMode = { if (isEditMode) viewModel.toggleEditMode() },
+                        onRefresh = { myTagsViewModel.refreshTags() },
+                        onEnterEditMode = { myTagsViewModel.toggleEditMode() },
+                        onExitEditMode = { if (isEditMode) myTagsViewModel.toggleEditMode() },
+                        myTagsViewModel = myTagsViewModel,
+                    )
+                }
+            }
+
+            // Full Screen Loading Overlay
+            if (saveState == MyTagsViewModel.SaveState.Loading) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier =
+                            Modifier
+                                .size(56.dp)
+                                .shadow(
+                                    elevation = 8.dp,
+                                    shape = CircleShape,
+                                    clip = false,
+                                ),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 5.dp,
                     )
                 }
             }
@@ -269,7 +348,7 @@ fun MyTagsScreen(navController: NavController) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        tagToDelete?.first?.let { viewModel.deleteTag(it) }
+                        tagToDelete?.first?.let { myTagsViewModel.deleteTag(it) }
                         Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
                         showDeleteDialog = false
                         tagToDelete = null
@@ -321,7 +400,7 @@ fun MyTagsScreen(navController: NavController) {
                     onClick = {
                         if (editedTagName.isNotBlank()) {
                             tagToEdit?.first?.let { tagId ->
-                                viewModel.renameTag(tagId, editedTagName.trim())
+                                myTagsViewModel.renameTag(tagId, editedTagName.trim())
                             }
                         }
                         showEditDialog = false
@@ -356,7 +435,7 @@ fun MyTagsScreen(navController: NavController) {
             SortOptionsSheet(
                 currentOrder = sortOrder,
                 onOrderChange = { newOrder ->
-                    viewModel.setSortOrder(newOrder)
+                    myTagsViewModel.setSortOrder(newOrder)
                     scope.launch {
                         sheetState.hide()
                         showSortSheet = false
@@ -378,6 +457,7 @@ private fun MyTagsContent(
     onRefresh: () -> Unit = {},
     onEnterEditMode: () -> Unit = {},
     onExitEditMode: () -> Unit = {},
+    myTagsViewModel: MyTagsViewModel,
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
@@ -418,7 +498,7 @@ private fun MyTagsContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "My Tags",
+                        text = if (myTagsViewModel.isSelectedPhotosEmpty()) "My Tags" else "Choose Tag to add photos",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -442,7 +522,9 @@ private fun MyTagsContent(
                             count = tagData.count,
                             color = getTagColor(tagData.tagId),
                             onClick = {
-                                if (!isEditMode) {
+                                if (!myTagsViewModel.isSelectedPhotosEmpty()) {
+                                    myTagsViewModel.savePhotosToExistingTag(tagData.tagId)
+                                } else if (!isEditMode) {
                                     navController.navigate(
                                         Screen.Album.createRoute(
                                             tagId = tagData.tagId,
