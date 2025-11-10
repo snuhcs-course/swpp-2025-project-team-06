@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,14 +40,12 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -77,13 +74,10 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
-import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
-import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.horizontalArrangement
-import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -168,7 +162,7 @@ fun SelectImageScreen(navController: NavController) {
                         imageId = selectedPhoto.photoId,
                     ),
                 )
-            }
+            },
         )
     }
 
@@ -285,15 +279,17 @@ fun SelectImageScreen(navController: NavController) {
         containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             // Main Content
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -305,7 +301,7 @@ fun SelectImageScreen(navController: NavController) {
                             navController.popBackStack()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -322,7 +318,7 @@ fun SelectImageScreen(navController: NavController) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = "Pictures",
@@ -344,15 +340,17 @@ fun SelectImageScreen(navController: NavController) {
 
                 if (isLoading) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .fillMaxSize(),
+                        contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(56.dp),
+                            modifier =
+                                Modifier
+                                    .size(56.dp),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 5.dp
+                            strokeWidth = 5.dp,
                         )
                     }
                 } else if (hasPermission) {
@@ -362,7 +360,7 @@ fun SelectImageScreen(navController: NavController) {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 200.dp)
+                        contentPadding = PaddingValues(bottom = 200.dp),
                     ) {
                         items(
                             count = allPhotos.size,
@@ -377,7 +375,7 @@ fun SelectImageScreen(navController: NavController) {
                                 isSelectionMode = isSelectionMode,
                                 onClick = { onPhotoClick(photo) },
                                 onLongClick = { selectImageViewModel.handleLongClick(photo) },
-                                modifier = Modifier.aspectRatio(1f)
+                                modifier = Modifier.aspectRatio(1f),
                             )
                         }
 
@@ -397,7 +395,7 @@ fun SelectImageScreen(navController: NavController) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(36.dp),
                                         color = MaterialTheme.colorScheme.primary,
-                                        strokeWidth = 3.dp
+                                        strokeWidth = 3.dp,
                                     )
                                 }
                             }
@@ -408,11 +406,12 @@ fun SelectImageScreen(navController: NavController) {
 
             // AI Recommendation Section - Floating on top
             Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 8.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 8.dp),
             ) {
                 AIRecommendationSection(
                     isExpanded = isRecommendationExpanded,
@@ -420,7 +419,7 @@ fun SelectImageScreen(navController: NavController) {
                     recommendState = recommendState,
                     recommendedPhotos = recommendedPhotos,
                     onPhotoClick = onRecommendedPhotoClick,
-                    onRetry = { selectImageViewModel.recommendPhoto() }
+                    onRetry = { selectImageViewModel.recommendPhoto() },
                 )
 
                 // Done Button - 숨김 처리 (AI Recommendation이 확장되지 않았을 때만 표시)
@@ -441,19 +440,20 @@ fun SelectImageScreen(navController: NavController) {
                                 disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .shadow(
-                                elevation = if (selectedPhotos.isNotEmpty()) 6.dp else 2.dp,
-                                shape = RoundedCornerShape(24.dp),
-                                clip = false
-                            ),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .shadow(
+                                    elevation = if (selectedPhotos.isNotEmpty()) 6.dp else 2.dp,
+                                    shape = RoundedCornerShape(24.dp),
+                                    clip = false,
+                                ),
                         enabled = selectedPhotos.isNotEmpty(),
                     ) {
                         Text(
                             text = "Add Pic to Tag",
-                            style = MaterialTheme.typography.labelLarge
+                            style = MaterialTheme.typography.labelLarge,
                         )
                     }
                 }
@@ -466,23 +466,23 @@ fun SelectImageScreen(navController: NavController) {
 private fun TabNavigation(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         TabItem(
             text = "Tag Details",
             isSelected = selectedTab == 0,
             onClick = { onTabSelected(0) },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         TabItem(
             text = "Select Pictures",
             isSelected = selectedTab == 1,
             onClick = { onTabSelected(1) },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
     }
 }
@@ -492,29 +492,35 @@ private fun TabItem(
     text: String,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .shadow(
-                elevation = if (isSelected) 4.dp else 2.dp,
-                shape = RoundedCornerShape(24.dp),
-                clip = false
-            )
-            .clip(RoundedCornerShape(24.dp))
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .shadow(
+                    elevation = if (isSelected) 4.dp else 2.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    clip = false,
+                ).clip(RoundedCornerShape(24.dp))
+                .background(
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                ).clickable(onClick = onClick)
+                .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,
-            color = if (isSelected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
+            color =
+                if (isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
         )
     }
 }
@@ -529,13 +535,14 @@ private fun PhotoSelectableItem(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
     ) {
         AsyncImage(
             model = photo.contentUri,
@@ -549,31 +556,36 @@ private fun PhotoSelectableItem(
             // Dimmed overlay when not selected
             if (!isSelected) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f))
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
                 )
             }
 
             // Checkbox
             Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
-                    ),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                            },
+                        ),
+                contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
@@ -592,30 +604,31 @@ private fun AIRecommendationSection(
 ) {
     val configuration = LocalConfiguration.current
     val maxHeight = (configuration.screenHeightDp / 3).dp
-    
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(16.dp),
-                clip = false
-            )
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-            .padding(16.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .shadow(
+                    elevation = 8.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    clip = false,
+                ).clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                .padding(16.dp),
     ) {
         // Header
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onToggleExpanded),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggleExpanded),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 // AI 아이콘 또는 로딩/체크 표시
                 when (recommendState) {
@@ -623,99 +636,126 @@ private fun AIRecommendationSection(
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 3.dp
+                            strokeWidth = 3.dp,
                         )
                     }
                     is RecommendState.Success -> {
                         Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
+                            modifier =
+                                Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center,
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Completed",
                                 tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
                             )
                         }
                     }
                     else -> {
                         Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
+                            modifier =
+                                Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 text = "AI",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimary
+                                color = MaterialTheme.colorScheme.onPrimary,
                             )
                         }
                     }
                 }
 
                 Text(
-                    text = when (recommendState) {
-                        is RecommendState.Loading -> "AI Recommending..."
-                        is RecommendState.Success -> "AI Recommended"
-                        is RecommendState.Error -> "AI Recommendation Failed"
-                        is RecommendState.NetworkError -> "Network Error"
-                        else -> "AI Recommendation"
-                    },
+                    text =
+                        when (recommendState) {
+                            is RecommendState.Loading -> "AI Recommending..."
+                            is RecommendState.Success -> "AI Recommended"
+                            is RecommendState.Error -> "AI Recommendation Failed"
+                            is RecommendState.NetworkError -> "Network Error"
+                            else -> "AI Recommendation"
+                        },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
             Icon(
-                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp
-                             else Icons.Default.KeyboardArrowDown,
+                imageVector =
+                    if (isExpanded) {
+                        Icons.Default.KeyboardArrowUp
+                    } else {
+                        Icons.Default.KeyboardArrowDown
+                    },
                 contentDescription = if (isExpanded) "Collapse" else "Expand",
-                tint = MaterialTheme.colorScheme.onSurface
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         }
 
         // Content
         AnimatedVisibility(
             visible = isExpanded,
-            enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(300)) + 
-                    expandVertically(animationSpec = androidx.compose.animation.core.tween(300)),
-            exit = fadeOut(animationSpec = androidx.compose.animation.core.tween(300)) + 
-                   shrinkVertically(animationSpec = androidx.compose.animation.core.tween(300))
+            enter =
+                fadeIn(
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
+                ) +
+                    expandVertically(
+                        animationSpec =
+                            androidx.compose.animation.core
+                                .tween(300),
+                    ),
+            exit =
+                fadeOut(
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
+                ) +
+                    shrinkVertically(
+                        animationSpec =
+                            androidx.compose.animation.core
+                                .tween(300),
+                    ),
         ) {
             Column(modifier = Modifier.padding(top = 16.dp)) {
                 when (recommendState) {
                     is RecommendState.Loading -> {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp),
-                            contentAlignment = Alignment.Center
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(40.dp),
                                 color = MaterialTheme.colorScheme.primary,
-                                strokeWidth = 4.dp
+                                strokeWidth = 4.dp,
                             )
                         }
                     }
                     is RecommendState.Success -> {
                         if (recommendedPhotos.isEmpty()) {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp),
-                                contentAlignment = Alignment.Center
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(120.dp),
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     text = "No recommendations available",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         } else {
@@ -724,11 +764,11 @@ private fun AIRecommendationSection(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.heightIn(max = maxHeight),
-                                userScrollEnabled = true
+                                userScrollEnabled = true,
                             ) {
                                 items(
                                     count = recommendedPhotos.size,
-                                    key = { index -> recommendedPhotos[index].photoId }
+                                    key = { index -> recommendedPhotos[index].photoId },
                                 ) { index ->
                                     val photo = recommendedPhotos[index]
                                     PhotoSelectableItem(
@@ -737,7 +777,7 @@ private fun AIRecommendationSection(
                                         isSelectionMode = false,
                                         onClick = { onPhotoClick(photo) },
                                         onLongClick = {},
-                                        modifier = Modifier.aspectRatio(1f)
+                                        modifier = Modifier.aspectRatio(1f),
                                     )
                                 }
                             }
@@ -745,28 +785,31 @@ private fun AIRecommendationSection(
                     }
                     is RecommendState.Error, is RecommendState.NetworkError -> {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Text(
-                                text = when (recommendState) {
-                                    is RecommendState.Error ->
-                                        (recommendState as RecommendState.Error).message
-                                    is RecommendState.NetworkError ->
-                                        (recommendState as RecommendState.NetworkError).message
-                                    else -> "Unknown error"
-                                },
+                                text =
+                                    when (recommendState) {
+                                        is RecommendState.Error ->
+                                            (recommendState as RecommendState.Error).message
+                                        is RecommendState.NetworkError ->
+                                            (recommendState as RecommendState.NetworkError).message
+                                        else -> "Unknown error"
+                                    },
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error
+                                color = MaterialTheme.colorScheme.error,
                             )
                             Button(
                                 onClick = onRetry,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary
-                                )
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                    ),
                             ) {
                                 Text("Retry")
                             }

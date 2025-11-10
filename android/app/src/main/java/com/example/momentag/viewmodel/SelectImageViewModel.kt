@@ -7,8 +7,8 @@ import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
-import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.PhotoSelectionRepository
+import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -145,13 +145,16 @@ class SelectImageViewModel(
         viewModelScope.launch {
             _recommendState.value = RecommendState.Loading
 
-            when (val result = recommendRepository.recommendPhotosFromPhotos(
-                selectedPhotos.value.map { it.photoId }
-            )) {
+            when (
+                val result =
+                    recommendRepository.recommendPhotosFromPhotos(
+                        selectedPhotos.value.map { it.photoId },
+                    )
+            ) {
                 is RecommendRepository.RecommendResult.Success -> {
                     val photos = localRepository.toPhotos(result.data)
                     _recommendState.value = RecommendState.Success(photos = photos)
-                    
+
                     // Update recommended photos, filtering out already selected ones
                     updateRecommendedPhotos(photos)
                 }
@@ -190,7 +193,11 @@ class SelectImageViewModel(
     /**
      * Handle photo click in main grid
      */
-    fun handlePhotoClick(photo: Photo, isSelectionMode: Boolean, onNavigate: (Photo) -> Unit) {
+    fun handlePhotoClick(
+        photo: Photo,
+        isSelectionMode: Boolean,
+        onNavigate: (Photo) -> Unit,
+    ) {
         if (isSelectionMode) {
             togglePhoto(photo)
             // Remove from recommended if it was there
@@ -235,8 +242,7 @@ class SelectImageViewModel(
     /**
      * Check if a photo is selected
      */
-    fun isPhotoSelected(photo: Photo): Boolean =
-        selectedPhotos.value.any { it.photoId == photo.photoId }
+    fun isPhotoSelected(photo: Photo): Boolean = selectedPhotos.value.any { it.photoId == photo.photoId }
 
     /**
      * Set gallery browsing session for image navigation

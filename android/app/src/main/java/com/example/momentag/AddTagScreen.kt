@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -186,7 +185,7 @@ fun AddTagScreen(navController: NavController) {
             )
 
             Box(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             ) {
                 Column(
                     modifier =
@@ -225,10 +224,11 @@ fun AddTagScreen(navController: NavController) {
 
                 // Bottom Section - Floating
                 Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
                 ) {
                     // Error Banner - Floating above Done button
                     if (showErrorBanner && saveState is AddTagViewModel.SaveState.Error) {
@@ -238,7 +238,7 @@ fun AddTagScreen(navController: NavController) {
                             onActionClick = { },
                             onDismiss = { showErrorBanner = false },
                             showActionButton = false,
-                            showDismissButton = true
+                            showDismissButton = true,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -247,7 +247,7 @@ fun AddTagScreen(navController: NavController) {
                     if (isChanged) {
                         val isFormValid = selectedPhotos.isNotEmpty() && tagName.isNotBlank()
                         val canSubmit = isFormValid && saveState != AddTagViewModel.SaveState.Loading
-                        
+
                         Button(
                             onClick = {
                                 addTagViewModel.saveTagAndPhotos()
@@ -255,16 +255,18 @@ fun AddTagScreen(navController: NavController) {
                             shape = RoundedCornerShape(24.dp),
                             colors =
                                 ButtonDefaults.buttonColors(
-                                    containerColor = if (isFormValid) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    },
-                                    contentColor = if (isFormValid) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
+                                    containerColor =
+                                        if (isFormValid) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        },
+                                    contentColor =
+                                        if (isFormValid) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
                                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 ),
@@ -275,7 +277,7 @@ fun AddTagScreen(navController: NavController) {
                                     .shadow(
                                         elevation = if (canSubmit) 6.dp else 2.dp,
                                         shape = RoundedCornerShape(24.dp),
-                                        clip = false
+                                        clip = false,
                                     ),
                             enabled = canSubmit,
                         ) {
@@ -286,25 +288,27 @@ fun AddTagScreen(navController: NavController) {
                         }
                     }
                 }
-                
+
                 // Full Screen Loading Overlay
                 if (saveState == AddTagViewModel.SaveState.Loading) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .shadow(
-                                    elevation = 8.dp,
-                                    shape = CircleShape,
-                                    clip = false
-                                ),
+                            modifier =
+                                Modifier
+                                    .size(56.dp)
+                                    .shadow(
+                                        elevation = 8.dp,
+                                        shape = CircleShape,
+                                        clip = false,
+                                    ),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 5.dp
+                            strokeWidth = 5.dp,
                         )
                     }
                 }
@@ -351,9 +355,8 @@ private fun TabItem(
                 .shadow(
                     elevation = if (isSelected) 4.dp else 2.dp,
                     shape = RoundedCornerShape(24.dp),
-                    clip = false
-                )
-                .clip(RoundedCornerShape(24.dp))
+                    clip = false,
+                ).clip(RoundedCornerShape(24.dp))
                 .background(
                     if (isSelected) {
                         MaterialTheme.colorScheme.primaryContainer
@@ -520,8 +523,11 @@ private fun CheckboxOverlay(
                 .size(24.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(
-                    if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                    },
                 ),
         contentAlignment = Alignment.Center,
     ) {
