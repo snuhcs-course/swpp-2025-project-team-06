@@ -248,6 +248,115 @@ fun ErrorOverlay(
     }
 }
 
+@Composable
+fun confirmDialog(
+    title: String,
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: (() -> Unit)? = null,
+    confirmButtonText: String,
+    dismissible: Boolean = false,
+) {
+    Dialog(
+        onDismissRequest = {
+            if (dismissible) {
+                onDismiss?.invoke()
+            }
+        },
+        properties =
+            DialogProperties(
+                dismissOnBackPress = dismissible,
+                dismissOnClickOutside = dismissible,
+                usePlatformDefaultWidth = false,
+            ),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+            )
+
+            Card(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.85f)
+                        .padding(32.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = title,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.padding(bottom = 16.dp),
+                        )
+
+                        Text(
+                            text = message,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 24.dp),
+                        )
+
+                        Button(
+                            onClick = onConfirm,
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color.Red,
+                                ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                        ) {
+                            Text(
+                                text = confirmButtonText,
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    }
+
+                    if (onDismiss != null) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color.Gray,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ========================================
 // 프리뷰
 // ========================================
