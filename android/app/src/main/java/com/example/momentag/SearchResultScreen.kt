@@ -84,8 +84,8 @@ fun SearchResultScreen(
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
     val searchHistory by searchViewModel.searchHistory.collectAsState()
     val searchText by searchViewModel.searchText.collectAsState()
+    val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
 
-    var isSelectionMode by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
     var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
@@ -93,7 +93,7 @@ fun SearchResultScreen(
     val focusManager = LocalFocusManager.current
 
     BackHandler(enabled = isSelectionMode) {
-        isSelectionMode = false
+        searchViewModel.setSelectionMode(false)
         searchViewModel.resetSelection()
     }
 
@@ -102,16 +102,16 @@ fun SearchResultScreen(
         isSelectionModeDelay = isSelectionMode
     }
 
-    // TODO : make it work (select mode remain for backstack of create tag)
     val navBackStackEntry = navController.currentBackStackEntry
 
     LaunchedEffect(navBackStackEntry) {
-        navBackStackEntry?.savedStateHandle
-            ?.getLiveData<Boolean>("tagCreationComplete")
+        navBackStackEntry
+            ?.savedStateHandle
+            ?.getLiveData<Boolean>("selectionModeComplete")
             ?.observe(navBackStackEntry) { isSuccess ->
                 if (isSuccess) {
-                    isSelectionMode = false
-                    navBackStackEntry.savedStateHandle.remove<Boolean>("tagCreationComplete")
+                    searchViewModel.setSelectionMode(false)
+                    navBackStackEntry.savedStateHandle.remove<Boolean>("selectionModeComplete")
                 }
             }
     }
@@ -180,14 +180,14 @@ fun SearchResultScreen(
                                 ).show()
 
                             showMenu = false
-                            isSelectionMode = false
+                            searchViewModel.setSelectionMode(false)
                             searchViewModel.resetSelection()
                         },
                     )
                     DropdownMenuItem(
                         text = { Text("Cancel") },
                         onClick = {
-                            isSelectionMode = false
+                            searchViewModel.setSelectionMode(false)
                             searchViewModel.resetSelection()
                             showMenu = false
                         },
@@ -196,7 +196,7 @@ fun SearchResultScreen(
                     DropdownMenuItem(
                         text = { Text("Select") },
                         onClick = {
-                            isSelectionMode = true
+                            searchViewModel.setSelectionMode(true)
                             showMenu = false
                         },
                     )
@@ -211,7 +211,7 @@ fun SearchResultScreen(
         onSearchSubmit = {
             if (searchText.isNotEmpty()) {
                 if (isSelectionMode) {
-                    isSelectionMode = false
+                    searchViewModel.setSelectionMode(false)
                     searchViewModel.resetSelection()
                 }
                 searchViewModel.search(searchText)
@@ -223,7 +223,7 @@ fun SearchResultScreen(
         selectedPhotos = selectedPhotos,
         onBackClick = onNavigateBack,
         onToggleSelectionMode = {
-            isSelectionMode = !isSelectionMode
+            searchViewModel.setSelectionMode(!isSelectionMode)
             if (!isSelectionMode) {
                 searchViewModel.resetSelection()
             }
@@ -233,7 +233,7 @@ fun SearchResultScreen(
         },
         onImageLongPress = {
             if (!isSelectionMode) {
-                isSelectionMode = true
+                searchViewModel.setSelectionMode(true)
             }
         },
         onCreateTagClick = {
@@ -241,7 +241,7 @@ fun SearchResultScreen(
             val currentState = uiState as? SearchUiState.Success
             if (currentState != null) {
                 // photo selection already stored in draftRepository
-                isSelectionMode = false // TODO : remove it
+                // isSelectionMode = false
                 navController.navigate(Screen.MyTags.route)
             }
         },

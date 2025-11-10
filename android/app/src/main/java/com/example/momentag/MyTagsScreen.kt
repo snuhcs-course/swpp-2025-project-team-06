@@ -107,14 +107,14 @@ fun MyTagsScreen(navController: NavController) {
     var showErrorBanner by remember { mutableStateOf(false) }
 
     BackHandler {
-        myTagsViewModel.clearDraft()
+        // myTagsViewModel.clearDraft()
         navController.popBackStack()
     }
 
     LaunchedEffect(saveState) {
         when (saveState) {
             is MyTagsViewModel.SaveState.Success -> {
-                navController.previousBackStackEntry?.savedStateHandle?.set("tagCreationComplete", true)
+                navController.previousBackStackEntry?.savedStateHandle?.set("selectionModeComplete", true)
                 myTagsViewModel.clearDraft()
                 myTagsViewModel.refreshTags()
             }
@@ -182,6 +182,7 @@ fun MyTagsScreen(navController: NavController) {
                 // Create New Tag 버튼
                 Button(
                     onClick = {
+                        navController.previousBackStackEntry?.savedStateHandle?.set("selectionModeComplete", true)
                         navController.navigate(Screen.AddTag.route)
                     },
                     modifier =
