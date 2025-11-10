@@ -306,14 +306,6 @@ fun SelectImageScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Add to #$tagName",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 // Pictures Header with count
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -321,7 +313,7 @@ fun SelectImageScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Pictures",
+                        text = "Add to #$tagName",
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineLarge,
                     )
