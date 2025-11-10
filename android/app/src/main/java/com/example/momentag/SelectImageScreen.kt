@@ -13,6 +13,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,19 +27,19 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -64,10 +65,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -89,6 +93,14 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 @Composable
 fun SelectImageScreen(navController: NavController) {
     var isRecommendationExpanded by remember { mutableStateOf(false) }
+
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+
+    // 사용자가 조절 가능한 패널 높이
+    val minHeight = 200.dp
+    val maxHeight = (configuration.screenHeightDp * 0.6f).dp
+    var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
 
     val context = LocalContext.current
 
@@ -354,7 +366,10 @@ fun SelectImageScreen(navController: NavController) {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 200.dp),
+                        contentPadding =
+                            PaddingValues(
+                                bottom = if (isRecommendationExpanded) panelHeight + 80.dp else 200.dp,
+                            ),
                     ) {
                         items(
                             count = allPhotos.size,
@@ -398,58 +413,94 @@ fun SelectImageScreen(navController: NavController) {
                 }
             }
 
-            // AI Recommendation Section - Floating on top
-            Column(
+            // AI Recommendation Section - 축소/확장 가능
+            AnimatedVisibility(
+                visible = !isRecommendationExpanded,
+                enter =
+                    fadeIn(
+                        androidx.compose.animation.core
+                            .tween(300),
+                    ) +
+                        expandVertically(
+                            androidx.compose.animation.core
+                                .tween(300),
+                        ),
+                exit =
+                    fadeOut(
+                        androidx.compose.animation.core
+                            .tween(300),
+                    ) +
+                        shrinkVertically(
+                            androidx.compose.animation.core
+                                .tween(300),
+                        ),
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 8.dp),
+                        .padding(bottom = 80.dp),
             ) {
-                AIRecommendationSection(
-                    isExpanded = isRecommendationExpanded,
-                    onToggleExpanded = { isRecommendationExpanded = !isRecommendationExpanded },
+                // 축소 상태: 화면 하단 중앙 칩
+                RecommendChip(
                     recommendState = recommendState,
-                    recommendedPhotos = recommendedPhotos,
-                    onPhotoClick = onRecommendedPhotoClick,
-                    onRetry = { selectImageViewModel.recommendPhoto() },
+                    onExpand = { isRecommendationExpanded = true },
                 )
+            }
 
-                // Done Button - 숨김 처리 (AI Recommendation이 확장되지 않았을 때만 표시)
-                if (!isRecommendationExpanded) {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = {
-                            navController.navigate(Screen.AddTag.route) {
-                                popUpTo(Screen.AddTag.route) { inclusive = true }
-                            }
+            if (isRecommendationExpanded) {
+                Box(
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                ) {
+                    // 확장 상태: 하단 패널
+                    RecommendExpandedPanel(
+                        recommendState = recommendState,
+                        recommendedPhotos = recommendedPhotos,
+                        onPhotoClick = onRecommendedPhotoClick,
+                        onRetry = { selectImageViewModel.recommendPhoto() },
+                        panelHeight = panelHeight,
+                        minHeight = minHeight,
+                        maxHeight = maxHeight,
+                        onHeightChange = { delta ->
+                            panelHeight = (panelHeight - delta).coerceIn(minHeight, maxHeight)
                         },
-                        shape = RoundedCornerShape(24.dp),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        onCollapse = { isRecommendationExpanded = false },
+                    )
+                }
+            }
+
+            // Done Button - AI Recommendation이 확장되지 않았을 때만 표시
+            if (!isRecommendationExpanded) {
+                Button(
+                    onClick = {
+                        navController.navigate(Screen.AddTag.route) {
+                            popUpTo(Screen.AddTag.route) { inclusive = true }
+                        }
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 8.dp)
+                            .height(52.dp)
+                            .shadow(
+                                elevation = if (selectedPhotos.isNotEmpty()) 6.dp else 2.dp,
+                                shape = RoundedCornerShape(24.dp),
+                                clip = false,
                             ),
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(52.dp)
-                                .shadow(
-                                    elevation = if (selectedPhotos.isNotEmpty()) 6.dp else 2.dp,
-                                    shape = RoundedCornerShape(24.dp),
-                                    clip = false,
-                                ),
-                        enabled = selectedPhotos.isNotEmpty(),
-                    ) {
-                        Text(
-                            text = "Add Pic to Tag",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
+                    enabled = selectedPhotos.isNotEmpty(),
+                ) {
+                    Text(
+                        text = "Add Pic to Tag",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
             }
         }
@@ -588,151 +639,209 @@ private fun PhotoSelectableItem(
 }
 
 @Composable
-private fun AIRecommendationSection(
-    isExpanded: Boolean,
-    onToggleExpanded: () -> Unit,
+private fun RecommendChip(
     recommendState: RecommendState,
-    recommendedPhotos: List<Photo>,
-    onPhotoClick: (Photo) -> Unit,
-    onRetry: () -> Unit,
+    onExpand: () -> Unit,
 ) {
-    val configuration = LocalConfiguration.current
-    val maxHeight = (configuration.screenHeightDp / 3).dp
-
-    Column(
+    Row(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    clip = false,
-                ).clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-                .padding(16.dp),
+                .shadow(elevation = 4.dp, shape = RoundedCornerShape(20.dp))
+                .background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(20.dp),
+                ).clip(RoundedCornerShape(20.dp))
+                .clickable(onClick = onExpand)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
-        // Header
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onToggleExpanded),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // AI 아이콘 또는 로딩/체크 표시
-                when (recommendState) {
-                    is RecommendState.Loading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 3.dp,
-                        )
-                    }
-                    is RecommendState.Success -> {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Completed",
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    }
-                    else -> {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = "AI",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
-                        }
-                    }
-                }
-
+        when (recommendState) {
+            is RecommendState.Loading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text =
-                        when (recommendState) {
-                            is RecommendState.Loading -> "AI Recommending..."
-                            is RecommendState.Success -> "AI Recommended"
-                            is RecommendState.Error -> "AI Recommendation Failed"
-                            is RecommendState.NetworkError -> "Network Error"
-                            else -> "AI Recommendation"
-                        },
+                    text = "AI Recommending...",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-
-            Icon(
-                imageVector =
-                    if (isExpanded) {
-                        Icons.Default.KeyboardArrowUp
-                    } else {
-                        Icons.Default.KeyboardArrowDown
-                    },
-                contentDescription = if (isExpanded) "Collapse" else "Expand",
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
+            is RecommendState.Success -> {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = "AI",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "AI Recommend",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            is RecommendState.Error, is RecommendState.NetworkError -> {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = "Error",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Recommendation Failed",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            else -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Preparing...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
 
-        // Content
-        AnimatedVisibility(
-            visible = isExpanded,
-            enter =
-                fadeIn(
-                    animationSpec =
-                        androidx.compose.animation.core
-                            .tween(300),
-                ) +
-                    expandVertically(
-                        animationSpec =
-                            androidx.compose.animation.core
-                                .tween(300),
-                    ),
-            exit =
-                fadeOut(
-                    animationSpec =
-                        androidx.compose.animation.core
-                            .tween(300),
-                ) +
-                    shrinkVertically(
-                        animationSpec =
-                            androidx.compose.animation.core
-                                .tween(300),
-                    ),
-        ) {
-            Column(modifier = Modifier.padding(top = 16.dp)) {
+        Spacer(modifier = Modifier.width(4.dp))
+        Icon(
+            imageVector = Icons.Default.ExpandLess,
+            contentDescription = "Expand",
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun RecommendExpandedPanel(
+    recommendState: RecommendState,
+    recommendedPhotos: List<Photo>,
+    onPhotoClick: (Photo) -> Unit,
+    onRetry: () -> Unit,
+    panelHeight: Dp,
+    minHeight: Dp,
+    maxHeight: Dp,
+    onHeightChange: (Dp) -> Unit,
+    onCollapse: () -> Unit,
+) {
+    val density = LocalDensity.current
+
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(panelHeight)
+                .shadow(elevation = 8.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+    ) {
+        Column {
+            // Drag Handle
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures { change, dragAmount ->
+                                change.consume()
+                                with(density) {
+                                    onHeightChange(dragAmount.toDp())
+                                }
+                            }
+                        },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .width(40.dp)
+                            .height(4.dp)
+                            .background(
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                RoundedCornerShape(2.dp),
+                            ),
+                )
+            }
+
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    // 왼쪽: AI Recommend 텍스트
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        when (recommendState) {
+                            is RecommendState.Loading -> {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            }
+                            is RecommendState.Success -> {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = "AI",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                            else -> {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = "AI",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "AI Recommend",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+
+                    // 오른쪽: 닫기 버튼
+                    IconButton(onClick = onCollapse) {
+                        Icon(
+                            imageVector = Icons.Default.ExpandMore,
+                            contentDescription = "Collapse",
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Grid
                 when (recommendState) {
                     is RecommendState.Loading -> {
                         Box(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(120.dp),
+                                    .weight(1f),
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(40.dp),
-                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(48.dp),
                                 strokeWidth = 4.dp,
                             )
                         }
@@ -743,12 +852,11 @@ private fun AIRecommendationSection(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .height(120.dp),
+                                        .weight(1f),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = "No recommendations available",
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    "No recommendations available",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -757,7 +865,7 @@ private fun AIRecommendationSection(
                                 columns = GridCells.Fixed(3),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.heightIn(max = maxHeight),
+                                modifier = Modifier.weight(1f),
                                 userScrollEnabled = true,
                             ) {
                                 items(
@@ -782,22 +890,21 @@ private fun AIRecommendationSection(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
+                                    .weight(1f),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.Center,
                         ) {
                             Text(
                                 text =
                                     when (recommendState) {
-                                        is RecommendState.Error ->
-                                            (recommendState as RecommendState.Error).message
-                                        is RecommendState.NetworkError ->
-                                            (recommendState as RecommendState.NetworkError).message
+                                        is RecommendState.Error -> recommendState.message
+                                        is RecommendState.NetworkError -> recommendState.message
                                         else -> "Unknown error"
                                     },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error,
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
                             Button(
                                 onClick = onRetry,
                                 colors =
@@ -809,7 +916,17 @@ private fun AIRecommendationSection(
                             }
                         }
                     }
-                    else -> {}
+                    else -> {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
                 }
             }
         }
