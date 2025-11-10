@@ -465,7 +465,7 @@ fun HomeScreen(navController: NavController) {
             if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
-                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Create with ${selectedPhotos.size}" else "Create Tag",
+                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Add Tag with ${selectedPhotos.size}" else "Create Tag",
                     onClick = {
                         // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
                         // SearchResultScreen과 동일한 패턴

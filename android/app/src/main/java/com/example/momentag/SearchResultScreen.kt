@@ -476,7 +476,7 @@ private fun SearchResultContent(
                         Modifier
                             .align(Alignment.BottomEnd)
                             .padding(start = 16.dp),
-                    text = "Create Tag",
+                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Add Tag with ${selectedPhotos.size}" else "Create Tag",
                     enabled = !isSelectionMode || selectedPhotos.isNotEmpty(),
                     onClick = {
                         if (!isSelectionMode) {
