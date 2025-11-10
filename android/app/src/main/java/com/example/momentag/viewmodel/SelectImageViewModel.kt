@@ -131,7 +131,7 @@ class SelectImageViewModel(
 
                             // Remove duplicates before adding
                             val uniqueNewPhotos = newPhotos.filter { it.photoId !in existingIds }
-                            
+
                             withContext(Dispatchers.Main) {
                                 _allPhotos.value = _allPhotos.value + uniqueNewPhotos
                             }
@@ -218,10 +218,16 @@ class SelectImageViewModel(
 
     /**
      * Add photo from recommendation and update recommended list
+     * Also moves the photo to the front of allPhotos list
      */
     fun addPhotoFromRecommendation(photo: Photo) {
         addPhoto(photo)
         _recommendedPhotos.value = _recommendedPhotos.value.filter { it.photoId != photo.photoId }
+
+        // Move photo to the front of allPhotos list
+        val currentPhotos = _allPhotos.value.toMutableList()
+        currentPhotos.removeAll { it.photoId == photo.photoId }
+        _allPhotos.value = listOf(photo) + currentPhotos
     }
 
     /**
