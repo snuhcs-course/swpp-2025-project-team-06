@@ -50,6 +50,9 @@ class SelectImageViewModel(
     private val _isSelectionMode = MutableStateFlow(true)
     val isSelectionMode = _isSelectionMode.asStateFlow()
 
+    private val _recommendedPhotos = MutableStateFlow<List<Photo>>(emptyList())
+    val recommendedPhotos: StateFlow<List<Photo>> = _recommendedPhotos.asStateFlow()
+
     val lazyGridState = LazyGridState()
 
     private var currentOffset = 0
@@ -146,9 +149,11 @@ class SelectImageViewModel(
                 selectedPhotos.value.map { it.photoId }
             )) {
                 is RecommendRepository.RecommendResult.Success -> {
-                    _recommendState.value = RecommendState.Success(
-                        photos = localRepository.toPhotos(result.data),
-                    )
+                    val photos = localRepository.toPhotos(result.data)
+                    _recommendState.value = RecommendState.Success(photos = photos)
+                    
+                    // Update recommended photos, filtering out already selected ones
+                    updateRecommendedPhotos(photos)
                 }
                 is RecommendRepository.RecommendResult.Error -> {
                     _recommendState.value = RecommendState.Error(result.message)
@@ -163,6 +168,46 @@ class SelectImageViewModel(
                     _recommendState.value = RecommendState.Error(result.message)
                 }
             }
+        }
+    }
+
+    /**
+     * Update recommended photos, filtering out selected ones
+     */
+    private fun updateRecommendedPhotos(photos: List<Photo>) {
+        val selectedPhotoIds = selectedPhotos.value.map { it.photoId }.toSet()
+        _recommendedPhotos.value = photos.filter { it.photoId !in selectedPhotoIds }
+    }
+
+    /**
+     * Add photo from recommendation and update recommended list
+     */
+    fun addPhotoFromRecommendation(photo: Photo) {
+        addPhoto(photo)
+        _recommendedPhotos.value = _recommendedPhotos.value.filter { it.photoId != photo.photoId }
+    }
+
+    /**
+     * Handle photo click in main grid
+     */
+    fun handlePhotoClick(photo: Photo, isSelectionMode: Boolean, onNavigate: (Photo) -> Unit) {
+        if (isSelectionMode) {
+            togglePhoto(photo)
+            // Remove from recommended if it was there
+            _recommendedPhotos.value = _recommendedPhotos.value.filter { it.photoId != photo.photoId }
+        } else {
+            setGalleryBrowsingSession()
+            onNavigate(photo)
+        }
+    }
+
+    /**
+     * Handle long click to enter selection mode
+     */
+    fun handleLongClick(photo: Photo) {
+        if (!_isSelectionMode.value) {
+            setSelectionMode(true)
+            togglePhoto(photo)
         }
     }
 
