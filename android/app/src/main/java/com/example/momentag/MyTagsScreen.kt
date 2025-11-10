@@ -21,11 +21,17 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,23 +40,27 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -63,16 +73,23 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.viewmodel.MyTagsViewModel
+import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MyTagsScreen(navController: NavController) {
     val context = LocalContext.current
     val viewModel: MyTagsViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val uiState by viewModel.uiState.collectAsState()
     val isEditMode by viewModel.isEditMode.collectAsState()
+    val sortOrder by viewModel.sortOrder.collectAsState()
+
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState()
+    var showSortSheet by remember { mutableStateOf(false) }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var tagToDelete by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -90,6 +107,15 @@ fun MyTagsScreen(navController: NavController) {
                 onBackClick = { navController.popBackStack() },
                 actions = {
                     if (currentState is MyTagsUiState.Success && currentState.tags.isNotEmpty()) {
+                        // Sort Button
+                        IconButton(onClick = { showSortSheet = true }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = "Sort",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        // Edit Button
                         IconButton(onClick = { viewModel.toggleEditMode() }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -320,6 +346,25 @@ fun MyTagsScreen(navController: NavController) {
             },
         )
     }
+
+    // 정렬 옵션 Bottom Sheet
+    if (showSortSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showSortSheet = false },
+            sheetState = sheetState,
+        ) {
+            SortOptionsSheet(
+                currentOrder = sortOrder,
+                onOrderChange = { newOrder ->
+                    viewModel.setSortOrder(newOrder)
+                    scope.launch {
+                        sheetState.hide()
+                        showSortSheet = false
+                    }
+                },
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -391,7 +436,7 @@ private fun MyTagsContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    tags.forEachIndexed { index, tagData ->
+                    tags.forEach { tagData ->
                         TagChipWithCount(
                             tagName = tagData.tagName,
                             count = tagData.count,
@@ -501,3 +546,85 @@ private val tagColors =
     )
 
 private fun getTagColor(tagId: String): Color = tagColors[abs(tagId.hashCode()) % tagColors.size]
+
+@Composable
+private fun SortOptionsSheet(
+    currentOrder: TagSortOrder,
+    onOrderChange: (TagSortOrder) -> Unit,
+) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        Text(
+            "정렬 기준",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+
+        SortOptionItem(
+            text = "이름 (가나다순)",
+            icon = Icons.Default.ArrowUpward,
+            isSelected = currentOrder == TagSortOrder.NAME_ASC,
+            onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
+        )
+        SortOptionItem(
+            text = "이름 (가나다 역순)",
+            icon = Icons.Default.ArrowDownward,
+            isSelected = currentOrder == TagSortOrder.NAME_DESC,
+            onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
+        )
+        SortOptionItem(
+            text = "최근 추가 순",
+            icon = Icons.Default.FiberNew,
+            isSelected = currentOrder == TagSortOrder.CREATED_DESC,
+            onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
+        )
+        SortOptionItem(
+            text = "항목 많은 순",
+            icon = Icons.Default.ArrowUpward,
+            isSelected = currentOrder == TagSortOrder.COUNT_DESC,
+            onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
+        )
+        SortOptionItem(
+            text = "항목 적은 순",
+            icon = Icons.Default.ArrowDownward,
+            isSelected = currentOrder == TagSortOrder.COUNT_ASC,
+            onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
+        )
+    }
+}
+
+@Composable
+private fun SortOptionItem(
+    text: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}

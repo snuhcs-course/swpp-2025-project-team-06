@@ -19,6 +19,11 @@ class MyTagsViewModel(
     private val _isEditMode = MutableStateFlow(false)
     val isEditMode: StateFlow<Boolean> = _isEditMode.asStateFlow()
 
+    private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
+    val sortOrder: StateFlow<TagSortOrder> = _sortOrder.asStateFlow()
+
+    private var allTags: List<TagCntData> = emptyList()
+
     init {
         loadTags()
     }
@@ -36,7 +41,7 @@ class MyTagsViewModel(
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: getAllTags() Success - ${result.data.size} tags")
 
-                    val tags =
+                    allTags =
                         result.data.map { tagResponse ->
                             TagCntData(
                                 tagId = tagResponse.tagId,
@@ -45,8 +50,8 @@ class MyTagsViewModel(
                             )
                         }
 
-                    println("MyTagsViewModel: Final tags count = ${tags.size}")
-                    _uiState.value = MyTagsUiState.Success(tags)
+                    println("MyTagsViewModel: Final tags count = ${allTags.size}")
+                    applySorting()
                 }
 
                 is RemoteRepository.Result.Error -> {
@@ -75,6 +80,23 @@ class MyTagsViewModel(
                 }
             }
         }
+    }
+
+    fun setSortOrder(order: TagSortOrder) {
+        _sortOrder.value = order
+        applySorting()
+    }
+
+    private fun applySorting() {
+        val sortedTags =
+            when (_sortOrder.value) {
+                TagSortOrder.NAME_ASC -> allTags.sortedBy { it.tagName }
+                TagSortOrder.NAME_DESC -> allTags.sortedByDescending { it.tagName }
+                TagSortOrder.CREATED_DESC -> allTags // 서버에서 최근순으로 옴
+                TagSortOrder.COUNT_DESC -> allTags.sortedByDescending { it.count }
+                TagSortOrder.COUNT_ASC -> allTags.sortedBy { it.count }
+            }
+        _uiState.value = MyTagsUiState.Success(sortedTags)
     }
 
     fun refreshTags() {
