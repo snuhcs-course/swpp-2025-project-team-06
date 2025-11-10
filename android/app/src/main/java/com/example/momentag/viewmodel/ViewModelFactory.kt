@@ -112,10 +112,16 @@ class ViewModelFactory private constructor(
                 PhotoViewModel(remoteRepository, localRepository, albumUploadJobCount) as T
             }
             modelClass.isAssignableFrom(AddTagViewModel::class.java) -> {
-                AddTagViewModel(photoSelectionRepository, recommendRepository, localRepository, remoteRepository) as T
+                AddTagViewModel(photoSelectionRepository, localRepository, remoteRepository) as T
             }
             modelClass.isAssignableFrom(SelectImageViewModel::class.java) -> {
-                SelectImageViewModel(photoSelectionRepository, localRepository, remoteRepository, imageBrowserRepository, recommendRepository) as T
+                SelectImageViewModel(
+                    photoSelectionRepository,
+                    localRepository,
+                    remoteRepository,
+                    imageBrowserRepository,
+                    recommendRepository,
+                ) as T
             }
             modelClass.isAssignableFrom(AlbumViewModel::class.java) -> {
                 AlbumViewModel(localRepository, remoteRepository, recommendRepository, imageBrowserRepository) as T

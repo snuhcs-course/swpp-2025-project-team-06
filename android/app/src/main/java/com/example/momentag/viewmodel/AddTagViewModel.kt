@@ -3,10 +3,8 @@ package com.example.momentag.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
-import com.example.momentag.model.RecommendState
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoSelectionRepository
-import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,15 +21,12 @@ import kotlinx.coroutines.launch
  */
 class AddTagViewModel(
     private val photoSelectionRepository: PhotoSelectionRepository,
-    private val recommendRepository: RecommendRepository,
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
 ) : ViewModel() {
     // Expose repository state as read-only flows
     val tagName: StateFlow<String> = photoSelectionRepository.tagName
     val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
-    private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
-    val recommendState = _recommendState.asStateFlow()
 
     sealed class SaveState {
         object Idle : SaveState()
@@ -85,36 +80,6 @@ class AddTagViewModel(
      */
     fun clearDraft() {
         photoSelectionRepository.clear()
-    }
-
-    fun recommendPhoto() {
-        viewModelScope.launch {
-            _recommendState.value = RecommendState.Loading
-
-            when (val result = recommendRepository.recommendPhotosFromPhotos(selectedPhotos.value.map { it.photoId })) {
-                is RecommendRepository.RecommendResult.Success -> {
-                    _recommendState.value =
-                        RecommendState.Success(
-                            photos = localRepository.toPhotos(result.data),
-                        )
-                }
-                is RecommendRepository.RecommendResult.Error -> {
-                    _recommendState.value = RecommendState.Error(result.message)
-                }
-
-                is RecommendRepository.RecommendResult.Unauthorized -> {
-                    _recommendState.value = RecommendState.Error("Please login again")
-                }
-
-                is RecommendRepository.RecommendResult.NetworkError -> {
-                    _recommendState.value = RecommendState.NetworkError(result.message)
-                }
-
-                is RecommendRepository.RecommendResult.BadRequest -> {
-                    _recommendState.value = RecommendState.Error(result.message)
-                }
-            }
-        }
     }
 
     fun saveTagAndPhotos() {
