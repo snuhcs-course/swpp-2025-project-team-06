@@ -109,6 +109,7 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
+import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.SearchBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
@@ -156,6 +157,9 @@ fun HomeScreen(navController: NavController) {
 
     val groupedPhotos by homeViewModel.groupedPhotos.collectAsState()
     val allPhotos by homeViewModel.allPhotos.collectAsState()
+
+    var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+    var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
@@ -287,6 +291,11 @@ fun HomeScreen(navController: NavController) {
         homeViewModel.resetSelection()
     }
 
+    BackHandler(enabled = showDeleteConfirmationDialog) {
+        showDeleteConfirmationDialog = false
+        tagToDeleteInfo = null
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, hasPermission) {
         val observer =
@@ -305,363 +314,397 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            CommonTopBar(
-                title = "#MomenTag",
-                onTitleClick = {
-                    navController.navigate(Screen.LocalGallery.route)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                CommonTopBar(
+                    title = "#MomenTag",
+                    onTitleClick = {
+                        navController.navigate(Screen.LocalGallery.route)
+                    },
+                    showLogout = true,
+                    onLogoutClick = { authViewModel.logout() },
+                    isLogoutLoading = logoutState is LogoutState.Loading,
+                    actions = {
+                        // 태그 앨범 뷰(!showAllPhotos)에서는 선택 모드 버튼을 표시하지 않음
+                        if (showAllPhotos && groupedPhotos.isNotEmpty()) {
+                            Box {
+                                IconButton(onClick = { showMenu = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "More options",
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showMenu,
+                                    onDismissRequest = { showMenu = false },
+                                ) {
+                                    if (isSelectionModeDelay) {
+                                        DropdownMenuItem(
+                                            text = { Text("Share") },
+                                            onClick = {
+                                                val photos = homeViewModel.getPhotosToShare()
+                                                ShareUtils.sharePhotos(context, photos)
+
+                                                Toast
+                                                    .makeText(
+                                                        context,
+                                                        "Share ${photos.size} photo(s)",
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+
+                                                homeViewModel.resetSelection()
+                                                showMenu = false
+                                            },
+                                            enabled = selectedPhotos.isNotEmpty(),
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Cancel") },
+                                            onClick = {
+                                                isSelectionMode = false
+                                                homeViewModel.resetSelection()
+                                                showMenu = false
+                                            },
+                                        )
+                                    } else {
+                                        DropdownMenuItem(
+                                            text = { Text("Select") },
+                                            onClick = {
+                                                isSelectionMode = true
+                                                homeViewModel.resetSelection()
+                                                showMenu = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    },
+                )
+            },
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    snackbar = { data ->
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = data.visuals.message,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier =
+                                    Modifier
+                                        .background(
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                            RoundedCornerShape(20.dp),
+                                        ).padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                    },
+                )
+            },
+            bottomBar = {
+                BottomNavBar(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                WindowInsets.navigationBars
+                                    .only(WindowInsetsSides.Bottom)
+                                    .asPaddingValues(),
+                            ),
+                    currentTab = currentTab,
+                    onTabSelected = { tab ->
+                        currentTab = tab
+
+                        when (tab) {
+                            BottomTab.HomeScreen -> {
+                                // 이미 홈 화면
+                            }
+
+                            BottomTab.SearchResultScreen -> {
+                                homeViewModel.resetSelection()
+                                navController.navigate(Screen.SearchResult.initialRoute())
+                            }
+
+                            BottomTab.MyTagsScreen -> {
+                                homeViewModel.resetSelection()
+                                navController.navigate(Screen.MyTags.route)
+                            }
+
+                            BottomTab.StoryScreen -> {
+                                homeViewModel.resetSelection()
+                                navController.navigate(Screen.Story.route)
+                            }
+                        }
+                    },
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            floatingActionButton = {
+                // 태그 앨범 뷰(!showAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
+                if (showAllPhotos && groupedPhotos.isNotEmpty()) {
+                    CreateTagButton(
+                        modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
+                        text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Create with ${selectedPhotos.size}" else "Create Tag",
+                        onClick = {
+                            // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
+                            // SearchResultScreen과 동일한 패턴
+                            isSelectionMode = false
+                            navController.navigate(Screen.AddTag.route)
+                        },
+                    )
+                }
+            },
+        ) { paddingValues ->
+            PullToRefreshBox(
+                isRefreshing = homeLoadingState is HomeViewModel.HomeLoadingState.Loading || isLoadingPhotos,
+                onRefresh = {
+                    if (hasPermission) {
+                        isDeleteMode = false
+                        homeViewModel.loadServerTags()
+                        homeViewModel.loadAllPhotos() // 서버 사진도 새로고침
+                    }
                 },
-                showLogout = true,
-                onLogoutClick = { authViewModel.logout() },
-                isLogoutLoading = logoutState is LogoutState.Loading,
-                actions = {
-                    // 태그 앨범 뷰(!showAllPhotos)에서는 선택 모드 버튼을 표시하지 않음
-                    if (showAllPhotos && groupedPhotos.isNotEmpty()) {
-                        Box {
-                            IconButton(onClick = { showMenu = true }) {
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+            ) {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Search Bar with Filter Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SearchBar(
+                            onSearch = { query ->
+                                if (query.isNotEmpty()) {
+                                    navController.navigate(Screen.SearchResult.createRoute(query))
+                                    focusManager.clearFocus()
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(
+                            onClick = {
+                                // TODO: Show filter dialog
+                                Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier =
+                                Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(12.dp),
+                                    ),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Filter",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // "태그 앨범" 뷰일 때만 정렬 버튼 표시
+                        if (!showAllPhotos) {
+                            IconButton(onClick = { scope.launch { sheetState.show() } }) {
                                 Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "More options",
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = "Sort Tag Albums",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false },
-                            ) {
-                                if (isSelectionModeDelay) {
-                                    DropdownMenuItem(
-                                        text = { Text("Share") },
-                                        onClick = {
-                                            val photos = homeViewModel.getPhotosToShare()
-                                            ShareUtils.sharePhotos(context, photos)
+                        } else {
+                            // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
+                            Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
+                        }
+                        ViewToggle(
+                            onlyTag = onlyTag,
+                            showAllPhotos = showAllPhotos,
+                            onToggle = { tagOnly, allPhotos ->
+                                onlyTag = tagOnly
+                                showAllPhotos = allPhotos
+                                if (isSelectionMode) {
+                                    isSelectionMode = false
+                                    homeViewModel.resetSelection() // draftRepository 초기화
+                                }
+                            },
+                        )
+                    }
 
-                                            Toast
-                                                .makeText(
-                                                    context,
-                                                    "Share ${photos.size} photo(s)",
-                                                    Toast.LENGTH_SHORT,
-                                                ).show()
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
-                                        enabled = selectedPhotos.isNotEmpty(),
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Cancel") },
-                                        onClick = {
-                                            isSelectionMode = false
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
-                                    )
-                                } else {
-                                    DropdownMenuItem(
-                                        text = { Text("Select") },
-                                        onClick = {
-                                            isSelectionMode = true
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
-                                    )
+                    if (!hasPermission) {
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
+                        }
+                    } else if (isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        val tagItems =
+                            (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags
+                                ?: emptyList()
+
+                        val listState = if (showAllPhotos) rememberLazyGridState() else null
+
+                        MainContent(
+                            modifier = Modifier.weight(1f),
+                            onlyTag = onlyTag, // Pass the actual state
+                            showAllPhotos = showAllPhotos, // Pass the actual state
+                            tagItems = tagItems, // Pass the loaded tags
+                            groupedPhotos = groupedPhotos,
+                            navController = navController,
+                            onDeleteClick = { tagId ->
+                                val tagItem =
+                                    (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags?.find { it.tagId == tagId }
+                                if (tagItem != null) {
+                                    tagToDeleteInfo = Pair(tagItem.tagId, tagItem.tagName)
+                                    showDeleteConfirmationDialog = true
+                                    isDeleteMode = false
+                                }
+                            },
+                            isDeleteMode = isDeleteMode,
+                            onEnterDeleteMode = { isDeleteMode = true },
+                            onExitDeleteMode = { isDeleteMode = false },
+                            isSelectionMode = isSelectionMode,
+                            onEnterSelectionMode = { isSelectionMode = true },
+                            selectedItems = selectedPhotos.map { it.photoId }.toSet(),
+                            onItemSelectionToggle = { photoId ->
+                                val photo = allPhotos.find { it.photoId == photoId }
+                                photo?.let { homeViewModel.togglePhoto(it) }
+                            },
+                            homeViewModel = homeViewModel,
+                            lazyGridState = listState,
+                            isLoadingMorePhotos = isLoadingMorePhotos,
+                            isLoadingPhotos = false, // 이 블록은 로딩이 끝났을 때만 실행됨
+                            homeLoadingState = homeLoadingState, // Success 또는 Error 상태 전달
+                        )
+
+                        // 페이지네이션 로직을 MainContent 밖으로 이동
+                        if (showAllPhotos && listState != null) {
+                            LaunchedEffect(listState, isLoadingMorePhotos) {
+                                // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
+                                if (!isLoadingMorePhotos) {
+                                    snapshotFlow {
+                                        listState.layoutInfo.visibleItemsInfo
+                                            .lastOrNull()
+                                            ?.index
+                                    }.distinctUntilChanged() // 같은 값이 연속으로 올 때 필터링
+                                        .debounce(150) // 빠른 스크롤 시 150ms 대기 후 처리 렉 방지
+                                        .collect { lastVisibleIndex ->
+                                            val totalItemCount = groupedPhotos.size + allPhotos.size
+                                            if (lastVisibleIndex != null && totalItemCount > 0) {
+                                                val remainingItems =
+                                                    totalItemCount - (lastVisibleIndex + 1)
+                                                // 3열 그리드 기준, 약 11줄(33개) 미만일 때 로드
+                                                if (remainingItems < 33) {
+                                                    homeViewModel.loadMorePhotos()
+                                                }
+                                            }
+                                        }
                                 }
                             }
                         }
                     }
-                },
-            )
-        },
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                snackbar = { data ->
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = data.visuals.message,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.bodyMedium,
+
+                    if (showAllPhotos && isLoadingMorePhotos) {
+                        Box(
                             modifier =
                                 Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                        RoundedCornerShape(20.dp),
-                                    ).padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                    }
-                },
-            )
-        },
-        bottomBar = {
-            BottomNavBar(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            WindowInsets.navigationBars
-                                .only(WindowInsetsSides.Bottom)
-                                .asPaddingValues(),
-                        ),
-                currentTab = currentTab,
-                onTabSelected = { tab ->
-                    currentTab = tab
-
-                    when (tab) {
-                        BottomTab.HomeScreen -> {
-                            // 이미 홈 화면
-                        }
-                        BottomTab.SearchResultScreen -> {
-                            homeViewModel.resetSelection()
-                            navController.navigate(Screen.SearchResult.initialRoute())
-                        }
-                        BottomTab.MyTagsScreen -> {
-                            homeViewModel.resetSelection()
-                            navController.navigate(Screen.MyTags.route)
-                        }
-                        BottomTab.StoryScreen -> {
-                            homeViewModel.resetSelection()
-                            navController.navigate(Screen.Story.route)
-                        }
-                    }
-                },
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.surface,
-        floatingActionButton = {
-            // 태그 앨범 뷰(!showAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
-            if (showAllPhotos && groupedPhotos.isNotEmpty()) {
-                CreateTagButton(
-                    modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
-                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Create with ${selectedPhotos.size}" else "Create Tag",
-                    onClick = {
-                        // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
-                        // SearchResultScreen과 동일한 패턴
-                        isSelectionMode = false
-                        navController.navigate(Screen.AddTag.route)
-                    },
-                )
-            }
-        },
-    ) { paddingValues ->
-        PullToRefreshBox(
-            isRefreshing = homeLoadingState is HomeViewModel.HomeLoadingState.Loading || isLoadingPhotos,
-            onRefresh = {
-                if (hasPermission) {
-                    isDeleteMode = false
-                    homeViewModel.loadServerTags()
-                    homeViewModel.loadAllPhotos() // 서버 사진도 새로고침
-                }
-            },
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-        ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-            ) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Search Bar with Filter Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SearchBar(
-                        onSearch = { query ->
-                            if (query.isNotEmpty()) {
-                                navController.navigate(Screen.SearchResult.createRoute(query))
-                                focusManager.clearFocus()
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(
-                        onClick = {
-                            // TODO: Show filter dialog
-                            Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier =
-                            Modifier
-                                .size(48.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(12.dp),
-                                ),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FilterList,
-                            contentDescription = "Filter",
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // "태그 앨범" 뷰일 때만 정렬 버튼 표시
-                    if (!showAllPhotos) {
-                        IconButton(onClick = { scope.launch { sheetState.show() } }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = "Sort Tag Albums",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(32.dp),
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
-                    } else {
-                        // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
-                        Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
                     }
-                    ViewToggle(
-                        onlyTag = onlyTag,
-                        showAllPhotos = showAllPhotos,
-                        onToggle = { tagOnly, allPhotos ->
-                            onlyTag = tagOnly
-                            showAllPhotos = allPhotos
-                            if (isSelectionMode) {
-                                isSelectionMode = false
-                                homeViewModel.resetSelection() // draftRepository 초기화
-                            }
-                        },
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (!hasPermission) {
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
-                    }
-                } else if (isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
-
-                    val listState = if (showAllPhotos) rememberLazyGridState() else null
-
-                    MainContent(
-                        modifier = Modifier.weight(1f),
-                        onlyTag = onlyTag, // Pass the actual state
-                        showAllPhotos = showAllPhotos, // Pass the actual state
-                        tagItems = tagItems, // Pass the loaded tags
-                        groupedPhotos = groupedPhotos,
-                        navController = navController,
-                        onDeleteClick = { tagId ->
-                            homeViewModel.deleteTag(tagId)
-                        },
-                        isDeleteMode = isDeleteMode,
-                        onEnterDeleteMode = { isDeleteMode = true },
-                        onExitDeleteMode = { isDeleteMode = false },
-                        isSelectionMode = isSelectionMode,
-                        onEnterSelectionMode = { isSelectionMode = true },
-                        selectedItems = selectedPhotos.map { it.photoId }.toSet(),
-                        onItemSelectionToggle = { photoId ->
-                            val photo = allPhotos.find { it.photoId == photoId }
-                            photo?.let { homeViewModel.togglePhoto(it) }
-                        },
-                        homeViewModel = homeViewModel,
-                        lazyGridState = listState,
-                        isLoadingMorePhotos = isLoadingMorePhotos,
-                        isLoadingPhotos = false, // 이 블록은 로딩이 끝났을 때만 실행됨
-                        homeLoadingState = homeLoadingState, // Success 또는 Error 상태 전달
-                    )
-
-                    // 페이지네이션 로직을 MainContent 밖으로 이동
-                    if (showAllPhotos && listState != null) {
-                        LaunchedEffect(listState, isLoadingMorePhotos) {
-                            // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
-                            if (!isLoadingMorePhotos) {
-                                snapshotFlow {
-                                    listState.layoutInfo.visibleItemsInfo
-                                        .lastOrNull()
-                                        ?.index
-                                }.distinctUntilChanged() // 같은 값이 연속으로 올 때 필터링
-                                    .debounce(150) // 빠른 스크롤 시 150ms 대기 후 처리 렉 방지
-                                    .collect { lastVisibleIndex ->
-                                        val totalItemCount = groupedPhotos.size + allPhotos.size
-                                        if (lastVisibleIndex != null && totalItemCount > 0) {
-                                            val remainingItems = totalItemCount - (lastVisibleIndex + 1)
-                                            // 3열 그리드 기준, 약 11줄(33개) 미만일 때 로드
-                                            if (remainingItems < 33) {
-                                                homeViewModel.loadMorePhotos()
-                                            }
-                                        }
-                                    }
-                            }
+                    AnimatedVisibility(visible = bannerVisible) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            WarningBanner(
+                                title = "업로드 진행 중 🚀",
+                                message = "사진을 백그라운드에서 업로드하고 있습니다.",
+                                onActionClick = { },
+                                showActionButton = false,
+                                backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
+                                icon = Icons.Default.Upload,
+                                showDismissButton = true,
+                                onDismiss = {
+                                    isUploadBannerDismissed = true
+                                },
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
-                    }
-                }
-
-                if (showAllPhotos && isLoadingMorePhotos) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(32.dp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-                AnimatedVisibility(visible = bannerVisible) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        WarningBanner(
-                            title = "업로드 진행 중 🚀",
-                            message = "사진을 백그라운드에서 업로드하고 있습니다.",
-                            onActionClick = { },
-                            showActionButton = false,
-                            backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
-                            icon = Icons.Default.Upload,
-                            showDismissButton = true,
-                            onDismiss = {
-                                isUploadBannerDismissed = true
-                            },
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
         }
-    }
 
-    if (sheetState.isVisible) {
-        ModalBottomSheet(
-            onDismissRequest = { scope.launch { sheetState.hide() } },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ) {
-            SortOptionsSheet(
-                currentOrder = currentSortOrder,
-                onOrderChange = { newOrder ->
-                    homeViewModel.setSortOrder(newOrder)
-                    scope.launch { sheetState.hide() }
+        if (showDeleteConfirmationDialog && tagToDeleteInfo != null) {
+            val (tagId, tagName) = tagToDeleteInfo!!
+
+            ErrorOverlay(
+                modifier = Modifier.fillMaxSize(),
+                errorMessage = "'$tagName' 태그를 삭제하시겠습니까?",
+                onRetry = {
+                    homeViewModel.deleteTag(tagId)
+                    showDeleteConfirmationDialog = false
+                    tagToDeleteInfo = null
                 },
+                onDismiss = {
+                    showDeleteConfirmationDialog = false
+                    tagToDeleteInfo = null
+                },
+                title = "태그 삭제",
+                retryButtonText = "Delete Tag"
             )
+        }
+
+        if (sheetState.isVisible) {
+            ModalBottomSheet(
+                onDismissRequest = { scope.launch { sheetState.hide() } },
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ) {
+                SortOptionsSheet(
+                    currentOrder = currentSortOrder,
+                    onOrderChange = { newOrder ->
+                        homeViewModel.setSortOrder(newOrder)
+                        scope.launch { sheetState.hide() }
+                    },
+                )
+            }
         }
     }
 }
