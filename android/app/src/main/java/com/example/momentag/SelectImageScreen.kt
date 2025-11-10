@@ -175,12 +175,7 @@ fun SelectImageScreen(navController: NavController) {
     // Re-recommend when AI recommendation is collapsed after adding photos
     // Only re-recommend if recommendation was successful before
     LaunchedEffect(isRecommendationExpanded) {
-        if (!isRecommendationExpanded && 
-            selectedPhotos.isNotEmpty() && 
-            recommendState is RecommendState.Success
-        ) {
-            // Background 작업으로 지연 실행
-            kotlinx.coroutines.delay(300L)
+        if (!isRecommendationExpanded && selectedPhotos.isNotEmpty()) {
             selectImageViewModel.recommendPhoto()
         }
     }
