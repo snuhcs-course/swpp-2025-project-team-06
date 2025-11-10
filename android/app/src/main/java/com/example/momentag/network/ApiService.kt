@@ -136,10 +136,13 @@ interface ApiService {
         @Path("tag_id") tagId: String,
     ): Response<List<PhotoResponse>>
 
-    @GET("api/stories/")
-    suspend fun getStories(
+    @POST("api/new-stories/")
+    suspend fun generateStories(
         @Query("size") size: Int,
-    ): Response<StoryResponse>
+    ): Response<Unit>
+
+    @GET("api/new-stories/")
+    suspend fun getStories(): Response<List<StoryResponse>>
 
     @POST("api/photos/recommendation/")
     suspend fun recommendPhotosFromPhotos(

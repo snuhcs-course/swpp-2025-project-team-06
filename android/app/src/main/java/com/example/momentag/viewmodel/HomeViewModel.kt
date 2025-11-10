@@ -7,6 +7,7 @@ import com.example.momentag.model.TagItem
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoSelectionRepository
+import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,9 +34,16 @@ enum class TagSortOrder {
 class HomeViewModel(
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
+    private val recommendRepository: RecommendRepository,
     private val photoSelectionRepository: PhotoSelectionRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
 ) : ViewModel() {
+    companion object {
+        // Flag to track if stories have been generated in this app session
+        @Volatile
+        private var storiesGeneratedThisSession = false
+    }
+
     sealed class HomeLoadingState {
         object Idle : HomeLoadingState()
 
@@ -322,5 +330,23 @@ class HomeViewModel(
 
     fun resetDeleteState() {
         _homeDeleteState.value = HomeDeleteState.Idle
+    }
+
+    /**
+     * Pre-generate stories once per app session
+     * This is called from HomeScreen on app launch
+     */
+    fun preGenerateStoriesOnce() {
+        // Check if already generated this session
+        if (storiesGeneratedThisSession) {
+            android.util.Log.d("HomeViewModel", "Stories already generated this session, skipping")
+            return
+        }
+
+        viewModelScope.launch {
+            recommendRepository.generateStories(20)
+            storiesGeneratedThisSession = true
+            android.util.Log.d("HomeViewModel", "Story pre-generation triggered (once per session)")
+        }
     }
 }

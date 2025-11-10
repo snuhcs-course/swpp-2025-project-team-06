@@ -8,6 +8,7 @@ import com.example.momentag.model.StoryTagSubmissionState
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -58,30 +59,60 @@ class StoryViewModel(
     // Track current stories list for pagination
     private val currentStories = mutableListOf<StoryModel>()
 
+    // Track polling job for story generation
+    private var pollingJob: Job? = null
+
     /**
-     * Load initial stories
+     * Trigger story generation in the background (for pre-loading)
+     * This is called from HomeScreen to prepare stories before user navigates to StoryScreen
+     * @param size Number of stories to generate
+     */
+    fun preGenerateStories(size: Int) {
+        viewModelScope.launch {
+            recommendRepository.generateStories(size)
+            android.util.Log.d("StoryViewModel", "Pre-generation of $size stories triggered")
+        }
+    }
+
+    /**
+     * Load initial stories - fetches pre-generated stories and triggers next batch generation
      * @param size Number of stories to fetch
      */
     fun loadStories(size: Int) {
         viewModelScope.launch {
             _storyState.value = StoryState.Loading
 
-            when (val result = recommendRepository.getStories(size)) {
-                is RecommendRepository.RecommendResult.Success -> {
-                    val photoResponses = result.data
-                    val photos = localRepository.toPhotos(photoResponses)
+            when (val result = recommendRepository.getStories()) {
+                is RecommendRepository.StoryResult.Success -> {
+                    val storyResponses = result.data
+
+                    val photos =
+                        localRepository.toPhotos(
+                            storyResponses.map { story ->
+                                com.example.momentag.model.PhotoResponse(
+                                    photoId = story.photoId,
+                                    photoPathId = story.photoPathId,
+                                    createdAt = "",
+                                )
+                            },
+                        )
 
                     if (photos.isEmpty()) {
                         _storyState.value = StoryState.Success(emptyList(), 0, false)
+                        // Still trigger next generation
+                        preGenerateStories(size)
                         return@launch
                     }
 
                     // Convert photos to StoryModels with metadata
                     val stories =
                         photos.mapIndexed { index, photo ->
-                            val photoResponse = photoResponses[index]
-                            val date = localRepository.getPhotoDate(photoResponse.photoPathId)
-                            val location = localRepository.getPhotoLocation(photoResponse.photoPathId)
+                            val story = storyResponses[index]
+                            val date = localRepository.getPhotoDate(story.photoPathId)
+                            val location = localRepository.getPhotoLocation(story.photoPathId)
+
+                            // Pre-populate suggested tags from the API response
+                            val suggestedTags = story.tags.map { it.tagName }
 
                             StoryModel(
                                 id = photo.photoId,
@@ -89,7 +120,7 @@ class StoryViewModel(
                                 images = listOf(photo.contentUri.toString()),
                                 date = date,
                                 location = location,
-                                suggestedTags = emptyList(),
+                                suggestedTags = suggestedTags + "+",
                             )
                         }
 
@@ -100,23 +131,30 @@ class StoryViewModel(
                         StoryState.Success(
                             stories = stories,
                             currentIndex = 0,
-                            hasMore = stories.size == size,
+                            hasMore = true, // Enable pagination
                         )
+
+                    // Trigger next batch generation
+                    preGenerateStories(size)
                 }
 
-                is RecommendRepository.RecommendResult.NetworkError -> {
+                is RecommendRepository.StoryResult.NotReady -> {
+                    _storyState.value = StoryState.Error("Stories are not ready yet. Please try again in a moment.")
+                }
+
+                is RecommendRepository.StoryResult.NetworkError -> {
                     _storyState.value = StoryState.NetworkError(result.message)
                 }
 
-                is RecommendRepository.RecommendResult.Unauthorized -> {
+                is RecommendRepository.StoryResult.Unauthorized -> {
                     _storyState.value = StoryState.Error("Please login again")
                 }
 
-                is RecommendRepository.RecommendResult.BadRequest -> {
+                is RecommendRepository.StoryResult.BadRequest -> {
                     _storyState.value = StoryState.Error(result.message)
                 }
 
-                is RecommendRepository.RecommendResult.Error -> {
+                is RecommendRepository.StoryResult.Error -> {
                     _storyState.value = StoryState.Error(result.message)
                 }
             }
@@ -124,7 +162,7 @@ class StoryViewModel(
     }
 
     /**
-     * Load more stories for pagination
+     * Load more stories for pagination - fetches pre-generated stories and triggers next batch
      * @param size Number of additional stories to fetch
      */
     fun loadMoreStories(size: Int) {
@@ -132,10 +170,20 @@ class StoryViewModel(
         if (currentState !is StoryState.Success) return
 
         viewModelScope.launch {
-            when (val result = recommendRepository.getStories(size)) {
-                is RecommendRepository.RecommendResult.Success -> {
-                    val photoResponses = result.data
-                    val photos = localRepository.toPhotos(photoResponses)
+            when (val result = recommendRepository.getStories()) {
+                is RecommendRepository.StoryResult.Success -> {
+                    val photoDetailResponses = result.data
+
+                    val photos =
+                        localRepository.toPhotos(
+                            photoDetailResponses.map { story ->
+                                com.example.momentag.model.PhotoResponse(
+                                    photoId = story.photoId,
+                                    photoPathId = story.photoPathId,
+                                    createdAt = "",
+                                )
+                            },
+                        )
 
                     if (photos.isEmpty()) {
                         _storyState.value =
@@ -148,9 +196,12 @@ class StoryViewModel(
                     // Convert photos to StoryModels with metadata
                     val newStories =
                         photos.mapIndexed { index, photo ->
-                            val photoResponse = photoResponses[index]
-                            val date = localRepository.getPhotoDate(photoResponse.photoPathId)
-                            val location = localRepository.getPhotoLocation(photoResponse.photoPathId)
+                            val photoDetail = photoDetailResponses[index]
+                            val date = localRepository.getPhotoDate(photoDetail.photoPathId)
+                            val location = localRepository.getPhotoLocation(photoDetail.photoPathId)
+
+                            // Pre-populate suggested tags from the API response
+                            val suggestedTags = photoDetail.tags.map { it.tagName }
 
                             StoryModel(
                                 id = photo.photoId,
@@ -158,7 +209,7 @@ class StoryViewModel(
                                 images = listOf(photo.contentUri.toString()),
                                 date = date,
                                 location = location,
-                                suggestedTags = emptyList(),
+                                suggestedTags = suggestedTags + "+",
                             )
                         }
 
@@ -167,14 +218,22 @@ class StoryViewModel(
                     _storyState.value =
                         currentState.copy(
                             stories = currentStories.toList(),
-                            hasMore = newStories.size == size,
+                            hasMore = true, // Always has more since we keep pre-generating
                         )
+
+                    // Trigger next batch generation
+                    preGenerateStories(size)
                 }
 
-                is RecommendRepository.RecommendResult.NetworkError,
-                is RecommendRepository.RecommendResult.Unauthorized,
-                is RecommendRepository.RecommendResult.BadRequest,
-                is RecommendRepository.RecommendResult.Error,
+                is RecommendRepository.StoryResult.NotReady -> {
+                    // Stories not ready yet, keep hasMore = true so user can try again
+                    android.util.Log.d("StoryViewModel", "More stories not ready yet")
+                }
+
+                is RecommendRepository.StoryResult.NetworkError,
+                is RecommendRepository.StoryResult.Unauthorized,
+                is RecommendRepository.StoryResult.BadRequest,
+                is RecommendRepository.StoryResult.Error,
                 -> {
                     // Silently fail for pagination - don't disrupt current state
                 }

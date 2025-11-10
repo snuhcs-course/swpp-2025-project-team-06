@@ -94,7 +94,7 @@ class ViewModelFactory private constructor(
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
         when {
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
-                HomeViewModel(localRepository, remoteRepository, photoSelectionRepository, imageBrowserRepository) as T
+                HomeViewModel(localRepository, remoteRepository, recommendRepository, photoSelectionRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(LocalViewModel::class.java) -> {
                 LocalViewModel(localRepository, imageBrowserRepository, albumUploadSuccessEvent) as T
