@@ -4,8 +4,10 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
+import com.example.momentag.model.RecommendState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,12 +22,14 @@ import kotlinx.coroutines.launch
  * - Delegates state management to PhotoSelectionRepository
  * - Provides convenient methods for photo selection
  * - Shares draft tag state with AddTagScreen through repository
+ * - Now includes AI recommendation functionality
  */
 class SelectImageViewModel(
     private val photoSelectionRepository: PhotoSelectionRepository,
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
+    private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
     // Expose repository state as read-only flows
     val tagName: StateFlow<String> = photoSelectionRepository.tagName
@@ -39,6 +43,9 @@ class SelectImageViewModel(
 
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
+    val recommendState: StateFlow<RecommendState> = _recommendState.asStateFlow()
 
     private val _isSelectionMode = MutableStateFlow(true)
     val isSelectionMode = _isSelectionMode.asStateFlow()
@@ -62,14 +69,14 @@ class SelectImageViewModel(
                     is RemoteRepository.Result.Success -> {
                         val serverPhotos = localRepository.toPhotos(result.data)
 
-                        // 이미 선택된 사진들을 맨 앞에 배치
+                        // Place already selected photos at the front
                         val selected = selectedPhotos.value
                         val selectedIds = selected.map { it.photoId }.toSet()
 
-                        // 서버에서 가져온 사진 중 선택되지 않은 사진만 추가
+                        // Add only unselected photos from server
                         val unselected = serverPhotos.filter { it.photoId !in selectedIds }
 
-                        // 선택된 사진들 + 서버에서 가져온 나머지 사진들
+                        // Selected photos + remaining photos from server
                         _allPhotos.value = selected + unselected
                         currentOffset = pageSize
                         hasMorePages = serverPhotos.size == pageSize
@@ -100,17 +107,17 @@ class SelectImageViewModel(
                         val newPhotos = localRepository.toPhotos(result.data)
 
                         if (newPhotos.isNotEmpty()) {
-                            // 이미 리스트에 있는 사진 ID들 (선택된 사진 포함)
+                            // Existing photo IDs (including selected photos)
                             val existingIds = _allPhotos.value.map { it.photoId }.toSet()
 
-                            // 중복 제거 후 추가
+                            // Remove duplicates before adding
                             val uniqueNewPhotos = newPhotos.filter { it.photoId !in existingIds }
                             _allPhotos.value = _allPhotos.value + uniqueNewPhotos
 
                             currentOffset += pageSize
                             hasMorePages = newPhotos.size == pageSize
 
-                            // ImageBrowserRepository도 업데이트 (이전/다음 버튼 작동 보장)
+                            // Update ImageBrowserRepository as well (ensure prev/next buttons work)
                             imageBrowserRepository.setGallery(_allPhotos.value)
                         } else {
                             hasMorePages = false
@@ -124,6 +131,37 @@ class SelectImageViewModel(
                 hasMorePages = false
             } finally {
                 _isLoadingMore.value = false
+            }
+        }
+    }
+
+    /**
+     * Recommend photos based on currently selected photos
+     */
+    fun recommendPhoto() {
+        viewModelScope.launch {
+            _recommendState.value = RecommendState.Loading
+
+            when (val result = recommendRepository.recommendPhotosFromPhotos(
+                selectedPhotos.value.map { it.photoId }
+            )) {
+                is RecommendRepository.RecommendResult.Success -> {
+                    _recommendState.value = RecommendState.Success(
+                        photos = localRepository.toPhotos(result.data),
+                    )
+                }
+                is RecommendRepository.RecommendResult.Error -> {
+                    _recommendState.value = RecommendState.Error(result.message)
+                }
+                is RecommendRepository.RecommendResult.Unauthorized -> {
+                    _recommendState.value = RecommendState.Error("Please login again")
+                }
+                is RecommendRepository.RecommendResult.NetworkError -> {
+                    _recommendState.value = RecommendState.NetworkError(result.message)
+                }
+                is RecommendRepository.RecommendResult.BadRequest -> {
+                    _recommendState.value = RecommendState.Error(result.message)
+                }
             }
         }
     }
@@ -152,7 +190,8 @@ class SelectImageViewModel(
     /**
      * Check if a photo is selected
      */
-    fun isPhotoSelected(photo: Photo): Boolean = selectedPhotos.value.any { it.photoId == photo.photoId }
+    fun isPhotoSelected(photo: Photo): Boolean =
+        selectedPhotos.value.any { it.photoId == photo.photoId }
 
     /**
      * Set gallery browsing session for image navigation
