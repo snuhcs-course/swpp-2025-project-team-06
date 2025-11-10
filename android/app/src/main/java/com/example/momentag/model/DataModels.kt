@@ -141,7 +141,7 @@ data class PhotoUploadData(
 data class StoryModel(
     val id: String,
     val photoId: String,
-    val images: List<String>,
+    val images: List<Uri>,
     val date: String,
     val location: String,
     val suggestedTags: List<String>,

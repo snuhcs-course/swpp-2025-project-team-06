@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -28,21 +29,25 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -254,7 +259,7 @@ fun StoryTagSelectionScreen(
                                         val photo =
                                             com.example.momentag.model.Photo(
                                                 photoId = story.photoId,
-                                                contentUri = android.net.Uri.parse(story.images.firstOrNull() ?: ""),
+                                                contentUri = story.images.firstOrNull() ?: android.net.Uri.EMPTY,
                                                 createdAt = "",
                                             )
                                         // Set browsing session
@@ -279,6 +284,9 @@ fun StoryTagSelectionScreen(
                                 isEditMode = isEditMode,
                                 onTagToggle = { tag ->
                                     viewModel.toggleTag(story.id, tag)
+                                },
+                                onAddCustomTag = { customTag ->
+                                    viewModel.addCustomTagToStory(story.id, customTag)
                                 },
                                 onDone = {
                                     viewModel.submitTagsForStory(story.id)
@@ -389,7 +397,7 @@ private fun StoryPageFullBlock(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // 이미지 영역 - 고정 높이로 일관성 유지
             Box(
@@ -397,7 +405,7 @@ private fun StoryPageFullBlock(
                     Modifier
                         .fillMaxWidth()
                         .height(480.dp) // 고정된 높이로 모든 스토리에서 일관된 크기 유지
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { onImageClick() },
                 contentAlignment = Alignment.Center,
@@ -486,6 +494,7 @@ internal fun TagSelectionCard(
     isViewed: Boolean,
     isEditMode: Boolean,
     onTagToggle: (String) -> Unit,
+    onAddCustomTag: (String) -> Unit,
     onDone: () -> Unit,
     onRetry: () -> Unit,
     onEdit: () -> Unit,
@@ -507,7 +516,7 @@ internal fun TagSelectionCard(
             modifier
                 .fillMaxWidth()
                 .wrapContentHeight(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         colors =
             CardDefaults.cardColors(
                 containerColor =
@@ -547,29 +556,27 @@ internal fun TagSelectionCard(
                 modifier = Modifier.padding(bottom = 16.dp),
             ) {
                 tags.forEach { tagText ->
-                    val isAddChip =
-                        (tagText == "+" || tagText == "＋" || tagText == "add")
+                    val isSelected = selectedTags.contains(tagText)
 
-                    if (isAddChip && !isReadOnly) {
-                        AddTagChip(
-                            onClick = {
-                                // TODO: 사용자 새 태그 추가
-                            },
-                        )
-                    } else if (!isAddChip) {
-                        val isSelected = selectedTags.contains(tagText)
+                    StoryTagChip(
+                        text = tagText,
+                        isSelected = isSelected,
+                        onClick = {
+                            if (!isReadOnly) {
+                                onTagToggle(tagText)
+                            }
+                        },
+                        enabled = !isReadOnly,
+                    )
+                }
 
-                        StoryTagChip(
-                            text = tagText,
-                            isSelected = isSelected,
-                            onClick = {
-                                if (!isReadOnly) {
-                                    onTagToggle(tagText)
-                                }
-                            },
-                            enabled = !isReadOnly,
-                        )
-                    }
+                // Always show StoryAddTagChip at the end when not in read-only mode
+                if (!isReadOnly) {
+                    StoryCustomTagChip(
+                        onTagAdded = { customTag ->
+                            onAddCustomTag(customTag)
+                        },
+                    )
                 }
             }
 
@@ -614,25 +621,118 @@ internal fun TagSelectionCard(
 }
 
 @Composable
-internal fun AddTagChip(onClick: () -> Unit) {
-    Box(
-        modifier =
-            Modifier
-                .clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline,
-                    shape = RoundedCornerShape(50),
-                ).clickable { onClick() }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "+",
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-        )
+internal fun StoryCustomTagChip(
+    onTagAdded: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    var tagText by remember { mutableStateOf("") }
+
+    androidx.compose.animation.AnimatedContent(
+        targetState = isExpanded,
+        label = "expand_collapse",
+        modifier = modifier,
+    ) { expanded ->
+        if (!expanded) {
+            // Collapsed state: Show only "+"
+            Box(
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable {
+                            isExpanded = true
+                        }.padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "+",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                )
+            }
+        } else {
+            // Expanded state: Show X, TextField, and Checkmark
+            Row(
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Cancel button (X)
+                IconButton(
+                    onClick = {
+                        isExpanded = false
+                        tagText = ""
+                    },
+                    modifier = Modifier.size(24.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cancel",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+
+                // Text field
+                Spacer(modifier = Modifier.width(4.dp))
+
+                BasicTextField(
+                    value = tagText,
+                    onValueChange = { tagText = it },
+                    modifier =
+                        Modifier
+                            .width(80.dp)
+                            .padding(horizontal = 4.dp),
+                    textStyle =
+                        MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        if (tagText.isEmpty()) {
+                            Text(
+                                text = "Tag name",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        innerTextField()
+                    },
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Confirm button (Checkmark)
+                androidx.compose.material3.IconButton(
+                    onClick = {
+                        if (tagText.isNotBlank()) {
+                            onTagAdded(tagText.trim())
+                            isExpanded = false
+                            tagText = ""
+                        }
+                    },
+                    modifier = Modifier.size(24.dp),
+                    enabled = tagText.isNotBlank(),
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.Check,
+                        contentDescription = "Confirm",
+                        tint =
+                            if (tagText.isNotBlank()) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            },
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -859,6 +959,7 @@ private fun StoryPageFullBlockPreviewContent(
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
+                onAddCustomTag = {},
                 onDone = {},
                 onRetry = {},
                 onEdit = {},
@@ -881,7 +982,7 @@ private fun StoryPageFullBlockPreview() {
             drawableResId = R.drawable.img1,
             date = "2024년 8월 1일",
             location = "서울 특별시",
-            suggestedTags = listOf("#카페", "#친구와", "#디저트", "+"),
+            suggestedTags = listOf("#카페", "#친구와", "#디저트"),
         )
     }
 }

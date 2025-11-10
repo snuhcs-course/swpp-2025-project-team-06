@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.StoryModel
 import com.example.momentag.model.StoryState
 import com.example.momentag.model.StoryTagSubmissionState
+import com.example.momentag.model.Tag
+import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
@@ -26,8 +28,8 @@ import kotlinx.coroutines.launch
 class StoryViewModel(
     private val recommendRepository: RecommendRepository,
     private val localRepository: LocalRepository,
-    private val remoteRepository: com.example.momentag.repository.RemoteRepository,
-    private val imageBrowserRepository: com.example.momentag.repository.ImageBrowserRepository,
+    private val remoteRepository: RemoteRepository,
+    private val imageBrowserRepository: ImageBrowserRepository,
 ) : ViewModel() {
     private val _storyState = MutableStateFlow<StoryState>(StoryState.Idle)
     val storyState = _storyState.asStateFlow()
@@ -50,7 +52,7 @@ class StoryViewModel(
 
     // Track original submitted tags for diff calculation: Map<storyId, List<Tag>>
     // For new stories, this will be empty list
-    private val _originalTags = MutableStateFlow<Map<String, List<com.example.momentag.model.Tag>>>(emptyMap())
+    private val _originalTags = MutableStateFlow<Map<String, List<Tag>>>(emptyMap())
     val originalTags = _originalTags.asStateFlow()
 
     // Cache for story tags to avoid duplicate API calls: Map<storyId, List<tagName>>
@@ -58,9 +60,6 @@ class StoryViewModel(
 
     // Track current stories list for pagination
     private val currentStories = mutableListOf<StoryModel>()
-
-    // Track polling job for story generation
-    private var pollingJob: Job? = null
 
     /**
      * Trigger story generation in the background (for pre-loading)
@@ -117,10 +116,10 @@ class StoryViewModel(
                             StoryModel(
                                 id = photo.photoId,
                                 photoId = photo.photoId,
-                                images = listOf(photo.contentUri.toString()),
+                                images = listOf(photo.contentUri),
                                 date = date,
                                 location = location,
-                                suggestedTags = suggestedTags + "+",
+                                suggestedTags = suggestedTags,
                             )
                         }
 
@@ -206,10 +205,10 @@ class StoryViewModel(
                             StoryModel(
                                 id = photo.photoId,
                                 photoId = photo.photoId,
-                                images = listOf(photo.contentUri.toString()),
+                                images = listOf(photo.contentUri),
                                 date = date,
                                 location = location,
-                                suggestedTags = suggestedTags + "+",
+                                suggestedTags = suggestedTags,
                             )
                         }
 
@@ -300,7 +299,7 @@ class StoryViewModel(
             val updatedStories =
                 currentState.stories.map { story ->
                     if (story.id == storyId) {
-                        story.copy(suggestedTags = tags + "+")
+                        story.copy(suggestedTags = tags)
                     } else {
                         story
                     }
@@ -314,6 +313,39 @@ class StoryViewModel(
                 currentState.copy(
                     stories = updatedStories,
                 )
+        }
+    }
+
+    /**
+     * Add a custom tag to a story's suggested tags
+     * @param storyId Story ID
+     * @param tagName Custom tag name to add
+     */
+    fun addCustomTagToStory(
+        storyId: String,
+        tagName: String,
+    ) {
+        val currentState = _storyState.value
+        if (currentState is StoryState.Success) {
+            val updatedStories =
+                currentState.stories.map { story ->
+                    if (story.id == storyId) {
+                        story.copy(suggestedTags = story.suggestedTags + tagName)
+                    } else {
+                        story
+                    }
+                }
+
+            // Update currentStories list
+            currentStories.clear()
+            currentStories.addAll(updatedStories)
+
+            _storyState.value =
+                currentState.copy(
+                    stories = updatedStories,
+                )
+
+            toggleTag(storyId, tagName)
         }
     }
 
