@@ -46,10 +46,11 @@ from .gpu_tasks import (
 )
 from .storage_service import upload_photo, delete_photo
 import logging
-logger = logging.getLogger(__name__)
-
 from config.redis import get_redis
 import json
+
+logger = logging.getLogger(__name__)
+
 
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
