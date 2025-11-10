@@ -1,10 +1,11 @@
 package com.example.momentag
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -16,17 +17,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,9 +50,9 @@ import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
-import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
+import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.SearchBarControlledCustom
@@ -61,6 +60,8 @@ import com.example.momentag.ui.search.components.SearchEmptyStateCustom
 import com.example.momentag.ui.search.components.SearchErrorStateFallbackCustom
 import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
+import com.example.momentag.ui.theme.horizontalArrangement
+import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -79,17 +80,32 @@ fun SearchResultScreen(
     val context = LocalContext.current
     val searchViewModel: SearchViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
-    var searchText by remember { mutableStateOf(initialQuery) }
     val semanticSearchState by searchViewModel.searchState.collectAsState()
-    var isSelectionMode by remember { mutableStateOf(false) }
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
+    val searchHistory by searchViewModel.searchHistory.collectAsState()
+    val searchText by searchViewModel.searchText.collectAsState()
+
+    var isSelectionMode by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
+    var showMenu by remember { mutableStateOf(false) }
+    var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
+
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionMode = false
+        searchViewModel.resetSelection()
+    }
+
+    LaunchedEffect(isSelectionMode) {
+        kotlinx.coroutines.delay(200L) // 0.2초
+        isSelectionModeDelay = isSelectionMode
+    }
 
     val focusManager = LocalFocusManager.current
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
     LaunchedEffect(initialQuery) {
         if (initialQuery.isNotEmpty()) {
+            searchViewModel.onSearchTextChanged(initialQuery)
             searchViewModel.search(initialQuery)
         }
     }
@@ -123,11 +139,67 @@ fun SearchResultScreen(
             }
         }
 
+    val topBarActions = @Composable {
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options",
+                )
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+            ) {
+                if (isSelectionModeDelay) {
+                    DropdownMenuItem(
+                        text = { Text("Share") },
+                        onClick = {
+                            val photos = searchViewModel.getPhotosToShare()
+                            ShareUtils.sharePhotos(context, photos)
+
+                            Toast
+                                .makeText(
+                                    context,
+                                    "Share ${photos.size} photo(s)",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+
+                            showMenu = false
+                            isSelectionMode = false
+                            searchViewModel.resetSelection()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Cancel") },
+                        onClick = {
+                            isSelectionMode = false
+                            searchViewModel.resetSelection()
+                            showMenu = false
+                        },
+                    )
+                } else {
+                    DropdownMenuItem(
+                        text = { Text("Select") },
+                        onClick = {
+                            isSelectionMode = true
+                            showMenu = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+
     SearchResultScreenUi(
         searchText = searchText,
-        onSearchTextChange = { searchText = it },
+        onSearchTextChange = { searchViewModel.onSearchTextChanged(it) },
         onSearchSubmit = {
             if (searchText.isNotEmpty()) {
+                if (isSelectionMode) {
+                    isSelectionMode = false
+                    searchViewModel.resetSelection()
+                }
                 searchViewModel.search(searchText)
                 focusManager.clearFocus()
             }
@@ -170,18 +242,35 @@ fun SearchResultScreen(
             currentTab = tab
             when (tab) {
                 BottomTab.HomeScreen -> {
+                    searchViewModel.resetSelection()
                     navController.navigate(Screen.Home.route)
                 }
                 BottomTab.SearchResultScreen -> {
                     // 이미 Search 화면
                 }
-                BottomTab.AddTagScreen -> {
-                    navController.navigate(Screen.AddTag.route)
+                BottomTab.MyTagsScreen -> {
+                    searchViewModel.resetSelection()
+                    navController.navigate(Screen.MyTags.route)
                 }
                 BottomTab.StoryScreen -> {
+                    searchViewModel.resetSelection()
                     navController.navigate(Screen.Story.route)
                 }
             }
+        },
+        topBarActions =
+            if (uiState is SearchUiState.Success) {
+                topBarActions
+            } else {
+                {}
+            },
+        searchHistory = searchHistory,
+        onHistoryClick = { query ->
+            searchViewModel.onSearchTextChanged(query)
+            searchViewModel.search(query)
+        },
+        onHistoryDelete = { query ->
+            searchViewModel.removeSearchHistory(query)
         },
     )
 }
@@ -208,32 +297,21 @@ fun SearchResultScreenUi(
     navController: NavController,
     currentTab: BottomTab,
     onTabSelected: (BottomTab) -> Unit,
+    topBarActions: @Composable () -> Unit = {},
+    searchHistory: List<String>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = modifier,
             containerColor = MaterialTheme.colorScheme.surface,
             topBar = {
-                val context = LocalContext.current
-                BackTopBar(
+                CommonTopBar(
                     title = "Search Results",
+                    showBackButton = true,
                     onBackClick = onBackClick,
-                    actions = {
-                        if (isSelectionMode && selectedPhotos.isNotEmpty()) {
-                            IconButton(
-                                onClick = {
-                                    ShareUtils.sharePhotos(context, selectedPhotos)
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Share,
-                                    contentDescription = "Share",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                        }
-                    },
+                    actions = topBarActions,
                 )
             },
             bottomBar = {
@@ -269,6 +347,9 @@ fun SearchResultScreenUi(
                 onCreateTagClick = onCreateTagClick,
                 onRetry = onRetry,
                 navController = navController,
+                searchHistory = searchHistory,
+                onHistoryClick = onHistoryClick,
+                onHistoryDelete = onHistoryDelete,
             )
         }
         // TODO : 혹시 네트워크 에러일 때만 오버레이 띄울거면 NetworkError 상태로 바꾸기
@@ -303,6 +384,9 @@ private fun SearchResultContent(
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    searchHistory: List<String>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
 ) {
     Box(modifier = modifier) {
         Column(
@@ -317,7 +401,7 @@ private fun SearchResultContent(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -331,41 +415,8 @@ private fun SearchResultContent(
                         contentDescription = "카메라 아이콘",
                     )
                 }
-
-                if (uiState is SearchUiState.Success && uiState.results.isNotEmpty()) {
-                    Button(
-                        onClick = onToggleSelectionMode,
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor =
-                                    if (isSelectionMode) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerLow
-                                    },
-                                contentColor =
-                                    if (isSelectionMode) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    },
-                            ),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = if (isSelectionMode) "선택 모드 해제" else "선택 모드",
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isSelectionMode) "선택 모드" else "선택",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
             }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Input
@@ -389,6 +440,9 @@ private fun SearchResultContent(
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
                 navController = navController,
+                searchHistory = searchHistory,
+                onHistoryClick = onHistoryClick,
+                onHistoryDelete = onHistoryDelete,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -442,7 +496,7 @@ private fun SearchResultContent(
  */
 @Composable
 private fun SearchResultsFromState(
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
     selectedPhotos: List<Photo>,
@@ -450,16 +504,24 @@ private fun SearchResultsFromState(
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    searchHistory: List<String>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
             is SearchUiState.Idle -> {
-                SearchIdleCustom(Modifier.fillMaxSize())
+                SearchIdleCustom(
+                    history = searchHistory,
+                    onHistoryClick = onHistoryClick,
+                    onHistoryDelete = onHistoryDelete,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
 
             is SearchUiState.Loading -> {
                 SearchLoadingStateCustom(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier,
                     onRefresh = onRetry,
                 )
             }
@@ -467,16 +529,16 @@ private fun SearchResultsFromState(
             is SearchUiState.Empty -> {
                 SearchEmptyStateCustom(
                     query = uiState.query,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier,
                 )
             }
 
             is SearchUiState.Success -> {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = modifier,
+                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
                 ) {
                     items(
                         count = uiState.results.size,
@@ -492,17 +554,14 @@ private fun SearchResultsFromState(
                             onToggleSelection = { onToggleImageSelection(photo) },
                             onLongPress = {
                                 onImageLongPress()
-                                onToggleImageSelection(photo)
                             },
-                            cornerRadius = 12.dp,
-                            topPadding = 0.dp,
                         )
                     }
                 }
             }
 
             is SearchUiState.Error -> {
-                SearchErrorStateFallbackCustom(Modifier.fillMaxSize())
+                SearchErrorStateFallbackCustom(modifier)
             }
         }
     }

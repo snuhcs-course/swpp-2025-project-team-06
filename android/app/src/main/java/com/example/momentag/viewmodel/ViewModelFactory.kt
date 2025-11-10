@@ -103,7 +103,7 @@ class ViewModelFactory private constructor(
                 AuthViewModel(tokenRepository) as T
             }
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
-                SearchViewModel(searchRepository, photoSelectionRepository, localRepository, imageBrowserRepository) as T
+                SearchViewModel(searchRepository, photoSelectionRepository, localRepository, imageBrowserRepository, tokenRepository) as T
             }
             modelClass.isAssignableFrom(ImageDetailViewModel::class.java) -> {
                 ImageDetailViewModel(imageBrowserRepository, remoteRepository, recommendRepository) as T
@@ -122,6 +122,9 @@ class ViewModelFactory private constructor(
             }
             modelClass.isAssignableFrom(StoryViewModel::class.java) -> {
                 StoryViewModel(recommendRepository, localRepository, remoteRepository, imageBrowserRepository) as T
+            }
+            modelClass.isAssignableFrom(MyTagsViewModel::class.java) -> {
+                MyTagsViewModel(remoteRepository) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
