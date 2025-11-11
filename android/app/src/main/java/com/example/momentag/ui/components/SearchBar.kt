@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.model.TagItem
 import kotlinx.coroutines.launch
+import androidx.compose.ui.geometry.Rect
 
 sealed class SearchContentElement {
     abstract val id: String // each element has unique ID
@@ -201,6 +202,9 @@ private fun InternalChipSearchInput(
                     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
                     val scope = rememberCoroutineScope() // bringIntoView 호출용
 
+                    // [신규] 오른쪽에 추가할 패딩을 계산하기 위해 LocalDensity 가져오기
+                    val density = LocalDensity.current
+
                     // --- 텍스트 너비 측정 로직 ---
                     val textValue = textStates[item.id] ?: TextFieldValue()
                     val text = textValue.text.removePrefix("\u200B")
@@ -228,11 +232,24 @@ private fun InternalChipSearchInput(
                             val selectionEnd = textValue.selection.end
 
                             if (selectionEnd in 0..textLength) {
-                                // 3. 커서의 사각형을 계산
+                                // 1. 커서의 사각형을 계산
                                 val cursorRect = layoutResult.getCursorRect(selectionEnd)
+
+                                // 2. [신규] 오른쪽에 추가할 패딩 정의 (예: 16.dp)
+                                val endPaddingDp = 16.dp
+                                val paddingPx = with(density) { endPaddingDp.toPx() }
+
+                                // 3. [신규] 커서 사각형의 오른쪽에 패딩을 더한 '새 가상 사각형' 생성
+                                val rectWithPadding = Rect(
+                                    left = cursorRect.left,
+                                    top = cursorRect.top,
+                                    right = cursorRect.right + paddingPx, // <-- 핵심: 오른쪽으로 16dp 더 넓게
+                                    bottom = cursorRect.bottom
+                                )
+
                                 // 4. 커서를 뷰로 스크롤
                                 scope.launch {
-                                    bringIntoViewRequester.bringIntoView(cursorRect)
+                                    bringIntoViewRequester.bringIntoView(rectWithPadding)
                                 }
                             }
                         }
