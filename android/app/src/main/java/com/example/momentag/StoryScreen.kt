@@ -11,7 +11,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -67,6 +66,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.CustomTagChip
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.StoryTagChip
@@ -162,7 +162,11 @@ fun StoryTagSelectionScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp,
+                            modifier = Modifier.size(24.dp),
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("추억을 불러오는 중...", color = MaterialTheme.colorScheme.onSurface)
                     }
@@ -254,7 +258,7 @@ fun StoryTagSelectionScreen(
                                         val photo =
                                             com.example.momentag.model.Photo(
                                                 photoId = story.photoId,
-                                                contentUri = android.net.Uri.parse(story.images.firstOrNull() ?: ""),
+                                                contentUri = story.images.firstOrNull() ?: android.net.Uri.EMPTY,
                                                 createdAt = "",
                                             )
                                         // Set browsing session
@@ -279,6 +283,9 @@ fun StoryTagSelectionScreen(
                                 isEditMode = isEditMode,
                                 onTagToggle = { tag ->
                                     viewModel.toggleTag(story.id, tag)
+                                },
+                                onAddCustomTag = { customTag ->
+                                    viewModel.addCustomTagToStory(story.id, customTag)
                                 },
                                 onDone = {
                                     viewModel.submitTagsForStory(story.id)
@@ -389,7 +396,7 @@ private fun StoryPageFullBlock(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // 이미지 영역 - 고정 높이로 일관성 유지
             Box(
@@ -397,7 +404,7 @@ private fun StoryPageFullBlock(
                     Modifier
                         .fillMaxWidth()
                         .height(480.dp) // 고정된 높이로 모든 스토리에서 일관된 크기 유지
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { onImageClick() },
                 contentAlignment = Alignment.Center,
@@ -486,6 +493,7 @@ internal fun TagSelectionCard(
     isViewed: Boolean,
     isEditMode: Boolean,
     onTagToggle: (String) -> Unit,
+    onAddCustomTag: (String) -> Unit,
     onDone: () -> Unit,
     onRetry: () -> Unit,
     onEdit: () -> Unit,
@@ -507,7 +515,7 @@ internal fun TagSelectionCard(
             modifier
                 .fillMaxWidth()
                 .wrapContentHeight(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         colors =
             CardDefaults.cardColors(
                 containerColor =
@@ -547,29 +555,27 @@ internal fun TagSelectionCard(
                 modifier = Modifier.padding(bottom = 16.dp),
             ) {
                 tags.forEach { tagText ->
-                    val isAddChip =
-                        (tagText == "+" || tagText == "＋" || tagText == "add")
+                    val isSelected = selectedTags.contains(tagText)
 
-                    if (isAddChip && !isReadOnly) {
-                        AddTagChip(
-                            onClick = {
-                                // TODO: 사용자 새 태그 추가
-                            },
-                        )
-                    } else if (!isAddChip) {
-                        val isSelected = selectedTags.contains(tagText)
+                    StoryTagChip(
+                        text = tagText,
+                        isSelected = isSelected,
+                        onClick = {
+                            if (!isReadOnly) {
+                                onTagToggle(tagText)
+                            }
+                        },
+                        enabled = !isReadOnly,
+                    )
+                }
 
-                        StoryTagChip(
-                            text = tagText,
-                            isSelected = isSelected,
-                            onClick = {
-                                if (!isReadOnly) {
-                                    onTagToggle(tagText)
-                                }
-                            },
-                            enabled = !isReadOnly,
-                        )
-                    }
+                // Always show StoryAddTagChip at the end when not in read-only mode
+                if (!isReadOnly) {
+                    CustomTagChip(
+                        onTagAdded = { customTag ->
+                            onAddCustomTag(customTag)
+                        },
+                    )
                 }
             }
 
@@ -610,29 +616,6 @@ internal fun TagSelectionCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-internal fun AddTagChip(onClick: () -> Unit) {
-    Box(
-        modifier =
-            Modifier
-                .clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline,
-                    shape = RoundedCornerShape(50),
-                ).clickable { onClick() }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "+",
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-        )
     }
 }
 
@@ -859,6 +842,7 @@ private fun StoryPageFullBlockPreviewContent(
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
+                onAddCustomTag = {},
                 onDone = {},
                 onRetry = {},
                 onEdit = {},
@@ -881,7 +865,7 @@ private fun StoryPageFullBlockPreview() {
             drawableResId = R.drawable.img1,
             date = "2024년 8월 1일",
             location = "서울 특별시",
-            suggestedTags = listOf("#카페", "#친구와", "#디저트", "+"),
+            suggestedTags = listOf("#카페", "#친구와", "#디저트"),
         )
     }
 }
