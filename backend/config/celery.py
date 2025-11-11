@@ -20,3 +20,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 app = Celery('config')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
+
+# Import to register worker_process_init signal handler
+from gallery.gpu_tasks import initialize_models  # noqa: F401, E402
