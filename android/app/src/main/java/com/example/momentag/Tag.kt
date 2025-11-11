@@ -426,48 +426,48 @@ fun ConfirmableRecommendedTag(
 
     AnimatedContent(
         targetState = isExpanded,
-        label = "confirmable_recommended_tag"
+        label = "confirmable_recommended_tag",
     ) { expanded ->
         if (expanded) {
             // Expanded state with confirm/dismiss buttons
             Row(
-                modifier = Modifier
-                    .height(32.dp)
-                    .background(
-                        color = color,
-                        shape = RoundedCornerShape(50)
-                    )
-                    .padding(horizontal = 8.dp),
+                modifier =
+                    Modifier
+                        .height(32.dp)
+                        .background(
+                            color = color,
+                            shape = RoundedCornerShape(50),
+                        ).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
                     onClick = { isExpanded = false },
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Dismiss Recommended Tag",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
                 Text(
                     text = tagName,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+                    modifier = Modifier.padding(horizontal = 4.dp),
                 )
                 IconButton(
                     onClick = {
                         onConfirm(tagName)
                         isExpanded = false
                     },
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Confirm Recommended Tag",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }

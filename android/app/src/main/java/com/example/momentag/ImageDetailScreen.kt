@@ -7,14 +7,11 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -34,15 +31,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
@@ -65,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
@@ -76,22 +67,19 @@ import androidx.compose.ui.unit.dp
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.momentag.ConfirmableRecommendedTag
+import com.example.momentag.CustomTagChip
 import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
+import com.example.momentag.tagXMode
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 import java.io.IOException
 import kotlin.math.abs
-import com.example.momentag.CustomTagChip
-import com.example.momentag.ConfirmableRecommendedTag
-import com.example.momentag.tagXMode
-import com.example.momentag.ConfirmableRecommendedTag
-import com.example.momentag.CustomTagChip
-import androidx.compose.ui.graphics.Color
-import kotlin.math.abs
+
 @Composable
 fun ZoomableImage(
     model: Any?,
@@ -606,7 +594,10 @@ private val tagColors =
 
 private fun getTagColor(tagId: String): Color = tagColors[abs(tagId.hashCode()) % tagColors.size]
 
-private fun lightenColor(color: Color, factor: Float = 0.5f): Color {
+private fun lightenColor(
+    color: Color,
+    factor: Float = 0.5f,
+): Color {
     val red = (color.red + (1 - color.red) * factor)
     val green = (color.green + (1 - color.green) * factor)
     val blue = (color.blue + (1 - color.blue) * factor)
@@ -643,18 +634,18 @@ fun TagsSection(
             existingTags.forEach { tagItem ->
                 Box(
                     modifier =
-                    Modifier.combinedClickable(
-                        onLongClick = onEnterDeleteMode,
-                        onClick = {
-                            if (isDeleteMode) onExitDeleteMode()
-                        },
-                    ),
+                        Modifier.combinedClickable(
+                            onLongClick = onEnterDeleteMode,
+                            onClick = {
+                                if (isDeleteMode) onExitDeleteMode()
+                            },
+                        ),
                 ) {
                     tagXMode(
                         text = tagItem.tagName,
                         isDeleteMode = isDeleteMode,
                         onDismiss = { onDeleteClick(tagItem.tagId) },
-                        color = getTagColor(tagItem.tagId)
+                        color = getTagColor(tagItem.tagId),
                     )
                 }
             }
@@ -671,7 +662,7 @@ fun TagsSection(
                 ConfirmableRecommendedTag(
                     tagName = tagName,
                     onConfirm = { onAddTag(it) },
-                    color = lightenedColor
+                    color = lightenedColor,
                 )
             }
         }
@@ -686,9 +677,7 @@ fun TagsSection(
                     kotlinx.coroutines.delay(400)
                     scrollState.animateScrollTo(scrollState.maxValue)
                 }
-            }
+            },
         )
     }
 }
-
-

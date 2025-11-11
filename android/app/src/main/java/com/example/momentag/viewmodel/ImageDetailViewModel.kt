@@ -39,9 +39,14 @@ class ImageDetailViewModel(
 
     sealed class TagAddState {
         object Idle : TagAddState()
+
         object Loading : TagAddState()
+
         object Success : TagAddState()
-        data class Error(val message: String) : TagAddState()
+
+        data class Error(
+            val message: String,
+        ) : TagAddState()
     }
 
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
@@ -59,7 +64,6 @@ class ImageDetailViewModel(
 
     private val _photoAddress = MutableStateFlow<String?>(null)
     val photoAddress = _photoAddress.asStateFlow()
-
 
     /**
      * photoId를 기반으로 ImageContext를 Repository에서 조회하여 설정
@@ -252,15 +256,19 @@ class ImageDetailViewModel(
         _tagDeleteState.value = TagDeleteState.Idle
     }
 
-    fun addTagToPhoto(photoId: String, tagName: String) {
+    fun addTagToPhoto(
+        photoId: String,
+        tagName: String,
+    ) {
         viewModelScope.launch {
             _tagAddState.value = TagAddState.Loading
 
-            val actualPhotoId = if (photoId.toLongOrNull() != null) {
-                findPhotoIdByPathId(photoId.toLong())
-            } else {
-                photoId
-            }
+            val actualPhotoId =
+                if (photoId.toLongOrNull() != null) {
+                    findPhotoIdByPathId(photoId.toLong())
+                } else {
+                    photoId
+                }
 
             if (actualPhotoId == null) {
                 _tagAddState.value = TagAddState.Error("Photo not found in backend")
@@ -282,7 +290,9 @@ class ImageDetailViewModel(
                         is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
                         is RemoteRepository.Result.Unauthorized -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
                         is RemoteRepository.Result.NetworkError -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
-                        is RemoteRepository.Result.Exception -> _tagAddState.value = TagAddState.Error(postToPhotoResult.e.message ?: "Unknown error")
+                        is RemoteRepository.Result.Exception ->
+                            _tagAddState.value =
+                                TagAddState.Error(postToPhotoResult.e.message ?: "Unknown error")
                     }
                 }
                 is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(postTagResult.message)
