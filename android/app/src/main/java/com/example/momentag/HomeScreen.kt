@@ -338,14 +338,14 @@ fun HomeScreen(navController: NavController) {
     val tagSuggestions by remember(isTagSearch, tagQuery, allTags) {
         derivedStateOf {
             if (isTagSearch) {
-                val currentChipTagIds = contentItems
-                    .filterIsInstance<SearchContentElement.Chip>()
-                    .map { it.tag.tagId }
-                    .toSet()
+//                val currentChipTagIds = contentItems
+//                    .filterIsInstance<SearchContentElement.Chip>()
+//                    .map { it.tag.tagId }
+//                    .toSet()
 
                 allTags.filter {
-                    it.tagName.contains(tagQuery, ignoreCase = true) &&
-                            it.tagId !in currentChipTagIds
+                    it.tagName.contains(tagQuery, ignoreCase = true)
+//                            && it.tagId !in currentChipTagIds
                 }
             } else {
                 emptyList()
