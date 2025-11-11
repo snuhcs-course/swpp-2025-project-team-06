@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,8 +38,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -56,8 +53,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -70,7 +65,6 @@ import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -109,20 +103,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -154,18 +141,20 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateMapOf
 import java.util.UUID
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 
-// [신규] 검색창의 컨텐츠 요소를 정의하는 Sealed Class
 sealed class SearchContentElement {
-    abstract val id: String // 모든 요소가 고유 ID를 갖도록 합니다.
+    abstract val id: String // each element has unique ID
 
     data class Text(
         override val id: String,
-        val text: String = "" // 순수한 텍스트 값
+        val text: String = ""
     ) : SearchContentElement()
 
     data class Chip(
-        override val id: String, // 칩도 ID를 갖도록 통일
+        override val id: String,
         val tag: TagItem
     ) : SearchContentElement()
 }
@@ -210,15 +199,12 @@ fun HomeScreen(navController: NavController) {
 
     val listState = rememberLazyListState()
 
-    // --- [검색창 상태 관리: 수정됨] ---
     // HomeViewModel에서 로드된 전체 태그 목록 가져오기
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
     // 빠른 조회를 위한 태그 맵 (소문자 키)
     val allTagsMap = remember(allTags) {
         allTags.associateBy { it.tagName.lowercase() }
     }
-
-    // [수정됨] - 새로운 상태 모델
 
     // 1. [신규] 모든 텍스트 필드의 UI 상태(TextFieldValue)를 저장하는 맵
     val textStates = remember { mutableStateMapOf<String, TextFieldValue>() }
@@ -228,6 +214,25 @@ fun HomeScreen(navController: NavController) {
     var focusedElementId by remember { mutableStateOf<String?>(null) }
     // 4. [신규] 모든 텍스트 필드의 FocusRequester 맵
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
+
+    // **[수정] 현재 포커스된 텍스트 필드의 값을 추적합니다.**
+    val currentFocusedTextState = textStates[focusedElementId]
+
+    // **[수정] 텍스트 입력, 포커스 변경, 칩 추가/삭제 시 자동 스크롤**
+    LaunchedEffect(currentFocusedTextState, focusedElementId, contentItems.size) {
+        val focusedIndex = contentItems.indexOfFirst { it.id == focusedElementId }
+        if (focusedIndex != -1) {
+            // 포커스된 항목이 있으면(타이핑 중이거나, 포커스 변경 시) 해당 항목으로 스크롤
+            scope.launch {
+                listState.animateScrollToItem(focusedIndex)
+            }
+        } else if (contentItems.isNotEmpty()) {
+            // 포커스가 해제되었지만(예: 칩 추가 직후) 항목이 변경된 경우, 맨 끝으로 스크롤
+            scope.launch {
+                listState.animateScrollToItem(contentItems.size - 1)
+            }
+        }
+    }
 
     /**
      * [신규] 특정 ID의 텍스트 필드에 포커스를 요청하는 헬퍼 함수
@@ -336,7 +341,7 @@ fun HomeScreen(navController: NavController) {
             when (it) {
                 // [수정] Text 요소의 순수 text 값 사용
                 is SearchContentElement.Text -> it.text
-                is SearchContentElement.Chip -> " #${it.tag.tagName} "
+                is SearchContentElement.Chip -> "{${it.tag.tagName}} "
             }
         }.trim().replace(Regex("\\s+"), " ")
 
@@ -681,6 +686,7 @@ fun HomeScreen(navController: NavController) {
                     // [신규] 4단계: 새로 정의된 ChipBasedSearchInput 호출
                     ChipBasedSearchInput(
                         modifier = Modifier.weight(1f),
+                        listState = listState,
                         contentItems = contentItems,
                         textStates = textStates,
                         focusRequesters = focusRequesters,
@@ -1055,6 +1061,7 @@ fun HomeScreen(navController: NavController) {
 @Composable
 private fun ChipBasedSearchInput(
     modifier: Modifier = Modifier,
+    listState: LazyListState,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -1063,10 +1070,6 @@ private fun ChipBasedSearchInput(
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String) -> Unit
 ) {
-    // [신규] LazyRow의 스크롤 상태를 관리
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope() // 스크롤 애니메이션용
-
     Box(
         modifier =
             modifier
@@ -1085,14 +1088,16 @@ private fun ChipBasedSearchInput(
     ) {
         LazyRow(
             state = listState, // [신규] 상태 연결
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+//            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier //.fillMaxWidth()
+//                .background(Color(0x2200FF00))
         ) {
             itemsIndexed(
                 items = contentItems,
                 key = { _, item -> item.id } // 고유 ID를 키로 사용
             ) { index, item ->
+//                Box(modifier = Modifier.background(if (index % 2 == 0) Color(0x22FF0000) else Color(0x220000FF))) {
                 when (item) {
                     is SearchContentElement.Chip -> {
                         SearchChipView(
@@ -1107,6 +1112,31 @@ private fun ChipBasedSearchInput(
                         // [신규] 해당 ID의 FocusRequester를 가져옴
                         val focusRequester = focusRequesters[item.id] ?: remember { FocusRequester() }
 
+                        // --- [신규] 텍스트 너비 측정 로직 ---
+                        val textValue = textStates[item.id] ?: TextFieldValue()
+                        val text = textValue.text.removePrefix("\u200B")
+                        val textMeasurer = rememberTextMeasurer()
+                        val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp)
+
+                        // 1. 텍스트 너비 (px) 계산
+                        val measuredWidthInPixels = remember(text, textStyle) {
+                            textMeasurer.measure(AnnotatedString(text), style = textStyle).size.width
+                        }
+
+                        // 2. 픽셀을 Dp로 변환
+                        val textWidthDp = with(LocalDensity.current) { measuredWidthInPixels.toDp() }
+
+                        // 3. 좌우 패딩 (4.dp + 4.dp = 8.dp)
+                        val horizontalPadding = 10.dp
+
+                        // 4. 최소 너비 (기존 defaultMinSize 값)
+                        val minFieldWidth = 10.dp
+
+                        // 5. 최종 너비 계산: (텍스트 너비 + 패딩)과 최소 너비 중 큰 값 사용
+                        val finalWidth = (textWidthDp + horizontalPadding).coerceAtLeast(minFieldWidth)
+
+                        val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
+
                         BasicTextField(
                             value = textStates[item.id] ?: TextFieldValue(), // [신규] 맵에서 상태 가져오기
                             onValueChange = { newValue ->
@@ -1115,6 +1145,13 @@ private fun ChipBasedSearchInput(
                             },
                             modifier =
                                 Modifier
+                                    .then(
+                                        if (isPlaceholder) {
+                                            Modifier.fillMaxWidth()
+                                        } else {
+                                            Modifier.width(finalWidth)
+                                        }
+                                    )
                                     .focusRequester(focusRequester)
                                     .onFocusChanged { focusState ->
                                         if (focusState.isFocused) {
@@ -1122,17 +1159,18 @@ private fun ChipBasedSearchInput(
                                             onFocus(item.id)
                                         }
                                     }
-                                    .defaultMinSize(minWidth = 10.dp)
+//                                    .defaultMinSize(minWidth = 10.dp)
                                     .padding(horizontal = 4.dp, vertical = 8.dp),
-                            singleLine = true,
+//                            singleLine = true,
+                            maxLines = 1,
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 16.sp
-                            ),
+//                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+//                                color = MaterialTheme.colorScheme.onSurface,
+//                                fontSize = 16.sp
+//                            ),
+                            textStyle = textStyle,
                             decorationBox = { innerTextField ->
-                                // [신규] 플레이스홀더 로직
-                                if ((textStates[item.id]?.text == "\u200B" || textStates[item.id]?.text.isNullOrEmpty()) && contentItems.size == 1) {
+                                if (isPlaceholder) {
                                     Text(
                                         "검색 또는 #태그 입력",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1145,16 +1183,7 @@ private fun ChipBasedSearchInput(
                     }
                 }
             }
-        }
-    }
-
-    // [신규] 요청하신 자동 스크롤 LaunchedEffect
-    // contentItems의 크기가 변할 때(칩/텍스트 추가) 마지막 항목으로 스크롤
-    LaunchedEffect(contentItems.size) {
-        if (contentItems.isNotEmpty()) {
-            scope.launch {
-                listState.animateScrollToItem(contentItems.size - 1)
-            }
+//            }
         }
     }
 }
@@ -1184,38 +1213,8 @@ private fun SearchChipView(
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSecondaryContainer,
         )
-        // 검색창에서는 칩의 X 버튼을 누르는 것보다 백스페이스로 지우는 것이 더 자연스러움
     }
 }
-
-///**
-// * [수정됨] 태그 추천 목록에 표시되는 항목 (onClick 로직 변경)
-// */
-//@Composable
-//private fun TagSuggestionItem(
-//    tagItem: TagItem,
-//    onClick: () -> Unit, // onClick 로직은 상위 Composable에서 정의
-//) {
-//    Row(
-//        modifier =
-//            Modifier
-//                .fillMaxWidth()
-//                .clickable { onClick() }
-//                .padding(horizontal = 16.dp, vertical = 12.dp),
-//        verticalAlignment = Alignment.CenterVertically,
-//        horizontalArrangement = Arrangement.spacedBy(12.dp),
-//    ) {
-//        Column(modifier = Modifier.weight(1f)) {
-//            Text(tagItem.tagName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-//            Text(
-//                "${tagItem.photoCount} photos",
-//                color = MaterialTheme.colorScheme.onSurfaceVariant,
-//                style = MaterialTheme.typography.bodySmall,
-//            )
-//        }
-//    }
-//}
-
 
 // -------------------- [기존 Helper 함수들 - 변경 없음] --------------------
 
