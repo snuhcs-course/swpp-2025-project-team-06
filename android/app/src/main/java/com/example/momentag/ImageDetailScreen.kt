@@ -78,6 +78,7 @@ import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 import java.io.IOException
 import kotlin.math.abs
+import com.example.momentag.CustomTagChip
 
 @Composable
 fun ZoomableImage(
@@ -229,6 +230,7 @@ fun ImageDetailScreen(
     // Observe PhotoTagState from ViewModel
     val imageDetailTagState by imageDetailViewModel.imageDetailTagState.collectAsState()
     val tagDeleteState by imageDetailViewModel.tagDeleteState.collectAsState()
+    val tagAddState by imageDetailViewModel.tagAddState.collectAsState()
 
     // Observe the photo address from ViewModel
     val photoAddress by imageDetailViewModel.photoAddress.collectAsState()
@@ -356,6 +358,21 @@ fun ImageDetailScreen(
                 imageDetailViewModel.resetDeleteState()
             }
 
+            else -> Unit
+        }
+    }
+
+    LaunchedEffect(tagAddState) {
+        when (val state = tagAddState) {
+            is ImageDetailViewModel.TagAddState.Success -> {
+                Toast.makeText(context, "Tag Added", Toast.LENGTH_SHORT).show()
+                // The viewmodel already reloads the tags, so we just reset the state here
+                imageDetailViewModel.resetAddState()
+            }
+            is ImageDetailViewModel.TagAddState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                imageDetailViewModel.resetAddState()
+            }
             else -> Unit
         }
     }
@@ -515,6 +532,15 @@ fun ImageDetailScreen(
                             Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
                         }
                     },
+                    onAddTag = { tagName ->
+                        val currentPhotoId =
+                            currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                        if (currentPhotoId.isNotEmpty()) {
+                            imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
+                        } else {
+                            Toast.makeText(context, "No photo to add tag to", Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     snackbarHostState = snackbarHostState,
                 )
             }
@@ -534,6 +560,7 @@ fun TagsSection(
     onDeleteClick: (String) -> Unit,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
+    onAddTag: (String) -> Unit,
     snackbarHostState: SnackbarHostState,
 ) {
     val scope = rememberCoroutineScope()
@@ -581,16 +608,7 @@ fun TagsSection(
             }
         }
 
-        // Add Tag 버튼 (기존과 동일)
-        IconButton(
-            onClick = {
-                scope.launch {
-                    snackbarHostState.showSnackbar("🛠️개발예정")
-                }
-            },
-            modifier = Modifier.size(32.dp),
-        ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag")
-        }
+        // Add Tag Chip
+        CustomTagChip(onTagAdded = onAddTag)
     }
 }
