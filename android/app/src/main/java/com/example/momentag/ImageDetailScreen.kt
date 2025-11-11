@@ -56,6 +56,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -228,6 +229,9 @@ fun ImageDetailScreen(
     // Observe PhotoTagState from ViewModel
     val imageDetailTagState by imageDetailViewModel.imageDetailTagState.collectAsState()
     val tagDeleteState by imageDetailViewModel.tagDeleteState.collectAsState()
+
+    // Observe the photo address from ViewModel
+    val photoAddress by imageDetailViewModel.photoAddress.collectAsState()
 
     // Load ImageContext from Repository when screen opens
     LaunchedEffect(imageUri) {
@@ -416,8 +420,46 @@ fun ImageDetailScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
+            if (dateTime != null) {
+                val datePart = dateTime!!.split(" ")[0]
+                val formattedDate = datePart.replace(":", ".")
+                Text(
+                    text = formattedDate,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth() // 가로로 꽉 채우기
+                            .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
+                    // 여백
+                    textAlign = TextAlign.Left,
+                )
+            }
+
+            val address = photoAddress
+
+            // 주소를 가져올 수 없는 경우 주소 자리를 아예 표시하지 않음
+            if (!address.isNullOrBlank()) {
+                Text(
+                    text = address,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth() // 가로로 꽉 채우기
+                            .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
+                    // 여백
+                    textAlign = TextAlign.Left,
+                )
+            }
+
             // 1. 이미지가 표시될 영역 (나머지 공간 전체를 차지)
-            Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .clipToBounds(),
+            ) {
                 // HorizontalPager로 이미지 스와이프 기능 구현
                 HorizontalPager(
                     state = pagerState,
@@ -456,8 +498,7 @@ fun ImageDetailScreen(
                 TagsSection(
                     modifier =
                         Modifier
-                            .padding(horizontal = 8.dp)
-                            .padding(bottom = 32.dp),
+                            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
                     existingTags = existingTags,
                     recommendedTags = recommendedTags,
                     isExistingTagsLoading = isExistingLoading,
