@@ -611,15 +611,49 @@ fun HomeScreen(navController: NavController) {
                         contentItems = contentItems,
                         currentInput = currentInput,
                         onCurrentInputChange = { newValue ->
-                            // [수정] onValueChange에서 ZWSP 로직이 처리됨.
-                            // 여기서는 전달된 값을 state에 그대로 반영하고,
-                            // contentItems의 마지막 텍스트(ZWSP 제외)를 업데이트
+                            // [수정] 이 람다는 이제 두 가지 경우를 처리:
+                            // 1. 일반 타이핑 (newValue)
+                            // 2. 칩 삭제 후 복원 (onBackspacePressed가 전달한 newValue)
+
+                            // 먼저, 상위 state(currentInput)는 무조건 업데이트
                             currentInput = newValue
-                            contentItems[contentItems.lastIndex] =
-                                SearchContentElement.Text(newValue.text.removePrefix("\u200B"))
+
+                            // [수정] "일반 타이핑"인지 "복원"인지 확인
+                            val newText = newValue.text.removePrefix("\u200B")
+                            val lastItemText = (contentItems.lastOrNull() as? SearchContentElement.Text)?.text
+
+                            // 텍스트가 다르다면, "일반 타이핑"이므로 contentItems 업데이트
+                            if (lastItemText != newText) {
+                                contentItems[contentItems.lastIndex] =
+                                    SearchContentElement.Text(newText)
+                            }
+                            // 텍스트가 같다면, "복원"이므로 contentItems를 건드리지 않음
+                            // (onBackspacePressed가 이미 처리했기 때문)
                         },
+
+//                        onBackspacePressed = {
+//                            if (contentItems.size >= 2) {
+//                                // 마지막 요소(Text) 삭제
+//                                contentItems.removeLast()
+//
+//                                // 그 앞의 요소가 Chip이면 제거
+//                                val lastElement = contentItems.lastOrNull()
+//                                if (lastElement is SearchContentElement.Chip) {
+//                                    contentItems.removeLast()
+//                                }
+//
+//                                // 항상 새로운 빈 Text 요소 추가
+//                                contentItems.add(SearchContentElement.Text(""))
+//
+//                                null // 복원할 텍스트 없음
+//                            } else {
+//                                null
+//                            }
+//                          }
+
                         onBackspacePressed = {
                             // [수정] ZWSP가 지워졌을 때 호출될 칩 삭제 로직
+                            // [수정] 복원할 TextFieldValue를 반환해야 함
                             if (contentItems.size > 1) {
 
                                 // 1. 현재의 텍스트 요소를 제거
@@ -631,18 +665,25 @@ fun HomeScreen(navController: NavController) {
                                 // 3. 이제 마지막이 된 요소를 확인
                                 val newLastElement = contentItems.lastOrNull()
 
-                                if (newLastElement == null || newLastElement is SearchContentElement.Chip) {
-                                    // 3a. 리스트가 비었거나, 마지막이 칩이면 새 텍스트 요소 추가
+                                if (newLastElement == null) {
+                                    // 3a. 리스트가 완전히 비었음
                                     contentItems.add(SearchContentElement.Text(""))
+                                    TextFieldValue("\u200B", TextRange(1)) // ZWSP로 초기화
+                                } else if (newLastElement is SearchContentElement.Chip) {
+                                    // 3b. 마지막이 칩임
+                                    contentItems.add(SearchContentElement.Text(""))
+                                    TextFieldValue("\u200B", TextRange(1)) // ZWSP로 초기화
                                 } else if (newLastElement is SearchContentElement.Text) {
-                                    // 3b. 마지막이 텍스트면, 그 텍스트를 currentInput으로 복원
-                                    // (이때 ZWSP를 다시 붙여줘야 함)
-                                    val textToRestore = (newLastElement as SearchContentElement.Text).text
-                                    currentInput = TextFieldValue(
-                                        "\u200B" + textToRestore,
-                                        TextRange(textToRestore.length + 1)
-                                    )
+                                    // 3c. 마지막이 텍스트임 -> 텍스트 복원
+                                    val textToRestore = newLastElement.text
+                                    val restoredText = "\u200B" + textToRestore
+                                    TextFieldValue(restoredText, TextRange(restoredText.length))
+                                } else {
+                                    TextFieldValue("\u200B", TextRange(1)) // 예외
                                 }
+                            } else {
+                                // 지울 것이 없음 (현재 ZWSP 상태 유지)
+                                TextFieldValue("\u200B", TextRange(1))
                             }
                         },
                         listState = listState,
@@ -924,7 +965,7 @@ private fun ChipBasedSearchInput(
     contentItems: List<SearchContentElement>,
     currentInput: TextFieldValue,
     onCurrentInputChange: (TextFieldValue) -> Unit,
-    onBackspacePressed: () -> Unit,
+    onBackspacePressed: () -> TextFieldValue,
     listState: LazyListState,
 ) {
     // 1. TextField 모양의 컨테이너
@@ -997,34 +1038,28 @@ private fun ChipBasedSearchInput(
                                     val didBackspaceOnEmpty = oldText == "\u200B" && newText.isEmpty()
 
                                     if (didBackspaceOnEmpty) {
-                                        // 1a. [기존] 칩 삭제 콜백 호출
-                                        onBackspacePressed()
-                                        // 텍스트 필드를 다시 ZWSP로 "초기화"
-                                        onCurrentInputChange(TextFieldValue("\u200B", TextRange(1)))
+                                        // 1a. [수정] 칩 삭제 콜백 호출하고 복원할 TextFieldValue 받기
+                                        val newTextFieldValue = onBackspacePressed()
+
+                                        // 1b. [수정] 상위로 새 TextFieldValue 전달
+                                        onCurrentInputChange(newTextFieldValue)
                                         return@BasicTextField // 조기 종료
                                     }
 
-                                    // 2. [수정] ZWSP가 항상 맨 앞에 있는지 확인하고, 커서 위치 보정
-
-                                    // 2a. ZWSP가 사라졌는지 (예: 붙여넣기, 전체선택 후 입력)
+                                    // 2. [기존] 커서 위치 강제 로직 (이하 동일)
                                     val (text, selection) = if (newText.startsWith("\u200B")) {
                                         Pair(newText, newValue.selection)
                                     } else {
-                                        // ZWSP가 없으면 강제로 추가하고, 커서를 1만큼 뒤로 민다
                                         Pair(
                                             "\u200B$newText",
                                             TextRange(newValue.selection.start + 1, newValue.selection.end + 1)
                                         )
                                     }
-
-                                    // 2b. [핵심] 커서가 ZWSP 앞으로 갔는지 확인 (index 0)
                                     val finalSelection = if (selection.start == 0 && selection.end == 0) {
-                                        TextRange(1) // 커서를 강제로 ZWSP 뒤(index 1)로 이동
+                                        TextRange(1)
                                     } else {
-                                        selection // 그 외에는 원래 커서 위치 사용
+                                        selection
                                     }
-
-                                    // 3. [기존] 상위로 변경 사항 전달
                                     onCurrentInputChange(TextFieldValue(text, finalSelection))
                                 },
                                 modifier =
