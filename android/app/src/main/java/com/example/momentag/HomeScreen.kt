@@ -144,20 +144,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
-
-sealed class SearchContentElement {
-    abstract val id: String // each element has unique ID
-
-    data class Text(
-        override val id: String,
-        val text: String = ""
-    ) : SearchContentElement()
-
-    data class Chip(
-        override val id: String,
-        val tag: TagItem
-    ) : SearchContentElement()
-}
+import com.example.momentag.ui.components.ChipSearchBar
+import com.example.momentag.ui.components.SearchContentElement
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -683,124 +671,93 @@ fun HomeScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.Top, // 상단 정렬
                 ) {
-                    // [신규] 4단계: 새로 정의된 ChipBasedSearchInput 호출
-                    ChipBasedSearchInput(
-                        modifier = Modifier.weight(1f),
-                        listState = listState,
+                    // [수정] ChipSearchBar 하나로 교체
+                    ChipSearchBar(
+                        modifier = Modifier.weight(1f), // weight(1f)는 그대로 유지
+
+                        // 1. 상태 전달
                         contentItems = contentItems,
                         textStates = textStates,
                         focusRequesters = focusRequesters,
+
+                        // 2. 검색 실행 로직 전달
+                        onSearch = { performSearch() },
+
+                        // 3. 모든 이벤트 핸들러 전달
                         onContainerClick = {
-                            // [신규] 컨테이너 클릭: 마지막 텍스트 필드에 포커스
                             val lastTextElement = contentItems.lastOrNull { it is SearchContentElement.Text }
                             if (lastTextElement != null) {
                                 requestFocusById(lastTextElement.id)
                             }
                         },
                         onChipClick = { index ->
-                            // [신규] 칩 클릭: 바로 다음 텍스트 필드에 포커스
                             val nextTextId = findNextTextElementId(index)
                             if (nextTextId != null) {
                                 requestFocusById(nextTextId)
                             }
                         },
                         onFocus = { id ->
-                            // [신규] 포커스 받음: 현재 포커스 ID 갱신
                             focusedElementId = id
                         },
                         onTextChange = { id, newValue ->
-                            // [신규] 텍스트 변경: ZWSP, 커서, 백스페이스 로직 처리
-
+                            // --- (HomeScreen에 있던 onTextChange 로직 그대로) ---
                             val oldText = textStates[id]?.text ?: ""
                             val newText = newValue.text
-
-                            // 1. ZWSP 백스페이스 감지
                             val didBackspaceOnEmpty = oldText == "\u200B" && newText.isEmpty()
 
                             if (didBackspaceOnEmpty) {
-                                // --- [신규] 백스페이스 로직 ---
+                                // --- 백스페이스 로직 ---
                                 val currentIndex = contentItems.indexOfFirst { it.id == id }
-                                if (currentIndex <= 0) { // 첫 번째 요소
-                                    textStates[id] = TextFieldValue("\u200B", TextRange(1)) // 리셋
-                                    return@ChipBasedSearchInput
+                                if (currentIndex <= 0) {
+                                    textStates[id] = TextFieldValue("\u200B", TextRange(1))
+                                    return@ChipSearchBar
                                 }
-
                                 val prevItem = contentItems[currentIndex - 1]
-
-                                // 1a. 바로 앞이 칩인 경우
                                 if (prevItem is SearchContentElement.Chip) {
-                                    // 칩(index-1)과 현재 텍스트(index) 제거
                                     contentItems.removeAt(currentIndex)
                                     contentItems.removeAt(currentIndex - 1)
                                     textStates.remove(id)
                                     focusRequesters.remove(id)
-
-                                    // 그 앞의 텍스트 필드에 포커스
                                     val newFocusId = findPreviousTextElementId(currentIndex - 1)
                                     if (newFocusId != null) {
                                         requestFocusById(newFocusId)
                                     }
                                 }
-                                // 1b. 바로 앞이 텍스트인 경우 (텍스트 필드 병합)
                                 else if (prevItem is SearchContentElement.Text) {
                                     val textToPrepend = prevItem.text
                                     val cursorPosition = textToPrepend.length
-
-                                    // 현재 텍스트(index) 제거
                                     contentItems.removeAt(currentIndex)
                                     textStates.remove(id)
                                     focusRequesters.remove(id)
-
-                                    // 이전 텍스트(index-1)의 상태를 병합된 텍스트로 업데이트
                                     textStates[prevItem.id] = TextFieldValue(textToPrepend, TextRange(cursorPosition))
-                                    // 포커스 이동
                                     requestFocusById(prevItem.id)
                                 }
-                                return@ChipBasedSearchInput
+                                return@ChipSearchBar
                             }
 
-                            // 2. [신규] ZWSP 및 커서 위치 강제
+                            // --- ZWSP 및 커서 위치 강제 로직 ---
                             val (text, selection) = if (newText.startsWith("\u200B")) {
                                 Pair(newText, newValue.selection)
                             } else {
                                 Pair("\u200B$newText", TextRange(newValue.selection.start + 1, newValue.selection.end + 1))
                             }
                             val finalSelection = if (selection.start == 0 && selection.end == 0) {
-                                TextRange(1) // 커서 0번 방지
+                                TextRange(1)
                             } else {
                                 selection
                             }
-
                             val finalValue = TextFieldValue(text, finalSelection)
 
-                            // 3. UI 상태(textStates)와 데이터(contentItems) 동기화
+                            // --- 상태 동기화 로직 ---
                             textStates[id] = finalValue
                             val currentItemIndex = contentItems.indexOfFirst { it.id == id }
                             if (currentItemIndex != -1) {
                                 contentItems[currentItemIndex] = (contentItems[currentItemIndex] as SearchContentElement.Text).copy(
-                                    text = text.removePrefix("\u200B") // 데이터에는 ZWSP 제외
+                                    text = text.removePrefix("\u200B")
                                 )
                             }
                         }
                     )
-
-                    // [유지] 검색 실행 버튼
-                    IconButton(
-                        onClick = { performSearch() },
-                        modifier =
-                            Modifier
-                                .size(48.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(12.dp),
-                                ),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    }
                 }
 
                 // [수정됨] 태그 추천 목록 (LazyRow)
@@ -1051,172 +1008,6 @@ fun HomeScreen(navController: NavController) {
         }
     }
 }
-
-// -------------------- [신규] 칩 기반 검색창 컴포저블 --------------------
-
-/**
- * [수정됨] 칩과 텍스트 입력 필드가 혼용된 검색 입력 영역 (멀티-필드 모델)
- */
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
-@Composable
-private fun ChipBasedSearchInput(
-    modifier: Modifier = Modifier,
-    listState: LazyListState,
-    contentItems: List<SearchContentElement>,
-    textStates: Map<String, TextFieldValue>,
-    focusRequesters: Map<String, FocusRequester>,
-    onContainerClick: () -> Unit,
-    onChipClick: (Int) -> Unit,
-    onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
-    onFocus: (id: String) -> Unit
-) {
-    Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(12.dp),
-                )
-                .clickable( // 컨테이너 클릭 시
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { onContainerClick() }
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        LazyRow(
-            state = listState, // [신규] 상태 연결
-//            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier //.fillMaxWidth()
-//                .background(Color(0x2200FF00))
-        ) {
-            itemsIndexed(
-                items = contentItems,
-                key = { _, item -> item.id } // 고유 ID를 키로 사용
-            ) { index, item ->
-//                Box(modifier = Modifier.background(if (index % 2 == 0) Color(0x22FF0000) else Color(0x220000FF))) {
-                when (item) {
-                    is SearchContentElement.Chip -> {
-                        SearchChipView(
-                            tag = item.tag,
-                            onClick = {
-                                // [신규] 칩 클릭 시 (index) 전달
-                                onChipClick(index)
-                            },
-                        )
-                    }
-                    is SearchContentElement.Text -> {
-                        // [신규] 해당 ID의 FocusRequester를 가져옴
-                        val focusRequester = focusRequesters[item.id] ?: remember { FocusRequester() }
-
-                        // --- [신규] 텍스트 너비 측정 로직 ---
-                        val textValue = textStates[item.id] ?: TextFieldValue()
-                        val text = textValue.text.removePrefix("\u200B")
-                        val textMeasurer = rememberTextMeasurer()
-                        val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp)
-
-                        // 1. 텍스트 너비 (px) 계산
-                        val measuredWidthInPixels = remember(text, textStyle) {
-                            textMeasurer.measure(AnnotatedString(text), style = textStyle).size.width
-                        }
-
-                        // 2. 픽셀을 Dp로 변환
-                        val textWidthDp = with(LocalDensity.current) { measuredWidthInPixels.toDp() }
-
-                        // 3. 좌우 패딩 (4.dp + 4.dp = 8.dp)
-                        val horizontalPadding = 10.dp
-
-                        // 4. 최소 너비 (기존 defaultMinSize 값)
-                        val minFieldWidth = 10.dp
-
-                        // 5. 최종 너비 계산: (텍스트 너비 + 패딩)과 최소 너비 중 큰 값 사용
-                        val finalWidth = (textWidthDp + horizontalPadding).coerceAtLeast(minFieldWidth)
-
-                        val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
-
-                        BasicTextField(
-                            value = textStates[item.id] ?: TextFieldValue(), // [신규] 맵에서 상태 가져오기
-                            onValueChange = { newValue ->
-                                // [신규] 변경된 값과 ID를 상위로 전달
-                                onTextChange(item.id, newValue)
-                            },
-                            modifier =
-                                Modifier
-                                    .then(
-                                        if (isPlaceholder) {
-                                            Modifier.fillMaxWidth()
-                                        } else {
-                                            Modifier.width(finalWidth)
-                                        }
-                                    )
-                                    .focusRequester(focusRequester)
-                                    .onFocusChanged { focusState ->
-                                        if (focusState.isFocused) {
-                                            // [신규] 포커스 받으면 상위로 알림
-                                            onFocus(item.id)
-                                        }
-                                    }
-//                                    .defaultMinSize(minWidth = 10.dp)
-                                    .padding(horizontal = 4.dp, vertical = 8.dp),
-//                            singleLine = true,
-                            maxLines = 1,
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-//                            textStyle = MaterialTheme.typography.bodyLarge.copy(
-//                                color = MaterialTheme.colorScheme.onSurface,
-//                                fontSize = 16.sp
-//                            ),
-                            textStyle = textStyle,
-                            decorationBox = { innerTextField ->
-                                if (isPlaceholder) {
-                                    Text(
-                                        "검색 또는 #태그 입력",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
-                                    )
-                                }
-                                innerTextField()
-                            },
-                        )
-                    }
-                }
-            }
-//            }
-        }
-    }
-}
-
-/**
- * [신규] 검색창 내부에 표시될 칩 (X 버튼 없음)
- */
-@Composable
-private fun SearchChipView(
-    tag: TagItem,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier =
-            modifier
-                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
-                .clip(CircleShape)
-                .clickable { onClick() }
-                .padding(horizontal = 10.dp, vertical = 6.dp), // 텍스트 칩보다 패딩 약간 더 줌
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            text = "#${tag.tagName}",
-            fontSize = 15.sp, // 텍스트(16sp)보다 약간 작게
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-        )
-    }
-}
-
-// -------------------- [기존 Helper 함수들 - 변경 없음] --------------------
 
 @Composable
 private fun ViewToggle(
