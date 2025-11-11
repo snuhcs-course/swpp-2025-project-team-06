@@ -450,12 +450,12 @@ fun ImageDetailScreen(
                     }
                 }
             },
-        ) {
+        ) { paddingValues ->
             Column(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(PaddingValues(0.dp)),
+                        .padding(paddingValues),
             ) {
                 // 1. 이미지가 표시될 영역 (전체 화면을 차지)
                 Box(
