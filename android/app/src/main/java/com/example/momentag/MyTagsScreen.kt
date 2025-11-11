@@ -1,6 +1,7 @@
 package com.example.momentag
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -49,6 +50,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,6 +79,7 @@ import com.example.momentag.ui.components.confirmDialog // --- 추가 ---
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
+import com.example.momentag.viewmodel.TagActionState
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -88,6 +91,7 @@ fun MyTagsScreen(navController: NavController) {
     val uiState by viewModel.uiState.collectAsState()
     val isEditMode by viewModel.isEditMode.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
+    val actionState by viewModel.tagActionState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
@@ -99,6 +103,30 @@ fun MyTagsScreen(navController: NavController) {
     var showEditDialog by remember { mutableStateOf(false) }
     var tagToEdit by remember { mutableStateOf<Pair<String, String>?>(null) }
     var editedTagName by remember { mutableStateOf("") }
+
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(actionState) {
+        when (val state = actionState) {
+            is TagActionState.Success -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show() // 성공: Toast
+                showErrorBanner = false
+                viewModel.clearActionState()
+            }
+            is TagActionState.Error -> {
+                errorMessage = state.message
+                showErrorBanner = true // 실패: WarningBanner
+                viewModel.clearActionState()
+            }
+            is TagActionState.Idle -> {
+                // 아무것도 안함
+            }
+            is TagActionState.Loading -> {
+                // TODO: 필요시 로딩 인디케이터 표시 (현재는 Dialog가 닫히므로 생략)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -160,6 +188,21 @@ fun MyTagsScreen(navController: NavController) {
                             MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = FontWeight.Bold,
                             ),
+                    )
+                }
+
+                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    WarningBanner(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 8.dp),
+                        title = "Action Failed",
+                        message = errorMessage ?: "Unknown error",
+                        onActionClick = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { showErrorBanner = false }
                     )
                 }
 
@@ -260,7 +303,6 @@ fun MyTagsScreen(navController: NavController) {
             confirmButtonText = "삭제",
             onConfirm = {
                 tagToDelete?.first?.let { viewModel.deleteTag(it) }
-                Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
                 showDeleteDialog = false
                 tagToDelete = null
             },

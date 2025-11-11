@@ -10,6 +10,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+sealed interface TagActionState {
+    object Idle : TagActionState
+    object Loading : TagActionState
+    data class Success(val message: String) : TagActionState
+    data class Error(val message: String) : TagActionState
+}
+
 class MyTagsViewModel(
     private val remoteRepository: RemoteRepository,
 ) : ViewModel() {
@@ -21,6 +28,9 @@ class MyTagsViewModel(
 
     private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
     val sortOrder: StateFlow<TagSortOrder> = _sortOrder.asStateFlow()
+
+    private val _tagActionState = MutableStateFlow<TagActionState>(TagActionState.Idle)
+    val tagActionState: StateFlow<TagActionState> = _tagActionState.asStateFlow()
 
     private var allTags: List<TagCntData> = emptyList()
 
@@ -105,16 +115,25 @@ class MyTagsViewModel(
 
     fun deleteTag(tagId: String) {
         viewModelScope.launch {
+            _tagActionState.value = TagActionState.Loading
             println("MyTagsViewModel: deleteTag($tagId)")
             when (val result = remoteRepository.removeTag(tagId)) {
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: Tag deleted successfully")
-                    loadTags() // 태그 목록 새로고침
+                    _tagActionState.value = TagActionState.Success("삭제되었습니다")
+                    loadTags() // 성공 시에만 태그 목록 새로고침
                 }
                 is RemoteRepository.Result.Error -> {
+                    _tagActionState.value = TagActionState.Error(result.message)
                     println("MyTagsViewModel: Failed to delete tag - ${result.message}")
                 }
-                else -> {
+                else -> { // NetworkError, Exception 등
+                    val errorMsg = when (result) {
+                        is RemoteRepository.Result.NetworkError -> result.message
+                        is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
+                        else -> "Failed to delete tag"
+                    }
+                    _tagActionState.value = TagActionState.Error(errorMsg)
                     println("MyTagsViewModel: Failed to delete tag")
                 }
             }
@@ -126,19 +145,32 @@ class MyTagsViewModel(
         newName: String,
     ) {
         viewModelScope.launch {
+            _tagActionState.value = TagActionState.Loading
             println("MyTagsViewModel: renameTag($tagId, $newName)")
             when (val result = remoteRepository.renameTag(tagId, newName)) {
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: Tag renamed successfully")
-                    loadTags() // 태그 목록 새로고침
+                    _tagActionState.value = TagActionState.Success("수정되었습니다")
+                    loadTags() // 성공 시에만 태그 목록 새로고침
                 }
                 is RemoteRepository.Result.Error -> {
+                    _tagActionState.value = TagActionState.Error(result.message)
                     println("MyTagsViewModel: Failed to rename tag - ${result.message}")
                 }
-                else -> {
+                else -> { // NetworkError, Exception 등
+                    val errorMsg = when (result) {
+                        is RemoteRepository.Result.NetworkError -> result.message
+                        is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
+                        else -> "Failed to rename tag"
+                    }
+                    _tagActionState.value = TagActionState.Error(errorMsg)
                     println("MyTagsViewModel: Failed to rename tag")
                 }
             }
         }
+    }
+
+    fun clearActionState() {
+        _tagActionState.value = TagActionState.Idle
     }
 }
