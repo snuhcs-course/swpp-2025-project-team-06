@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,8 +43,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -82,9 +79,9 @@ import com.example.momentag.ui.components.RenameTagDialog
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.MyTagsViewModel
+import com.example.momentag.viewmodel.TagActionState
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
-import com.example.momentag.viewmodel.TagActionState
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -114,11 +111,12 @@ fun MyTagsScreen(navController: NavController) {
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshTags()
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    viewModel.refreshTags()
+                }
             }
-        }
         lifecycleOwner.lifecycle.addObserver(observer)
 
         onDispose {
@@ -208,16 +206,17 @@ fun MyTagsScreen(navController: NavController) {
 
                 AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
                     WarningBanner(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 8.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 8.dp),
                         title = "Action Failed",
                         message = errorMessage ?: "Unknown error",
                         onActionClick = { showErrorBanner = false },
                         showActionButton = false,
                         showDismissButton = true,
-                        onDismiss = { showErrorBanner = false }
+                        onDismiss = { showErrorBanner = false },
                     )
                 }
 
@@ -346,7 +345,7 @@ fun MyTagsScreen(navController: NavController) {
                 tagToEdit = null
                 editedTagName = ""
             },
-            dismissible = true
+            dismissible = true,
         )
     }
 

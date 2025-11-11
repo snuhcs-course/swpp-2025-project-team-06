@@ -780,11 +780,12 @@ private fun AIRecommendationSection(
                         }
                     }
                     is RecommendState.Error, is RecommendState.NetworkError -> {
-                        val (title, message) = if (recommendState is RecommendState.Error) {
-                            "Recommendation Failed" to recommendState.message
-                        } else {
-                            "Network Error" to (recommendState as RecommendState.NetworkError).message
-                        }
+                        val (title, message) =
+                            if (recommendState is RecommendState.Error) {
+                                "Recommendation Failed" to recommendState.message
+                            } else {
+                                "Network Error" to (recommendState as RecommendState.NetworkError).message
+                            }
 
                         WarningBanner(
                             title = title,
@@ -792,7 +793,7 @@ private fun AIRecommendationSection(
                             onActionClick = onRetry,
                             showActionButton = true,
                             actionIcon = Icons.Default.Refresh,
-                            showDismissButton = false
+                            showDismissButton = false,
                         )
                     }
                     else -> {}

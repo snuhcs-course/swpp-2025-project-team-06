@@ -260,7 +260,7 @@ fun LocalAlbumScreen(
                         onDismiss = {
                             showErrorBanner = false
                             photoViewModel.errorMessageShown()
-                        }
+                        },
                     )
                 }
 

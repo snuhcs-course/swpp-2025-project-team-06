@@ -12,9 +12,16 @@ import kotlinx.coroutines.launch
 
 sealed interface TagActionState {
     object Idle : TagActionState
+
     object Loading : TagActionState
-    data class Success(val message: String) : TagActionState
-    data class Error(val message: String) : TagActionState
+
+    data class Success(
+        val message: String,
+    ) : TagActionState
+
+    data class Error(
+        val message: String,
+    ) : TagActionState
 }
 
 class MyTagsViewModel(
@@ -128,11 +135,12 @@ class MyTagsViewModel(
                     println("MyTagsViewModel: Failed to delete tag - ${result.message}")
                 }
                 else -> { // NetworkError, Exception 등
-                    val errorMsg = when (result) {
-                        is RemoteRepository.Result.NetworkError -> result.message
-                        is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
-                        else -> "Failed to delete tag"
-                    }
+                    val errorMsg =
+                        when (result) {
+                            is RemoteRepository.Result.NetworkError -> result.message
+                            is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
+                            else -> "Failed to delete tag"
+                        }
                     _tagActionState.value = TagActionState.Error(errorMsg)
                     println("MyTagsViewModel: Failed to delete tag")
                 }
@@ -158,11 +166,12 @@ class MyTagsViewModel(
                     println("MyTagsViewModel: Failed to rename tag - ${result.message}")
                 }
                 else -> { // NetworkError, Exception 등
-                    val errorMsg = when (result) {
-                        is RemoteRepository.Result.NetworkError -> result.message
-                        is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
-                        else -> "Failed to rename tag"
-                    }
+                    val errorMsg =
+                        when (result) {
+                            is RemoteRepository.Result.NetworkError -> result.message
+                            is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
+                            else -> "Failed to rename tag"
+                        }
                     _tagActionState.value = TagActionState.Error(errorMsg)
                     println("MyTagsViewModel: Failed to rename tag")
                 }

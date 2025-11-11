@@ -68,8 +68,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -176,16 +174,18 @@ fun HomeScreen(navController: NavController) {
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val gradientBrush = Brush.verticalGradient(
-        colorStops =
-            arrayOf(
-                0.5f to MaterialTheme.colorScheme.surface,
-                1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-            ),
-    )
+    val gradientBrush =
+        Brush.verticalGradient(
+            colorStops =
+                arrayOf(
+                    0.5f to MaterialTheme.colorScheme.surface,
+                    1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                ),
+        )
 
     val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
-    val isTagsLoaded = homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
+    val isTagsLoaded =
+        homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
     val arePhotosLoaded = !isLoadingPhotos
     val isDataReady = isTagsLoaded && arePhotosLoaded
     val areTagsEmpty = tagItems.isEmpty()
@@ -482,9 +482,8 @@ fun HomeScreen(navController: NavController) {
                                 Modifier.background(gradientBrush)
                             } else {
                                 Modifier
-                            }
-                        )
-                        .padding(horizontal = 16.dp),
+                            },
+                        ).padding(horizontal = 16.dp),
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -602,7 +601,7 @@ fun HomeScreen(navController: NavController) {
                         homeLoadingState = homeLoadingState,
                         isDataReady = isDataReady,
                         arePhotosEmpty = arePhotosEmpty,
-                        areTagsEmpty = areTagsEmpty
+                        areTagsEmpty = areTagsEmpty,
                     )
 
                     // 페이지네이션 로직을 MainContent 밖으로 이동
@@ -660,7 +659,7 @@ fun HomeScreen(navController: NavController) {
                             onDismiss = {
                                 isUploadBannerDismissed = true
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -682,7 +681,7 @@ fun HomeScreen(navController: NavController) {
                             onDismiss = { showErrorBanner = false },
                             showActionButton = true,
                             showDismissButton = true,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -818,7 +817,7 @@ private fun MainContent(
     homeLoadingState: HomeViewModel.HomeLoadingState,
     isDataReady: Boolean,
     arePhotosEmpty: Boolean,
-    areTagsEmpty: Boolean
+    areTagsEmpty: Boolean,
 ) {
     when {
         isDataReady && arePhotosEmpty -> {

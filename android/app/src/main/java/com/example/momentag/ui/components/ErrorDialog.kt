@@ -1,17 +1,14 @@
 package com.example.momentag.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -22,10 +19,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -388,11 +382,12 @@ fun RenameTagDialog(
                 onDismiss()
             }
         },
-        properties = DialogProperties(
-            dismissOnBackPress = dismissible,
-            dismissOnClickOutside = dismissible,
-            usePlatformDefaultWidth = false,
-        ),
+        properties =
+            DialogProperties(
+                dismissOnBackPress = dismissible,
+                dismissOnClickOutside = dismissible,
+                usePlatformDefaultWidth = false,
+            ),
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -400,29 +395,33 @@ fun RenameTagDialog(
         ) {
             // Backdrop/Scrim
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
             )
 
             // Dialog Card
             Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .padding(32.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.85f)
+                        .padding(32.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
             ) {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         // 1. Title (Font size matches confirmDialog)
@@ -448,20 +447,19 @@ fun RenameTagDialog(
                             singleLine = true,
                             placeholder = { Text("Tag name") },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = TextFieldDefaults.colors( // <-- TextFieldDefaults로 변경
-                                // 배경색 투명하게 설정
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-
-                                // 밑줄(Indicator) 색상 설정
-                                focusedIndicatorColor = MaterialTheme.colorScheme.primary, // 포커스 시
-                                unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceDim, // 포커스 없을 시
-
-                                // 텍스트 색상
-                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            ),
+                            colors =
+                                TextFieldDefaults.colors( // <-- TextFieldDefaults로 변경
+                                    // 배경색 투명하게 설정
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    disabledContainerColor = Color.Transparent,
+                                    // 밑줄(Indicator) 색상 설정
+                                    focusedIndicatorColor = MaterialTheme.colorScheme.primary, // 포커스 시
+                                    unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceDim, // 포커스 없을 시
+                                    // 텍스트 색상
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                ),
                         )
 
                         Spacer(modifier = Modifier.height(24.dp))
@@ -479,7 +477,7 @@ fun RenameTagDialog(
                                 ),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
-                            enabled = editedTagName.isNotBlank()
+                            enabled = editedTagName.isNotBlank(),
                         ) {
                             Text(
                                 text = "Update",
@@ -491,10 +489,11 @@ fun RenameTagDialog(
                     // 'X' close button (matches confirmDialog)
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(32.dp),
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(32.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,

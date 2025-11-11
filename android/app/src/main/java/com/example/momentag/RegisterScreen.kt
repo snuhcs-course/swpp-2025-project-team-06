@@ -286,7 +286,6 @@ fun RegisterScreen(navController: NavController) {
                 }
                 // --- 추가 끝 ---
 
-
                 // username input
                 Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
@@ -508,7 +507,7 @@ fun RegisterScreen(navController: NavController) {
                         showActionButton = false,
                         showDismissButton = true,
                         onDismiss = { showErrorBanner = false },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp)) // 배너와 버튼 사이 간격

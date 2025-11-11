@@ -40,9 +40,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
@@ -356,7 +353,6 @@ fun ImageDetailScreen(
     }
     // --- 추가 끝 ---
 
-
     LaunchedEffect(tagDeleteState) {
         when (val state = tagDeleteState) {
             is ImageDetailViewModel.TagDeleteState.Success -> {
@@ -502,7 +498,7 @@ fun ImageDetailScreen(
                     onActionClick = { showNoPhotoBanner = false },
                     showActionButton = false,
                     showDismissButton = true,
-                    onDismiss = { showNoPhotoBanner = false }
+                    onDismiss = { showNoPhotoBanner = false },
                 )
             }
             // --- 추가 끝 ---
@@ -516,11 +512,10 @@ fun ImageDetailScreen(
                     onActionClick = { showDeleteErrorBanner = false },
                     showActionButton = false,
                     showDismissButton = true,
-                    onDismiss = { showDeleteErrorBanner = false }
+                    onDismiss = { showDeleteErrorBanner = false },
                 )
             }
             // --- 추가 끝 ---
-
 
             // 2. 태그가 표시될 새로운 영역
             if (isError) {
@@ -536,7 +531,7 @@ fun ImageDetailScreen(
                         }
                     },
                     showActionButton = true, // 재시도 버튼 표시
-                    showDismissButton = false
+                    showDismissButton = false,
                 )
             } else {
                 AnimatedVisibility(visible = !showDeleteErrorBanner && !showNoPhotoBanner) {

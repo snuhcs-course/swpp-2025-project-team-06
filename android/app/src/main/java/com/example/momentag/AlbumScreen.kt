@@ -446,7 +446,7 @@ fun AlbumScreen(
                         onActionClick = { showSelectPhotosBanner = false },
                         showActionButton = false,
                         showDismissButton = true,
-                        onDismiss = { showSelectPhotosBanner = false }
+                        onDismiss = { showSelectPhotosBanner = false },
                     )
                 }
 
@@ -458,7 +458,7 @@ fun AlbumScreen(
                         onActionClick = { showErrorBanner = false },
                         showActionButton = false,
                         showDismissButton = true,
-                        onDismiss = { showErrorBanner = false }
+                        onDismiss = { showErrorBanner = false },
                     )
                 }
 
@@ -557,7 +557,7 @@ private fun AlbumContent(
                     message = albumLoadState.message,
                     onActionClick = { /* PullToRefresh가 처리 */ },
                     showActionButton = false,
-                    showDismissButton = false
+                    showDismissButton = false,
                 )
             }
             is AlbumViewModel.AlbumLoadingState.Idle -> {
@@ -756,7 +756,7 @@ private fun AlbumContent(
                                 message = recommendLoadState.message,
                                 onActionClick = { /* TODO: 재시도 로직 필요 */ },
                                 showActionButton = false,
-                                showDismissButton = false
+                                showDismissButton = false,
                             )
                         }
                     }

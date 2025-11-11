@@ -56,11 +56,9 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
-import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.SearchBarControlledCustom
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.search.components.SearchEmptyStateCustom
-import com.example.momentag.ui.search.components.SearchErrorStateFallbackCustom
 import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.horizontalArrangement
@@ -293,7 +291,7 @@ fun SearchResultScreen(
         },
         showErrorBanner = showErrorBanner,
         errorMessage = errorMessage,
-        onDismissError = { showErrorBanner = false }
+        onDismissError = { showErrorBanner = false },
     )
 }
 
@@ -325,7 +323,7 @@ fun SearchResultScreenUi(
     onHistoryDelete: (String) -> Unit,
     showErrorBanner: Boolean,
     errorMessage: String?,
-    onDismissError: () -> Unit
+    onDismissError: () -> Unit,
 ) {
     Scaffold(
         modifier = modifier,
@@ -376,7 +374,7 @@ fun SearchResultScreenUi(
             onHistoryDelete = onHistoryDelete,
             showErrorBanner = showErrorBanner,
             errorMessage = errorMessage,
-            onDismissError = onDismissError
+            onDismissError = onDismissError,
         )
     }
 }
@@ -404,7 +402,7 @@ private fun SearchResultContent(
     onHistoryDelete: (String) -> Unit,
     showErrorBanner: Boolean,
     errorMessage: String?,
-    onDismissError: () -> Unit
+    onDismissError: () -> Unit,
 ) {
     Box(modifier = modifier) {
         Column(
@@ -470,7 +468,7 @@ private fun SearchResultContent(
                     onActionClick = onRetry, // 재시도
                     onDismiss = onDismissError, // 닫기
                     showActionButton = true,
-                    showDismissButton = true
+                    showDismissButton = true,
                 )
             }
 

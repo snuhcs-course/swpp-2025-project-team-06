@@ -331,7 +331,7 @@ fun LoginScreen(navController: NavController) {
                         showActionButton = false,
                         showDismissButton = true,
                         onDismiss = { showErrorBanner = false },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))

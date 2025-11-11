@@ -336,7 +336,7 @@ fun StoryTagSelectionScreen(
                     onDismiss = {
                         viewModel.resetState()
                         onBack()
-                    }
+                    },
                 )
             }
             is StoryState.NetworkError -> {
@@ -348,7 +348,7 @@ fun StoryTagSelectionScreen(
                     onDismiss = {
                         viewModel.resetState()
                         onBack()
-                    }
+                    },
                 )
             }
         }
@@ -473,7 +473,6 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
     }
 }
 
-
 @Composable
 internal fun TagSelectionCard(
     tags: List<String>,
@@ -581,7 +580,7 @@ internal fun TagSelectionCard(
                     onActionClick = onRetry, // 재시도 버튼 (GradientPillButton이 Retry로 바뀜)
                     showActionButton = false, // 버튼은 GradientPillButton이 담당
                     showDismissButton = false,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
 
