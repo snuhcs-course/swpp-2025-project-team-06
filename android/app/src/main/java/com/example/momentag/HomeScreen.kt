@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -50,6 +51,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -193,6 +195,8 @@ fun HomeScreen(navController: NavController) {
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
     var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
 
+    val listState = rememberLazyListState()
+
     // --- [검색창 상태 관리: 수정됨] ---
     // HomeViewModel에서 로드된 전체 태그 목록 가져오기
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
@@ -267,6 +271,14 @@ fun HomeScreen(navController: NavController) {
     }
     // --- [검색창 상태 관리 끝] ---
 
+    LaunchedEffect(contentItems.size) {
+        focusRequester.requestFocus() // 칩 추가 시 키보드 유지
+    }
+
+    // 자동 스크롤 유지
+    LaunchedEffect(currentInput.text, contentItems.size) {
+        listState.animateScrollToItem(listState.layoutInfo.totalItemsCount - 1) // 입력 따라가기
+    }
 
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
@@ -643,7 +655,8 @@ fun HomeScreen(navController: NavController) {
                             } else {
                                 false // 이벤트 미소비
                             }
-                        }
+                        },
+                        listState = listState,
                     )
 
                     // [유지] 검색 실행 버튼
@@ -916,7 +929,8 @@ private fun ChipBasedSearchInput(
     contentItems: List<SearchContentElement>,
     currentInput: TextFieldValue,
     onCurrentInputChange: (TextFieldValue) -> Unit,
-    onBackspacePressed: () -> Boolean // 이벤트를 소비했는지 여부 반환
+    onBackspacePressed: () -> Boolean, // 이벤트를 소비했는지 여부 반환
+    listState: LazyListState,
 ) {
     // 1. TextField 모양의 컨테이너
     Box(
@@ -940,6 +954,7 @@ private fun ChipBasedSearchInput(
     ) {
         // 2. [수정] FlowRow를 LazyRow로 변경하여 가로 스크롤 구현
         LazyRow(
+            state = listState,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically, // 모든 아이템을 세로 중앙 정렬
             modifier = Modifier
