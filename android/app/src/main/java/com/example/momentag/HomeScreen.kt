@@ -16,6 +16,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,22 +29,31 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -53,9 +63,10 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -77,7 +88,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -87,19 +100,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -109,7 +134,6 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
-import com.example.momentag.ui.components.SearchBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.AuthViewModel
@@ -122,6 +146,12 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+
+// [신규] 검색창의 컨텐츠 요소를 정의하는 Sealed Class
+sealed class SearchContentElement {
+    data class Text(val text: String) : SearchContentElement()
+    data class Chip(val tag: TagItem) : SearchContentElement()
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -142,7 +172,7 @@ fun HomeScreen(navController: NavController) {
     val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
     val homeDeleteState by homeViewModel.homeDeleteState.collectAsState()
     val uiState by photoViewModel.uiState.collectAsState()
-    val selectedPhotos by homeViewModel.selectedPhotos.collectAsState() // draftTagRepository에서 가져옴!
+    val selectedPhotos by homeViewModel.selectedPhotos.collectAsState()
     val isLoadingPhotos by homeViewModel.isLoadingPhotos.collectAsState()
     val isLoadingMorePhotos by homeViewModel.isLoadingMorePhotos.collectAsState()
     var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
@@ -160,6 +190,81 @@ fun HomeScreen(navController: NavController) {
 
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
     var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
+
+    // --- [검색창 상태 관리: 수정됨] ---
+    // HomeViewModel에서 로드된 전체 태그 목록 가져오기
+    val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
+    // 빠른 조회를 위한 태그 맵 (소문자 키)
+    val allTagsMap = remember(allTags) {
+        allTags.associateBy { it.tagName.lowercase() }
+    }
+
+    // [신규] 칩과 텍스트가 혼용된 검색어 상태
+    val contentItems = remember {
+        mutableStateListOf<SearchContentElement>(SearchContentElement.Text(""))
+    }
+    // [신규] 현재 활성화된(맨 마지막) 텍스트 필드의 상태
+    var currentInput by remember { mutableStateOf(TextFieldValue("")) }
+    // [신규] 텍스트 필드 포커스 관리를 위함
+    val focusRequester = remember { FocusRequester() }
+
+    // [수정됨] 태그 추천 로직 (현재 커서 위치 기반)
+    val (isTagSearch, tagQuery) = remember(currentInput) {
+        val cursorPosition = currentInput.selection.start
+        if (cursorPosition == 0) Pair(false, "")
+        else {
+            val textUpToCursor = currentInput.text.substring(0, cursorPosition)
+            val lastHashIndex = textUpToCursor.lastIndexOf('#')
+
+            if (lastHashIndex == -1) {
+                Pair(false, "") // '#' 없음
+            } else {
+                val potentialTag = textUpToCursor.substring(lastHashIndex)
+                if (" " in potentialTag) {
+                    Pair(false, "") // '#' 뒤에 띄어쓰기 있음
+                } else {
+                    Pair(true, potentialTag.substring(1)) // '#abc'
+                }
+            }
+        }
+    }
+
+    // [수정됨] 태그 추천 목록 필터링
+    val tagSuggestions by remember(isTagSearch, tagQuery, allTags, contentItems.size) {
+        derivedStateOf {
+            if (isTagSearch) {
+                val currentChipTagIds = contentItems.mapNotNull { (it as? SearchContentElement.Chip)?.tag?.tagId }.toSet()
+                allTags.filter {
+                    // 태그 이름에 검색어가 포함되고
+                    it.tagName.contains(tagQuery, ignoreCase = true) &&
+                            // 이미 칩으로 추가된 태그는 제외
+                            it.tagId !in currentChipTagIds
+                }
+            } else {
+                emptyList() // #으로 시작하지 않으면 추천 목록 비움
+            }
+        }
+    }
+
+    // [수정됨] 검색 실행 로직
+    val performSearch = {
+        focusManager.clearFocus()
+
+        // contentItems를 실제 쿼리 문자열로 변환
+        // 예: [Text("바다 "), Chip("제주도")] -> "바다 #제주도"
+        val finalQuery = contentItems.joinToString(separator = "") {
+            when (it) {
+                is SearchContentElement.Text -> it.text
+                is SearchContentElement.Chip -> " #${it.tag.tagName} " // 칩 앞뒤로 공백 추가
+            }
+        }.trim().replace(Regex("\\s+"), " ") // 중복 공백 제거
+
+        if (finalQuery.isNotEmpty()) {
+            navController.navigate(Screen.SearchResult.createRoute(finalQuery))
+        }
+    }
+    // --- [검색창 상태 관리 끝] ---
+
 
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
@@ -231,15 +336,13 @@ fun HomeScreen(navController: NavController) {
     // done once when got permission
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
-            if (homeViewModel.allPhotos.value.isEmpty()) {
-                homeViewModel.loadServerTags()
-                homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
+            homeViewModel.loadServerTags()
+            homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
 
-                val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED_112", false)
-                if (!hasAlreadyUploaded) {
-                    photoViewModel.uploadPhotos()
-                    sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED_112", true).apply()
-                }
+            val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED_112", false)
+            if (!hasAlreadyUploaded) {
+                // photoViewModel.uploadPhotos() // <--- 초기 자동 업로드 비활성화 (LocalGallery에서 수동)
+                // sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED_112", true).apply()
             }
         }
     }
@@ -299,6 +402,7 @@ fun HomeScreen(navController: NavController) {
         tagToDeleteInfo = null
     }
 
+    // 화면이 다시 보일 때 (ON_RESUME) 태그와 사진 새로고침
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, hasPermission) {
         val observer =
@@ -328,7 +432,7 @@ fun HomeScreen(navController: NavController) {
                 onLogoutClick = { authViewModel.logout() },
                 isLogoutLoading = logoutState is LogoutState.Loading,
                 actions = {
-                    // 태그 앨범 뷰(!showAllPhotos)에서는 선택 모드 버튼을 표시하지 않음
+                    // (기존 로직 유지)
                     if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                         Box {
                             IconButton(onClick = { showMenu = true }) {
@@ -401,7 +505,8 @@ fun HomeScreen(navController: NavController) {
                                     .background(
                                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                         RoundedCornerShape(20.dp),
-                                    ).padding(horizontal = 16.dp, vertical = 8.dp),
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
                 },
@@ -425,17 +530,14 @@ fun HomeScreen(navController: NavController) {
                         BottomTab.HomeScreen -> {
                             // 이미 홈 화면
                         }
-
                         BottomTab.SearchResultScreen -> {
                             homeViewModel.resetSelection()
                             navController.navigate(Screen.SearchResult.initialRoute())
                         }
-
                         BottomTab.MyTagsScreen -> {
                             homeViewModel.resetSelection()
                             navController.navigate(Screen.MyTags.route)
                         }
-
                         BottomTab.StoryScreen -> {
                             homeViewModel.resetSelection()
                             navController.navigate(Screen.Story.route)
@@ -446,14 +548,12 @@ fun HomeScreen(navController: NavController) {
         },
         containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
-            // 태그 앨범 뷰(!showAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
+            // (기존 로직 유지)
             if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
                     text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Create with ${selectedPhotos.size}" else "Create Tag",
                     onClick = {
-                        // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
-                        // SearchResultScreen과 동일한 패턴
                         isSelectionMode = false
                         navController.navigate(Screen.AddTag.route)
                     },
@@ -462,7 +562,7 @@ fun HomeScreen(navController: NavController) {
         },
     ) { paddingValues ->
         PullToRefreshBox(
-            isRefreshing = homeLoadingState is HomeViewModel.HomeLoadingState.Loading || isLoadingPhotos,
+            isRefreshing = (homeLoadingState is HomeViewModel.HomeLoadingState.Loading && groupedPhotos.isEmpty()) || (isLoadingPhotos && groupedPhotos.isEmpty()),
             onRefresh = {
                 if (hasPermission) {
                     isDeleteMode = false
@@ -483,25 +583,71 @@ fun HomeScreen(navController: NavController) {
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Search Bar with Filter Button
+                // --- [검색창 UI 수정됨] ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top, // 상단 정렬
                 ) {
-                    SearchBar(
-                        onSearch = { query ->
-                            if (query.isNotEmpty()) {
-                                navController.navigate(Screen.SearchResult.createRoute(query))
-                                focusManager.clearFocus()
-                            }
-                        },
+                    // [신규] 칩 기반 검색 입력창
+                    ChipBasedSearchInput(
                         modifier = Modifier.weight(1f),
+                        focusRequester = focusRequester,
+                        contentItems = contentItems,
+                        currentInput = currentInput,
+                        onCurrentInputChange = { newValue ->
+                            val oldText = currentInput.text
+                            val newText = newValue.text
+                            currentInput = newValue
+
+                            // 마지막 텍스트 요소를 현재 입력값으로 업데이트
+                            contentItems[contentItems.lastIndex] = SearchContentElement.Text(newText)
+
+                            // 태그 자동 변환 로직 (스페이스바 대신 추천 목록 클릭으로만 처리)
+                            // (기존 '#태그 ' 입력 시 자동 변환 로직은 오작동 소지가 많아 제거)
+                        },
+                        onBackspacePressed = {
+                            // [신규] 백스페이스 로직
+                            // 입력 필드가 비어있고, 컨텐츠가 1개 초과일 때
+                            if (currentInput.text.isEmpty() && currentInput.selection.start == 0 && contentItems.size > 1) {
+                                val lastElementIndex = contentItems.lastIndex // 현재의 빈 텍스트 요소 인덱스
+                                val elementToRemoveIndex = lastElementIndex - 1
+                                val elementToRemove = contentItems[elementToRemoveIndex]
+
+                                if (elementToRemove is SearchContentElement.Chip) {
+                                    // 1. 지울 요소가 '칩'인 경우
+                                    contentItems.removeAt(lastElementIndex) // 현재의 빈 텍스트 요소 제거
+                                    contentItems.removeAt(elementToRemoveIndex) // 칩 요소 제거
+
+                                    // 칩의 텍스트를 복원 (#태그명)
+                                    val textToRestore = "#${elementToRemove.tag.tagName}"
+
+                                    // 칩 앞에 '텍스트' 요소가 있다면, 두 텍스트 요소를 병합
+                                    val newLastElementIndex = contentItems.lastIndex
+                                    if (newLastElementIndex != -1 && contentItems[newLastElementIndex] is SearchContentElement.Text) {
+                                        val existingText = (contentItems[newLastElementIndex] as SearchContentElement.Text).text
+                                        val mergedText = existingText + textToRestore
+                                        contentItems[newLastElementIndex] = SearchContentElement.Text(mergedText)
+                                        currentInput = TextFieldValue(mergedText, selection = TextRange(mergedText.length))
+                                    } else {
+                                        // 칩 앞에 칩만 있었다면, 새 텍스트 요소로 추가
+                                        currentInput = TextFieldValue(textToRestore, selection = TextRange(textToRestore.length))
+                                        contentItems.add(SearchContentElement.Text(textToRestore))
+                                    }
+                                    true // 이벤트 소비
+                                } else {
+                                    false // 이벤트 미소비
+                                }
+                            } else {
+                                false // 이벤트 미소비
+                            }
+                        }
                     )
+
+                    // [유지] 검색 실행 버튼
                     IconButton(
                         onClick = {
-                            // TODO: Show filter dialog
-                            Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                            performSearch() // 버튼 클릭으로 검색 실행
                         },
                         modifier =
                             Modifier
@@ -512,12 +658,60 @@ fun HomeScreen(navController: NavController) {
                                 ),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FilterList,
-                            contentDescription = "Filter",
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
                             tint = MaterialTheme.colorScheme.onPrimary,
                         )
                     }
                 }
+
+                // [수정됨] 태그 추천 목록
+                if (tagSuggestions.isNotEmpty()) {
+                    LazyColumn(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp) // 추천 목록의 최대 높이 제한
+                                .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(8.dp))
+                                .padding(vertical = 4.dp),
+                    ) {
+                        items(tagSuggestions, key = { it.tagId }) { tag ->
+                            TagSuggestionItem(
+                                tagItem = tag,
+                                onClick = {
+                                    // [신규] 추천 태그 클릭 로직
+                                    val text = currentInput.text
+                                    val cursor = currentInput.selection.start
+                                    val textUpToCursor = text.substring(0, cursor)
+                                    val lastHashIndex = textUpToCursor.lastIndexOf('#')
+
+                                    if (lastHashIndex != -1) {
+                                        // 1. '#' 앞의 텍스트
+                                        val precedingText = text.substring(0, lastHashIndex)
+                                        // 2. 커서 뒤의 텍스트
+                                        val succeedingText = text.substring(cursor)
+
+                                        // 3. 현재 텍스트 요소를 '#' 앞부분만 남기고 업데이트
+                                        contentItems[contentItems.lastIndex] = SearchContentElement.Text(precedingText)
+                                        // 4. 칩 추가
+                                        contentItems.add(SearchContentElement.Chip(tag))
+                                        // 5. 커서 뒤 텍스트 + 공백을 새 텍스트 요소로 추가
+                                        val newText = " $succeedingText"
+                                        contentItems.add(SearchContentElement.Text(newText))
+                                        // 6. currentInput 상태 업데이트
+                                        currentInput = TextFieldValue(newText, selection = TextRange(1)) // 공백 뒤에 커서
+                                    }
+
+                                    // 포커스 유지를 위해
+                                    scope.launch {
+                                        focusRequester.requestFocus()
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+                // --- [검색창 UI 수정 끝] ---
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -526,7 +720,7 @@ fun HomeScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // "태그 앨범" 뷰일 때만 정렬 버튼 표시
+                    // (기존 로직 유지)
                     if (!showAllPhotos) {
                         IconButton(onClick = { scope.launch { sheetState.show() } }) {
                             Icon(
@@ -536,8 +730,7 @@ fun HomeScreen(navController: NavController) {
                             )
                         }
                     } else {
-                        // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
-                        Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
+                        Spacer(modifier = Modifier.size(48.dp))
                     }
                     ViewToggle(
                         onlyTag = onlyTag,
@@ -555,11 +748,12 @@ fun HomeScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // --- [이하 모든 UI 로직은 기존과 동일] ---
                 if (!hasPermission) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
                     }
-                } else if (isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) {
+                } else if ((isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) && groupedPhotos.isEmpty()) {
                     Box(
                         modifier =
                             Modifier
@@ -570,25 +764,22 @@ fun HomeScreen(navController: NavController) {
                         CircularProgressIndicator()
                     }
                 } else {
-                    val tagItems =
-                        (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags
-                            ?: emptyList()
-
                     val listState = if (showAllPhotos) rememberLazyGridState() else null
 
                     MainContent(
                         modifier = Modifier.weight(1f),
                         onlyTag = onlyTag, // Pass the actual state
                         showAllPhotos = showAllPhotos, // Pass the actual state
-                        tagItems = tagItems, // Pass the loaded tags
+                        tagItems = allTags, // [수정] allTags 전달 (이미 로드됨)
                         groupedPhotos = groupedPhotos,
                         navController = navController,
                         onDeleteClick = { tagId ->
-                            val tagItem = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags?.find { it.tagId == tagId }
+                            // [수정] 삭제 확인 대화상자 띄우기
+                            val tagItem = allTags.find { it.tagId == tagId }
                             if (tagItem != null) {
                                 tagToDeleteInfo = Pair(tagItem.tagId, tagItem.tagName)
                                 showDeleteConfirmationDialog = true
-                                isDeleteMode = false
+                                isDeleteMode = false // 대화상자를 띄우면 삭제 모드(x 아이콘)는 해제
                             }
                         },
                         isDeleteMode = isDeleteMode,
@@ -604,27 +795,25 @@ fun HomeScreen(navController: NavController) {
                         homeViewModel = homeViewModel,
                         lazyGridState = listState,
                         isLoadingMorePhotos = isLoadingMorePhotos,
-                        isLoadingPhotos = false, // 이 블록은 로딩이 끝났을 때만 실행됨
+                        isLoadingPhotos = isLoadingPhotos, // 로딩 상태 전달
                         homeLoadingState = homeLoadingState, // Success 또는 Error 상태 전달
                     )
 
                     // 페이지네이션 로직을 MainContent 밖으로 이동
                     if (showAllPhotos && listState != null) {
                         LaunchedEffect(listState, isLoadingMorePhotos) {
-                            // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
                             if (!isLoadingMorePhotos) {
                                 snapshotFlow {
                                     listState.layoutInfo.visibleItemsInfo
                                         .lastOrNull()
                                         ?.index
-                                }.distinctUntilChanged() // 같은 값이 연속으로 올 때 필터링
-                                    .debounce(150) // 빠른 스크롤 시 150ms 대기 후 처리 렉 방지
+                                }.distinctUntilChanged()
+                                    .debounce(150)
                                     .collect { lastVisibleIndex ->
-                                        val totalItemCount = groupedPhotos.size + allPhotos.size
+                                        val totalItemCount = listState.layoutInfo.totalItemsCount
                                         if (lastVisibleIndex != null && totalItemCount > 0) {
                                             val remainingItems =
                                                 totalItemCount - (lastVisibleIndex + 1)
-                                            // 3열 그리드 기준, 약 11줄(33개) 미만일 때 로드
                                             if (remainingItems < 33) {
                                                 homeViewModel.loadMorePhotos()
                                             }
@@ -671,6 +860,7 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
+    // [수정] errorDialog 호출을 confirmDialog 호출로 변경
     if (showDeleteConfirmationDialog && tagToDeleteInfo != null) {
         val (tagId, tagName) = tagToDeleteInfo!!
 
@@ -679,16 +869,18 @@ fun HomeScreen(navController: NavController) {
             message = "'$tagName' 태그를 삭제하시겠습니까?",
             confirmButtonText = "Delete Tag",
             onConfirm = {
+                // "Delete Tag" 버튼 클릭 시
                 homeViewModel.deleteTag(tagId)
                 Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
                 showDeleteConfirmationDialog = false
                 tagToDeleteInfo = null
             },
             onDismiss = {
+                // X 버튼 또는 바깥쪽 클릭 시 (취소)
                 showDeleteConfirmationDialog = false
                 tagToDeleteInfo = null
             },
-            dismissible = true,
+            dismissible = true, // 바깥쪽 클릭 및 뒤로가기 버튼으로 닫기 허용
         )
     }
 
@@ -710,7 +902,178 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
-// -------------------- Helpers --------------------
+// -------------------- [신규] 칩 기반 검색창 컴포저블 --------------------
+
+/**
+ * [신규] 칩과 텍스트 입력 필드가 혼용된 검색 입력 영역
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChipBasedSearchInput(
+    modifier: Modifier = Modifier,
+    focusRequester: FocusRequester,
+    contentItems: List<SearchContentElement>,
+    currentInput: TextFieldValue,
+    onCurrentInputChange: (TextFieldValue) -> Unit,
+    onBackspacePressed: () -> Boolean // 이벤트를 소비했는지 여부 반환
+) {
+    // 1. TextField 모양의 컨테이너
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .wrapContentHeight() // 내용물(칩)이 많아지면 자동으로 늘어남
+                .heightIn(min = 48.dp) // 최소 높이
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(12.dp),
+                )
+                .clickable( // 컨테이너 어디를 눌러도 텍스트 필드에 포커스
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) {
+                    focusRequester.requestFocus()
+                }
+                .padding(horizontal = 12.dp, vertical = 4.dp), // 내부 패딩
+    ) {
+        // 2. 칩과 텍스트 필드를 자동으로 줄바꿈해주는 FlowRow
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp) // FlowRow 자체의 수직 패딩
+        ) {
+            // 3. 칩과 (비활성) 텍스트 렌더링
+            contentItems.forEachIndexed { index, item ->
+                when (item) {
+                    is SearchContentElement.Chip -> {
+                        SearchChipView(
+                            tag = item.tag,
+                            // 칩 클릭 시 (현재는 아무것도 안함, 포커스만 이동)
+                            onClick = { focusRequester.requestFocus() },
+                            modifier = Modifier.align(Alignment.CenterVertically),
+                        )
+                    }
+                    is SearchContentElement.Text -> {
+                        // 마지막 요소(현재 입력중인)가 아니면 단순 Text로 표시
+                        if (index < contentItems.lastIndex) {
+                            Text(
+                                text = item.text,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 16.sp
+                                ),
+                                modifier = Modifier
+                                    .align(Alignment.CenterVertically)
+                                    .padding(horizontal = 4.dp, vertical = 8.dp)
+                            )
+                        } else {
+                            // 4. [핵심] 마지막 요소는 실제 입력 필드
+                            BasicTextField(
+                                value = currentInput,
+                                onValueChange = onCurrentInputChange,
+                                modifier =
+                                    Modifier
+                                        .focusRequester(focusRequester)
+                                        .weight(1f) // 남은 공간 차지
+                                        .defaultMinSize(minWidth = 10.dp) // 최소 너비 보장
+                                        .align(Alignment.CenterVertically)
+                                        .onKeyEvent { event ->
+                                            if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace) {
+                                                onBackspacePressed()
+                                            } else {
+                                                false
+                                            }
+                                        }
+                                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                                singleLine = true,
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 16.sp
+                                ),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { /* performSearch는 상위 버튼으로 */ }),
+                                decorationBox = { innerTextField ->
+                                    // Placeholder (입력 힌트)
+                                    if (currentInput.text.isEmpty() && contentItems.size == 1) {
+                                        Text(
+                                            "검색 또는 #태그 입력",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+                                        )
+                                    }
+                                    innerTextField() // 실제 입력 필드가 그려지는 부분
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * [신규] 검색창 내부에 표시될 칩 (X 버튼 없음)
+ */
+@Composable
+private fun SearchChipView(
+    tag: TagItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                .clip(CircleShape)
+                .clickable { onClick() }
+                .padding(horizontal = 10.dp, vertical = 6.dp), // 텍스트 칩보다 패딩 약간 더 줌
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "#${tag.tagName}",
+            fontSize = 15.sp, // 텍스트(16sp)보다 약간 작게
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+        // 검색창에서는 칩의 X 버튼을 누르는 것보다 백스페이스로 지우는 것이 더 자연스러움
+    }
+}
+
+/**
+ * [수정됨] 태그 추천 목록에 표시되는 항목 (onClick 로직 변경)
+ */
+@Composable
+private fun TagSuggestionItem(
+    tagItem: TagItem,
+    onClick: () -> Unit, // onClick 로직은 상위 Composable에서 정의
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable { onClick() }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(tagItem.tagName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "${tagItem.photoCount} photos",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+
+// -------------------- [기존 Helper 함수들 - 변경 없음] --------------------
 
 @Composable
 private fun ViewToggle(
@@ -736,7 +1099,8 @@ private fun ViewToggle(
                             .clip(RoundedCornerShape(6.dp))
                             .background(
                                 if (!onlyTag && !showAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                            ).clickable { onToggle(false, false) }
+                            )
+                            .clickable { onToggle(false, false) }
                             .padding(8.dp),
                 ) {
                     Icon(
@@ -760,7 +1124,8 @@ private fun ViewToggle(
                             .clip(RoundedCornerShape(6.dp))
                             .background(
                                 if (showAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                            ).clickable { onToggle(false, true) }
+                            )
+                            .clickable { onToggle(false, true) }
                             .padding(8.dp),
                 ) {
                     Icon(
@@ -800,11 +1165,9 @@ private fun MainContent(
 ) {
     val isTagsLoaded =
         homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
-    val arePhotosLoaded = !isLoadingPhotos
-    // 태그와 사진 로딩이 모두 끝나야 빈 화면 여부를 최종 결정
+    val arePhotosLoaded = !isLoadingPhotos || groupedPhotos.isNotEmpty()
     val isDataReady = isTagsLoaded && arePhotosLoaded
 
-    // 데이터 상태 정의
     val arePhotosEmpty = groupedPhotos.isEmpty()
     val areTagsEmpty = tagItems.isEmpty()
 
@@ -812,10 +1175,7 @@ private fun MainContent(
         isDataReady && arePhotosEmpty -> {
             EmptyStatePhotos(modifier = modifier, navController = navController)
         }
-
-        // 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
         showAllPhotos -> {
-            // 사진이 있거나, 아직 로딩 중
             val listState = lazyGridState ?: rememberLazyGridState()
 
             LazyVerticalGrid(
@@ -929,10 +1289,8 @@ private fun MainContent(
                         }
                     }
 
-                    // 로딩 인디케이터
                     if (isLoadingMorePhotos) {
                         item(span = { GridItemSpan(3) }) {
-                            // 3칸 모두 차지
                             Box(
                                 modifier =
                                     Modifier
@@ -950,16 +1308,11 @@ private fun MainContent(
                 }
             }
         }
-
-        // 로직 3순위: 'Tag Album' 뷰 (사진이 반드시 있음)
         !showAllPhotos && !arePhotosEmpty -> {
             if (areTagsEmpty && isDataReady) {
-                // 시나리오 2-b: 사진은 있으나, 태그가 없음
                 EmptyStateTags(navController = navController, modifier = modifier)
             } else {
-                // 시나리오 3: 사진도 있고, 태그도 있음 (또는 태그 로딩 중)
                 if (onlyTag) {
-                    // 태그 Flow 뷰
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -975,7 +1328,6 @@ private fun MainContent(
                         }
                     }
                 } else {
-                    // 태그 Grid 뷰
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         modifier = modifier,
@@ -1066,7 +1418,8 @@ fun TagGridItem(
                         .background(
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(16.dp),
-                        ).align(Alignment.BottomCenter)
+                        )
+                        .align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
                                 if (isDeleteMode) {
@@ -1095,7 +1448,8 @@ fun TagGridItem(
                     .background(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(8.dp),
-                    ).padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
         )
         if (isDeleteMode) {
             IconButton(
@@ -1136,7 +1490,9 @@ fun EmptyStateTags(
         Image(
             painter = painterResource(id = R.drawable.ic_empty_tags),
             contentDescription = "추억을 만들어보세요",
-            modifier = Modifier.size(120.dp).rotate(45f),
+            modifier = Modifier
+                .size(120.dp)
+                .rotate(45f),
         )
 
         Spacer(modifier = Modifier.height(24.dp))
