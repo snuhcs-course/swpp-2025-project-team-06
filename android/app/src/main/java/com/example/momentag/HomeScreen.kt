@@ -211,7 +211,7 @@ fun HomeScreen(navController: NavController) {
         mutableStateListOf<SearchContentElement>(SearchContentElement.Text(""))
     }
     // [신규] 현재 활성화된(맨 마지막) 텍스트 필드의 상태
-    var currentInput by remember { mutableStateOf(TextFieldValue("")) }
+    var currentInput by remember { mutableStateOf(TextFieldValue("\u200B", TextRange(1))) }
     // [신규] 텍스트 필드 포커스 관리를 위함
     val focusRequester = remember { FocusRequester() }
 
@@ -611,18 +611,18 @@ fun HomeScreen(navController: NavController) {
                         contentItems = contentItems,
                         currentInput = currentInput,
                         onCurrentInputChange = { newValue ->
-                            val oldText = currentInput.text
-                            val newText = newValue.text
-                            // [신규] 1. 백스페이스로 마지막 글자가 지워져 필드가 비었는지 확인
-                            // (텍스트가 있었는데, 비게 되었고, 길이가 줄었다)
-                            val didBackspaceEmptyField = oldText.isNotEmpty() &&
-                                    newText.isEmpty() &&
-                                    oldText.length > newText.length
+                            // [수정] onValueChange에서 ZWSP 로직이 처리됨.
+                            // 여기서는 전달된 값을 state에 그대로 반영하고,
+                            // contentItems의 마지막 텍스트(ZWSP 제외)를 업데이트
+                            currentInput = newValue
+                            contentItems[contentItems.lastIndex] =
+                                SearchContentElement.Text(newValue.text.removePrefix("\u200B"))
+                        },
+                        onBackspacePressed = {
+                            // [수정] ZWSP가 지워졌을 때 호출될 칩 삭제 로직
+                            if (contentItems.size > 1) {
 
-                            if (didBackspaceEmptyField && contentItems.size > 1) {
-                                // [신규] 2. 소프트웨어 키보드 백스페이스로 칩 삭제 실행
-
-                                // 1. 현재 (이제는 비어버린) 텍스트 요소를 제거
+                                // 1. 현재의 텍스트 요소를 제거
                                 contentItems.removeAt(contentItems.lastIndex)
 
                                 // 2. 그 바로 앞의 요소(칩 또는 텍스트)를 제거
@@ -632,52 +632,19 @@ fun HomeScreen(navController: NavController) {
                                 val newLastElement = contentItems.lastOrNull()
 
                                 if (newLastElement == null || newLastElement is SearchContentElement.Chip) {
-                                    // 3a. 리스트가 비었거나, 마지막이 칩이면 새 텍스트 필드를 추가
+                                    // 3a. 리스트가 비었거나, 마지막이 칩이면 새 텍스트 요소 추가
                                     contentItems.add(SearchContentElement.Text(""))
-                                    currentInput = TextFieldValue("")
                                 } else if (newLastElement is SearchContentElement.Text) {
-                                    // 3b. 마지막이 텍스트면, 그 텍스트를 현재 입력값으로 복원하고 커서를 맨 뒤로
-                                    val textToRestore = newLastElement.text
-                                    currentInput = TextFieldValue(textToRestore, selection = TextRange(textToRestore.length))
+                                    // 3b. 마지막이 텍스트면, 그 텍스트를 currentInput으로 복원
+                                    // (이때 ZWSP를 다시 붙여줘야 함)
+                                    val textToRestore = (newLastElement as SearchContentElement.Text).text
+                                    currentInput = TextFieldValue(
+                                        "\u200B" + textToRestore,
+                                        TextRange(textToRestore.length + 1)
+                                    )
                                 }
-                                // --- 칩 삭제 로직 끝 ---
-                            } else {
-                                // [기존] 일반적인 텍스트 변경
-                                currentInput = newValue
-                                contentItems[contentItems.lastIndex] = SearchContentElement.Text(newText)
                             }
                         },
-//                        onBackspacePressed = {
-//                            Log.d("BackspacePressed", "Backspace pressed")
-//                            // [수정됨] 백스페이스 로직
-//                            // 1. 텍스트 필드가 비어있고(커서가 0)
-//                            // 2. 전체 아이템이 1개 초과일 때 (즉, 현재 텍스트 필드 외에 칩이나 텍스트가 더 있을 때)
-//                            if (currentInput.text.isEmpty() && currentInput.selection.start == 0 && contentItems.size > 1) {
-//
-//                                // 1. 현재의 빈 텍스트 요소를 제거
-//                                contentItems.removeAt(contentItems.lastIndex)
-//
-//                                // 2. 그 바로 앞의 요소(칩 또는 텍스트)를 제거
-//                                contentItems.removeAt(contentItems.lastIndex)
-//
-//                                // 3. 이제 마지막이 된 요소를 확인
-//                                val newLastElement = contentItems.lastOrNull()
-//
-//                                if (newLastElement == null || newLastElement is SearchContentElement.Chip) {
-//                                    // 3a. 리스트가 비었거나, 마지막이 칩이면 새 텍스트 필드를 추가
-//                                    contentItems.add(SearchContentElement.Text(""))
-//                                    currentInput = TextFieldValue("")
-//                                } else if (newLastElement is SearchContentElement.Text) {
-//                                    // 3b. 마지막이 텍스트면, 그 텍스트를 현재 입력값으로 복원하고 커서를 맨 뒤로
-//                                    val textToRestore = newLastElement.text
-//                                    currentInput = TextFieldValue(textToRestore, selection = TextRange(textToRestore.length))
-//                                }
-//
-//                                true // 백스페이스 이벤트를 소비했음 (칩/텍스트 덩어리를 지움)
-//                            } else {
-//                                false // 텍스트가 있거나, 지울 칩이 없음 -> 이벤트 미소비(기본 백스페이스 동작)
-//                            }
-//                        },
                         listState = listState,
                     )
 
@@ -951,7 +918,7 @@ private fun ChipBasedSearchInput(
     contentItems: List<SearchContentElement>,
     currentInput: TextFieldValue,
     onCurrentInputChange: (TextFieldValue) -> Unit,
-//    onBackspacePressed: () -> Boolean, // 이벤트를 소비했는지 여부 반환
+    onBackspacePressed: () -> Unit,
     listState: LazyListState,
 ) {
     // 1. TextField 모양의 컨테이너
@@ -959,7 +926,6 @@ private fun ChipBasedSearchInput(
         modifier =
             modifier
                 .fillMaxWidth()
-                // .wrapContentHeight() // [수정] 세로 높이가 늘어나지 않도록 이 줄을 제거합니다.
                 .heightIn(min = 48.dp) // 최소 높이 유지
                 .background(
                     color = MaterialTheme.colorScheme.surfaceVariant,
@@ -1017,23 +983,37 @@ private fun ChipBasedSearchInput(
                             // 4. [핵심] 마지막 요소는 실제 입력 필드
                             BasicTextField(
                                 value = currentInput,
-                                onValueChange = onCurrentInputChange,
+                                onValueChange = { newValue ->
+                                    val oldText = currentInput.text
+                                    val newText = newValue.text
+
+                                    // [수정] ZWSP(\u200B)가 지워졌는지 감지
+                                    val didBackspaceOnEmpty = oldText == "\u200B" && newText.isEmpty()
+
+                                    if (didBackspaceOnEmpty) {
+                                        // [수정] 칩 삭제 콜백 호출
+                                        onBackspacePressed()
+                                        // 텍스트 필드를 다시 ZWSP로 "초기화"
+                                        onCurrentInputChange(TextFieldValue("\u200B", TextRange(1)))
+
+                                    } else if (!newText.startsWith("\u200B")) {
+                                        // [수정] ZWSP가 사라짐 (예: 커서 이동, 붙여넣기)
+                                        // ZWSP를 다시 맨 앞에 붙여서 복원
+                                        val restoredText = "\u200B$newText"
+                                        onCurrentInputChange(
+                                            TextFieldValue(restoredText, TextRange(restoredText.length))
+                                        )
+                                    } else {
+                                        // [수정] 일반 타이핑. 상위로 변경 사항 전달
+                                        onCurrentInputChange(newValue)
+                                    }
+                                },
                                 modifier =
                                     Modifier
                                         .focusRequester(focusRequester)
                                         // [수정] LazyRow 내에서 남은 공간을 차지하도록 weight(1f) 적용
 //                                        .weight(1f)
                                         .defaultMinSize(minWidth = 10.dp) // 최소 너비 보장
-//                                        .onKeyEvent { event ->
-//                                            if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace) {
-//                                                // [수정] onBackspacePressed의 결과를 리턴해야 함
-//                                                // true를 리턴하면 (칩이 지워짐) 이벤트가 소비되고,
-//                                                // false를 리턴하면 (텍스트가 있음) BasicTextField의 기본 백스페이스가 동작함.
-//                                                onBackspacePressed()
-//                                            } else {
-//                                                false
-//                                            }
-//                                        }
                                         .padding(horizontal = 4.dp, vertical = 8.dp),
                                 singleLine = true,
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -1045,7 +1025,7 @@ private fun ChipBasedSearchInput(
                                 keyboardActions = KeyboardActions(onSearch = { /* performSearch는 상위 버튼으로 */ }),
                                 decorationBox = { innerTextField ->
                                     // Placeholder (입력 힌트)
-                                    if (currentInput.text.isEmpty() && contentItems.size == 1) {
+                                    if (currentInput.text == "\u200B" && contentItems.size == 1) {
                                         Text(
                                             "검색 또는 #태그 입력",
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
