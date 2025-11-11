@@ -740,11 +740,19 @@ fun HomeScreen(navController: NavController) {
                                 bringIntoViewRequesters[id]?.bringIntoView()
                             }
 
-                            // --- [신규] 백스페이스 병합 로직 ---
-
                             val oldValue = textStates[id] ?: TextFieldValue() // 이전 TextFieldValue
                             val oldText = oldValue.text
                             val newText = newValue.text
+
+                            // [신규] 2. 한글 등 IME 조합 중인지 확인
+                            val isComposing = newValue.composition != null
+
+                            // [신규] 3. 조합 중일 때는 UI 상태만 업데이트하고,
+                            // ZWSP/백스페이스/데이터 동기화 로직은 실행하지 않음
+                            if (isComposing) {
+                                textStates[id] = newValue // UI만 갱신
+                                return@ChipSearchBar
+                            }
 
                             // [수정] ZWSP가 삭제되었는지(커서가 1이었는지) 감지
                             val didBackspaceAtStart = oldText.startsWith("\u200B") &&
