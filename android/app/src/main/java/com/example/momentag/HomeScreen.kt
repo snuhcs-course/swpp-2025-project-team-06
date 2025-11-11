@@ -139,6 +139,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import android.util.Log
 import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.runtime.mutableStateMapOf
 import java.util.UUID
 import androidx.compose.ui.focus.onFocusChanged
@@ -658,11 +659,12 @@ fun HomeScreen(navController: NavController) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.Top, // 상단 정렬
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // [수정] ChipSearchBar 하나로 교체
                     ChipSearchBar(
-                        modifier = Modifier.weight(1f), // weight(1f)는 그대로 유지
+                        modifier = Modifier.weight(1f),
+                        isFocused = (focusedElementId != null),
 
                         // 1. 상태 전달
                         contentItems = contentItems,
@@ -675,30 +677,14 @@ fun HomeScreen(navController: NavController) {
 
                         // 3. 모든 이벤트 핸들러 전달
                         onContainerClick = {
-                            // [신규] 컨테이너 클릭: 마지막 텍스트 필드에 포커스
                             val lastTextElement = contentItems.lastOrNull { it is SearchContentElement.Text }
                             if (lastTextElement != null) {
-                                // [수정] 스크롤 로직 추가
-                                val lastIndex = contentItems.indexOfFirst { it.id == lastTextElement.id }
-                                if (lastIndex != -1) {
-                                    scope.launch {
-                                        listState.scrollToItem(lastIndex) // 애니메이션 없이 즉시 이동
-                                    }
-                                }
                                 requestFocusById(lastTextElement.id)
                             }
                         },
                         onChipClick = { index ->
-                            // [신규] 칩 클릭: 바로 다음 텍스트 필드에 포커스
                             val nextTextId = findNextTextElementId(index)
                             if (nextTextId != null) {
-                                // [수정] 스크롤 로직 추가
-                                val nextIndex = contentItems.indexOfFirst { it.id == nextTextId }
-                                if (nextIndex != -1) {
-                                    scope.launch {
-                                        listState.scrollToItem(nextIndex)
-                                    }
-                                }
                                 requestFocusById(nextTextId)
                             }
                         },
@@ -707,6 +693,10 @@ fun HomeScreen(navController: NavController) {
                         },
                         onTextChange = { id, newValue ->
                             // --- (HomeScreen에 있던 onTextChange 로직 그대로) ---
+                            scope.launch {
+                                bringIntoViewRequesters[id]?.bringIntoView()
+                            }
+
                             val oldText = textStates[id]?.text ?: ""
                             val newText = newValue.text
                             val didBackspaceOnEmpty = oldText == "\u200B" && newText.isEmpty()
@@ -786,6 +776,26 @@ fun HomeScreen(navController: NavController) {
                             }
                         }
                     )
+
+                    IconButton(
+                        onClick = {
+                            // TODO: Show filter dialog
+                            Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier =
+                            Modifier
+                                .size(48.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary, // 이미지와 다른 색상 (primary)
+                                    shape = RoundedCornerShape(12.dp),
+                                ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList, // 필터 아이콘
+                            contentDescription = "Filter",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    }
                 }
 
                 // [수정됨] 태그 추천 목록 (LazyRow)

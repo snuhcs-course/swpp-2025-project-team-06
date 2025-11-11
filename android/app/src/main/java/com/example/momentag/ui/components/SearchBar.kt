@@ -83,52 +83,61 @@ sealed class SearchContentElement {
  * @param onFocus 텍스트 필드 포커스 시
  * @param onSearch 검색 버튼(돋보기) 클릭 시
  * @param placeholder 플레이스홀더 텍스트
+ * @param isFocused [신규] 검색바가 현재 포커스 상태인지 여부 (UI 변경용)
  */
 @Composable
 fun ChipSearchBar(
     modifier: Modifier = Modifier,
-    // HomeScreen의 상태 값들
+    isFocused: Boolean, // [신규] 포커스 상태를 외부에서 받음
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
     bringIntoViewRequesters: Map<String, BringIntoViewRequester>,
-
-    // HomeScreen의 이벤트 핸들러들
     onContainerClick: () -> Unit,
     onChipClick: (Int) -> Unit,
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String) -> Unit,
-    onSearch: () -> Unit, // 검색 버튼 클릭
-
-    // SearchBarControlledCustom의 UI 값
+    onSearch: () -> Unit,
     placeholder: String = "검색 또는 #태그 입력"
 ) {
-    // [수정] 여기가 SearchBarControlledCustom의 UI를 모방한 컨테이너입니다.
+    // [신규] 기존 SearchBar의 색상 정의를 그대로 가져옴
+    val colors = TextFieldDefaults.colors(
+        focusedIndicatorColor = Color.Transparent,
+        unfocusedIndicatorColor = Color.Transparent,
+        focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+        unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+    )
+
+    // [신규] 포커스 상태에 따라 컨테이너 색상 결정
+    val containerColor = if (isFocused) {
+        colors.focusedContainerColor
+    } else {
+        colors.unfocusedContainerColor
+    }
+
+// [수정] Row가 기존 SearchBar(TextField)의 모양을 흉내 냄
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp) // TextField의 기본 높이와 유사하게
+        modifier = modifier // HomeScreen에서 (Modifier.weight(1f))가 적용될 것임
+            .heightIn(min = 48.dp) // TextField의 최소 높이와 맞춤
             .background(
-                color = MaterialTheme.colorScheme.surfaceContainerLow, // SearchBarControlledCustom의 색상
-                shape = RoundedCornerShape(16.dp) // SearchBarControlledCustom의 모양
+                color = containerColor,
+                shape = RoundedCornerShape(24.dp) // [수정] 기존 SearchBar의 둥근 모서리
             )
-            .padding(start = 16.dp, end = 4.dp), // TextField의 내부 아이콘 패딩과 유사하게
+            .padding(horizontal = 16.dp), // [수정] TextField의 아이콘 패딩과 맞춤
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // [수정] 이것이 SearchBarControlledCustom의 "leadingIcon" 입니다.
-        // (HomeScreen에서는 버튼이 오른쪽에 있었지만, 기존 SearchBar.kt는 왼쪽에 있었습니다)
-        // (만약 오른쪽(trailing)을 원하시면 이 Icon을 IconButton 안으로 옮기시면 됩니다)
-//        Icon(
-//            imageVector = Icons.Default.Search,
-//            contentDescription = "Search",
-//            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-//            modifier = Modifier.padding(end = 8.dp)
-//        )
+        // [신규] 기존 SearchBar의 leadingIcon을 추가
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = "Search",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
-        // [수정] Box가 아닌, InternalChipSearchInput를 직접 호출합니다.
-        // (InternalChipSearchInput이 LazyRow를 포함)
+        // [수정] InternalChipSearchInput가 남은 공간을 채움
         InternalChipSearchInput(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp), // 아이콘과 텍스트 사이 간격
             contentItems = contentItems,
             textStates = textStates,
             focusRequesters = focusRequesters,
@@ -138,17 +147,8 @@ fun ChipSearchBar(
             onTextChange = onTextChange,
             onFocus = onFocus,
             onSearch = onSearch,
-            placeholder = placeholder // 플레이스홀더 전달
+            placeholder = placeholder
         )
-
-        // [수정] 이것이 SearchBarControlledCustom의 "trailingIcon" 입니다.
-        IconButton(onClick = onSearch) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "검색 실행",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
 
