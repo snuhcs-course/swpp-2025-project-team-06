@@ -564,16 +564,6 @@ fun HomeScreen(navController: NavController) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         Text("To view tags and images,\nplease allow access to your photos.")
                     }
-                } else if (isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
                 } else {
                     val tagItems =
                         (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags
@@ -1156,7 +1146,7 @@ fun EmptyStateTags(
         verticalArrangement = Arrangement.Center,
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ic_empty_tags),
+            painter = painterResource(id = R.drawable.tag),
             contentDescription = "Create memories",
             modifier = Modifier.size(120.dp).rotate(45f),
         )
@@ -1167,16 +1157,16 @@ fun EmptyStateTags(
         Text(
             text = "Create memories",
             style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
+
         Spacer(modifier = Modifier.height(8.dp))
+
         Text(
             text = "Organize your memories\nby keyword",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
 
         Spacer(modifier = Modifier.height(32.dp))
