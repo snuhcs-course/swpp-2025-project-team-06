@@ -689,20 +689,26 @@ fun HomeScreen(navController: NavController) {
                                     val lastHashIndex = textUpToCursor.lastIndexOf('#')
 
                                     if (lastHashIndex != -1) {
-                                        // 1. '#' 앞의 텍스트
-                                        val precedingText = text.substring(0, lastHashIndex)
+                                        // 1. '#' 앞의 텍스트 (ZWSP 포함)
+                                        val precedingTextWithZwsp = text.substring(0, lastHashIndex)
                                         // 2. 커서 뒤의 텍스트
                                         val succeedingText = text.substring(cursor)
 
                                         // 3. 현재 텍스트 요소를 '#' 앞부분만 남기고 업데이트
-                                        contentItems[contentItems.lastIndex] = SearchContentElement.Text(precedingText)
+                                        // (contentItems에는 ZWSP를 제외한 순수 텍스트만 저장)
+                                        contentItems[contentItems.lastIndex] =
+                                            SearchContentElement.Text(precedingTextWithZwsp.removePrefix("\u200B"))
+
                                         // 4. 칩 추가
                                         contentItems.add(SearchContentElement.Chip(tag))
-                                        // 5. 커서 뒤 텍스트 + 공백을 새 텍스트 요소로 추가
-                                        val newText = " $succeedingText"
-                                        contentItems.add(SearchContentElement.Text(newText))
-                                        // 6. currentInput 상태 업데이트
-                                        currentInput = TextFieldValue(newText, selection = TextRange(1)) // 공백 뒤에 커서
+
+                                        // 5. [수정] 커서 뒤 텍스트를 새 텍스트 요소로 추가 (공백 제거)
+                                        contentItems.add(SearchContentElement.Text(succeedingText))
+
+                                        // 6. [수정] currentInput 상태 업데이트
+                                        // (ZWSP + 커서 뒤 텍스트, 커서는 ZWSP 바로 뒤(1))
+                                        val newText = "\u200B" + succeedingText
+                                        currentInput = TextFieldValue(newText, selection = TextRange(1))
                                     }
 
                                     // 포커스 유지를 위해
