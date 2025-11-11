@@ -49,6 +49,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -907,7 +908,7 @@ fun HomeScreen(navController: NavController) {
 /**
  * [신규] 칩과 텍스트 입력 필드가 혼용된 검색 입력 영역
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class) // ExperimentalFoundationApi 추가
 @Composable
 private fun ChipBasedSearchInput(
     modifier: Modifier = Modifier,
@@ -922,8 +923,8 @@ private fun ChipBasedSearchInput(
         modifier =
             modifier
                 .fillMaxWidth()
-                .wrapContentHeight() // 내용물(칩)이 많아지면 자동으로 늘어남
-                .heightIn(min = 48.dp) // 최소 높이
+                // .wrapContentHeight() // [수정] 세로 높이가 늘어나지 않도록 이 줄을 제거합니다.
+                .heightIn(min = 48.dp) // 최소 높이 유지
                 .background(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(12.dp),
@@ -935,24 +936,32 @@ private fun ChipBasedSearchInput(
                     focusRequester.requestFocus()
                 }
                 .padding(horizontal = 12.dp, vertical = 4.dp), // 내부 패딩
+        contentAlignment = Alignment.CenterStart // [수정] LazyRow 정렬을 위해 추가
     ) {
-        // 2. 칩과 텍스트 필드를 자동으로 줄바꿈해주는 FlowRow
-        FlowRow(
+        // 2. [수정] FlowRow를 LazyRow로 변경하여 가로 스크롤 구현
+        LazyRow(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically, // 모든 아이템을 세로 중앙 정렬
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp) // FlowRow 자체의 수직 패딩
         ) {
-            // 3. 칩과 (비활성) 텍스트 렌더링
-            contentItems.forEachIndexed { index, item ->
+            // 3. [수정] contentItems를 LazyRow의 itemsIndexed로 처리
+            itemsIndexed(
+                items = contentItems,
+                // 키를 제공하여 성능 최적화
+                key = { index, item ->
+                    when (item) {
+                        is SearchContentElement.Chip -> item.tag.tagId
+                        is SearchContentElement.Text -> "text_$index"
+                    }
+                }
+            ) { index, item ->
                 when (item) {
                     is SearchContentElement.Chip -> {
                         SearchChipView(
                             tag = item.tag,
                             // 칩 클릭 시 (현재는 아무것도 안함, 포커스만 이동)
                             onClick = { focusRequester.requestFocus() },
-                            modifier = Modifier.align(Alignment.CenterVertically),
                         )
                     }
                     is SearchContentElement.Text -> {
@@ -965,7 +974,6 @@ private fun ChipBasedSearchInput(
                                     fontSize = 16.sp
                                 ),
                                 modifier = Modifier
-                                    .align(Alignment.CenterVertically)
                                     .padding(horizontal = 4.dp, vertical = 8.dp)
                             )
                         } else {
@@ -976,9 +984,9 @@ private fun ChipBasedSearchInput(
                                 modifier =
                                     Modifier
                                         .focusRequester(focusRequester)
-                                        .weight(1f) // 남은 공간 차지
+                                        // [수정] LazyRow 내에서 남은 공간을 차지하도록 weight(1f) 적용
+//                                        .weight(1f)
                                         .defaultMinSize(minWidth = 10.dp) // 최소 너비 보장
-                                        .align(Alignment.CenterVertically)
                                         .onKeyEvent { event ->
                                             if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace) {
                                                 onBackspacePressed()
