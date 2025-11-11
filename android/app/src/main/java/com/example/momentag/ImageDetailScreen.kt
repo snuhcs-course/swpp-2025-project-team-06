@@ -87,7 +87,11 @@ import java.io.IOException
 import kotlin.math.abs
 import com.example.momentag.CustomTagChip
 import com.example.momentag.ConfirmableRecommendedTag
-
+import com.example.momentag.tagXMode
+import com.example.momentag.ConfirmableRecommendedTag
+import com.example.momentag.CustomTagChip
+import androidx.compose.ui.graphics.Color
+import kotlin.math.abs
 @Composable
 fun ZoomableImage(
     model: Any?,
@@ -556,6 +560,59 @@ fun ImageDetailScreen(
     }
 }
 
+// UI 디자인의 색상들을 순서대로 할당
+private val tagColors =
+    listOf(
+        Color(0xFF93C5FD), // Blue
+        Color(0xFFFCA5A5), // Red
+        Color(0xFF86EFAC), // Green
+        Color(0xFFFDE047), // Yellow
+        Color(0xFFFDA4AF), // Pink
+        Color(0xFFA78BFA), // Purple
+        Color(0xFF67E8F9), // Cyan
+        Color(0xFFFBBF24), // Amber
+        Color(0xFFE879F9), // Magenta
+        Color(0xFF34D399), // Emerald
+        Color(0xFFF97316), // Orange
+        Color(0xFF94A3B8), // Slate
+        Color(0xFFE7A396), // Dusty Rose
+        Color(0xFFEACE84), // Soft Gold
+        Color(0xFF9AB9E1), // Periwinkle
+        Color(0xFFD9A1C0), // Mauve
+        Color(0xFFF7A97B), // Peach
+        Color(0xFFF0ACB7), // Blush Pink
+        Color(0xFFEBCF92), // Cream
+        Color(0xFFDDE49E), // Pale Lime
+        Color(0xFF80E3CD), // Mint Green
+        Color(0xFFCCC0F2), // Lavender
+        Color(0xFFCAD892), // Sage Green
+        Color(0xFF969A60), // Olive
+        Color(0xFF758D46), // Moss Green
+        Color(0xFF98D0F5), // Baby Blue
+        Color(0xFF5E9D8E), // Dusty Teal
+        Color(0xFF3C8782), // Deep Teal
+        Color(0xFFEB5A6D), // Coral Red
+        Color(0xFFF3C9E4), // Light Orchid
+        Color(0xFFEEADA7), // Salmon Pink
+        Color(0xFFBD8DBD), // Soft Purple
+        Color(0xFFFAF5AF), // Pale Yellow
+        Color(0xFFAD9281), // Warm Gray
+        Color(0xFFF2C6C7), // Rose Beige
+        Color(0xFFE87757), // Terracotta
+        Color(0xFFED6C84), // Watermelon
+        Color(0xFFB9A061), // Khaki
+        Color(0xFFA0BA46), // Lime Green
+    )
+
+private fun getTagColor(tagId: String): Color = tagColors[abs(tagId.hashCode()) % tagColors.size]
+
+private fun lightenColor(color: Color, factor: Float = 0.5f): Color {
+    val red = (color.red + (1 - color.red) * factor)
+    val green = (color.green + (1 - color.green) * factor)
+    val blue = (color.blue + (1 - color.blue) * factor)
+    return Color(red, green, blue, color.alpha)
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagsSection(
@@ -597,6 +654,7 @@ fun TagsSection(
                         text = tagItem.tagName,
                         isDeleteMode = isDeleteMode,
                         onDismiss = { onDeleteClick(tagItem.tagId) },
+                        color = getTagColor(tagItem.tagId)
                     )
                 }
             }
@@ -608,9 +666,12 @@ fun TagsSection(
         } else {
             // Display recommended tags
             recommendedTags.forEach { tagName ->
+                val baseColor = getTagColor(tagName)
+                val lightenedColor = lightenColor(baseColor)
                 ConfirmableRecommendedTag(
                     tagName = tagName,
-                    onConfirm = { onAddTag(it) }
+                    onConfirm = { onAddTag(it) },
+                    color = lightenedColor
                 )
             }
         }

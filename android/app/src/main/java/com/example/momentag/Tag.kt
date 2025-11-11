@@ -67,13 +67,14 @@ sealed interface TagVariant {
 @Composable
 private fun TagContainer(
     modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
     content: @Composable RowScope.() -> Unit,
 ) {
     Row(
         modifier =
             modifier
                 .height(32.dp)
-                .background(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(50))
+                .background(color = color, shape = RoundedCornerShape(50))
                 .padding(horizontal = 12.dp), // vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
@@ -88,10 +89,11 @@ fun TagChip(
     text: String,
     variant: TagVariant = TagVariant.Plain,
     modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
     val alpha = if (variant is TagVariant.Recommended) 0.5f else 1f
 
-    TagContainer(modifier = modifier.alpha(alpha)) {
+    TagContainer(modifier = modifier.alpha(alpha), color = color) {
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
@@ -134,7 +136,8 @@ fun TagChip(
 fun tag(
     text: String,
     modifier: Modifier = Modifier,
-) = TagChip(text = text, variant = TagVariant.Plain, modifier = modifier)
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
+) = TagChip(text = text, variant = TagVariant.Plain, modifier = modifier, color = color)
 
 /** X 버튼 항상 보이는 태그 */
 @Composable
@@ -142,7 +145,8 @@ fun tagX(
     text: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-) = TagChip(text = text, variant = TagVariant.CloseAlways(onDismiss), modifier = modifier)
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
+) = TagChip(text = text, variant = TagVariant.CloseAlways(onDismiss), modifier = modifier, color = color)
 
 /** 삭제 모드일 때만 X 버튼 보이는 태그 */
 @Composable
@@ -151,10 +155,12 @@ fun tagXMode(
     isDeleteMode: Boolean,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) = TagChip(
     text = text,
     variant = TagVariant.CloseWhen(isDeleteMode, onDismiss),
     modifier = modifier,
+    color = color,
 )
 
 /** 추천 태그 (투명도가 적용된 태그) */
@@ -162,7 +168,8 @@ fun tagXMode(
 fun tagRecommended(
     text: String,
     modifier: Modifier = Modifier,
-) = TagChip(text = text, variant = TagVariant.Recommended, modifier = modifier)
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
+) = TagChip(text = text, variant = TagVariant.Recommended, modifier = modifier, color = color)
 
 /**
  * 태그와 개수를 함께 보여주는 컴포넌트 (MyTags 화면용)
@@ -412,7 +419,8 @@ fun CustomTagChip(
 @Composable
 fun ConfirmableRecommendedTag(
     tagName: String,
-    onConfirm: (String) -> Unit
+    onConfirm: (String) -> Unit,
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -426,7 +434,7 @@ fun ConfirmableRecommendedTag(
                 modifier = Modifier
                     .height(32.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.primaryContainer,
+                        color = color,
                         shape = RoundedCornerShape(50)
                     )
                     .padding(horizontal = 8.dp),
@@ -466,7 +474,7 @@ fun ConfirmableRecommendedTag(
         } else {
             // Collapsed state, looks like a normal recommended tag but is clickable
             Box(modifier = Modifier.clickable { isExpanded = true }) {
-                tagRecommended(text = tagName)
+                tagRecommended(text = tagName, color = color)
             }
         }
     }
