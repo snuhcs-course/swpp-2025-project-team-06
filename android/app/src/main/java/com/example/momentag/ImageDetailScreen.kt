@@ -616,7 +616,17 @@ fun TagsSection(
         }
 
         // Add Tag Chip
-        CustomTagChip(onTagAdded = onAddTag)
+        CustomTagChip(
+            onTagAdded = onAddTag,
+            onExpanded = {
+                scope.launch {
+                    // Increase delay to ensure the UI has fully recomposed and measured
+                    // the expanded chip before attempting to scroll to the end.
+                    kotlinx.coroutines.delay(400)
+                    scrollState.animateScrollTo(scrollState.maxValue)
+                }
+            }
+        )
     }
 }
 

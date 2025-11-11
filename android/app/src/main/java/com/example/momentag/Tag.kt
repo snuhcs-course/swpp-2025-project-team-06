@@ -295,6 +295,7 @@ fun StoryTagChip(
 fun CustomTagChip(
     onTagAdded: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onExpanded: (() -> Unit)? = null,
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     var tagText by remember { mutableStateOf("") }
@@ -313,6 +314,7 @@ fun CustomTagChip(
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable {
                             isExpanded = true
+                            onExpanded?.invoke()
                         }.padding(horizontal = 12.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
