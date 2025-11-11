@@ -224,13 +224,20 @@ private fun InternalChipSearchInput(
                     }
 
                     val textWidthDp = with(LocalDensity.current) { measuredWidthInPixels.toDp() }
-                    val sidePadding = 6.dp
-                    val totalHorizontalPadding = sidePadding * 2 // 12.dp
-                    val minFieldWidth = 10.dp
+
+                    // [신규] 1. 플레이스홀더인지, (플레이스홀더가 아닌) 그냥 빈 필드인지 확인
+                    val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
+                    val isEmptyText = text.isEmpty() && !isPlaceholder
+
+                    // [수정] 2. 텍스트 좌우 패딩 결정
+                    val sidePadding = if (isEmptyText) 0.dp else 6.dp // 비어있으면 0dp
+                    val totalHorizontalPadding = sidePadding * 2
+
+                    // [수정] 3. 최소 너비 결정
+                    val minFieldWidth = 10.dp // 비어있으면 0dp
+
                     val finalWidth = (textWidthDp + totalHorizontalPadding).coerceAtLeast(minFieldWidth)
                     // --- 로직 끝 ---
-
-                    val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
 
                     // [신규] hideCursor 상태에 따라 커서 브러시 결정
                     val cursorBrush = if (hideCursor) {
