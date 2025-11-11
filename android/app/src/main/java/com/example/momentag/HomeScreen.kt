@@ -291,6 +291,7 @@ fun HomeScreen(navController: NavController) {
         val index = contentItems.indexOfFirst { it.id == id }
 
         if (index == -1) {
+            hideCursor = false
             return@LaunchedEffect
         }
 
@@ -734,63 +735,94 @@ fun HomeScreen(navController: NavController) {
                             focusedElementId = id
                         },
                         onTextChange = { id, newValue ->
-                            // --- (HomeScreen에 있던 onTextChange 로직 그대로) ---
+                            // [수정] 스크롤 로직은 그대로 둠
                             scope.launch {
                                 bringIntoViewRequesters[id]?.bringIntoView()
                             }
 
-                            val oldText = textStates[id]?.text ?: ""
-                            val newText = newValue.text
-                            val didBackspaceOnEmpty = oldText == "\u200B" && newText.isEmpty()
+                            // --- [신규] 백스페이스 병합 로직 ---
 
-                            if (didBackspaceOnEmpty) {
-                                // --- 백스페이스 로직 ---
+                            val oldValue = textStates[id] ?: TextFieldValue() // 이전 TextFieldValue
+                            val oldText = oldValue.text
+                            val newText = newValue.text
+
+                            // [수정] ZWSP가 삭제되었는지(커서가 1이었는지) 감지
+                            val didBackspaceAtStart = oldText.startsWith("\u200B") &&
+                                    !newText.startsWith("\u200B") &&
+                                    oldValue.selection.start == 1
+
+                            if (didBackspaceAtStart) {
+                                // --- 백스페이스 로직 (병합 기능 추가) ---
                                 val currentIndex = contentItems.indexOfFirst { it.id == id }
-                                if (currentIndex <= 0) {
-                                    textStates[id] = TextFieldValue("\u200B", TextRange(1))
+                                val currentItem =
+                                    contentItems[currentIndex] as SearchContentElement.Text
+
+                                if (currentIndex <= 0) { // 첫 번째 요소
+                                    textStates[id] = TextFieldValue("\u200B", TextRange(1)) // 리셋
                                     return@ChipSearchBar
                                 }
-                                val prevItem = contentItems[currentIndex - 1]
-                                if (prevItem is SearchContentElement.Chip) {
-                                    contentItems.removeAt(currentIndex)
-                                    contentItems.removeAt(currentIndex - 1)
-                                    textStates.remove(id)
-                                    focusRequesters.remove(id)
-                                    bringIntoViewRequesters.remove(id)
 
-                                    // 그 앞의 텍스트 필드에 포커스
-                                    val newFocusId = findPreviousTextElementId(currentIndex - 1)
-                                    if (newFocusId != null) {
-                                        // [수정] 스크롤 로직 추가
-                                        val prevIndex = contentItems.indexOfFirst { it.id == newFocusId }
-                                        if (prevIndex != -1) {
-                                            scope.launch {
-                                                listState.scrollToItem(prevIndex)
-                                            }
-                                        }
-                                        requestFocusById(newFocusId)
+                                val prevItem = contentItems[currentIndex - 1]
+
+                                // 1a. 바로 앞이 칩인 경우 (e.g., [TextA] [ChipB] [TextC(현재)])
+                                if (prevItem is SearchContentElement.Chip) {
+                                    val prevPrevIndex = currentIndex - 2
+
+                                    // 1a-1. [TextA] [ChipB] [TextC] -> [TextA + TextC]
+                                    if (prevPrevIndex >= 0 && contentItems[prevPrevIndex] is SearchContentElement.Text) {
+                                        val textA =
+                                            contentItems[prevPrevIndex] as SearchContentElement.Text
+                                        val textC = currentItem
+                                        val mergedText = textA.text + textC.text // A와 C의 텍스트 병합
+
+                                        // ChipB(index-1)와 TextC(index) 제거
+                                        contentItems.removeAt(currentIndex)
+                                        contentItems.removeAt(currentIndex - 1)
+                                        textStates.remove(id)
+                                        focusRequesters.remove(id)
+                                        bringIntoViewRequesters.remove(id)
+
+                                        // TextA(index-2) 업데이트
+                                        contentItems[prevPrevIndex] = textA.copy(text = mergedText)
+                                        val newTfv = TextFieldValue(
+                                            "\u200B" + mergedText,
+                                            TextRange(textA.text.length + 1)
+                                        )
+                                        textStates[textA.id] = newTfv
+
+                                        // TextA로 포커스 이동
+                                        requestFocusById(textA.id)
+                                    }
+                                    // 1a-2. [ChipA] [ChipB] [TextC] 또는 [Start] [ChipB] [TextC] -> [ChipA] [TextC]
+                                    else {
+                                        // ChipB(index-1)만 제거 (TextC는 남김)
+                                        contentItems.removeAt(currentIndex - 1)
+                                        // TextC로 포커스 유지 (ID는 동일)
+                                        requestFocusById(id)
                                     }
                                 }
+                                // 1b. 바로 앞이 텍스트인 경우 (e.g., [TextA] [TextC(현재)])
                                 else if (prevItem is SearchContentElement.Text) {
-                                    val textToPrepend = prevItem.text
-                                    val cursorPosition = textToPrepend.length
+                                    val textA = prevItem
+                                    val textC = currentItem
+                                    val mergedText = textA.text + textC.text
+
+                                    // TextC(index) 제거
                                     contentItems.removeAt(currentIndex)
                                     textStates.remove(id)
                                     focusRequesters.remove(id)
                                     bringIntoViewRequesters.remove(id)
 
-                                    textStates[prevItem.id] = TextFieldValue(textToPrepend, TextRange(cursorPosition))
+                                    // TextA(index-1) 업데이트
+                                    contentItems[currentIndex - 1] = textA.copy(text = mergedText)
+                                    val newTfv = TextFieldValue(
+                                        "\u200B" + mergedText,
+                                        TextRange(textA.text.length + 1)
+                                    )
+                                    textStates[textA.id] = newTfv
 
-                                    // [수정] 스크롤 로직 추가
-                                    val prevIndex = contentItems.indexOfFirst { it.id == prevItem.id }
-                                    if (prevIndex != -1) {
-                                        scope.launch {
-                                            listState.scrollToItem(prevIndex)
-                                        }
-                                    }
-
-                                    // 포커스 이동
-                                    requestFocusById(prevItem.id)
+                                    // TextA로 포커스 이동
+                                    requestFocusById(textA.id)
                                 }
                                 return@ChipSearchBar
                             }
