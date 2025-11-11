@@ -1,5 +1,6 @@
 import redis
 from django.conf import settings
+import hashlib
 
 _redis = None
 
@@ -14,3 +15,6 @@ def get_redis():
             db=0
         )
     return _redis
+
+def hash(input: str) -> str:
+    return hashlib.sha256(input).hexdigest()

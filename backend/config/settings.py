@@ -228,3 +228,5 @@ MINIO_REGION = env('MINIO_REGION', default='us-east-1')  # S3 compatibility
 REDIS_HOST = env('REDIS_HOST', default='127.0.0.1')
 REDIS_PORT = 6379      
 REDIS_PASSWORD = None  
+
+KM_REST_API_KEY= env('KM_REST_API_KEY')
