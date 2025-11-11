@@ -14,11 +14,11 @@ To run workers:
 
 import re
 import torch
-import threading
 from io import BytesIO
 from collections import Counter
 from itertools import chain
 from celery import shared_task
+from celery.signals import worker_process_init
 from qdrant_client import models
 from sentence_transformers import SentenceTransformer
 from transformers import BlipProcessor, BlipForConditionalGeneration
@@ -31,15 +31,12 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 _IMAGE_MODEL_NAME = "clip-ViT-B-32"
 
-# Global model caches (lazy-loaded)
+# Global model caches
 _image_model = None
-_image_model_lock = threading.Lock()
 
 _caption_processor = None
-_caption_processor_lock = threading.Lock()
 
 _caption_model = None
-_caption_model_lock = threading.Lock()
 
 # Stop words for caption processing
 STOP_WORDS = {
@@ -75,44 +72,37 @@ STOP_WORDS = {
 # ============================================================================
 
 
+@worker_process_init.connect
+def initialize_models(**kwargs):
+    global _image_model, _caption_processor, _caption_model
+
+    print(f"[INFO] Loading CLIP image model ({_IMAGE_MODEL_NAME}) on {DEVICE}...")
+    _image_model = SentenceTransformer(_IMAGE_MODEL_NAME, device=DEVICE)
+
+    print("[INFO] Loading BLIP captioning processor inside worker...")
+    _caption_processor = BlipProcessor.from_pretrained(
+        "Salesforce/blip-image-captioning-base",
+    )
+
+    print(f"[INFO] Loading BLIP captioning model on {DEVICE}...")
+    _caption_model = BlipForConditionalGeneration.from_pretrained(
+        "Salesforce/blip-image-captioning-base",
+        torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+    ).to(DEVICE)
+
+
 def get_image_model():
-    """Lazy-load CLIP image model once per worker (thread-safe)"""
     global _image_model
-    if _image_model is None:
-        with _image_model_lock:
-            # Double-check pattern: another thread might have initialized while we waited
-            if _image_model is None:
-                print(f"[INFO] Loading CLIP image model ({_IMAGE_MODEL_NAME}) on {DEVICE}...")
-                _image_model = SentenceTransformer(_IMAGE_MODEL_NAME, device=DEVICE)
     return _image_model
 
 
 def get_caption_processor():
-    """Lazy-load BLIP caption processor (thread-safe)"""
     global _caption_processor
-    if _caption_processor is None:
-        with _caption_processor_lock:
-            # Double-check pattern: another thread might have initialized while we waited
-            if _caption_processor is None:
-                print("[INFO] Loading BLIP captioning processor inside worker...")
-                _caption_processor = BlipProcessor.from_pretrained(
-                    "Salesforce/blip-image-captioning-base",
-                )
     return _caption_processor
 
 
 def get_caption_model():
-    """Lazy-load BLIP caption model (thread-safe)"""
     global _caption_model
-    if _caption_model is None:
-        with _caption_model_lock:
-            # Double-check pattern: another thread might have initialized while we waited
-            if _caption_model is None:
-                print(f"[INFO] Loading BLIP captioning model on {DEVICE}...")
-                _caption_model = BlipForConditionalGeneration.from_pretrained(
-                    "Salesforce/blip-image-captioning-base",
-                    torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
-                ).to(DEVICE)
     return _caption_model
 
 
