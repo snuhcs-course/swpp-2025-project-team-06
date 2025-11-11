@@ -993,26 +993,39 @@ private fun ChipBasedSearchInput(
                                     val oldText = currentInput.text
                                     val newText = newValue.text
 
-                                    // [수정] ZWSP(\u200B)가 지워졌는지 감지
+                                    // 1. [기존] ZWSP(\u200B)가 지워졌는지 감지
                                     val didBackspaceOnEmpty = oldText == "\u200B" && newText.isEmpty()
 
                                     if (didBackspaceOnEmpty) {
-                                        // [수정] 칩 삭제 콜백 호출
+                                        // 1a. [기존] 칩 삭제 콜백 호출
                                         onBackspacePressed()
                                         // 텍스트 필드를 다시 ZWSP로 "초기화"
                                         onCurrentInputChange(TextFieldValue("\u200B", TextRange(1)))
-
-                                    } else if (!newText.startsWith("\u200B")) {
-                                        // [수정] ZWSP가 사라짐 (예: 커서 이동, 붙여넣기)
-                                        // ZWSP를 다시 맨 앞에 붙여서 복원
-                                        val restoredText = "\u200B$newText"
-                                        onCurrentInputChange(
-                                            TextFieldValue(restoredText, TextRange(restoredText.length))
-                                        )
-                                    } else {
-                                        // [수정] 일반 타이핑. 상위로 변경 사항 전달
-                                        onCurrentInputChange(newValue)
+                                        return@BasicTextField // 조기 종료
                                     }
+
+                                    // 2. [수정] ZWSP가 항상 맨 앞에 있는지 확인하고, 커서 위치 보정
+
+                                    // 2a. ZWSP가 사라졌는지 (예: 붙여넣기, 전체선택 후 입력)
+                                    val (text, selection) = if (newText.startsWith("\u200B")) {
+                                        Pair(newText, newValue.selection)
+                                    } else {
+                                        // ZWSP가 없으면 강제로 추가하고, 커서를 1만큼 뒤로 민다
+                                        Pair(
+                                            "\u200B$newText",
+                                            TextRange(newValue.selection.start + 1, newValue.selection.end + 1)
+                                        )
+                                    }
+
+                                    // 2b. [핵심] 커서가 ZWSP 앞으로 갔는지 확인 (index 0)
+                                    val finalSelection = if (selection.start == 0 && selection.end == 0) {
+                                        TextRange(1) // 커서를 강제로 ZWSP 뒤(index 1)로 이동
+                                    } else {
+                                        selection // 그 외에는 원래 커서 위치 사용
+                                    }
+
+                                    // 3. [기존] 상위로 변경 사항 전달
+                                    onCurrentInputChange(TextFieldValue(text, finalSelection))
                                 },
                                 modifier =
                                     Modifier
