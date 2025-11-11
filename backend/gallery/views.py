@@ -1,4 +1,5 @@
 import uuid
+import requests
 from django.db.models import Exists, OuterRef, Count, Subquery, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -44,10 +45,12 @@ from .gpu_tasks import (
 )
 from .storage_service import upload_photo, delete_photo
 import logging
+from config.redis import get_redis, hash
+import json
+from django.conf import settings
+
 logger = logging.getLogger(__name__)
 
-from config.redis import get_redis
-import json
 
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -322,7 +325,41 @@ class PhotoDetailView(APIView):
                 for tag in tags
             ]
 
-            photo_data = {"photo_path_id": photo.photo_path_id, "tags": tag_list}
+            lat = photo.lat
+            lng = photo.lng
+
+            r = get_redis()
+
+            address = ""
+            pre_key = f"{lat},{lng}"
+
+            # Check cache first
+            if r.get(hash(pre_key)):
+                address = r.get(hash(pre_key))
+            else:
+                # URL for kakaomap lacation query
+                URL = f"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x={lng}&y={lat}"
+
+                # Headers for authentication
+                KM_REST_API_KEY = settings.KM_REST_API_KEY
+                headers = {"Authorization": f"KakaoAK {KM_REST_API_KEY}"}
+
+                # KakaoMap REST API Call
+                resp = requests.get(URL, headers=headers, timeout=5)
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get("documents"):
+                        address = data["documents"][0]["address_name"]   
+
+                # Cache the result
+                r.set(hash(pre_key), address, ex=60 * 60 * 24)  # Cache for a day         
+
+            photo_data = {
+                "photo_path_id": photo.photo_path_id,
+                "address": address,
+                "tags": tag_list
+            }
 
             serializer = ResPhotoTagListSerializer(photo_data)
 
