@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -667,19 +668,18 @@ fun HomeScreen(navController: NavController) {
 
                 // [수정됨] 태그 추천 목록
                 if (tagSuggestions.isNotEmpty()) {
-                    LazyColumn(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 200.dp) // 추천 목록의 최대 높이 제한
-                                .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(8.dp))
-                                .padding(vertical = 4.dp),
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp), // 칩 상하에 약간의 여백 추가
+                        horizontalArrangement = Arrangement.spacedBy(8.dp), // 칩 사이의 간격
                     ) {
                         items(tagSuggestions, key = { it.tagId }) { tag ->
-                            TagSuggestionItem(
-                                tagItem = tag,
+                            // 새로 추가할 SuggestionChip 사용
+                            SuggestionChip(
+                                tag = tag,
                                 onClick = {
-                                    // [신규] 추천 태그 클릭 로직
+                                    // [기존 onClick 로직 동일]
                                     val text = currentInput.text
                                     val cursor = currentInput.selection.start
                                     val textUpToCursor = text.substring(0, cursor)
@@ -1044,33 +1044,33 @@ private fun SearchChipView(
     }
 }
 
-/**
- * [수정됨] 태그 추천 목록에 표시되는 항목 (onClick 로직 변경)
- */
-@Composable
-private fun TagSuggestionItem(
-    tagItem: TagItem,
-    onClick: () -> Unit, // onClick 로직은 상위 Composable에서 정의
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable { onClick() }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(tagItem.tagName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                "${tagItem.photoCount} photos",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
-}
+///**
+// * [수정됨] 태그 추천 목록에 표시되는 항목 (onClick 로직 변경)
+// */
+//@Composable
+//private fun TagSuggestionItem(
+//    tagItem: TagItem,
+//    onClick: () -> Unit, // onClick 로직은 상위 Composable에서 정의
+//) {
+//    Row(
+//        modifier =
+//            Modifier
+//                .fillMaxWidth()
+//                .clickable { onClick() }
+//                .padding(horizontal = 16.dp, vertical = 12.dp),
+//        verticalAlignment = Alignment.CenterVertically,
+//        horizontalArrangement = Arrangement.spacedBy(12.dp),
+//    ) {
+//        Column(modifier = Modifier.weight(1f)) {
+//            Text(tagItem.tagName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+//            Text(
+//                "${tagItem.photoCount} photos",
+//                color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                style = MaterialTheme.typography.bodySmall,
+//            )
+//        }
+//    }
+//}
 
 
 // -------------------- [기존 Helper 함수들 - 변경 없음] --------------------
@@ -1686,5 +1686,30 @@ private fun SortOptionItem(
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
+    }
+}
+
+@Composable
+private fun SuggestionChip(
+    tag: TagItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                .clip(CircleShape)
+                .clickable { onClick() }
+                .padding(horizontal = 10.dp, vertical = 6.dp), // SearchChipView와 유사한 패딩
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "#${tag.tagName}",
+            fontSize = 15.sp, // SearchChipView와 유사한 폰트 크기
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
     }
 }
