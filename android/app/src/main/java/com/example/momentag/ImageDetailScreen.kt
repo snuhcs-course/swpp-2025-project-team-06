@@ -430,7 +430,7 @@ fun ImageDetailScreen(
                 Text(
                     text = formattedDate,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     modifier =
                         Modifier
                             .fillMaxWidth() // 가로로 꽉 채우기
@@ -447,8 +447,7 @@ fun ImageDetailScreen(
                 Text(
                     text = address,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineLarge,
                     modifier =
                         Modifier
                             .fillMaxWidth() // 가로로 꽉 채우기
