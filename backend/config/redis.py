@@ -17,4 +17,4 @@ def get_redis():
     return _redis
 
 def hash(input: str) -> str:
-    return hashlib.sha256(input).hexdigest()
+    return hashlib.sha256(input.encode()).hexdigest()

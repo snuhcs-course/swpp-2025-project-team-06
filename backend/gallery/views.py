@@ -45,7 +45,7 @@ from .gpu_tasks import (
 )
 from .storage_service import upload_photo, delete_photo
 import logging
-from config.redis import get_redis, hash
+from config.redis import get_redis
 import json
 from django.conf import settings
 
@@ -325,17 +325,19 @@ class PhotoDetailView(APIView):
                 for tag in tags
             ]
 
-            lat = photo.lat
-            lng = photo.lng
+            lat = str(photo.lat)
+            lng = str(photo.lng)
 
             r = get_redis()
 
             address = ""
-            pre_key = f"{lat},{lng}"
+            key = f"cord:({lat},{lng})"
+            hashed_key = hash(key)
 
             # Check cache first
-            if r.get(hash(pre_key)):
-                address = r.get(hash(pre_key))
+            if r.get(hashed_key):
+                address = r.get(hashed_key)
+                print("[INFO] Cache hit for coordinates:", hashed_key)
             else:
                 # URL for kakaomap lacation query
                 URL = f"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x={lng}&y={lat}"
@@ -353,7 +355,7 @@ class PhotoDetailView(APIView):
                         address = data["documents"][0]["address_name"]   
 
                 # Cache the result
-                r.set(hash(pre_key), address, ex=60 * 60 * 24)  # Cache for a day         
+                r.set(hashed_key, address, ex=60 * 60 * 24)  # Cache for a day         
 
             photo_data = {
                 "photo_path_id": photo.photo_path_id,
