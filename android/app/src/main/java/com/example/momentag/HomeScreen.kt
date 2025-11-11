@@ -150,6 +150,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import android.util.Log
 
 // [신규] 검색창의 컨텐츠 요소를 정의하는 Sealed Class
 sealed class SearchContentElement {
@@ -612,50 +613,71 @@ fun HomeScreen(navController: NavController) {
                         onCurrentInputChange = { newValue ->
                             val oldText = currentInput.text
                             val newText = newValue.text
-                            currentInput = newValue
+                            // [신규] 1. 백스페이스로 마지막 글자가 지워져 필드가 비었는지 확인
+                            // (텍스트가 있었는데, 비게 되었고, 길이가 줄었다)
+                            val didBackspaceEmptyField = oldText.isNotEmpty() &&
+                                    newText.isEmpty() &&
+                                    oldText.length > newText.length
 
-                            // 마지막 텍스트 요소를 현재 입력값으로 업데이트
-                            contentItems[contentItems.lastIndex] = SearchContentElement.Text(newText)
+                            if (didBackspaceEmptyField && contentItems.size > 1) {
+                                // [신규] 2. 소프트웨어 키보드 백스페이스로 칩 삭제 실행
 
-                            // 태그 자동 변환 로직 (스페이스바 대신 추천 목록 클릭으로만 처리)
-                            // (기존 '#태그 ' 입력 시 자동 변환 로직은 오작동 소지가 많아 제거)
-                        },
-                        onBackspacePressed = {
-                            // [신규] 백스페이스 로직
-                            // 입력 필드가 비어있고, 컨텐츠가 1개 초과일 때
-                            if (currentInput.text.isEmpty() && currentInput.selection.start == 0 && contentItems.size > 1) {
-                                val lastElementIndex = contentItems.lastIndex // 현재의 빈 텍스트 요소 인덱스
-                                val elementToRemoveIndex = lastElementIndex - 1
-                                val elementToRemove = contentItems[elementToRemoveIndex]
+                                // 1. 현재 (이제는 비어버린) 텍스트 요소를 제거
+                                contentItems.removeAt(contentItems.lastIndex)
 
-                                if (elementToRemove is SearchContentElement.Chip) {
-                                    // 1. 지울 요소가 '칩'인 경우
-                                    contentItems.removeAt(lastElementIndex) // 현재의 빈 텍스트 요소 제거
-                                    contentItems.removeAt(elementToRemoveIndex) // 칩 요소 제거
+                                // 2. 그 바로 앞의 요소(칩 또는 텍스트)를 제거
+                                contentItems.removeAt(contentItems.lastIndex)
 
-                                    // 칩의 텍스트를 복원 (#태그명)
-                                    val textToRestore = "#${elementToRemove.tag.tagName}"
+                                // 3. 이제 마지막이 된 요소를 확인
+                                val newLastElement = contentItems.lastOrNull()
 
-                                    // 칩 앞에 '텍스트' 요소가 있다면, 두 텍스트 요소를 병합
-                                    val newLastElementIndex = contentItems.lastIndex
-                                    if (newLastElementIndex != -1 && contentItems[newLastElementIndex] is SearchContentElement.Text) {
-                                        val existingText = (contentItems[newLastElementIndex] as SearchContentElement.Text).text
-                                        val mergedText = existingText + textToRestore
-                                        contentItems[newLastElementIndex] = SearchContentElement.Text(mergedText)
-                                        currentInput = TextFieldValue(mergedText, selection = TextRange(mergedText.length))
-                                    } else {
-                                        // 칩 앞에 칩만 있었다면, 새 텍스트 요소로 추가
-                                        currentInput = TextFieldValue(textToRestore, selection = TextRange(textToRestore.length))
-                                        contentItems.add(SearchContentElement.Text(textToRestore))
-                                    }
-                                    true // 이벤트 소비
-                                } else {
-                                    false // 이벤트 미소비
+                                if (newLastElement == null || newLastElement is SearchContentElement.Chip) {
+                                    // 3a. 리스트가 비었거나, 마지막이 칩이면 새 텍스트 필드를 추가
+                                    contentItems.add(SearchContentElement.Text(""))
+                                    currentInput = TextFieldValue("")
+                                } else if (newLastElement is SearchContentElement.Text) {
+                                    // 3b. 마지막이 텍스트면, 그 텍스트를 현재 입력값으로 복원하고 커서를 맨 뒤로
+                                    val textToRestore = newLastElement.text
+                                    currentInput = TextFieldValue(textToRestore, selection = TextRange(textToRestore.length))
                                 }
+                                // --- 칩 삭제 로직 끝 ---
                             } else {
-                                false // 이벤트 미소비
+                                // [기존] 일반적인 텍스트 변경
+                                currentInput = newValue
+                                contentItems[contentItems.lastIndex] = SearchContentElement.Text(newText)
                             }
                         },
+//                        onBackspacePressed = {
+//                            Log.d("BackspacePressed", "Backspace pressed")
+//                            // [수정됨] 백스페이스 로직
+//                            // 1. 텍스트 필드가 비어있고(커서가 0)
+//                            // 2. 전체 아이템이 1개 초과일 때 (즉, 현재 텍스트 필드 외에 칩이나 텍스트가 더 있을 때)
+//                            if (currentInput.text.isEmpty() && currentInput.selection.start == 0 && contentItems.size > 1) {
+//
+//                                // 1. 현재의 빈 텍스트 요소를 제거
+//                                contentItems.removeAt(contentItems.lastIndex)
+//
+//                                // 2. 그 바로 앞의 요소(칩 또는 텍스트)를 제거
+//                                contentItems.removeAt(contentItems.lastIndex)
+//
+//                                // 3. 이제 마지막이 된 요소를 확인
+//                                val newLastElement = contentItems.lastOrNull()
+//
+//                                if (newLastElement == null || newLastElement is SearchContentElement.Chip) {
+//                                    // 3a. 리스트가 비었거나, 마지막이 칩이면 새 텍스트 필드를 추가
+//                                    contentItems.add(SearchContentElement.Text(""))
+//                                    currentInput = TextFieldValue("")
+//                                } else if (newLastElement is SearchContentElement.Text) {
+//                                    // 3b. 마지막이 텍스트면, 그 텍스트를 현재 입력값으로 복원하고 커서를 맨 뒤로
+//                                    val textToRestore = newLastElement.text
+//                                    currentInput = TextFieldValue(textToRestore, selection = TextRange(textToRestore.length))
+//                                }
+//
+//                                true // 백스페이스 이벤트를 소비했음 (칩/텍스트 덩어리를 지움)
+//                            } else {
+//                                false // 텍스트가 있거나, 지울 칩이 없음 -> 이벤트 미소비(기본 백스페이스 동작)
+//                            }
+//                        },
                         listState = listState,
                     )
 
@@ -929,7 +951,7 @@ private fun ChipBasedSearchInput(
     contentItems: List<SearchContentElement>,
     currentInput: TextFieldValue,
     onCurrentInputChange: (TextFieldValue) -> Unit,
-    onBackspacePressed: () -> Boolean, // 이벤트를 소비했는지 여부 반환
+//    onBackspacePressed: () -> Boolean, // 이벤트를 소비했는지 여부 반환
     listState: LazyListState,
 ) {
     // 1. TextField 모양의 컨테이너
@@ -1002,13 +1024,16 @@ private fun ChipBasedSearchInput(
                                         // [수정] LazyRow 내에서 남은 공간을 차지하도록 weight(1f) 적용
 //                                        .weight(1f)
                                         .defaultMinSize(minWidth = 10.dp) // 최소 너비 보장
-                                        .onKeyEvent { event ->
-                                            if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace) {
-                                                onBackspacePressed()
-                                            } else {
-                                                false
-                                            }
-                                        }
+//                                        .onKeyEvent { event ->
+//                                            if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace) {
+//                                                // [수정] onBackspacePressed의 결과를 리턴해야 함
+//                                                // true를 리턴하면 (칩이 지워짐) 이벤트가 소비되고,
+//                                                // false를 리턴하면 (텍스트가 있음) BasicTextField의 기본 백스페이스가 동작함.
+//                                                onBackspacePressed()
+//                                            } else {
+//                                                false
+//                                            }
+//                                        }
                                         .padding(horizontal = 4.dp, vertical = 8.dp),
                                 singleLine = true,
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
