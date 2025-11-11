@@ -148,7 +148,11 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.SearchContentElement
+import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -266,6 +270,42 @@ fun HomeScreen(navController: NavController) {
             // 실제 포커스 요청
             requestFocusById(initialId)
         }
+    }
+
+    var hideCursor by remember { mutableStateOf(false) }
+
+    // focusedElementId가 변경될 때마다 포커스와 스크롤을 처리하는 Effect
+    LaunchedEffect(focusedElementId) {
+        hideCursor = true
+        val id = focusedElementId ?: return@LaunchedEffect
+
+        // FocusRequester가 등록될 때까지 기다림
+        snapshotFlow { focusRequesters[id] }
+            .filterNotNull()
+            .first()
+
+        // UI가 새로 그려질 때까지 한 프레임 기다림 (중요!)
+        awaitFrame()
+
+        // 새로 생성된 TextField 위치로 스크롤
+        val index = contentItems.indexOfFirst { it.id == id }
+
+        if (index == -1) {
+            return@LaunchedEffect
+        }
+
+        listState.scrollToItem(index)
+
+//        awaitFrame()
+
+        bringIntoViewRequesters[id]?.bringIntoView()
+
+//        awaitFrame()
+
+        // focus 요청 (이제 attach 완료 상태)
+        focusRequesters[id]?.requestFocus()
+
+        hideCursor = false
     }
 
     // [수정됨] 태그 추천 로직 (현재 포커스된 필드 기준)
@@ -664,7 +704,9 @@ fun HomeScreen(navController: NavController) {
                     // [수정] ChipSearchBar 하나로 교체
                     ChipSearchBar(
                         modifier = Modifier.weight(1f),
+                        listState = listState,
                         isFocused = (focusedElementId != null),
+                        hideCursor = hideCursor,
 
                         // 1. 상태 전달
                         contentItems = contentItems,
@@ -847,11 +889,8 @@ fun HomeScreen(navController: NavController) {
                                         focusRequesters[newTextId] = FocusRequester()
                                         bringIntoViewRequesters[newTextId] = BringIntoViewRequester()
 
-                                        // 6. 새 텍스트 필드로 포커스 이동
-                                        scope.launch {
-                                            delay(50) // UI가 새 BasicTextField를 그릴 시간을 줍니다.
-                                            requestFocusById(newTextId)
-                                        }
+                                        // 6. [수정] "포커스 의도"만 상태에 반영
+                                        focusedElementId = newTextId
                                     }
                                 },
                             )

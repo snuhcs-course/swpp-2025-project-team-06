@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -89,7 +90,9 @@ sealed class SearchContentElement {
 @Composable
 fun ChipSearchBar(
     modifier: Modifier = Modifier,
+    listState: LazyListState,
     isFocused: Boolean, // [신규] 포커스 상태를 외부에서 받음
+    hideCursor: Boolean,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -139,6 +142,8 @@ fun ChipSearchBar(
             modifier = Modifier
                 .weight(1f)
                 .padding(start = 8.dp), // 아이콘과 텍스트 사이 간격
+            listState = listState,
+            hideCursor = hideCursor,
             contentItems = contentItems,
             textStates = textStates,
             focusRequesters = focusRequesters,
@@ -161,6 +166,8 @@ fun ChipSearchBar(
 @Composable
 private fun InternalChipSearchInput(
     modifier: Modifier = Modifier,
+    listState: LazyListState,
+    hideCursor: Boolean,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -175,6 +182,7 @@ private fun InternalChipSearchInput(
     // [수정] Box 래퍼를 제거하고 LazyRow만 남깁니다.
     // 배경과 클릭 이벤트는 상위 Row(ChipSearchBar)가 처리합니다.
     LazyRow(
+        state = listState,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
@@ -222,6 +230,13 @@ private fun InternalChipSearchInput(
                     // --- 로직 끝 ---
 
                     val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
+
+                    // [신규] hideCursor 상태에 따라 커서 브러시 결정
+                    val cursorBrush = if (hideCursor) {
+                        SolidColor(Color.Transparent)
+                    } else {
+                        SolidColor(MaterialTheme.colorScheme.primary)
+                    }
 
                     // [신규] LaunchedEffect: 텍스트 레이아웃이나 커서 위치가 변경된 *후*에 실행
                     LaunchedEffect(textLayoutResult, textValue.selection) {
@@ -279,7 +294,8 @@ private fun InternalChipSearchInput(
                             }
                             .padding(horizontal = 4.dp, vertical = 8.dp),
                         maxLines = 1, // 스크롤 방지
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+//                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        cursorBrush = cursorBrush,
                         textStyle = textStyle,
 
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
