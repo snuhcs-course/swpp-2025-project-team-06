@@ -406,3 +406,66 @@ fun CustomTagChip(
         }
     }
 }
+
+@Composable
+fun ConfirmableRecommendedTag(
+    tagName: String,
+    onConfirm: (String) -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    AnimatedContent(
+        targetState = isExpanded,
+        label = "confirmable_recommended_tag"
+    ) { expanded ->
+        if (expanded) {
+            // Expanded state with confirm/dismiss buttons
+            Row(
+                modifier = Modifier
+                    .height(32.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(50)
+                    )
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = { isExpanded = false },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss Recommended Tag",
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Text(
+                    text = tagName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                IconButton(
+                    onClick = {
+                        onConfirm(tagName)
+                        isExpanded = false
+                    },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Confirm Recommended Tag",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        } else {
+            // Collapsed state, looks like a normal recommended tag but is clickable
+            Box(modifier = Modifier.clickable { isExpanded = true }) {
+                tagRecommended(text = tagName)
+            }
+        }
+    }
+}
