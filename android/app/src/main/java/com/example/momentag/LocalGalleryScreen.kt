@@ -148,7 +148,7 @@ fun LocalGalleryScreen(
                         if (uploadState.isLoading) {
                             Text("Upload started (check notification)")
                         } else {
-                            Text("Upload ${selectedAlbumIds.size} selected album(s)")
+                            Text("Upload ${selectedAlbumIds.size} selected albums")
                         }
                     },
                     icon = {

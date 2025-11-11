@@ -1,12 +1,17 @@
 package com.example.momentag.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -17,8 +22,17 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -350,6 +364,143 @@ fun confirmDialog(
                                 tint = Color.Gray,
                             )
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RenameTagDialog(
+    title: String,
+    message: String,
+    initialValue: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+    dismissible: Boolean = true,
+) {
+    var editedTagName by remember(initialValue) { mutableStateOf(initialValue) }
+
+    Dialog(
+        onDismissRequest = {
+            if (dismissible) {
+                onDismiss()
+            }
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = dismissible,
+            dismissOnClickOutside = dismissible,
+            usePlatformDefaultWidth = false,
+        ),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            // Backdrop/Scrim
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+            )
+
+            // Dialog Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .padding(32.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        // 1. Title (Font size matches confirmDialog)
+                        Text(
+                            text = title,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.padding(bottom = 24.dp),
+                        )
+
+                        Text(
+                            text = message,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 16.dp),
+                        )
+
+                        // 2. TextField (Styled as requested)
+                        TextField(
+                            value = editedTagName,
+                            onValueChange = { editedTagName = it },
+                            singleLine = true,
+                            placeholder = { Text("Tag name") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = TextFieldDefaults.colors( // <-- TextFieldDefaults로 변경
+                                // 배경색 투명하게 설정
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+
+                                // 밑줄(Indicator) 색상 설정
+                                focusedIndicatorColor = MaterialTheme.colorScheme.primary, // 포커스 시
+                                unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceDim, // 포커스 없을 시
+
+                                // 텍스트 색상
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            ),
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Button(
+                            onClick = {
+                                if (editedTagName.isNotBlank()) {
+                                    onConfirm(editedTagName.trim())
+                                }
+                            },
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color.Red,
+                                ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            enabled = editedTagName.isNotBlank()
+                        ) {
+                            Text(
+                                text = "Update",
+                                style = MaterialTheme.typography.labelLarge, // Font size matches confirmDialog
+                            )
+                        }
+                    }
+
+                    // 'X' close button (matches confirmDialog)
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .size(32.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.Gray,
+                        )
                     }
                 }
             }

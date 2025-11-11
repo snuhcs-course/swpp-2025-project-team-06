@@ -74,6 +74,7 @@ import com.example.momentag.model.TagCntData
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.RenameTagDialog
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.MyTagsViewModel
@@ -308,57 +309,26 @@ fun MyTagsScreen(navController: NavController) {
         )
     }
     if (showEditDialog && tagToEdit != null) {
-        AlertDialog(
-            onDismissRequest = { showEditDialog = false },
-            title = {
-                Text(
-                    text = "Edit Tag Name",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Please enter a new tag name",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TextField(
-                        value = editedTagName,
-                        onValueChange = { editedTagName = it },
-                        singleLine = true,
-                        placeholder = { Text("Tag name") },
-                    )
+        RenameTagDialog(
+            title = "Edit Tag Name",
+            message = "Enter the new tag name",
+            initialValue = editedTagName,
+            onConfirm = { newName ->
+                if (newName.isNotBlank()) {
+                    tagToEdit?.first?.let { tagId ->
+                        viewModel.renameTag(tagId, newName)
+                    }
                 }
+                showEditDialog = false
+                tagToEdit = null
+                editedTagName = ""
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (editedTagName.isNotBlank()) {
-                            tagToEdit?.first?.let { tagId ->
-                                viewModel.renameTag(tagId, editedTagName.trim())
-                            }
-                        }
-                        showEditDialog = false
-                        tagToEdit = null
-                        editedTagName = ""
-                    },
-                    enabled = editedTagName.isNotBlank(),
-                ) {
-                    Text("Update")
-                }
+            onDismiss = {
+                showEditDialog = false
+                tagToEdit = null
+                editedTagName = ""
             },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showEditDialog = false
-                        tagToEdit = null
-                        editedTagName = ""
-                    },
-                ) {
-                    Text("Cancel")
-                }
-            },
+            dismissible = true
         )
     }
 

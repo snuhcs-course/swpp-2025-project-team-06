@@ -87,6 +87,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -174,6 +175,23 @@ fun HomeScreen(navController: NavController) {
     val currentSortOrder by homeViewModel.sortOrder.collectAsState()
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val gradientBrush = Brush.verticalGradient(
+        colorStops =
+            arrayOf(
+                0.5f to MaterialTheme.colorScheme.surface,
+                1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+            ),
+    )
+
+    val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
+    val isTagsLoaded = homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
+    val arePhotosLoaded = !isLoadingPhotos
+    val isDataReady = isTagsLoaded && arePhotosLoaded
+    val areTagsEmpty = tagItems.isEmpty()
+    val arePhotosEmpty = groupedPhotos.isEmpty()
+
+    val showEmptyTagGradient = !showAllPhotos && areTagsEmpty && isDataReady && !arePhotosEmpty
 
     LaunchedEffect(uiState.isLoading) {
         if (uiState.isLoading) {
@@ -459,6 +477,13 @@ fun HomeScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .then(
+                            if (showEmptyTagGradient) {
+                                Modifier.background(gradientBrush)
+                            } else {
+                                Modifier
+                            }
+                        )
                         .padding(horizontal = 16.dp),
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -583,9 +608,11 @@ fun HomeScreen(navController: NavController) {
                         },
                         homeViewModel = homeViewModel,
                         lazyGridState = listState,
-                        isLoadingMorePhotos = isLoadingMorePhotos,
-                        isLoadingPhotos = false, // 이 블록은 로딩이 끝났을 때만 실행됨
-                        homeLoadingState = homeLoadingState, // Success 또는 Error 상태 전달
+                        isLoadingPhotos = false,
+                        homeLoadingState = homeLoadingState,
+                        isDataReady = isDataReady,
+                        arePhotosEmpty = arePhotosEmpty,
+                        areTagsEmpty = areTagsEmpty
                     )
 
                     // 페이지네이션 로직을 MainContent 밖으로 이동
@@ -799,17 +826,10 @@ private fun MainContent(
     isLoadingMorePhotos: Boolean = false,
     isLoadingPhotos: Boolean,
     homeLoadingState: HomeViewModel.HomeLoadingState,
+    isDataReady: Boolean,
+    arePhotosEmpty: Boolean,
+    areTagsEmpty: Boolean
 ) {
-    val isTagsLoaded =
-        homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
-    val arePhotosLoaded = !isLoadingPhotos
-    // 태그와 사진 로딩이 모두 끝나야 빈 화면 여부를 최종 결정
-    val isDataReady = isTagsLoaded && arePhotosLoaded
-
-    // 데이터 상태 정의
-    val arePhotosEmpty = groupedPhotos.isEmpty()
-    val areTagsEmpty = tagItems.isEmpty()
-
     when {
         isDataReady && arePhotosEmpty -> {
             EmptyStatePhotos(modifier = modifier, navController = navController)
