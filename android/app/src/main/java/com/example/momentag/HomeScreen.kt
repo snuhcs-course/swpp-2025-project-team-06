@@ -138,6 +138,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import android.util.Log
+import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.runtime.mutableStateMapOf
 import java.util.UUID
 import androidx.compose.ui.focus.onFocusChanged
@@ -146,6 +147,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.SearchContentElement
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -202,25 +204,11 @@ fun HomeScreen(navController: NavController) {
     var focusedElementId by remember { mutableStateOf<String?>(null) }
     // 4. [신규] 모든 텍스트 필드의 FocusRequester 맵
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
+    // 5. [신규] BringIntoViewRequester 맵
+    val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
 
     // **[수정] 현재 포커스된 텍스트 필드의 값을 추적합니다.**
     val currentFocusedTextState = textStates[focusedElementId]
-
-    // **[수정] 텍스트 입력, 포커스 변경, 칩 추가/삭제 시 자동 스크롤**
-    LaunchedEffect(currentFocusedTextState, focusedElementId, contentItems.size) {
-        val focusedIndex = contentItems.indexOfFirst { it.id == focusedElementId }
-        if (focusedIndex != -1) {
-            // 포커스된 항목이 있으면(타이핑 중이거나, 포커스 변경 시) 해당 항목으로 스크롤
-            scope.launch {
-                listState.animateScrollToItem(focusedIndex)
-            }
-        } else if (contentItems.isNotEmpty()) {
-            // 포커스가 해제되었지만(예: 칩 추가 직후) 항목이 변경된 경우, 맨 끝으로 스크롤
-            scope.launch {
-                listState.animateScrollToItem(contentItems.size - 1)
-            }
-        }
-    }
 
     /**
      * [신규] 특정 ID의 텍스트 필드에 포커스를 요청하는 헬퍼 함수
@@ -271,6 +259,7 @@ fun HomeScreen(navController: NavController) {
             textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
             // 포커스 리퀘스터 추가
             focusRequesters[initialId] = FocusRequester()
+            bringIntoViewRequesters[initialId] = BringIntoViewRequester()
             // 초기 포커스 설정
             focusedElementId = initialId
             // 실제 포커스 요청
@@ -679,20 +668,37 @@ fun HomeScreen(navController: NavController) {
                         contentItems = contentItems,
                         textStates = textStates,
                         focusRequesters = focusRequesters,
+                        bringIntoViewRequesters = bringIntoViewRequesters,
 
                         // 2. 검색 실행 로직 전달
                         onSearch = { performSearch() },
 
                         // 3. 모든 이벤트 핸들러 전달
                         onContainerClick = {
+                            // [신규] 컨테이너 클릭: 마지막 텍스트 필드에 포커스
                             val lastTextElement = contentItems.lastOrNull { it is SearchContentElement.Text }
                             if (lastTextElement != null) {
+                                // [수정] 스크롤 로직 추가
+                                val lastIndex = contentItems.indexOfFirst { it.id == lastTextElement.id }
+                                if (lastIndex != -1) {
+                                    scope.launch {
+                                        listState.scrollToItem(lastIndex) // 애니메이션 없이 즉시 이동
+                                    }
+                                }
                                 requestFocusById(lastTextElement.id)
                             }
                         },
                         onChipClick = { index ->
+                            // [신규] 칩 클릭: 바로 다음 텍스트 필드에 포커스
                             val nextTextId = findNextTextElementId(index)
                             if (nextTextId != null) {
+                                // [수정] 스크롤 로직 추가
+                                val nextIndex = contentItems.indexOfFirst { it.id == nextTextId }
+                                if (nextIndex != -1) {
+                                    scope.launch {
+                                        listState.scrollToItem(nextIndex)
+                                    }
+                                }
                                 requestFocusById(nextTextId)
                             }
                         },
@@ -718,8 +724,18 @@ fun HomeScreen(navController: NavController) {
                                     contentItems.removeAt(currentIndex - 1)
                                     textStates.remove(id)
                                     focusRequesters.remove(id)
+                                    bringIntoViewRequesters.remove(id)
+
+                                    // 그 앞의 텍스트 필드에 포커스
                                     val newFocusId = findPreviousTextElementId(currentIndex - 1)
                                     if (newFocusId != null) {
+                                        // [수정] 스크롤 로직 추가
+                                        val prevIndex = contentItems.indexOfFirst { it.id == newFocusId }
+                                        if (prevIndex != -1) {
+                                            scope.launch {
+                                                listState.scrollToItem(prevIndex)
+                                            }
+                                        }
                                         requestFocusById(newFocusId)
                                     }
                                 }
@@ -729,7 +745,19 @@ fun HomeScreen(navController: NavController) {
                                     contentItems.removeAt(currentIndex)
                                     textStates.remove(id)
                                     focusRequesters.remove(id)
+                                    bringIntoViewRequesters.remove(id)
+
                                     textStates[prevItem.id] = TextFieldValue(textToPrepend, TextRange(cursorPosition))
+
+                                    // [수정] 스크롤 로직 추가
+                                    val prevIndex = contentItems.indexOfFirst { it.id == prevItem.id }
+                                    if (prevIndex != -1) {
+                                        scope.launch {
+                                            listState.scrollToItem(prevIndex)
+                                        }
+                                    }
+
+                                    // 포커스 이동
                                     requestFocusById(prevItem.id)
                                 }
                                 return@ChipSearchBar
@@ -807,9 +835,11 @@ fun HomeScreen(navController: NavController) {
                                         // 5. 새 텍스트 필드 상태 및 포커스 설정
                                         textStates[newTextId] = TextFieldValue("\u200B" + succeedingText, TextRange(1))
                                         focusRequesters[newTextId] = FocusRequester()
+                                        bringIntoViewRequesters[newTextId] = BringIntoViewRequester()
 
                                         // 6. 새 텍스트 필드로 포커스 이동
                                         scope.launch {
+                                            delay(50) // UI가 새 BasicTextField를 그릴 시간을 줍니다.
                                             requestFocusById(newTextId)
                                         }
                                     }

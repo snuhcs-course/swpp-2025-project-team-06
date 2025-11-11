@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -27,9 +29,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -49,6 +54,7 @@ import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.model.TagItem
+import kotlinx.coroutines.launch
 
 sealed class SearchContentElement {
     abstract val id: String // each element has unique ID
@@ -85,6 +91,7 @@ fun ChipSearchBar(
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
+    bringIntoViewRequesters: Map<String, BringIntoViewRequester>,
 
     // HomeScreen의 이벤트 핸들러들
     onContainerClick: () -> Unit,
@@ -125,10 +132,12 @@ fun ChipSearchBar(
             contentItems = contentItems,
             textStates = textStates,
             focusRequesters = focusRequesters,
+            bringIntoViewRequesters = bringIntoViewRequesters,
             onContainerClick = onContainerClick,
             onChipClick = onChipClick,
             onTextChange = onTextChange,
             onFocus = onFocus,
+            onSearch = onSearch,
             placeholder = placeholder // 플레이스홀더 전달
         )
 
@@ -154,10 +163,12 @@ private fun InternalChipSearchInput(
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
+    bringIntoViewRequesters: Map<String, BringIntoViewRequester>,
     onContainerClick: () -> Unit,
     onChipClick: (Int) -> Unit,
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String) -> Unit,
+    onSearch: () -> Unit,
     placeholder: String
 ) {
     // [수정] Box 래퍼를 제거하고 LazyRow만 남깁니다.
@@ -183,8 +194,12 @@ private fun InternalChipSearchInput(
                     )
                 }
                 is SearchContentElement.Text -> {
-                    // [기존] HomeScreen.kt의 BasicTextField 로직 전체
                     val focusRequester = focusRequesters[item.id] ?: remember { FocusRequester() }
+                    val bringIntoViewRequester = bringIntoViewRequesters[item.id] ?: remember { BringIntoViewRequester() }
+
+                    // [신규] 커서 위치 계산을 위해 TextLayoutResult를 저장
+                    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+                    val scope = rememberCoroutineScope() // bringIntoView 호출용
 
                     // --- 텍스트 너비 측정 로직 ---
                     val textValue = textStates[item.id] ?: TextFieldValue()
@@ -204,11 +219,32 @@ private fun InternalChipSearchInput(
 
                     val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
 
+                    // [신규] LaunchedEffect: 텍스트 레이아웃이나 커서 위치가 변경된 *후*에 실행
+                    LaunchedEffect(textLayoutResult, textValue.selection) {
+                        // 1. 레이아웃 결과가 있는지 확인
+                        textLayoutResult?.let { layoutResult ->
+                            // 2. [안전 장치] 커서 위치가 현재 레이아웃의 유효 범위 내에 있는지 확인
+                            val textLength = layoutResult.layoutInput.text.length
+                            val selectionEnd = textValue.selection.end
+
+                            if (selectionEnd in 0..textLength) {
+                                // 3. 커서의 사각형을 계산
+                                val cursorRect = layoutResult.getCursorRect(selectionEnd)
+                                // 4. 커서를 뷰로 스크롤
+                                scope.launch {
+                                    bringIntoViewRequester.bringIntoView(cursorRect)
+                                }
+                            }
+                        }
+                    }
+
                     BasicTextField(
                         value = textValue,
                         onValueChange = { newValue ->
+                            // 1. HomeScreen으로 변경 사항을 알림 (기존 로직)
                             onTextChange(item.id, newValue)
                         },
+                        onTextLayout = { textLayoutResult = it },
                         modifier = Modifier
                             .then(
                                 if (isPlaceholder) {
@@ -218,6 +254,7 @@ private fun InternalChipSearchInput(
                                 }
                             )
                             .focusRequester(focusRequester)
+                            .bringIntoViewRequester(bringIntoViewRequester)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
                                     onFocus(item.id)
@@ -227,6 +264,10 @@ private fun InternalChipSearchInput(
                         maxLines = 1, // 스크롤 방지
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         textStyle = textStyle,
+
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+
                         decorationBox = { innerTextField ->
                             if (isPlaceholder) {
                                 Text(
