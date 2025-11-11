@@ -2,6 +2,7 @@ package com.example.momentag
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,6 +58,7 @@ import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.SearchBarControlledCustom
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.search.components.SearchEmptyStateCustom
 import com.example.momentag.ui.search.components.SearchErrorStateFallbackCustom
 import com.example.momentag.ui.search.components.SearchIdleCustom
@@ -138,6 +141,21 @@ fun SearchResultScreen(
                 }
             }
         }
+
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(uiState) {
+        if (uiState is SearchUiState.Error) {
+            errorMessage = uiState.message
+            showErrorBanner = true
+        } else {
+            // 로딩이 성공하거나, Idle 상태가 되면 배너를 숨깁니다.
+            if (uiState is SearchUiState.Success || uiState is SearchUiState.Loading || uiState is SearchUiState.Idle) {
+                showErrorBanner = false
+            }
+        }
+    }
 
     val topBarActions = @Composable {
         Box {
@@ -235,6 +253,7 @@ fun SearchResultScreen(
             if (searchText.isNotEmpty()) {
                 searchViewModel.search(searchText)
             }
+            showErrorBanner = false
         },
         navController = navController,
         currentTab = currentTab,
@@ -272,6 +291,9 @@ fun SearchResultScreen(
         onHistoryDelete = { query ->
             searchViewModel.removeSearchHistory(query)
         },
+        showErrorBanner = showErrorBanner,
+        errorMessage = errorMessage,
+        onDismissError = { showErrorBanner = false }
     )
 }
 
@@ -301,68 +323,61 @@ fun SearchResultScreenUi(
     searchHistory: List<String>,
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (String) -> Unit,
+    showErrorBanner: Boolean,
+    errorMessage: String?,
+    onDismissError: () -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            modifier = modifier,
-            containerColor = MaterialTheme.colorScheme.surface,
-            topBar = {
-                CommonTopBar(
-                    title = "Search Results",
-                    showBackButton = true,
-                    onBackClick = onBackClick,
-                    actions = topBarActions,
-                )
-            },
-            bottomBar = {
-                BottomNavBar(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                WindowInsets.navigationBars
-                                    .only(WindowInsetsSides.Bottom)
-                                    .asPaddingValues(),
-                            ),
-                    currentTab = currentTab,
-                    onTabSelected = onTabSelected,
-                )
-            },
-        ) { paddingValues ->
-            SearchResultContent(
+    Scaffold(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surface,
+        topBar = {
+            CommonTopBar(
+                title = "Search Results",
+                showBackButton = true,
+                onBackClick = onBackClick,
+                actions = topBarActions,
+            )
+        },
+        bottomBar = {
+            BottomNavBar(
                 modifier =
                     Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .padding(horizontal = 24.dp),
-                searchText = searchText,
-                onSearchTextChange = onSearchTextChange,
-                onSearchSubmit = onSearchSubmit,
-                uiState = uiState,
-                isSelectionMode = isSelectionMode,
-                selectedPhotos = selectedPhotos,
-                onToggleSelectionMode = onToggleSelectionMode,
-                onToggleImageSelection = onToggleImageSelection,
-                onImageLongPress = onImageLongPress,
-                onCreateTagClick = onCreateTagClick,
-                onRetry = onRetry,
-                navController = navController,
-                searchHistory = searchHistory,
-                onHistoryClick = onHistoryClick,
-                onHistoryDelete = onHistoryDelete,
+                        .fillMaxWidth()
+                        .padding(
+                            WindowInsets.navigationBars
+                                .only(WindowInsetsSides.Bottom)
+                                .asPaddingValues(),
+                        ),
+                currentTab = currentTab,
+                onTabSelected = onTabSelected,
             )
-        }
-        // TODO : 혹시 네트워크 에러일 때만 오버레이 띄울거면 NetworkError 상태로 바꾸기
-        if (uiState is SearchUiState.Error) {
-            Box(modifier = Modifier.matchParentSize()) {
-                ErrorOverlay(
-                    modifier = Modifier.fillMaxSize(),
-                    errorMessage = uiState.message,
-                    onRetry = onRetry,
-                    onDismiss = { navController.popBackStack() },
-                )
-            }
-        }
+        },
+    ) { paddingValues ->
+        SearchResultContent(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 24.dp),
+            searchText = searchText,
+            onSearchTextChange = onSearchTextChange,
+            onSearchSubmit = onSearchSubmit,
+            uiState = uiState,
+            isSelectionMode = isSelectionMode,
+            selectedPhotos = selectedPhotos,
+            onToggleSelectionMode = onToggleSelectionMode,
+            onToggleImageSelection = onToggleImageSelection,
+            onImageLongPress = onImageLongPress,
+            onCreateTagClick = onCreateTagClick,
+            onRetry = onRetry,
+            navController = navController,
+            searchHistory = searchHistory,
+            onHistoryClick = onHistoryClick,
+            onHistoryDelete = onHistoryDelete,
+            showErrorBanner = showErrorBanner,
+            errorMessage = errorMessage,
+            onDismissError = onDismissError
+        )
     }
 }
 
@@ -387,6 +402,9 @@ private fun SearchResultContent(
     searchHistory: List<String>,
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (String) -> Unit,
+    showErrorBanner: Boolean,
+    errorMessage: String?,
+    onDismissError: () -> Unit
 ) {
     Box(modifier = modifier) {
         Column(
@@ -444,6 +462,17 @@ private fun SearchResultContent(
                 onHistoryClick = onHistoryClick,
                 onHistoryDelete = onHistoryDelete,
             )
+            AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                WarningBanner(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    title = "Search Failed",
+                    message = errorMessage ?: "Unknown error",
+                    onActionClick = onRetry, // 재시도
+                    onDismiss = onDismissError, // 닫기
+                    showActionButton = true,
+                    showDismissButton = true
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -561,7 +590,7 @@ private fun SearchResultsFromState(
             }
 
             is SearchUiState.Error -> {
-                SearchErrorStateFallbackCustom(modifier)
+                Box(modifier = Modifier.fillMaxHeight())
             }
         }
     }

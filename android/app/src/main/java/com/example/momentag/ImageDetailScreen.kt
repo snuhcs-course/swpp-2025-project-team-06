@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -46,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -72,8 +74,10 @@ import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.IOException
 import kotlin.math.abs
@@ -216,7 +220,7 @@ fun ImageDetailScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    // val snackbarHostState = remember { SnackbarHostState() } // 삭제
 
     // Screen-scoped ViewModel - fresh instance per screen
     val imageDetailViewModel: ImageDetailViewModel =
@@ -237,7 +241,7 @@ fun ImageDetailScreen(
     }
 
     // Cleanup on dispose
-    androidx.compose.runtime.DisposableEffect(Unit) {
+    DisposableEffect(Unit) {
         onDispose {
             imageDetailViewModel.clearImageContext()
         }
@@ -333,6 +337,22 @@ fun ImageDetailScreen(
         }
     }
 
+    // --- 수정: 배너 상태 변수 추가 ---
+    var showDeleteErrorBanner by remember { mutableStateOf(false) }
+    var deleteErrorMessage by remember { mutableStateOf<String?>(null) }
+    var showNoPhotoBanner by remember { mutableStateOf(false) } // "No photo" 배너
+    // --- 수정 끝 ---
+
+    // --- 추가: "No photo" 배너 자동 숨김 ---
+    LaunchedEffect(showNoPhotoBanner) {
+        if (showNoPhotoBanner) {
+            delay(2000) // 2초
+            showNoPhotoBanner = false
+        }
+    }
+    // --- 추가 끝 ---
+
+
     LaunchedEffect(tagDeleteState) {
         when (val state = tagDeleteState) {
             is ImageDetailViewModel.TagDeleteState.Success -> {
@@ -344,10 +364,13 @@ fun ImageDetailScreen(
 
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
+                showDeleteErrorBanner = false
+                showNoPhotoBanner = false // 성공 시 함께 숨김
             }
 
             is ImageDetailViewModel.TagDeleteState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                deleteErrorMessage = state.message
+                showDeleteErrorBanner = true
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
             }
@@ -394,15 +417,16 @@ fun ImageDetailScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                )
-            }
-        },
+        // --- snackbarHost 삭제 ---
+        // snackbarHost = {
+        //     SnackbarHost(hostState = snackbarHostState) { data ->
+        //         Snackbar(
+        //             snackbarData = data,
+        //             containerColor = MaterialTheme.colorScheme.inverseSurface,
+        //             contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+        //         )
+        //     }
+        // },
         topBar = {
             BackTopBar(
                 title = "MomenTag",
@@ -437,45 +461,82 @@ fun ImageDetailScreen(
                 }
             }
 
+            // --- 추가: "No Photo" 배너 ---
+            AnimatedVisibility(visible = showNoPhotoBanner) {
+                WarningBanner(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    title = "Error",
+                    message = "Cannot delete tag: Photo ID is missing.",
+                    onActionClick = { showNoPhotoBanner = false },
+                    showActionButton = false,
+                    showDismissButton = true,
+                    onDismiss = { showNoPhotoBanner = false }
+                )
+            }
+            // --- 추가 끝 ---
+
+            // --- 추가: 삭제 오류 배너 ---
+            AnimatedVisibility(visible = showDeleteErrorBanner && deleteErrorMessage != null) {
+                WarningBanner(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    title = "Failed to Remove Tag",
+                    message = deleteErrorMessage!!,
+                    onActionClick = { showDeleteErrorBanner = false },
+                    showActionButton = false,
+                    showDismissButton = true,
+                    onDismiss = { showDeleteErrorBanner = false }
+                )
+            }
+            // --- 추가 끝 ---
+
+
             // 2. 태그가 표시될 새로운 영역
             if (isError) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "태그를 불러오는 중 오류가 발생했습니다.\n($errorMessage)",
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            } else {
-                TagsSection(
-                    modifier =
-                        Modifier
-                            .padding(horizontal = 8.dp)
-                            .padding(bottom = 32.dp),
-                    existingTags = existingTags,
-                    recommendedTags = recommendedTags,
-                    isExistingTagsLoading = isExistingLoading,
-                    isRecommendedTagsLoading = isRecommendedLoading,
-                    isDeleteMode = isDeleteMode,
-                    onEnterDeleteMode = { isDeleteMode = true },
-                    onExitDeleteMode = { isDeleteMode = false },
-                    onDeleteClick = { tagId ->
-                        val currentPhotoId =
-                            currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                WarningBanner(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 32.dp),
+                    title = "Failed to Load Tags",
+                    message = errorMessage ?: "Unknown error",
+                    onActionClick = {
+                        // 재시도 로직
+                        val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
                         if (currentPhotoId.isNotEmpty()) {
-                            imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
-                        } else {
-                            Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
+                            imageDetailViewModel.loadPhotoTags(currentPhotoId)
                         }
                     },
-                    snackbarHostState = snackbarHostState,
+                    showActionButton = true, // 재시도 버튼 표시
+                    showDismissButton = false
                 )
+            } else {
+                // --- 수정: 배너가 없을 때만 태그 섹션 표시 ---
+                AnimatedVisibility(visible = !showDeleteErrorBanner && !showNoPhotoBanner) {
+                    TagsSection(
+                        modifier =
+                            Modifier
+                                .padding(horizontal = 8.dp)
+                                .padding(bottom = 32.dp),
+                        existingTags = existingTags,
+                        recommendedTags = recommendedTags,
+                        isExistingTagsLoading = isExistingLoading,
+                        isRecommendedTagsLoading = isRecommendedLoading,
+                        isDeleteMode = isDeleteMode,
+                        onEnterDeleteMode = { isDeleteMode = true },
+                        onExitDeleteMode = { isDeleteMode = false },
+                        onDeleteClick = { tagId ->
+                            val currentPhotoId =
+                                currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                            if (currentPhotoId.isNotEmpty()) {
+                                imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
+                            } else {
+                                // --- 수정: Toast -> WarningBanner ---
+                                // Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
+                                showNoPhotoBanner = true
+                                // --- 수정 끝 ---
+                            }
+                        },
+                        // snackbarHostState = snackbarHostState, // 삭제
+                    )
+                }
+                // --- 수정 끝 ---
             }
         }
     }
@@ -493,10 +554,12 @@ fun TagsSection(
     onDeleteClick: (String) -> Unit,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
-    snackbarHostState: SnackbarHostState,
+    // snackbarHostState: SnackbarHostState, // 삭제
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current // 추가
+
     Row(
         modifier = modifier.horizontalScroll(scrollState),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -540,12 +603,9 @@ fun TagsSection(
             }
         }
 
-        // Add Tag 버튼 (기존과 동일)
         IconButton(
             onClick = {
-                scope.launch {
-                    snackbarHostState.showSnackbar("🛠️개발예정")
-                }
+                Toast.makeText(context, "🛠️개발예정", Toast.LENGTH_SHORT).show()
             },
             modifier = Modifier.size(32.dp),
         ) {

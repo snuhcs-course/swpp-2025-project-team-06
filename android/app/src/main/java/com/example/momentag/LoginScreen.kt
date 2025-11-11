@@ -1,5 +1,6 @@
 package com.example.momentag
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.LoginState
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -69,17 +71,20 @@ fun LoginScreen(navController: NavController) {
     var usernameTouched by remember { mutableStateOf(false) }
     var passwordTouched by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    var showErrorBanner by remember { mutableStateOf(false) }
 
     val clearAllErrors = {
         isUsernameError = false
         isPasswordError = false
         errorMessage = null
+        showErrorBanner = false
     }
 
     LaunchedEffect(loginState) {
         when (val state = loginState) {
             is LoginState.Loading -> {
                 isLoading = true
+                showErrorBanner = false
             }
             is LoginState.Success -> {
                 isLoading = false
@@ -92,6 +97,7 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
+                showErrorBanner = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Unauthorized -> {
@@ -99,6 +105,7 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
+                showErrorBanner = true
                 authViewModel.resetLoginState()
             }
             is LoginState.NetworkError -> {
@@ -106,6 +113,7 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
+                showErrorBanner = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Error -> {
@@ -113,6 +121,7 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
+                showErrorBanner = true
                 authViewModel.resetLoginState()
             }
             else -> {}
@@ -297,6 +306,7 @@ fun LoginScreen(navController: NavController) {
                         ),
                 )
 
+                // --- 수정: 로컬 에러만 여기에 표시 ---
                 Box(
                     modifier =
                         Modifier
@@ -304,14 +314,7 @@ fun LoginScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(top = 4.dp, start = 4.dp),
                 ) {
-                    val serverErr = errorMessage
-                    if (serverErr != null) {
-                        Text(
-                            text = serverErr,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    } else if (isPasswordError && password.isEmpty()) {
+                    if (!showErrorBanner && isPasswordError && password.isEmpty()) {
                         Text(
                             text = "Please enter your password",
                             color = MaterialTheme.colorScheme.error,
@@ -319,10 +322,19 @@ fun LoginScreen(navController: NavController) {
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // login button
+                Spacer(modifier = Modifier.height(8.dp))
+                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    WarningBanner(
+                        title = "Login Failed",
+                        message = errorMessage ?: "Unknown error",
+                        onActionClick = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { showErrorBanner = false },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = {
                         val usernameEmpty = username.isEmpty()

@@ -32,7 +32,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialog // 수정 다이얼로그를 위해 유지
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -72,6 +72,8 @@ import com.example.momentag.model.TagCntData
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.components.confirmDialog // --- 추가 ---
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -211,19 +213,19 @@ fun MyTagsScreen(navController: NavController) {
 
                 is MyTagsUiState.Error -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 24.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Error: ${state.message}",
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { viewModel.refreshTags() }) {
-                                Text("Retry")
-                            }
-                        }
+                        WarningBanner(
+                            title = "Failed to Load Tags",
+                            message = state.message,
+                            onActionClick = { viewModel.refreshTags() },
+                            showActionButton = true,
+                            showDismissButton = false,
+                        )
                     }
                 }
 
@@ -250,48 +252,28 @@ fun MyTagsScreen(navController: NavController) {
         }
     }
 
-    // 삭제 확인 다이얼로그
+    // --- 수정: 삭제 확인 다이얼로그 (AlertDialog -> confirmDialog) ---
     if (showDeleteDialog && tagToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = {
-                Text(
-                    text = "태그 삭제",
-                    style = MaterialTheme.typography.titleLarge,
-                )
+        confirmDialog(
+            title = "태그 삭제",
+            message = "'${tagToDelete?.second}' 태그를 삭제하시겠습니까?",
+            confirmButtonText = "삭제",
+            onConfirm = {
+                tagToDelete?.first?.let { viewModel.deleteTag(it) }
+                Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
+                showDeleteDialog = false
+                tagToDelete = null
             },
-            text = {
-                Text(
-                    text = "'${tagToDelete?.second}' 태그를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            onDismiss = {
+                showDeleteDialog = false
+                tagToDelete = null
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        tagToDelete?.first?.let { viewModel.deleteTag(it) }
-                        Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
-                        showDeleteDialog = false
-                        tagToDelete = null
-                    },
-                ) {
-                    Text("삭제", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        tagToDelete = null
-                    },
-                ) {
-                    Text("취소")
-                }
-            },
+            dismissible = true,
         )
     }
+    // --- 수정 끝 ---
 
-    // 태그 수정 다이얼로그
+    // 태그 수정 다이얼로그 (HomeScreen에 없는 기능이므로 기존 AlertDialog 유지)
     if (showEditDialog && tagToEdit != null) {
         AlertDialog(
             onDismissRequest = { showEditDialog = false },

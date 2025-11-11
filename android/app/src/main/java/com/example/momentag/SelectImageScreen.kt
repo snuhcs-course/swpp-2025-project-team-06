@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -77,6 +78,7 @@ import com.example.momentag.model.RecommendState
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
@@ -778,36 +780,20 @@ private fun AIRecommendationSection(
                         }
                     }
                     is RecommendState.Error, is RecommendState.NetworkError -> {
-                        Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                text =
-                                    when (recommendState) {
-                                        is RecommendState.Error ->
-                                            (recommendState as RecommendState.Error).message
-                                        is RecommendState.NetworkError ->
-                                            (recommendState as RecommendState.NetworkError).message
-                                        else -> "Unknown error"
-                                    },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                            Button(
-                                onClick = onRetry,
-                                colors =
-                                    ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                    ),
-                            ) {
-                                Text("Retry")
-                            }
+                        val (title, message) = if (recommendState is RecommendState.Error) {
+                            "Recommendation Failed" to recommendState.message
+                        } else {
+                            "Network Error" to (recommendState as RecommendState.NetworkError).message
                         }
+
+                        WarningBanner(
+                            title = title,
+                            message = message,
+                            onActionClick = onRetry,
+                            showActionButton = true,
+                            actionIcon = Icons.Default.Refresh,
+                            showDismissButton = false
+                        )
                     }
                     else -> {}
                 }

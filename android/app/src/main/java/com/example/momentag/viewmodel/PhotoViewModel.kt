@@ -46,23 +46,24 @@ class PhotoViewModel(
                 val response = remoteRepository.uploadPhotos(photoUploadData)
 
                 // update ui state
-                val message: String =
-                    when (response) {
-                        is RemoteRepository.Result.Success -> {
-                            when (response.data) {
-                                202 -> {
-                                    _uiState.update { it.copy(isUploadSuccess = true) }
-                                    "Success"
-                                }
-                                else -> "Upload successful (Code: ${response.data})"
+                var message: String? = null
+                var error: String? = null
+                when (response) {
+                    is RemoteRepository.Result.Success -> {
+                        when (response.data) {
+                            202 -> {
+                                _uiState.update { it.copy(isUploadSuccess = true) }
+                                "Success"
                             }
+                            else -> "Upload successful (Code: ${response.data})"
                         }
-                        is RemoteRepository.Result.BadRequest -> "Request form mismatch"
-                        is RemoteRepository.Result.Unauthorized -> "The refresh token is expired"
-                        is RemoteRepository.Result.Error -> "Unexpected error: ${response.code}"
-                        is RemoteRepository.Result.Exception -> "Unknown error: ${response.e.message}"
-                        is RemoteRepository.Result.NetworkError -> "Network error"
                     }
+                    is RemoteRepository.Result.BadRequest -> "Request form mismatch"
+                    is RemoteRepository.Result.Unauthorized -> "The refresh token is expired"
+                    is RemoteRepository.Result.Error -> "Unexpected error: ${response.code}"
+                    is RemoteRepository.Result.Exception -> "Unknown error: ${response.e.message}"
+                    is RemoteRepository.Result.NetworkError -> "Network error"
+                }
 
                 _uiState.update { it.copy(isLoading = false, userMessage = message) }
             } catch (e: IOException) {
@@ -110,7 +111,7 @@ class PhotoViewModel(
         val photoIds = photos.mapNotNull { it.photoId.toLongOrNull() }.toLongArray()
 
         if (photoIds.isEmpty()) {
-            _uiState.update { it.copy(userMessage = "업로드할 사진 ID가 없습니다.") }
+            _uiState.update { it.copy(errorMessage = "업로드할 사진 ID가 없습니다.") }
             return
         }
 
@@ -133,7 +134,11 @@ class PhotoViewModel(
         _uiState.update { it.copy(userMessage = "백그라운드 업로드가 시작되었습니다.") }
     }
 
-    fun userMessageShown() {
+    fun infoMessageShown() {
         _uiState.update { it.copy(userMessage = null) }
+    }
+
+    fun errorMessageShown() {
+        _uiState.update { it.copy(errorMessage = null) }
     }
 }

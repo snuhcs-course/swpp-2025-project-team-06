@@ -1,5 +1,6 @@
 package com.example.momentag
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.RegisterState
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -77,6 +79,7 @@ fun RegisterScreen(navController: NavController) {
     var passwordTouched by remember { mutableStateOf(false) }
     var passwordCheckTouched by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    var showErrorBanner by remember { mutableStateOf(false) }
 
     // Email validation helper
     fun isValidEmail(email: String): Boolean =
@@ -91,12 +94,14 @@ fun RegisterScreen(navController: NavController) {
         isPasswordError = false
         isPasswordCheckError = false
         errorMessage = null
+        showErrorBanner = false
     }
 
     LaunchedEffect(registerState) {
         when (val state = registerState) {
             is RegisterState.Loading -> {
                 isLoading = true
+                showErrorBanner = false
             }
             is RegisterState.Success -> {
                 isLoading = false
@@ -111,6 +116,7 @@ fun RegisterScreen(navController: NavController) {
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
+                showErrorBanner = true
                 authViewModel.resetRegisterState()
             }
             is RegisterState.Conflict -> {
@@ -120,6 +126,7 @@ fun RegisterScreen(navController: NavController) {
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
+                showErrorBanner = true
                 authViewModel.resetRegisterState()
             }
             is RegisterState.NetworkError -> {
@@ -129,6 +136,7 @@ fun RegisterScreen(navController: NavController) {
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
+                showErrorBanner = true
                 authViewModel.resetRegisterState()
             }
             is RegisterState.Error -> {
@@ -138,6 +146,7 @@ fun RegisterScreen(navController: NavController) {
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
+                showErrorBanner = true
                 authViewModel.resetRegisterState()
             }
             else -> {}
@@ -252,6 +261,8 @@ fun RegisterScreen(navController: NavController) {
                             errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
+
+                // --- 추가: Email 로컬 에러 Box ---
                 Box(
                     modifier =
                         Modifier
@@ -273,6 +284,8 @@ fun RegisterScreen(navController: NavController) {
                         )
                     }
                 }
+                // --- 추가 끝 ---
+
 
                 // username input
                 Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -457,6 +470,8 @@ fun RegisterScreen(navController: NavController) {
                             errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
+
+                // --- 수정: 중복 에러 로직 정리 및 로컬 에러만 표시 ---
                 Box(
                     modifier =
                         Modifier
@@ -464,29 +479,40 @@ fun RegisterScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(top = 4.dp, start = 4.dp),
                 ) {
-                    val serverErr = errorMessage
-                    if (serverErr != null) {
-                        Text(
-                            text = serverErr,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    } else if (isPasswordCheckError && passwordCheck.isEmpty()) {
-                        Text(
-                            text = "Please check your password",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    } else if (passwordCheck.isNotEmpty() && password != passwordCheck) {
-                        Text(
-                            text = "Password does not match",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                    if (!showErrorBanner) { // 서버 에러(배너)가 없을 때만 로컬 에러 표시
+                        if (isPasswordCheckError && passwordCheck.isEmpty()) {
+                            Text(
+                                text = "Please check your password",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        } else if (passwordCheck.isNotEmpty() && password != passwordCheck) {
+                            Text(
+                                text = "Password does not match",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
+                // --- 수정 끝 (기존 Box, AnimatedVisibility, if 블록 모두 삭제 후 Box로 대체) ---
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // --- 추가: WarningBanner를 버튼 바로 위로 이동 ---
+                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    WarningBanner(
+                        title = "Registration Failed",
+                        message = errorMessage ?: "Unknown error",
+                        onActionClick = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { showErrorBanner = false },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp)) // 배너와 버튼 사이 간격
+                // --- 추가 끝 ---
 
                 // register button
                 Button(

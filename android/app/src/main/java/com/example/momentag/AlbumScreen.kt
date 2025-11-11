@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility // 추가
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh // 추가
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -73,6 +75,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.WarningBanner // 추가
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.AlbumViewModel
@@ -117,7 +120,22 @@ fun AlbumScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
-    // BackHandler for Selection Mode
+    // --- 수정: 배너 상태 ---
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorBannerTitle by remember { mutableStateOf("Error") }
+    var errorBannerMessage by remember { mutableStateOf("An error occurred") }
+    var showSelectPhotosBanner by remember { mutableStateOf(false) } // "사진 선택" 배너
+    // --- 수정 끝 ---
+
+    // --- 추가: "사진 선택" 배너 자동 숨김 ---
+    LaunchedEffect(showSelectPhotosBanner) {
+        if (showSelectPhotosBanner) {
+            kotlinx.coroutines.delay(2000) // 2초
+            showSelectPhotosBanner = false
+        }
+    }
+    // --- 추가 끝 ---
+
     BackHandler(enabled = isTagAlbumPhotoSelectionMode) {
         isTagAlbumPhotoSelectionMode = false
         albumViewModel.resetTagAlbumPhotoSelection()
@@ -131,11 +149,14 @@ fun AlbumScreen(
     LaunchedEffect(tagDeleteState) {
         when (val state = tagDeleteState) {
             is AlbumViewModel.TagDeleteState.Success -> {
-                Toast.makeText(context, "Photo removed from album", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Photo removed from album", Toast.LENGTH_SHORT).show() // 성공: Toast
                 albumViewModel.resetDeleteState()
+                showErrorBanner = false
             }
             is AlbumViewModel.TagDeleteState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                errorBannerTitle = "Failed to Remove Photo"
+                errorBannerMessage = state.message
+                showErrorBanner = true // 실패: Banner
                 albumViewModel.resetDeleteState()
             }
             else -> Unit // Idle, Loading
@@ -145,13 +166,16 @@ fun AlbumScreen(
     LaunchedEffect(tagRenameState) {
         when (val state = tagRenameState) {
             is AlbumViewModel.TagRenameState.Success -> {
-                Toast.makeText(context, "Tag renamed", Toast.LENGTH_SHORT).show()
-                currentTagName = editableTagName // update the "current" name to the new name
+                Toast.makeText(context, "Tag renamed", Toast.LENGTH_SHORT).show() // 성공: Toast
+                currentTagName = editableTagName
                 albumViewModel.resetRenameState()
+                showErrorBanner = false
             }
             is AlbumViewModel.TagRenameState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
-                editableTagName = currentTagName // reset the text field to the last known good name
+                errorBannerTitle = "Failed to Rename Tag"
+                errorBannerMessage = state.message
+                showErrorBanner = true // 실패: Banner
+                editableTagName = currentTagName
                 albumViewModel.resetRenameState()
             }
             else -> Unit // Idle, Loading
@@ -162,11 +186,14 @@ fun AlbumScreen(
     LaunchedEffect(tagAddState) {
         when (val state = tagAddState) {
             is AlbumViewModel.TagAddState.Success -> {
-                Toast.makeText(context, "Photos added to album", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Photos added to album", Toast.LENGTH_SHORT).show() // 성공: Toast
                 albumViewModel.resetAddState()
+                showErrorBanner = false
             }
             is AlbumViewModel.TagAddState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                errorBannerTitle = "Failed to Add Photos"
+                errorBannerMessage = state.message
+                showErrorBanner = true // 실패: Banner
                 albumViewModel.resetAddState()
             }
             else -> Unit // Idle, Loading
@@ -215,6 +242,8 @@ fun AlbumScreen(
         focusManager.clearFocus() // Remove focus (cursor)
     }
 
+    // --- 수정: 확인 다이얼로그 (confirmDialog -> AlertDialog) ---
+    // 규칙: 삭제/재고 확인은 Dialog
     if (showDeleteConfirmationDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmationDialog = false },
@@ -237,8 +266,7 @@ fun AlbumScreen(
                             photos = selectedTagAlbumPhotos,
                             tagId = tagId,
                         )
-                        Toast.makeText(context, "${selectedTagAlbumPhotos.size} photo(s) removed", Toast.LENGTH_SHORT).show()
-
+                        // Toast.makeText(context, "${selectedTagAlbumPhotos.size} photo(s) removed", Toast.LENGTH_SHORT).show() // 삭제 성공은 tagDeleteState에서 처리
                         showDeleteConfirmationDialog = false
                         isTagAlbumPhotoSelectionMode = false
                         showMenu = false
@@ -289,7 +317,7 @@ fun AlbumScreen(
                                         val photos = albumViewModel.getPhotosToShare()
                                         ShareUtils.sharePhotos(context, photos)
 
-                                        Toast
+                                        Toast // 성공: Toast
                                             .makeText(
                                                 context,
                                                 "Share ${photos.size} photo(s)",
@@ -301,17 +329,20 @@ fun AlbumScreen(
                                         albumViewModel.resetTagAlbumPhotoSelection()
                                     },
                                 )
+                                // --- 수정: Toast -> WarningBanner ---
                                 DropdownMenuItem(
                                     text = { Text("Delete") },
                                     onClick = {
                                         if (selectedTagAlbumPhotos.isNotEmpty()) {
                                             showDeleteConfirmationDialog = true
                                         } else {
-                                            Toast.makeText(context, "Please select photos", Toast.LENGTH_SHORT).show()
+                                            // Toast.makeText(context, "Please select photos", Toast.LENGTH_SHORT).show() // 삭제
+                                            showSelectPhotosBanner = true // 추가
                                         }
                                         showMenu = false
                                     },
                                 )
+                                // --- 수정 끝 ---
                                 DropdownMenuItem(
                                     text = { Text("Cancel") },
                                     onClick = {
@@ -418,6 +449,35 @@ fun AlbumScreen(
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 )
 
+                // --- 추가: "사진 선택" 배너 ---
+                AnimatedVisibility(visible = showSelectPhotosBanner) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        title = "No Photos Selected",
+                        message = "Please select photos to delete.",
+                        onActionClick = { showSelectPhotosBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { showSelectPhotosBanner = false }
+                    )
+                }
+                // --- 추가 끝 ---
+
+                // --- 수정: 기존 에러 배너 ---
+                AnimatedVisibility(visible = showErrorBanner) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        title = errorBannerTitle,
+                        message = errorBannerMessage,
+                        onActionClick = { showErrorBanner = false }, // 재시도 로직 없음
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { showErrorBanner = false }
+                    )
+                }
+                // --- 수정 끝 ---
+
+
                 if (!hasPermission) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("이미지 접근 권한을 허용해주세요.")
@@ -506,11 +566,18 @@ private fun AlbumContent(
                     }
                 }
             }
+            // --- 수정: WarningBanner로 교체 ---
             is AlbumViewModel.AlbumLoadingState.Error -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("사진을 불러오지 못했습니다.\n아래로 당겨 새로고침하세요.")
-                }
+                WarningBanner(
+                    modifier = Modifier.fillMaxWidth(),
+                    title = "Failed to Load Album",
+                    message = albumLoadState.message,
+                    onActionClick = { /* PullToRefresh가 처리 */ },
+                    showActionButton = false,
+                    showDismissButton = false
+                )
             }
+            // --- 수정 끝 ---
             is AlbumViewModel.AlbumLoadingState.Idle -> {
             }
         }
@@ -699,11 +766,20 @@ private fun AlbumContent(
                             }
                         }
                     }
+                    // --- 수정: WarningBanner로 교체 ---
                     is AlbumViewModel.RecommendLoadingState.Error -> {
                         Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                            Text("추천 사진을 불러오지 못했습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            WarningBanner(
+                                modifier = Modifier.fillMaxWidth(),
+                                title = "Recommendation Failed",
+                                message = recommendLoadState.message,
+                                onActionClick = { /* TODO: 재시도 로직 필요 */ },
+                                showActionButton = false, // 재시도 로직 없음
+                                showDismissButton = false
+                            )
                         }
                     }
+                    // --- 수정 끝 ---
                     is AlbumViewModel.RecommendLoadingState.Idle -> {
                         Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()

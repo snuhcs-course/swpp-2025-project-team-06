@@ -130,7 +130,6 @@ fun HomeScreen(navController: NavController) {
     val focusManager = LocalFocusManager.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
     var showMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -160,6 +159,10 @@ fun HomeScreen(navController: NavController) {
 
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
     var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
+
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorBannerTitle by remember { mutableStateOf("Error") }
+    var errorBannerMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
@@ -221,8 +224,9 @@ fun HomeScreen(navController: NavController) {
                 }
             }
             is LogoutState.Error -> {
-                val msg = (logoutState as LogoutState.Error).message ?: "Logout failed"
-                scope.launch { snackbarHostState.showSnackbar(msg) }
+                errorBannerTitle = "Logout Failed"
+                errorBannerMessage = (logoutState as LogoutState.Error).message ?: "Logout failed"
+                showErrorBanner = true
             }
             else -> Unit
         }
@@ -247,18 +251,21 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(uiState.userMessage) {
         uiState.userMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-            photoViewModel.userMessageShown()
+            photoViewModel.infoMessageShown()
         }
     }
 
     LaunchedEffect(homeLoadingState) {
-        val message =
-            when (homeLoadingState) {
-                is HomeViewModel.HomeLoadingState.Error -> (homeLoadingState as HomeViewModel.HomeLoadingState.Error).message
-                else -> null
+        when (homeLoadingState) {
+            is HomeViewModel.HomeLoadingState.Error -> {
+                errorBannerTitle = "Failed to Load Tags"
+                errorBannerMessage = (homeLoadingState as HomeViewModel.HomeLoadingState.Error).message
+                showErrorBanner = true
             }
-        message?.let {
-            scope.launch { snackbarHostState.showSnackbar(it) }
+            is HomeViewModel.HomeLoadingState.Success -> {
+                showErrorBanner = false // 로드 성공 시 배너 숨김
+            }
+            else -> Unit // Loading, Idle
         }
     }
 
@@ -269,9 +276,12 @@ fun HomeScreen(navController: NavController) {
                 homeViewModel.loadServerTags()
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
+                showErrorBanner = false
             }
             is HomeViewModel.HomeDeleteState.Error -> {
-                scope.launch { snackbarHostState.showSnackbar(state.message) }
+                errorBannerTitle = "Failed to Delete Tag"
+                errorBannerMessage = state.message
+                showErrorBanner = true
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
             }
@@ -279,13 +289,6 @@ fun HomeScreen(navController: NavController) {
             }
             is HomeViewModel.HomeDeleteState.Idle -> {
             }
-        }
-    }
-
-    // Show snackbar when selection count changes
-    LaunchedEffect(selectedPhotos.size, isSelectionMode) {
-        if (isSelectionMode && selectedPhotos.isNotEmpty()) {
-            snackbarHostState.showSnackbar("${selectedPhotos.size}개 선택됨")
         }
     }
 
@@ -380,29 +383,6 @@ fun HomeScreen(navController: NavController) {
                                 }
                             }
                         }
-                    }
-                },
-            )
-        },
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                snackbar = { data ->
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = data.visuals.message,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier =
-                                Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                        RoundedCornerShape(20.dp),
-                                    ).padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
                     }
                 },
             )
@@ -663,6 +643,29 @@ fun HomeScreen(navController: NavController) {
                             onDismiss = {
                                 isUploadBannerDismissed = true
                             },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+                AnimatedVisibility(visible = showErrorBanner && errorBannerMessage != null) {
+                    Column {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        WarningBanner(
+                            title = errorBannerTitle,
+                            message = errorBannerMessage!!,
+                            onActionClick = {
+                                // 재시도 로직
+                                if (hasPermission) {
+                                    homeViewModel.loadServerTags()
+                                    homeViewModel.loadAllPhotos()
+                                }
+                                showErrorBanner = false
+                            },
+                            onDismiss = { showErrorBanner = false },
+                            showActionButton = true,
+                            showDismissButton = true,
+                            modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -680,7 +683,6 @@ fun HomeScreen(navController: NavController) {
             confirmButtonText = "Delete Tag",
             onConfirm = {
                 homeViewModel.deleteTag(tagId)
-                Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
                 showDeleteConfirmationDialog = false
                 tagToDeleteInfo = null
             },

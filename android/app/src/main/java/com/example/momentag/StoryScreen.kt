@@ -3,6 +3,7 @@
 
 package com.example.momentag.ui.storytag
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -76,6 +77,8 @@ import com.example.momentag.model.StoryTagSubmissionState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
+import com.example.momentag.ui.components.ErrorOverlay
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -327,34 +330,28 @@ fun StoryTagSelectionScreen(
                 }
             }
             is StoryState.Error -> {
-                // Show error screen
-                Box(
+                ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
-                            Text("Retry")
-                        }
+                    title = "Error",
+                    errorMessage = state.message,
+                    onRetry = { viewModel.loadStories(10) },
+                    onDismiss = {
+                        viewModel.resetState()
+                        onBack()
                     }
-                }
+                )
             }
             is StoryState.NetworkError -> {
-                // Show network error screen
-                Box(
+                ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Network Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
-                            Text("Retry")
-                        }
+                    title = "Network Error",
+                    errorMessage = state.message,
+                    onRetry = { viewModel.loadStories(10) },
+                    onDismiss = {
+                        viewModel.resetState()
+                        onBack()
                     }
-                }
+                )
             }
         }
     }
@@ -585,12 +582,14 @@ internal fun TagSelectionCard(
             val canSubmit = if (isEditMode) true else hasSelection
 
             // Show error message if submission failed
-            if (storyTagSubmissionState is StoryTagSubmissionState.Error) {
-                Text(
-                    text = storyTagSubmissionState.message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(bottom = 8.dp),
+            AnimatedVisibility(visible = storyTagSubmissionState is StoryTagSubmissionState.Error) {
+                WarningBanner(
+                    title = "Failed to Save Tag",
+                    message = (storyTagSubmissionState as? StoryTagSubmissionState.Error)?.message ?: "Unknown error",
+                    onActionClick = onRetry, // 재시도 버튼 (GradientPillButton이 Retry로 바뀜)
+                    showActionButton = false, // 버튼은 GradientPillButton이 담당
+                    showDismissButton = false,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
 

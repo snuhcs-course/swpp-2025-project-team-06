@@ -2,9 +2,11 @@ package com.example.momentag
 
 import android.Manifest
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -79,6 +83,25 @@ fun LocalAlbumScreen(
     val selectedPhotos by localViewModel.selectedPhotosInAlbum.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
     val uploadState by photoViewModel.uiState.collectAsState()
+
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(uploadState.userMessage) {
+        uploadState.userMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            photoViewModel.infoMessageShown()
+        }
+    }
+
+    LaunchedEffect(uploadState.errorMessage) {
+        if (uploadState.errorMessage != null) {
+            errorMessage = uploadState.errorMessage
+            showErrorBanner = true
+        } else {
+            showErrorBanner = false
+        }
+    }
 
     BackHandler(enabled = isSelectionMode) {
         isSelectionMode = false
@@ -225,6 +248,21 @@ fun LocalAlbumScreen(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
+
+                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        title = "Upload Failed",
+                        message = errorMessage ?: "An error occurred",
+                        onActionClick = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = {
+                            showErrorBanner = false
+                            photoViewModel.errorMessageShown()
+                        }
+                    )
+                }
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
