@@ -120,7 +120,7 @@ class MyTagsViewModel(
             when (val result = remoteRepository.removeTag(tagId)) {
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: Tag deleted successfully")
-                    _tagActionState.value = TagActionState.Success("삭제되었습니다")
+                    _tagActionState.value = TagActionState.Success("Deleted")
                     loadTags() // 성공 시에만 태그 목록 새로고침
                 }
                 is RemoteRepository.Result.Error -> {
@@ -150,7 +150,7 @@ class MyTagsViewModel(
             when (val result = remoteRepository.renameTag(tagId, newName)) {
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: Tag renamed successfully")
-                    _tagActionState.value = TagActionState.Success("수정되었습니다")
+                    _tagActionState.value = TagActionState.Success("Updated")
                     loadTags() // 성공 시에만 태그 목록 새로고침
                 }
                 is RemoteRepository.Result.Error -> {

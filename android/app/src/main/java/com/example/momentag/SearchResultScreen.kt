@@ -503,7 +503,7 @@ private fun SearchResultContent(
                 )
 
                 Text(
-                    text = "총 ${uiState.results.size}장",
+                    text = "${uiState.results.size} photos total",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier =

@@ -187,9 +187,9 @@ fun LocalAlbumScreen(
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
-                            Text("업로드 시작됨 (알림 확인)")
+                            Text("Upload started (check notification)")
                         } else {
-                            Text("선택한 ${selectedPhotos.size}개 사진 업로드하기")
+                            Text("Upload ${selectedPhotos.size} selected photos")
                         }
                     },
                     icon = {
@@ -281,13 +281,12 @@ fun LocalAlbumScreen(
                             modifier =
                                 Modifier
                                     .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(12.dp)) // 모서리 둥글게
+                                    .clip(RoundedCornerShape(12.dp))
                                     .combinedClickable(
                                         onClick = {
                                             if (isSelectionMode) {
                                                 localViewModel.togglePhotoSelection(photo)
                                             } else {
-                                                // 기존 로직: 이미지 상세 보기
                                                 localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
                                                 navController.navigate(
                                                     Screen.Image.createRoute(
@@ -326,7 +325,6 @@ fun LocalAlbumScreen(
                                             ),
                                 )
 
-                                // 👇 체크박스 (HomeScreen.kt 참고)
                                 Box(
                                     modifier =
                                         Modifier

@@ -417,16 +417,6 @@ fun ImageDetailScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
-        // --- snackbarHost 삭제 ---
-        // snackbarHost = {
-        //     SnackbarHost(hostState = snackbarHostState) { data ->
-        //         Snackbar(
-        //             snackbarData = data,
-        //             containerColor = MaterialTheme.colorScheme.inverseSurface,
-        //             contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-        //         )
-        //     }
-        // },
         topBar = {
             BackTopBar(
                 title = "MomenTag",
@@ -507,7 +497,6 @@ fun ImageDetailScreen(
                     showDismissButton = false
                 )
             } else {
-                // --- 수정: 배너가 없을 때만 태그 섹션 표시 ---
                 AnimatedVisibility(visible = !showDeleteErrorBanner && !showNoPhotoBanner) {
                     TagsSection(
                         modifier =
@@ -527,16 +516,11 @@ fun ImageDetailScreen(
                             if (currentPhotoId.isNotEmpty()) {
                                 imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
                             } else {
-                                // --- 수정: Toast -> WarningBanner ---
-                                // Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
                                 showNoPhotoBanner = true
-                                // --- 수정 끝 ---
                             }
                         },
-                        // snackbarHostState = snackbarHostState, // 삭제
                     )
                 }
-                // --- 수정 끝 ---
             }
         }
     }
@@ -554,7 +538,6 @@ fun TagsSection(
     onDeleteClick: (String) -> Unit,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
-    // snackbarHostState: SnackbarHostState, // 삭제
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
@@ -565,7 +548,6 @@ fun TagsSection(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // --- 1. 기존 태그 로딩 처리 ---
         if (isExistingTagsLoading) {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
         } else {
@@ -589,7 +571,6 @@ fun TagsSection(
             }
         }
 
-        // --- 2. 추천 태그 로딩 처리 ---
         if (isRecommendedTagsLoading) {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
         } else {
@@ -605,7 +586,7 @@ fun TagsSection(
 
         IconButton(
             onClick = {
-                Toast.makeText(context, "🛠️개발예정", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "🛠️Dev pending", Toast.LENGTH_SHORT).show()
             },
             modifier = Modifier.size(32.dp),
         ) {

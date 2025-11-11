@@ -537,7 +537,7 @@ fun HomeScreen(navController: NavController) {
 
                 if (!hasPermission) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
+                        Text("To view tags and images,\nplease allow access to your photos.")
                     }
                 } else if (isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) {
                     Box(
@@ -633,8 +633,8 @@ fun HomeScreen(navController: NavController) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
                         WarningBanner(
-                            title = "업로드 진행 중 🚀",
-                            message = "사진을 백그라운드에서 업로드하고 있습니다.",
+                            title = "Uploading...🚀",
+                            message = "Photos are uploading in the background.",
                             onActionClick = { },
                             showActionButton = false,
                             backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -678,8 +678,8 @@ fun HomeScreen(navController: NavController) {
         val (tagId, tagName) = tagToDeleteInfo!!
 
         confirmDialog(
-            title = "태그 삭제",
-            message = "'$tagName' 태그를 삭제하시겠습니까?",
+            title = "Delete Tag",
+            message = "Are you sure you want to delete '$tagName' tag?",
             confirmButtonText = "Delete Tag",
             onConfirm = {
                 homeViewModel.deleteTag(tagId)
@@ -1137,7 +1137,7 @@ fun EmptyStateTags(
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_empty_tags),
-            contentDescription = "추억을 만들어보세요",
+            contentDescription = "Create memories",
             modifier = Modifier.size(120.dp).rotate(45f),
         )
 
@@ -1145,14 +1145,14 @@ fun EmptyStateTags(
 
         // 2. 텍스트
         Text(
-            text = "추억을 만들어보세요",
+            text = "Create memories",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "키워드로 추억을\n모아보세요",
+            text = "Organize your memories\nby keyword",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1205,7 +1205,7 @@ fun EmptyStatePhotos(
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_empty_photos),
-            contentDescription = "사진을 업로드해주세요",
+            contentDescription = "Please upload photos",
             modifier = Modifier.size(120.dp),
         )
 
@@ -1213,14 +1213,14 @@ fun EmptyStatePhotos(
 
         // 2. 텍스트
         Text(
-            text = "사진을 업로드해주세요",
+            text = "Please upload photos",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "추억을 담을 사진들을\n골라보아요",
+            text = "Select photos\nto store your memories",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1260,37 +1260,37 @@ private fun SortOptionsSheet(
 ) {
     Column(modifier = Modifier.padding(vertical = 16.dp)) {
         Text(
-            "정렬 기준",
+            "Sort by",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         SortOptionItem(
-            text = "이름 (가나다순)",
+            text = "Name (A-Z)",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.NAME_ASC,
             onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
         )
         SortOptionItem(
-            text = "이름 (가나다 역순)",
+            text = "Name (Z-A)",
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.NAME_DESC,
             onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
         )
         SortOptionItem(
-            text = "최근 추가 순",
+            text = "Recently Added",
             icon = Icons.Default.FiberNew,
             isSelected = currentOrder == TagSortOrder.CREATED_DESC,
             onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
         )
         SortOptionItem(
-            text = "항목 많은 순",
+            text = "Count (Descending)",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
             onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
         )
         SortOptionItem(
-            text = "항목 적은 순",
+            text = "Count (Ascending)",
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.COUNT_ASC,
             onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },

@@ -83,8 +83,6 @@ import com.example.momentag.viewmodel.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// =============== Screen ===============
-
 @Composable
 fun StoryTagSelectionScreen(
     viewModel: StoryViewModel,
@@ -171,7 +169,7 @@ fun StoryTagSelectionScreen(
                             modifier = Modifier.size(24.dp),
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("추억을 불러오는 중...", color = MaterialTheme.colorScheme.onSurface)
+                        Text("Loading memories...", color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
@@ -357,8 +355,6 @@ fun StoryTagSelectionScreen(
     }
 }
 
-// =============== 이게 핵심 블럭 ===============
-// StoryPageFullBlock = 날짜/위치 + 이미지 + (공백) + TagSelectionCard
 @Composable
 private fun StoryPageFullBlock(
     story: StoryModel,
@@ -395,12 +391,11 @@ private fun StoryPageFullBlock(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 이미지 영역 - 고정 높이로 일관성 유지
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(480.dp) // 고정된 높이로 모든 스토리에서 일관된 크기 유지
+                        .height(480.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { onImageClick() },
@@ -427,8 +422,6 @@ private fun StoryPageFullBlock(
         }
     }
 }
-
-// =============== Scroll Hint ===============
 
 @Composable
 internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
@@ -480,7 +473,6 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
     }
 }
 
-// =============== TagSelectionCard ===============
 
 @Composable
 internal fun TagSelectionCard(
@@ -532,11 +524,11 @@ internal fun TagSelectionCard(
             Text(
                 text =
                     if (isReadOnly) {
-                        "이 추억에 붙인 태그"
+                        "Tags for this memory"
                     } else if (isEditMode) {
-                        "태그 수정하기"
+                        "Edit Tags"
                     } else {
-                        "이 추억을 어떻게 기억하고 싶나요?"
+                        "How do you want to remember this?"
                     },
                 color =
                     if (isReadOnly) {
@@ -771,15 +763,6 @@ internal fun FlowRow(
         }
     }
 }
-
-// =============== Model & Preview ===============
-
-// Preview disabled - requires ViewModel instantiation
-// @Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
-// @Composable
-// private fun Preview_StoryTagSelectionScreen() {
-//     // Preview would require ViewModel setup
-// }
 
 @Composable
 private fun StoryPageFullBlockPreviewContent(

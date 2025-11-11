@@ -99,7 +99,7 @@ class PhotoViewModel(
             WorkManager.getInstance(context).enqueue(uploadWorkRequest)
         }
 
-        _uiState.update { it.copy(userMessage = "백그라운드 업로드가 시작되었습니다.") }
+        _uiState.update { it.copy(userMessage = "Background upload started.") }
     }
 
     fun uploadSelectedPhotos(
@@ -111,7 +111,7 @@ class PhotoViewModel(
         val photoIds = photos.mapNotNull { it.photoId.toLongOrNull() }.toLongArray()
 
         if (photoIds.isEmpty()) {
-            _uiState.update { it.copy(errorMessage = "업로드할 사진 ID가 없습니다.") }
+            _uiState.update { it.copy(errorMessage = "No photo IDs to upload.") }
             return
         }
 
@@ -131,7 +131,7 @@ class PhotoViewModel(
 
         WorkManager.getInstance(context).enqueue(uploadWorkRequest)
 
-        _uiState.update { it.copy(userMessage = "백그라운드 업로드가 시작되었습니다.") }
+        _uiState.update { it.copy(userMessage = "Background upload started.") }
     }
 
     fun infoMessageShown() {

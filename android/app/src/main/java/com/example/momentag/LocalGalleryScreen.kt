@@ -101,7 +101,6 @@ fun LocalGalleryScreen(
                         photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
                     }
                 } else {
-                    // (권한 거부 시 토스트 메시지 등)
                 }
             },
         )
@@ -147,9 +146,9 @@ fun LocalGalleryScreen(
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
-                            Text("업로드 시작됨 (알림 확인)")
+                            Text("Upload started (check notification)")
                         } else {
-                            Text("선택한 ${selectedAlbumIds.size}개 앨범 업로드하기")
+                            Text("Upload ${selectedAlbumIds.size} selected album(s)")
                         }
                     },
                     icon = {
