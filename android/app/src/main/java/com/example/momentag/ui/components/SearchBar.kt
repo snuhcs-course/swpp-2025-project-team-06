@@ -183,7 +183,7 @@ private fun InternalChipSearchInput(
     // 배경과 클릭 이벤트는 상위 Row(ChipSearchBar)가 처리합니다.
     LazyRow(
         state = listState,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(0.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .clickable(
@@ -224,9 +224,10 @@ private fun InternalChipSearchInput(
                     }
 
                     val textWidthDp = with(LocalDensity.current) { measuredWidthInPixels.toDp() }
-                    val horizontalPadding = 8.dp
+                    val sidePadding = 6.dp
+                    val totalHorizontalPadding = sidePadding * 2 // 12.dp
                     val minFieldWidth = 10.dp
-                    val finalWidth = (textWidthDp + horizontalPadding).coerceAtLeast(minFieldWidth)
+                    val finalWidth = (textWidthDp + totalHorizontalPadding).coerceAtLeast(minFieldWidth)
                     // --- 로직 끝 ---
 
                     val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
@@ -251,14 +252,13 @@ private fun InternalChipSearchInput(
                                 val cursorRect = layoutResult.getCursorRect(selectionEnd)
 
                                 // 2. [신규] 오른쪽에 추가할 패딩 정의 (예: 16.dp)
-                                val endPaddingDp = 16.dp
-                                val paddingPx = with(density) { endPaddingDp.toPx() }
+                                val endPaddingPx = with(density) { sidePadding.toPx() } // + 8.dp
 
                                 // 3. [신규] 커서 사각형의 오른쪽에 패딩을 더한 '새 가상 사각형' 생성
                                 val rectWithPadding = Rect(
                                     left = cursorRect.left,
                                     top = cursorRect.top,
-                                    right = cursorRect.right + paddingPx, // <-- 핵심: 오른쪽으로 16dp 더 넓게
+                                    right = cursorRect.right + endPaddingPx, // <-- 핵심: 오른쪽으로 16dp 더 넓게
                                     bottom = cursorRect.bottom
                                 )
 
