@@ -83,6 +83,7 @@ sealed interface LogoutState {
 data class HomeScreenUiState(
     val isLoading: Boolean = false,
     val userMessage: String? = null,
+    val errorMessage: String? = null,
     val isUploadSuccess: Boolean = false,
 )
 
