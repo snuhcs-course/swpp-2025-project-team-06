@@ -100,7 +100,6 @@ class PhotoView(APIView):
             metadata_json = request.POST.get("metadata")
 
             if not metadata_json:
-                logger.error(f"[PhotoUpload 400 Error] Serializer invalid for user {request.user.id}: {serializer.errors}")
                 return Response(
                     {"error": "metadata field is required"},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -109,14 +108,12 @@ class PhotoView(APIView):
             try:
                 metadata_list = json.loads(metadata_json)
             except json.JSONDecodeError:
-                logger.error(f"[PhotoUpload 400 Error] Serializer invalid for user {request.user.id}: {serializer.errors}")
                 return Response(
                     {"error": "Invalid JSON format in metadata field"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
             if len(photos) != len(metadata_list):
-                logger.error(f"[PhotoUpload 400 Error] Serializer invalid for user {request.user.id}: {serializer.errors}")
                 return Response(
                     {"error": "Number of photos and metadata entries must match"},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -125,7 +122,6 @@ class PhotoView(APIView):
             photos_data = []
             for i, photo in enumerate(photos):
                 if i >= len(metadata_list):
-                    logger.error(f"[PhotoUpload 400 Error] Serializer invalid for user {request.user.id}: {serializer.errors}")
                     return Response(
                         {"error": "Insufficient metadata for all photos"},
                         status=status.HTTP_400_BAD_REQUEST,
@@ -146,7 +142,6 @@ class PhotoView(APIView):
             serializer = ReqPhotoDetailSerializer(data=photos_data, many=True)
 
             if not serializer.is_valid():
-                logger.error(f"[PhotoUpload 400 Error] Serializer invalid for user {request.user.id}: {serializer.errors}")
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             photos_data = serializer.validated_data
