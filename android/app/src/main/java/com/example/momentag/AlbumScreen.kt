@@ -8,7 +8,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -463,50 +462,50 @@ fun AlbumScreen(
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
 
-                AnimatedVisibility(visible = showSelectPhotosBanner) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        title = "No Photos Selected",
-                        message = "Please select photos to delete.",
-                        onActionClick = { showSelectPhotosBanner = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { showSelectPhotosBanner = false },
-                    )
-                }
-
-                AnimatedVisibility(visible = showErrorBanner) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        title = errorBannerTitle,
-                        message = errorBannerMessage,
-                        onActionClick = { showErrorBanner = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { showErrorBanner = false },
-                    )
-                }
-
-                if (!hasPermission) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Please allow access to your photos.")
+                    AnimatedVisibility(visible = showSelectPhotosBanner) {
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            title = "No Photos Selected",
+                            message = "Please select photos to delete.",
+                            onActionClick = { showSelectPhotosBanner = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { showSelectPhotosBanner = false },
+                        )
                     }
-                } else {
-                    AlbumGridArea(
-                        albumLoadState = imageLoadState,
-                        recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
-                        selectedTagAlbumPhotos = selectedTagAlbumPhotos,
-                        navController = navController,
-                        isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
-                        onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
-                        onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
-                        // 펼쳐짐 여부와 패널 높이에 따라 그리드 bottom padding 조절
-                        isRecommendationExpanded = isRecommendationExpanded,
-                        panelHeight = panelHeight,
-                        // Chip 클릭 시 오버레이 열기
-                        onExpandRecommend = { isRecommendationExpanded = true },
-                    )
-                }
+
+                    AnimatedVisibility(visible = showErrorBanner) {
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            title = errorBannerTitle,
+                            message = errorBannerMessage,
+                            onActionClick = { showErrorBanner = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { showErrorBanner = false },
+                        )
+                    }
+
+                    if (!hasPermission) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Please allow access to your photos.")
+                        }
+                    } else {
+                        AlbumGridArea(
+                            albumLoadState = imageLoadState,
+                            recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
+                            selectedTagAlbumPhotos = selectedTagAlbumPhotos,
+                            navController = navController,
+                            isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
+                            onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
+                            onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
+                            // 펼쳐짐 여부와 패널 높이에 따라 그리드 bottom padding 조절
+                            isRecommendationExpanded = isRecommendationExpanded,
+                            panelHeight = panelHeight,
+                            // Chip 클릭 시 오버레이 열기
+                            onExpandRecommend = { isRecommendationExpanded = true },
+                        )
+                    }
                     if (!hasPermission) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("이미지 접근 권한을 허용해주세요.")
