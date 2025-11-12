@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridCells.*
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -84,8 +83,6 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.theme.horizontalArrangement
-import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
@@ -460,8 +457,6 @@ fun SelectImageScreen(navController: NavController) {
                         onPhotoClick = onRecommendedPhotoClick,
                         onRetry = { selectImageViewModel.recommendPhoto() },
                         panelHeight = panelHeight,
-                        minHeight = minHeight,
-                        maxHeight = maxHeight,
                         onHeightChange = { delta ->
                             panelHeight = (panelHeight - delta).coerceIn(minHeight, maxHeight)
                         },
@@ -733,8 +728,6 @@ private fun RecommendExpandedPanel(
     onPhotoClick: (Photo) -> Unit,
     onRetry: () -> Unit,
     panelHeight: Dp,
-    minHeight: Dp,
-    maxHeight: Dp,
     onHeightChange: (Dp) -> Unit,
     onCollapse: () -> Unit,
 ) {
@@ -865,7 +858,7 @@ private fun RecommendExpandedPanel(
                             }
                         } else {
                             LazyVerticalGrid(
-                                columns = Fixed(3),
+                                columns = GridCells.Fixed(3),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.weight(1f),
