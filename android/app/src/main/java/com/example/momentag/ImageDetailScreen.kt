@@ -17,6 +17,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,6 +79,8 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.IOException
 import kotlin.math.abs
@@ -88,6 +91,7 @@ fun ZoomableImage(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     onScaleChanged: (isZoomed: Boolean) -> Unit,
+    onSingleTap: () -> Unit = {},
 ) {
     // 1. 상태 변수 선언
     val scaleAnim = remember { Animatable(1f) }
@@ -97,6 +101,7 @@ fun ZoomableImage(
     var size by remember { mutableStateOf(IntSize.Zero) }
 
     val scope = rememberCoroutineScope()
+    var tapJob by remember { mutableStateOf<Job?>(null) }
 
     // 2. 페이지 전환 시 모든 상태를 완벽하게 초기화
     LaunchedEffect(model) {
@@ -111,6 +116,34 @@ fun ZoomableImage(
             modifier
                 .onSizeChanged { size = it }
                 .pointerInput(Unit) {
+                    // Single tap detection
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val downTime = System.currentTimeMillis()
+                        val downPosition = down.position
+
+                        // Wait for up event
+                        val up = waitForUpOrCancellation()
+
+                        if (up != null) {
+                            val upTime = System.currentTimeMillis()
+                            val upPosition = up.position
+                            val timeDiff = upTime - downTime
+                            val positionDiff = (upPosition - downPosition).getDistance()
+
+                            // Single tap: quick and no movement
+                            if (timeDiff < 300 && positionDiff < 20f) {
+                                // Cancel any pending tap job and start new one
+                                tapJob?.cancel()
+                                tapJob =
+                                    scope.launch {
+                                        delay(200) // Timeout to ensure it's not a double tap
+                                        onSingleTap()
+                                    }
+                            }
+                        }
+                    }
+                }.pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false) // 다른 제스처와 경쟁하기 위해 false로 설정
                         do {
@@ -120,6 +153,8 @@ fun ZoomableImage(
 
                             // 두 손가락 제스처(줌)이거나, 이미 확대된 상태에서의 한 손가락 드래그일 경우
                             if (event.changes.size > 1 || scale > 1.01f) { // scale > 1.01f 로 약간의 여유를 줌
+                                // Cancel tap job if zoom/pan starts
+                                tapJob?.cancel()
                                 val oldScale = scale
                                 val newScale = (scale * (1f + (zoom - 1f) * 1f)).coerceIn(1f, 5f)
 
@@ -193,7 +228,8 @@ fun ZoomableImage(
     }
 }
 
-// event.calculateCentroid()는 internal API이므로, 직접 구현합니다.
+
+// event.calculateCentroid()는 internal API이므로, 직접 구현해야 함.
 internal fun androidx.compose.ui.input.pointer.PointerEvent.calculateCentroid(useCurrentPosition: Boolean = true): Offset {
     var totalX = 0.0f
     var totalY = 0.0f
@@ -228,6 +264,9 @@ fun ImageDetailScreen(
     // Screen-scoped ViewModel - fresh instance per screen
     val imageDetailViewModel: ImageDetailViewModel =
         viewModel(factory = ViewModelFactory.getInstance(context))
+
+    // Focus mode state
+    var isFocusMode by remember { mutableStateOf(false) }
 
     // Observe ImageContext from ViewModel
     val imageContext by imageDetailViewModel.imageContext.collectAsState()
@@ -435,7 +474,7 @@ fun ImageDetailScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = if (isFocusMode) Color.Black else MaterialTheme.colorScheme.surface,
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
@@ -517,6 +556,9 @@ fun ImageDetailScreen(
                             modifier = Modifier.fillMaxSize(),
                             onScaleChanged = { zoomed ->
                                 isZoomed = zoomed
+                            },
+                            onSingleTap = {
+                                isFocusMode = !isFocusMode
                             },
                         )
                     }
