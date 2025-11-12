@@ -151,14 +151,14 @@ class SelectedPhotoUploadWorker(
 
             if (success) {
                 albumUploadSuccessEvent.emit(0L)
-                updateNotification("Upload Complete", "Album upload completed successfully.")
+                updateNotification("Upload Complete", "Album upload completed successfully.", RESULT_NOTIFICATION_ID, false)
                 return Result.success()
             } else {
-                updateNotification("Upload Failed", "Failed to upload some files.")
+                updateNotification("Upload Failed", "Failed to upload some files.", RESULT_NOTIFICATION_ID, false)
                 return Result.failure()
             }
         } catch (e: Exception) {
-            updateNotification("Upload Error", "An unknown error occurred.")
+            updateNotification("Upload Error", "An unknown error occurred.", RESULT_NOTIFICATION_ID, false)
             return Result.failure()
         } finally {
             albumUploadJobCount.update { it - 1 }
@@ -197,7 +197,7 @@ class SelectedPhotoUploadWorker(
             chunkCount++
             val progressText = "Uploading chunk ($chunkCount / $totalChunks)..."
             setProgress(workDataOf(KEY_PROGRESS to progressText))
-            updateNotification("앨범 업로드 중", progressText, NOTIFICATION_ID, true)
+            updateNotification("Uploading Photos", progressText, NOTIFICATION_ID, true)
 
             val uploadData = createUploadDataFromChunk(currentChunk)
             val response = remoteRepository.uploadPhotos(uploadData)

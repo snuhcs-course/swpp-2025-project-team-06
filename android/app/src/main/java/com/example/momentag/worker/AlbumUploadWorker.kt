@@ -167,14 +167,14 @@ class AlbumUploadWorker(
 
             if (success) {
                 albumUploadSuccessEvent.emit(albumId)
-                updateNotification("Upload Complete", "'$albumName': Album upload completed successfully.")
+                updateNotification("Upload Complete", "'$albumName': Album upload completed successfully.", RESULT_NOTIFICATION_ID, false)
                 return Result.success()
             } else {
-                updateNotification("Upload Failed", "'$albumName': Failed to upload some files.")
+                updateNotification("Upload Failed", "'$albumName': Failed to upload some files.", RESULT_NOTIFICATION_ID, false)
                 return Result.failure()
             }
         } catch (e: Exception) {
-            updateNotification("Upload Error", "'$albumName': An unknown error occurred.")
+            updateNotification("Upload Error", "'$albumName': An unknown error occurred.", RESULT_NOTIFICATION_ID, false)
             return Result.failure()
         } finally {
             albumUploadJobCount.update { it - 1 }
@@ -262,7 +262,7 @@ class AlbumUploadWorker(
                 chunkCount++
                 val progressText = "Uploading '$albumName' ($chunkCount / $totalChunks)..."
                 setProgress(workDataOf(KEY_PROGRESS to progressText))
-                updateNotification("앨범 업로드 중", progressText, NOTIFICATION_ID, true)
+                updateNotification("Uploadind Albums", progressText, NOTIFICATION_ID, true)
 
                 val uploadData = createUploadDataFromChunk(currentChunk)
 
