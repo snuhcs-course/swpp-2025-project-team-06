@@ -17,13 +17,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -334,7 +334,7 @@ fun SearchResultScreenUi(
                     Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
-                        .padding(horizontal = 24.dp),
+                        .padding(horizontal = 16.dp),
                 searchText = searchText,
                 onSearchTextChange = onSearchTextChange,
                 onSearchSubmit = onSearchSubmit,
@@ -388,44 +388,48 @@ private fun SearchResultContent(
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     Box(modifier = modifier) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Instruction + Selection mode toggle
+            // Search Input
             Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.Start,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Search for Photo",
-                        style = MaterialTheme.typography.headlineSmall,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                SearchBarControlledCustom(
+                    value = searchText,
+                    onValueChange = onSearchTextChange,
+                    onSearch = onSearchSubmit,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = {
+                        // TODO: Show filter dialog
+                        Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier =
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(12.dp),
+                            ),
+                ) {
                     Icon(
-                        imageVector = Icons.Default.PhotoCamera,
-                        contentDescription = "카메라 아이콘",
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = "Filter",
+                        tint = MaterialTheme.colorScheme.onPrimary,
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Search Input
-            SearchBarControlledCustom(
-                value = searchText,
-                onValueChange = onSearchTextChange,
-                onSearch = onSearchSubmit,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Results
             SearchResultsFromState(
