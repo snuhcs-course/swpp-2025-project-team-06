@@ -63,6 +63,8 @@ class AlbumUploadWorker(
 
         private const val NOTIFICATION_ID = 12345
         private const val CHANNEL_ID = "AlbumUploadChannel"
+
+        private const val RESULT_NOTIFICATION_ID = 12346
     }
 
     private fun createForegroundInfo(progress: String): ForegroundInfo {
@@ -70,7 +72,7 @@ class AlbumUploadWorker(
         createNotificationChannel()
 
         // 알림 생성 (유지)
-        val notification = createNotification(progress)
+        val notification = createNotification(progress, true)
 
         // 👇 [수T] 3. OS 버전에 따라 다른 생성자를 사용합니다.
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { // API 29 (Q)부터 타입이 필요
@@ -86,15 +88,28 @@ class AlbumUploadWorker(
         }
     }
 
-    // 👇 [추가] 3. 알림 생성 헬퍼 (Service에서 가져옴)
-    private fun createNotification(text: String): Notification =
+    private fun createNotification(text: String, ongoing: Boolean): Notification =
         NotificationCompat
             .Builder(applicationContext, CHANNEL_ID)
             .setContentTitle("MomenTag 앨범 업로드")
             .setContentText(text)
             .setSmallIcon(R.mipmap.ic_launcher_foreground)
-            .setOngoing(true)
+            .setOngoing(ongoing)
+            .setAutoCancel(!ongoing)
             .build()
+
+    private fun updateNotification(title: String, text: String, id: Int, ongoing: Boolean) {
+        val notification =
+            NotificationCompat
+                .Builder(applicationContext, CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(R.mipmap.ic_launcher_foreground)
+                .setOngoing(ongoing)
+                .setAutoCancel(!ongoing)
+                .build()
+        notificationManager.notify(id, notification)
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -110,11 +125,34 @@ class AlbumUploadWorker(
         }
     }
 
+    private fun getAlbumName(albumId: Long): String {
+        val projection = arrayOf(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+        val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
+        val selectionArgs = arrayOf(albumId.toString())
+
+        applicationContext.contentResolver
+            .query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    // 앨범 이름을 찾아 반환
+                    return cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)) ?: "알 수 없는 앨범"
+                }
+            }
+        return "Unknown Album"
+    }
+
     override suspend fun doWork(): Result {
         val albumId = inputData.getLong(KEY_ALBUM_ID, -1L)
         if (albumId == -1L) {
             return Result.failure()
         }
+
+        val albumName = getAlbumName(albumId)
 
         val initialProgress = "업로드 준비 중..."
         setForeground(createForegroundInfo(initialProgress))
@@ -122,18 +160,18 @@ class AlbumUploadWorker(
         albumUploadJobCount.update { it + 1 }
 
         try {
-            val success = processAlbumInChunks(albumId, 8)
+            val success = processAlbumInChunks(albumId, albumName, 8)
 
             if (success) {
                 albumUploadSuccessEvent.emit(albumId)
-                updateNotification("업로드 완료", "앨범 업로드가 성공적으로 완료되었습니다.")
+                updateNotification("업로드 완료", "'$albumName' 앨범 업로드가 성공적으로 완료되었습니다.", RESULT_NOTIFICATION_ID, false)
                 return Result.success()
             } else {
-                updateNotification("업로드 실패", "일부 파일 업로드에 실패했습니다.")
+                updateNotification("업로드 실패", "'$albumName' 앨범의 일부 파일 업로드에 실패했습니다.", RESULT_NOTIFICATION_ID, false)
                 return Result.failure()
             }
         } catch (e: Exception) {
-            updateNotification("업로드 오류", "알 수 없는 오류가 발생했습니다.")
+            updateNotification("업로드 오류", "'$albumName' 앨범에서 알 수 없는 오류가 발생했습니다.", RESULT_NOTIFICATION_ID, false)
             return Result.failure()
         } finally {
             albumUploadJobCount.update { it - 1 }
@@ -142,6 +180,7 @@ class AlbumUploadWorker(
 
     private suspend fun processAlbumInChunks(
         albumId: Long,
+        albumName: String,
         chunkSize: Int,
     ): Boolean {
         val projection =
@@ -224,9 +263,9 @@ class AlbumUploadWorker(
             if (currentChunk.size == chunkSize || (currentChunk.isNotEmpty() && cursor.isLast)) {
                 chunkCount++
                 // 진행률 업데이트
-                val progressText = "($chunkCount / $totalChunks) 묶음 업로드 중..."
+                val progressText = "'$albumName' ($chunkCount / $totalChunks) 묶음 업로드 중..."
                 setProgress(workDataOf(KEY_PROGRESS to progressText))
-                updateNotification("앨범 업로드 중", progressText)
+                updateNotification("앨범 업로드 중", progressText, NOTIFICATION_ID, true)
 
                 // 8장 묶음을 업로드 데이터로 변환 (이 함수는 LocalRepository에서 복사/이동)
                 val uploadData = createUploadDataFromChunk(currentChunk)
@@ -248,21 +287,6 @@ class AlbumUploadWorker(
         return true // 성공!
     }
 
-    private fun updateNotification(
-        title: String,
-        text: String,
-    ) {
-        val notification =
-            NotificationCompat
-                .Builder(applicationContext, CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSmallIcon(R.mipmap.ic_launcher_foreground)
-                .setOngoing(false) // 완료/실패 시에는 알림을 스와이프해 지울 수 있게
-                .build()
-        notificationManager.notify(NOTIFICATION_ID, notification)
-    }
-
     // (LocalRepository에선 이 함수를 지워도 됩니다)
     private fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
         val photoParts = mutableListOf<MultipartBody.Part>()
@@ -282,10 +306,12 @@ class AlbumUploadWorker(
                     )
 
                 // 3. 리사이즈 성공 시에만 처리 (실패 시 원본 전송 안 함)
-                if (resizedBytes != null) {
+                if (resizedBytes != null && resizedBytes.isNotEmpty()) {
                     val mime = "image/jpeg"
                     val requestBody = resizedBytes.toRequestBody(mime.toMediaTypeOrNull())
-                    val part = MultipartBody.Part.createFormData("photo", photoInfo.meta.filename, requestBody)
+                    val filenameWithoutExtension = photoInfo.meta.filename.substringBeforeLast(".", photoInfo.meta.filename)
+                    val newFilename = "$filenameWithoutExtension.jpg"
+                    val part = MultipartBody.Part.createFormData("photo", newFilename, requestBody)
 
                     photoParts.add(part)
                     metadataList.add(photoInfo.meta) // 성공한 사진의 메타데이터만 추가
