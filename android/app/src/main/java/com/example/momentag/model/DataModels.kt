@@ -54,6 +54,7 @@ data class TagCntData(
 
 data class PhotoDetailResponse(
     @SerializedName("photo_path_id") val photoPathId: Long,
+    @SerializedName("address") val address: String?,
     val tags: List<Tag>,
 )
 
@@ -141,7 +142,7 @@ data class PhotoUploadData(
 data class StoryModel(
     val id: String,
     val photoId: String,
-    val images: List<String>,
+    val images: List<Uri>,
     val date: String,
     val location: String,
     val suggestedTags: List<String>,

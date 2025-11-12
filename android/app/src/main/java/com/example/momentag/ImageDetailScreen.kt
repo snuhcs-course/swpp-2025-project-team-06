@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -17,6 +18,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,13 +41,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,8 +56,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
@@ -72,8 +75,11 @@ import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.IOException
 import kotlin.math.abs
@@ -84,6 +90,7 @@ fun ZoomableImage(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     onScaleChanged: (isZoomed: Boolean) -> Unit,
+    onSingleTap: () -> Unit = {},
 ) {
     // 1. 상태 변수 선언
     val scaleAnim = remember { Animatable(1f) }
@@ -93,6 +100,7 @@ fun ZoomableImage(
     var size by remember { mutableStateOf(IntSize.Zero) }
 
     val scope = rememberCoroutineScope()
+    var tapJob by remember { mutableStateOf<Job?>(null) }
 
     // 2. 페이지 전환 시 모든 상태를 완벽하게 초기화
     LaunchedEffect(model) {
@@ -107,6 +115,34 @@ fun ZoomableImage(
             modifier
                 .onSizeChanged { size = it }
                 .pointerInput(Unit) {
+                    // Single tap detection
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val downTime = System.currentTimeMillis()
+                        val downPosition = down.position
+
+                        // Wait for up event
+                        val up = waitForUpOrCancellation()
+
+                        if (up != null) {
+                            val upTime = System.currentTimeMillis()
+                            val upPosition = up.position
+                            val timeDiff = upTime - downTime
+                            val positionDiff = (upPosition - downPosition).getDistance()
+
+                            // Single tap: quick and no movement
+                            if (timeDiff < 300 && positionDiff < 20f) {
+                                // Cancel any pending tap job and start new one
+                                tapJob?.cancel()
+                                tapJob =
+                                    scope.launch {
+                                        delay(200) // Timeout to ensure it's not a double tap
+                                        onSingleTap()
+                                    }
+                            }
+                        }
+                    }
+                }.pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false) // 다른 제스처와 경쟁하기 위해 false로 설정
                         do {
@@ -116,6 +152,8 @@ fun ZoomableImage(
 
                             // 두 손가락 제스처(줌)이거나, 이미 확대된 상태에서의 한 손가락 드래그일 경우
                             if (event.changes.size > 1 || scale > 1.01f) { // scale > 1.01f 로 약간의 여유를 줌
+                                // Cancel tap job if zoom/pan starts
+                                tapJob?.cancel()
                                 val oldScale = scale
                                 val newScale = (scale * (1f + (zoom - 1f) * 1f)).coerceIn(1f, 5f)
 
@@ -190,7 +228,7 @@ fun ZoomableImage(
 }
 
 // event.calculateCentroid()는 internal API이므로, 직접 구현합니다.
-internal fun androidx.compose.ui.input.pointer.PointerEvent.calculateCentroid(useCurrentPosition: Boolean = true): Offset {
+internal fun PointerEvent.calculateCentroid(useCurrentPosition: Boolean = true): Offset {
     var totalX = 0.0f
     var totalY = 0.0f
     var count = 0
@@ -216,7 +254,6 @@ fun ImageDetailScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     // Screen-scoped ViewModel - fresh instance per screen
     val imageDetailViewModel: ImageDetailViewModel =
@@ -229,6 +266,9 @@ fun ImageDetailScreen(
     val imageDetailTagState by imageDetailViewModel.imageDetailTagState.collectAsState()
     val tagDeleteState by imageDetailViewModel.tagDeleteState.collectAsState()
 
+    // Observe the photo address from ViewModel
+    val photoAddress by imageDetailViewModel.photoAddress.collectAsState()
+
     // Load ImageContext from Repository when screen opens
     LaunchedEffect(imageUri) {
         imageUri?.let { uri ->
@@ -237,7 +277,7 @@ fun ImageDetailScreen(
     }
 
     // Cleanup on dispose
-    androidx.compose.runtime.DisposableEffect(Unit) {
+    DisposableEffect(Unit) {
         onDispose {
             imageDetailViewModel.clearImageContext()
         }
@@ -278,6 +318,9 @@ fun ImageDetailScreen(
 
     // 현재 보고 있는 페이지의 확대/축소 상태를 기억할 변수
     var isZoomed by remember { mutableStateOf(false) }
+
+    // Focus mode state
+    var isFocusMode by remember { mutableStateOf(false) }
 
     // 페이지가 변경되면 확대 상태를 초기화
     LaunchedEffect(pagerState.currentPage) {
@@ -333,6 +376,19 @@ fun ImageDetailScreen(
         }
     }
 
+    // --- 수정: 배너 상태 변수 추가 ---
+    var showDeleteErrorBanner by remember { mutableStateOf(false) }
+    var deleteErrorMessage by remember { mutableStateOf<String?>(null) }
+    var showNoPhotoBanner by remember { mutableStateOf(false) } // "No photo" 배너
+
+    // --- 추가: "No photo" 배너 자동 숨김 ---
+    LaunchedEffect(showNoPhotoBanner) {
+        if (showNoPhotoBanner) {
+            delay(2000) // 2초
+            showNoPhotoBanner = false
+        }
+    }
+
     LaunchedEffect(tagDeleteState) {
         when (val state = tagDeleteState) {
             is ImageDetailViewModel.TagDeleteState.Success -> {
@@ -344,10 +400,13 @@ fun ImageDetailScreen(
 
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
+                showDeleteErrorBanner = false
+                showNoPhotoBanner = false // 성공 시 함께 숨김
             }
 
             is ImageDetailViewModel.TagDeleteState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                deleteErrorMessage = state.message
+                showDeleteErrorBanner = true
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
             }
@@ -392,92 +451,174 @@ fun ImageDetailScreen(
         isDeleteMode = false
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                )
-            }
-        },
-        topBar = {
-            BackTopBar(
-                title = "MomenTag",
-                onBackClick = onNavigateBack,
-            )
-        },
-    ) { paddingValues ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-        ) {
-            // 1. 이미지가 표시될 영역 (나머지 공간 전체를 차지)
-            Box(modifier = Modifier.weight(1f)) {
-                // HorizontalPager로 이미지 스와이프 기능 구현
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    // 줌 상태가 아닐 때만(= isZoomed가 false일 때만) 스와이프를 허용
-                    userScrollEnabled = !isZoomed,
-                ) { page ->
-                    val photo = photos.getOrNull(page)
-                    ZoomableImage(
-                        model = photo?.contentUri,
-                        contentDescription = "Detail image",
-                        modifier = Modifier.fillMaxSize(),
-                        onScaleChanged = { zoomed ->
-                            isZoomed = zoomed
-                        },
-                    )
-                }
-            }
-
-            // 2. 태그가 표시될 새로운 영역
-            if (isError) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = if (isFocusMode) Color.Black else MaterialTheme.colorScheme.surface,
+        ) { paddingValues ->
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+            ) {
+                // 1. 이미지가 표시될 영역 (전체 화면을 차지)
                 Box(
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                    contentAlignment = Alignment.Center,
+                            .fillMaxSize()
+                            .clipToBounds(),
                 ) {
-                    Text(
-                        text = "태그를 불러오는 중 오류가 발생했습니다.\n($errorMessage)",
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                    )
+                    // HorizontalPager로 이미지 스와이프 기능 구현
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        // 줌 상태가 아닐 때만(= isZoomed가 false일 때만) 스와이프를 허용
+                        userScrollEnabled = !isZoomed,
+                    ) { page ->
+                        val photo = photos.getOrNull(page)
+                        ZoomableImage(
+                            model = photo?.contentUri,
+                            contentDescription = "Detail image",
+                            modifier = Modifier.fillMaxSize(),
+                            onScaleChanged = { zoomed ->
+                                isZoomed = zoomed
+                            },
+                            onSingleTap = {
+                                isFocusMode = !isFocusMode
+                            },
+                        )
+                    }
                 }
-            } else {
-                TagsSection(
-                    modifier =
-                        Modifier
-                            .padding(horizontal = 8.dp)
-                            .padding(bottom = 32.dp),
-                    existingTags = existingTags,
-                    recommendedTags = recommendedTags,
-                    isExistingTagsLoading = isExistingLoading,
-                    isRecommendedTagsLoading = isRecommendedLoading,
-                    isDeleteMode = isDeleteMode,
-                    onEnterDeleteMode = { isDeleteMode = true },
-                    onExitDeleteMode = { isDeleteMode = false },
-                    onDeleteClick = { tagId ->
-                        val currentPhotoId =
-                            currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                        if (currentPhotoId.isNotEmpty()) {
-                            imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
-                        } else {
-                            Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    snackbarHostState = snackbarHostState,
-                )
             }
         }
+
+        // Overlay date and address info on top of image
+        if (!isFocusMode) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopStart)
+                        .padding(top = 64.dp),
+            ) {
+                dateTime?.let { dt ->
+                    val datePart = dt.split(" ")[0]
+                    val formattedDate = datePart.replace(":", ".")
+                    Text(
+                        text = formattedDate,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
+                        textAlign = TextAlign.Left,
+                    )
+                }
+
+                photoAddress?.let { address ->
+                    if (address.isNotBlank()) {
+                        Text(
+                            text = address,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.headlineLarge,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
+                            textAlign = TextAlign.Left,
+                        )
+                    }
+                }
+            }
+        }
+
+        // Overlay tags section at the bottom
+        if (!isFocusMode) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomStart),
+            ) {
+                // --- 추가: "No Photo" 배너 ---
+                AnimatedVisibility(visible = showNoPhotoBanner) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        title = "Error",
+                        message = "Cannot delete tag: Photo ID is missing.",
+                        onActionClick = { showNoPhotoBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { showNoPhotoBanner = false },
+                    )
+                }
+
+                // --- 추가: 삭제 오류 배너 ---
+                AnimatedVisibility(visible = showDeleteErrorBanner && deleteErrorMessage != null) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        title = "Failed to Remove Tag",
+                        message = deleteErrorMessage!!,
+                        onActionClick = { showDeleteErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { showDeleteErrorBanner = false },
+                    )
+                }
+
+                // 2. 태그가 표시될 새로운 영역
+                if (isError) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 32.dp),
+                        title = "Failed to Load Tags",
+                        message = errorMessage ?: "Unknown error",
+                        onActionClick = {
+                            // 재시도 로직
+                            val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                            if (currentPhotoId.isNotEmpty()) {
+                                imageDetailViewModel.loadPhotoTags(currentPhotoId)
+                            }
+                        },
+                        showActionButton = true, // 재시도 버튼 표시
+                        showDismissButton = false,
+                    )
+                } else {
+                    AnimatedVisibility(visible = !showDeleteErrorBanner && !showNoPhotoBanner) {
+                        TagsSection(
+                            modifier =
+                                Modifier
+                                    .padding(horizontal = 8.dp)
+                                    .padding(bottom = 32.dp),
+                            existingTags = existingTags,
+                            recommendedTags = recommendedTags,
+                            isExistingTagsLoading = isExistingLoading,
+                            isRecommendedTagsLoading = isRecommendedLoading,
+                            isDeleteMode = isDeleteMode,
+                            onEnterDeleteMode = { isDeleteMode = true },
+                            onExitDeleteMode = { isDeleteMode = false },
+                            onDeleteClick = { tagId ->
+                                val currentPhotoId =
+                                    currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                                if (currentPhotoId.isNotEmpty()) {
+                                    imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
+                                } else {
+                                    showNoPhotoBanner = true
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Overlay top bar on top of content
+    if (!isFocusMode) {
+        BackTopBar(
+            title = "MomenTag",
+            onBackClick = onNavigateBack,
+        )
     }
 }
 
@@ -493,16 +634,16 @@ fun TagsSection(
     onDeleteClick: (String) -> Unit,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
-    snackbarHostState: SnackbarHostState,
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current // 추가
+
     Row(
         modifier = modifier.horizontalScroll(scrollState),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // --- 1. 기존 태그 로딩 처리 ---
         if (isExistingTagsLoading) {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
         } else {
@@ -526,7 +667,6 @@ fun TagsSection(
             }
         }
 
-        // --- 2. 추천 태그 로딩 처리 ---
         if (isRecommendedTagsLoading) {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
         } else {
@@ -540,12 +680,9 @@ fun TagsSection(
             }
         }
 
-        // Add Tag 버튼 (기존과 동일)
         IconButton(
             onClick = {
-                scope.launch {
-                    snackbarHostState.showSnackbar("🛠️개발예정")
-                }
+                Toast.makeText(context, "🛠️Dev pending", Toast.LENGTH_SHORT).show()
             },
             modifier = Modifier.size(32.dp),
         ) {

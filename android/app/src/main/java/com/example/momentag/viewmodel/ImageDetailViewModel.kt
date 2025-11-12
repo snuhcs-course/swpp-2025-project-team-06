@@ -47,6 +47,9 @@ class ImageDetailViewModel(
     private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
     val tagDeleteState = _tagDeleteState.asStateFlow()
 
+    private val _photoAddress = MutableStateFlow<String?>(null)
+    val photoAddress = _photoAddress.asStateFlow()
+
     /**
      * photoId를 기반으로 ImageContext를 Repository에서 조회하여 설정
      * @param photoId 현재 보고 있는 사진의 ID
@@ -65,12 +68,13 @@ class ImageDetailViewModel(
     }
 
     /**
-     * photoId를 기반으로 사진의 태그와 추천 태그를 로드
+     * photoId를 기반으로 사진의 태그와 추천 태그를 로드 + 사진이 찍힌 주소도 로드
      * @param photoId 사진 ID (로컬 사진의 경우 photo_path_id일 수 있음)
      */
     fun loadPhotoTags(photoId: String) {
         if (photoId.isEmpty()) {
             _imageDetailTagState.value = ImageDetailTagState.Idle
+            _photoAddress.value = null
             return
         }
 
@@ -94,6 +98,7 @@ class ImageDetailViewModel(
                         isExistingLoading = false,
                         isRecommendedLoading = false,
                     )
+                _photoAddress.value = null
                 return@launch
             }
 
@@ -102,6 +107,10 @@ class ImageDetailViewModel(
 
             when (photoDetailResult) {
                 is RemoteRepository.Result.Success -> {
+                    // 우선 photo_address를 저장
+                    _photoAddress.value = photoDetailResult.data.address
+
+                    // 이제 태그 처리
                     val existingTags = photoDetailResult.data.tags
                     val existingTagNames = existingTags.map { it.tagName }
 

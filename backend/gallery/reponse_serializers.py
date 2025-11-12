@@ -10,6 +10,7 @@ class ResPhotoSerializer(serializers.Serializer):
 
 class ResPhotoTagListSerializer(serializers.Serializer):
     photo_path_id = serializers.IntegerField(help_text="이미지 파일의 경로 ID")
+    address = serializers.CharField(help_text="사진의 위치 정보")
     tags = TagSerializer(many=True)
 
 

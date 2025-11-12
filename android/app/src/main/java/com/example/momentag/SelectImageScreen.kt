@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridCells.*
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -81,6 +83,7 @@ import com.example.momentag.model.RecommendState
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
@@ -862,7 +865,7 @@ private fun RecommendExpandedPanel(
                             }
                         } else {
                             LazyVerticalGrid(
-                                columns = GridCells.Fixed(3),
+                                columns = Fixed(3),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.weight(1f),
@@ -886,37 +889,32 @@ private fun RecommendExpandedPanel(
                         }
                     }
                     is RecommendState.Error, is RecommendState.NetworkError -> {
-                        Column(
+                        Box(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
                                     .weight(1f),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
+                            contentAlignment = Alignment.BottomCenter,
                         ) {
-                            Text(
-                                text =
-                                    when (recommendState) {
-                                        is RecommendState.Error -> recommendState.message
-                                        is RecommendState.NetworkError -> recommendState.message
-                                        else -> "Unknown error"
-                                    },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
+                            val (title, message) =
+                                if (recommendState is RecommendState.Error) {
+                                    "Recommendation Failed" to recommendState.message
+                                } else {
+                                    "Network Error" to (recommendState as RecommendState.NetworkError).message
+                                }
+
+                            WarningBanner(
+                                title = title,
+                                message = message,
+                                onActionClick = onRetry,
+                                showActionButton = true,
+                                actionIcon = Icons.Default.Refresh,
+                                showDismissButton = false,
+                                modifier = Modifier.padding(16.dp),
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(
-                                onClick = onRetry,
-                                colors =
-                                    ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                    ),
-                            ) {
-                                Text("Retry")
-                            }
                         }
                     }
-                    else -> {
+                    is RecommendState.Idle -> {
                         Box(
                             modifier =
                                 Modifier

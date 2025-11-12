@@ -39,7 +39,6 @@ class AlbumUploadWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
-    // 1. Factory에서 리포지토리와 공유 상태 변수들을 가져옵니다.
     private val localRepository: LocalRepository
     private val remoteRepository: RemoteRepository
     private val albumUploadJobCount: MutableStateFlow<Int>
@@ -66,31 +65,25 @@ class AlbumUploadWorker(
     }
 
     private fun createForegroundInfo(progress: String): ForegroundInfo {
-        // 알림 채널 생성 (유지)
         createNotificationChannel()
 
-        // 알림 생성 (유지)
         val notification = createNotification(progress)
 
-        // 👇 [수T] 3. OS 버전에 따라 다른 생성자를 사용합니다.
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { // API 29 (Q)부터 타입이 필요
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
                 NOTIFICATION_ID,
                 notification,
-                // 👇 [핵심] "이건 dataSync 비자입니다"라고 명시
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
             )
         } else {
-            // 구형 OS는 낡은 생성자 사용
             ForegroundInfo(NOTIFICATION_ID, notification)
         }
     }
 
-    // 👇 [추가] 3. 알림 생성 헬퍼 (Service에서 가져옴)
     private fun createNotification(text: String): Notification =
         NotificationCompat
             .Builder(applicationContext, CHANNEL_ID)
-            .setContentTitle("MomenTag 앨범 업로드")
+            .setContentTitle("MomenTag Album Upload")
             .setContentText(text)
             .setSmallIcon(R.mipmap.ic_launcher_foreground)
             .setOngoing(true)
@@ -101,10 +94,10 @@ class AlbumUploadWorker(
             val channel =
                 NotificationChannel(
                     CHANNEL_ID,
-                    "MomenTag 업로드",
+                    "MomenTag Uploads",
                     NotificationManager.IMPORTANCE_LOW,
                 ).apply {
-                    description = "앨범 사진 업로드 진행률 표시"
+                    description = "Shows album photo upload progress"
                 }
             notificationManager.createNotificationChannel(channel)
         }
@@ -116,7 +109,7 @@ class AlbumUploadWorker(
             return Result.failure()
         }
 
-        val initialProgress = "업로드 준비 중..."
+        val initialProgress = "Preparing upload..."
         setForeground(createForegroundInfo(initialProgress))
 
         albumUploadJobCount.update { it + 1 }
@@ -126,14 +119,14 @@ class AlbumUploadWorker(
 
             if (success) {
                 albumUploadSuccessEvent.emit(albumId)
-                updateNotification("업로드 완료", "앨범 업로드가 성공적으로 완료되었습니다.")
+                updateNotification("Upload Complete", "Album upload completed successfully.")
                 return Result.success()
             } else {
-                updateNotification("업로드 실패", "일부 파일 업로드에 실패했습니다.")
+                updateNotification("Upload Failed", "Failed to upload some files.")
                 return Result.failure()
             }
         } catch (e: Exception) {
-            updateNotification("업로드 오류", "알 수 없는 오류가 발생했습니다.")
+            updateNotification("Upload Error", "An unknown error occurred.")
             return Result.failure()
         } finally {
             albumUploadJobCount.update { it - 1 }
@@ -155,7 +148,6 @@ class AlbumUploadWorker(
         val selectionArgs = arrayOf(albumId.toString())
         val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
 
-        // 1. 커서를 연다 (아직 사진을 다 읽지 않음)
         val cursor =
             applicationContext.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -163,7 +155,7 @@ class AlbumUploadWorker(
                 selection,
                 selectionArgs,
                 sortOrder,
-            ) ?: return false // 커서 열기 실패
+            ) ?: return false
 
         val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
         val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
@@ -171,22 +163,21 @@ class AlbumUploadWorker(
         val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
 
         var chunkCount = 0
-        val totalPhotos = cursor.count // (진행률 표시를 위해 전체 카운트만 가져옴)
+        val totalPhotos = cursor.count
         val totalChunks = (totalPhotos + chunkSize - 1) / chunkSize
 
         val currentChunk = mutableListOf<PhotoInfoForUpload>()
 
-        // 2. 커서를 한 칸씩 이동하며 8장이 모일 때마다 업로드
         while (cursor.moveToNext()) {
             val id = cursor.getLong(idColumn)
             val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
             val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
 
             var dateValue = cursor.getLong(dateTakenColumn)
-            if (dateValue == 0L) { // DATE_TAKEN이 0이거나 없는 경우
+            if (dateValue == 0L) {
                 val dateAddedSeconds = cursor.getLong(dateAddedColumn)
                 if (dateAddedSeconds > 0L) {
-                    dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                    dateValue = dateAddedSeconds * 1000L
                 }
             }
             val createdAt =
@@ -206,7 +197,6 @@ class AlbumUploadWorker(
                     }
                 }
             } catch (e: Exception) {
-                // 0.0 유지
             }
 
             val meta =
@@ -217,35 +207,29 @@ class AlbumUploadWorker(
                     lat = finalLat,
                     lng = finalLng,
                 )
-            // 3. 8장짜리 묶음에 추가
             currentChunk.add(PhotoInfoForUpload(contentUri, meta))
 
-            // 4. 8장이 찼거나, 마지막 사진이면 업로드!
             if (currentChunk.size == chunkSize || (currentChunk.isNotEmpty() && cursor.isLast)) {
                 chunkCount++
-                // 진행률 업데이트
-                val progressText = "($chunkCount / $totalChunks) 묶음 업로드 중..."
+                val progressText = "Uploading chunk ($chunkCount / $totalChunks)..."
                 setProgress(workDataOf(KEY_PROGRESS to progressText))
                 updateNotification("앨범 업로드 중", progressText)
 
-                // 8장 묶음을 업로드 데이터로 변환 (이 함수는 LocalRepository에서 복사/이동)
                 val uploadData = createUploadDataFromChunk(currentChunk)
 
-                // 업로드
                 val response = remoteRepository.uploadPhotos(uploadData)
 
                 if (response !is RemoteRepository.Result.Success) {
-                    cursor.close() // 실패 시 커서 닫기
-                    return false // 실패!
+                    cursor.close()
+                    return false
                 }
 
-                // 성공하면 묶음 비우기
                 currentChunk.clear()
             }
         }
 
-        cursor.close() // 5. 모든 작업 완료 후 커서 닫기
-        return true // 성공!
+        cursor.close()
+        return true
     }
 
     private fun updateNotification(
@@ -258,21 +242,18 @@ class AlbumUploadWorker(
                 .setContentTitle(title)
                 .setContentText(text)
                 .setSmallIcon(R.mipmap.ic_launcher_foreground)
-                .setOngoing(false) // 완료/실패 시에는 알림을 스와이프해 지울 수 있게
+                .setOngoing(false)
                 .build()
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
-    // (LocalRepository에선 이 함수를 지워도 됩니다)
     private fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
         val photoParts = mutableListOf<MultipartBody.Part>()
         val metadataList = mutableListOf<PhotoMeta>()
 
         chunk.forEach { photoInfo ->
 
-            // 1. 'Throwable'로 사진 한 장을 감싸서 OOM 등으로부터 Worker를 보호
             try {
-                // 2. 리사이즈 시도
                 val resizedBytes =
                     localRepository.resizeImage(
                         photoInfo.uri,
@@ -281,33 +262,28 @@ class AlbumUploadWorker(
                         quality = 85,
                     )
 
-                // 3. 리사이즈 성공 시에만 처리 (실패 시 원본 전송 안 함)
                 if (resizedBytes != null) {
                     val mime = "image/jpeg"
                     val requestBody = resizedBytes.toRequestBody(mime.toMediaTypeOrNull())
                     val part = MultipartBody.Part.createFormData("photo", photoInfo.meta.filename, requestBody)
 
                     photoParts.add(part)
-                    metadataList.add(photoInfo.meta) // 성공한 사진의 메타데이터만 추가
+                    metadataList.add(photoInfo.meta)
                 } else {
-                    // 4. 리사이즈 실패 시 (null 반환 시)
-                    // 원본을 보내는 대신, 로그만 남기고 이 사진을 '포기(skip)'합니다.
                     Log.w(
                         "AlbumUploadWorker",
                         "Resize failed for ${photoInfo.meta.filename} (unsupported format? corrupted?). SKIPPING file.",
                     )
                 }
             } catch (t: Throwable) {
-                // 5. OOM 등 심각한 오류가 나면 여기서 잡고 이 사진만 '포기(skip)'
                 Log.e(
                     "AlbumUploadWorker",
                     "CRITICAL: Failed to process photo. SKIPPING file: ${photoInfo.meta.filename}",
                     t,
                 )
             }
-        } // end of forEach
+        }
 
-        // 6. 성공적으로 처리된 사진들(photoParts)과 그 짝(metadataList)만으로 요청 생성
         val metadataJson = gson.toJson(metadataList)
         val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
 
