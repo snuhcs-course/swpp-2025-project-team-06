@@ -187,13 +187,11 @@ fun HomeScreen(navController: NavController) {
 
     val listState = rememberLazyListState()
 
-    // HomeViewModel에서 로드된 전체 태그 목록 가져오기
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
-    // 빠른 조회를 위한 태그 맵 (소문자 키)
-    val allTagsMap =
-        remember(allTags) {
-            allTags.associateBy { it.tagName.lowercase() }
-        }
+//    val allTagsMap =
+//        remember(allTags) {
+//            allTags.associateBy { it.tagName.lowercase() }
+//        }
 
     val textStates = remember { mutableStateMapOf<String, TextFieldValue>() }
     val contentItems = remember { mutableStateListOf<SearchContentElement>() }
@@ -217,7 +215,6 @@ fun HomeScreen(navController: NavController) {
 
     fun findNextTextElementId(startIndex: Int): String? {
         if (startIndex >= contentItems.size - 1) return null
-        // 순방향 탐색
         for (i in (startIndex + 1) until contentItems.size) {
             val item = contentItems.getOrNull(i)
             if (item is SearchContentElement.Text) {
@@ -282,7 +279,7 @@ fun HomeScreen(navController: NavController) {
             if (visibleItemInfo != null) {
                 val viewportEnd = listState.layoutInfo.viewportEndOffset
                 val itemEnd = visibleItemInfo.offset + visibleItemInfo.size
-                itemEnd <= viewportEnd + 1 // (1.dp 정도의 오차 허용)
+                itemEnd <= viewportEnd + 1
             } else {
                 false
             }
@@ -519,7 +516,6 @@ fun HomeScreen(navController: NavController) {
                 onLogoutClick = { authViewModel.logout() },
                 isLogoutLoading = logoutState is LogoutState.Loading,
                 actions = {
-                    // (기존 로직 유지)
                     if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                         Box {
                             IconButton(onClick = { showMenu = true }) {
@@ -634,7 +630,6 @@ fun HomeScreen(navController: NavController) {
         },
         containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
-            // (기존 로직 유지)
             if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
@@ -672,7 +667,7 @@ fun HomeScreen(navController: NavController) {
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) {
-                            focusManager.clearFocus() // 키보드를 내리고 모든 포커스 해제
+                            focusManager.clearFocus()
                         },
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -859,19 +854,19 @@ fun HomeScreen(navController: NavController) {
                             Modifier
                                 .size(48.dp)
                                 .background(
-                                    color = MaterialTheme.colorScheme.primary, // 이미지와 다른 색상 (primary)
+                                    color = MaterialTheme.colorScheme.primary,
                                     shape = RoundedCornerShape(12.dp),
                                 ),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FilterList, // 필터 아이콘
+                            imageVector = Icons.Default.FilterList,
                             contentDescription = "Filter",
                             tint = MaterialTheme.colorScheme.onPrimary,
                         )
                     }
                 }
 
-                // [수정됨] 태그 추천 목록 (LazyRow)
+                // 태그 추천 목록 (LazyRow)
                 if (tagSuggestions.isNotEmpty()) {
                     LazyRow(
                         modifier =
@@ -904,35 +899,33 @@ fun HomeScreen(navController: NavController) {
                                     val lastHashIndex = textUpToCursor.lastIndexOf('#')
 
                                     if (lastHashIndex != -1) {
-                                        // 1. 텍스트 분리
+                                        // 텍스트 분리
                                         val precedingText = text.substring(0, lastHashIndex).removePrefix("\u200B")
                                         val succeedingText = text.substring(cursor)
 
-                                        // 2. 새 칩과 새 텍스트 필드 생성
+                                        // 새 칩과 새 텍스트 필드 생성
                                         val newChipId = UUID.randomUUID().toString()
                                         val newChip = SearchContentElement.Chip(newChipId, tag)
 
                                         val newTextId = UUID.randomUUID().toString()
                                         val newText = SearchContentElement.Text(newTextId, succeedingText)
 
-                                        // 3. 현재 텍스트 필드 업데이트
+                                        // 현재 텍스트 필드 업데이트
                                         contentItems[currentIndex] =
                                             (contentItems[currentIndex] as SearchContentElement.Text).copy(text = precedingText)
                                         textStates[currentId] =
                                             TextFieldValue("\u200B" + precedingText, TextRange(precedingText.length + 1))
 
-                                        // 4. 새 칩과 새 텍스트 필드 삽입
+                                        // 새 칩과 새 텍스트 필드 삽입
                                         contentItems.add(currentIndex + 1, newChip)
                                         contentItems.add(currentIndex + 2, newText)
 
-                                        // 5. 새 텍스트 필드 상태 및 포커스 설정
+                                        // 새 텍스트 필드 상태 및 포커스 설정
                                         textStates[newTextId] = TextFieldValue("\u200B" + succeedingText, TextRange(1))
                                         focusRequesters[newTextId] = FocusRequester()
                                         bringIntoViewRequesters[newTextId] = BringIntoViewRequester()
 
-                                        Log.d("focuss", "onClick sugg chip")
-
-                                        // 6. "포커스 의도"만 상태에 반영
+                                        // 포커스 의도만 상태에 반영
                                         focusedElementId = newTextId
                                     }
                                 },
@@ -948,6 +941,7 @@ fun HomeScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // "태그 앨범" 뷰일 때만 정렬 버튼 표시
                     if (!showAllPhotos) {
                         IconButton(onClick = { scope.launch { sheetState.show() } }) {
                             Icon(
@@ -957,7 +951,8 @@ fun HomeScreen(navController: NavController) {
                             )
                         }
                     } else {
-                        Spacer(modifier = Modifier.size(48.dp))
+                        // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
+                        Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
                     }
                     ViewToggle(
                         onlyTag = onlyTag,

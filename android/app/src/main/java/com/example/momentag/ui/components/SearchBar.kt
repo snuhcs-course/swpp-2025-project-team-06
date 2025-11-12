@@ -74,23 +74,12 @@ sealed class SearchContentElement {
 
 /**
  * 칩/텍스트 기반 검색바
- *
- * @param contentItems 검색창의 칩/텍스트 구조 리스트
- * @param textStates 모든 텍스트 필드의 UI 상태 맵
- * @param focusRequesters 모든 텍스트 필드의 포커스 리퀘스터 맵
- * @param onContainerClick 검색바의 빈 공간 클릭 시
- * @param onChipClick 칩 클릭 시
- * @param onTextChange 텍스트 필드 값 변경 시
- * @param onFocus 텍스트 필드 포커스 시
- * @param onSearch 검색 버튼(돋보기) 클릭 시
- * @param placeholder 플레이스홀더 텍스트
- * @param isFocused [신규] 검색바가 현재 포커스 상태인지 여부 (UI 변경용)
  */
 @Composable
 fun ChipSearchBar(
     modifier: Modifier = Modifier,
     listState: LazyListState,
-    isFocused: Boolean, // [신규] 포커스 상태를 외부에서 받음
+    isFocused: Boolean,
     hideCursor: Boolean,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
@@ -103,7 +92,6 @@ fun ChipSearchBar(
     onSearch: () -> Unit,
     placeholder: String = "검색 또는 #태그 입력",
 ) {
-    // [신규] 기존 SearchBar의 색상 정의를 그대로 가져옴
     val colors =
         TextFieldDefaults.colors(
             focusedIndicatorColor = Color.Transparent,
@@ -112,7 +100,6 @@ fun ChipSearchBar(
             unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
         )
 
-    // [신규] 포커스 상태에 따라 컨테이너 색상 결정
     val containerColor =
         if (isFocused) {
             colors.focusedContainerColor
@@ -120,36 +107,31 @@ fun ChipSearchBar(
             colors.unfocusedContainerColor
         }
 
-    // [수정] Row가 기존 SearchBar(TextField)의 모양을 흉내 냄
     Row(
         modifier =
-            modifier // HomeScreen에서 (Modifier.weight(1f))가 적용될 것임
-                .heightIn(min = 48.dp) // TextField의 최소 높이와 맞춤
+            modifier
+                .heightIn(min = 48.dp)
                 .background(
                     color = containerColor,
-                    shape = RoundedCornerShape(24.dp), // [수정] 기존 SearchBar의 둥근 모서리
+                    shape = RoundedCornerShape(24.dp),
                 ).clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                ) { onContainerClick() } // 컨테이너(배경) 클릭을 상위로 전달
+                ) { onContainerClick() }
                 .padding(horizontal = 16.dp),
-        // [수정] TextField의 아이콘 패딩과 맞춤
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // [신규] 기존 SearchBar의 leadingIcon을 추가
         Icon(
             imageVector = Icons.Default.Search,
             contentDescription = "Search",
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        // [수정] InternalChipSearchInput가 남은 공간을 채움
         InternalChipSearchInput(
             modifier =
                 Modifier
                     .weight(1f)
                     .padding(start = 8.dp),
-            // 아이콘과 텍스트 사이 간격
             listState = listState,
             hideCursor = hideCursor,
             contentItems = contentItems,
@@ -167,8 +149,7 @@ fun ChipSearchBar(
 }
 
 /**
- * [신규] ChipSearchBar의 내부 구현입니다.
- * HomeScreen.kt의 ChipBasedSearchInput 로직을 그대로 가져왔습니다.
+ * ChipSearchBar의 내부 구현
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -187,8 +168,6 @@ private fun InternalChipSearchInput(
     onSearch: () -> Unit,
     placeholder: String,
 ) {
-    // [수정] Box 래퍼를 제거하고 LazyRow만 남깁니다.
-    // 배경과 클릭 이벤트는 상위 Row(ChipSearchBar)가 처리합니다.
     LazyRow(
         state = listState,
         horizontalArrangement = Arrangement.spacedBy(0.dp),
@@ -215,14 +194,14 @@ private fun InternalChipSearchInput(
                     val focusRequester = focusRequesters[item.id] ?: remember { FocusRequester() }
                     val bringIntoViewRequester = bringIntoViewRequesters[item.id] ?: remember { BringIntoViewRequester() }
 
-                    // [신규] 커서 위치 계산을 위해 TextLayoutResult를 저장
+                    // 커서 위치 계산을 위해 TextLayoutResult를 저장
                     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
                     val scope = rememberCoroutineScope() // bringIntoView 호출용
 
-                    // [신규] 오른쪽에 추가할 패딩을 계산하기 위해 LocalDensity 가져오기
+                    // 오른쪽에 추가할 패딩을 계산하기 위해 LocalDensity 가져오기
                     val density = LocalDensity.current
 
-                    // --- 텍스트 너비 측정 로직 ---
+                    // 텍스트 너비 측정 로직
                     val textValue = textStates[item.id] ?: TextFieldValue()
                     val text = textValue.text.removePrefix("\u200B")
                     val textMeasurer = rememberTextMeasurer()
@@ -235,21 +214,16 @@ private fun InternalChipSearchInput(
 
                     val textWidthDp = with(LocalDensity.current) { measuredWidthInPixels.toDp() }
 
-                    // [신규] 1. 플레이스홀더인지, (플레이스홀더가 아닌) 그냥 빈 필드인지 확인
                     val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
                     val isEmptyText = text.isEmpty() && !isPlaceholder
 
-                    // [수정] 2. 텍스트 좌우 패딩 결정
                     val sidePadding = if (isEmptyText) 0.dp else 6.dp // 비어있으면 0dp
                     val totalHorizontalPadding = sidePadding * 2
 
-                    // [수정] 3. 최소 너비 결정
-                    val minFieldWidth = 10.dp // 비어있으면 0dp
+                    val minFieldWidth = 10.dp
 
                     val finalWidth = (textWidthDp + totalHorizontalPadding).coerceAtLeast(minFieldWidth)
-                    // --- 로직 끝 ---
 
-                    // [신규] hideCursor 상태에 따라 커서 브러시 결정
                     val cursorBrush =
                         if (hideCursor) {
                             SolidColor(Color.Transparent)
@@ -257,22 +231,19 @@ private fun InternalChipSearchInput(
                             SolidColor(MaterialTheme.colorScheme.primary)
                         }
 
-                    // [신규] LaunchedEffect: 텍스트 레이아웃이나 커서 위치가 변경된 *후*에 실행
+                    // 텍스트 레이아웃이나 커서 위치가 변경
                     LaunchedEffect(textLayoutResult, textValue.selection) {
-                        // 1. 레이아웃 결과가 있는지 확인
                         textLayoutResult?.let { layoutResult ->
-                            // 2. [안전 장치] 커서 위치가 현재 레이아웃의 유효 범위 내에 있는지 확인
                             val textLength = layoutResult.layoutInput.text.length
                             val selectionEnd = textValue.selection.end
 
                             if (selectionEnd in 0..textLength) {
-                                // 1. 커서의 사각형을 계산
+                                // 커서의 사각형을 계산
                                 val cursorRect = layoutResult.getCursorRect(selectionEnd)
 
-                                // 2. [신규] 오른쪽에 추가할 패딩 정의 (예: 16.dp)
+                                // 오른쪽에 추가할 패딩
                                 val endPaddingPx = with(density) { sidePadding.toPx() } // + 8.dp
 
-                                // 3. [신규] 커서 사각형의 오른쪽에 패딩을 더한 '새 가상 사각형' 생성
                                 val rectWithPadding =
                                     Rect(
                                         left = cursorRect.left,
@@ -281,7 +252,7 @@ private fun InternalChipSearchInput(
                                         bottom = cursorRect.bottom,
                                     )
 
-                                // 4. 커서를 뷰로 스크롤
+                                // 커서를 뷰로 스크롤
                                 scope.launch {
                                     bringIntoViewRequester.bringIntoView(rectWithPadding)
                                 }
@@ -292,7 +263,6 @@ private fun InternalChipSearchInput(
                     BasicTextField(
                         value = textValue,
                         onValueChange = { newValue ->
-                            // 1. HomeScreen으로 변경 사항을 알림 (기존 로직)
                             onTextChange(item.id, newValue)
                         },
                         onTextLayout = { textLayoutResult = it },
@@ -300,9 +270,9 @@ private fun InternalChipSearchInput(
                             Modifier
                                 .then(
                                     if (isPlaceholder) {
-                                        Modifier.fillMaxWidth() // 플레이스홀더는 남은 공간 채움
+                                        Modifier.fillMaxWidth()
                                     } else {
-                                        Modifier.width(finalWidth) // 텍스트는 계산된 너비
+                                        Modifier.width(finalWidth)
                                     },
                                 ).focusRequester(focusRequester)
                                 .bringIntoViewRequester(bringIntoViewRequester)
@@ -310,11 +280,10 @@ private fun InternalChipSearchInput(
                                     if (focusState.isFocused) {
                                         onFocus(item.id)
                                     } else {
-                                        onFocus(null) // [수정] 포커스를 잃으면 null 전달
+                                        onFocus(null)
                                     }
                                 }.padding(horizontal = 4.dp, vertical = 8.dp),
                         maxLines = 1, // 스크롤 방지
-//                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         cursorBrush = cursorBrush,
                         textStyle = textStyle,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -322,7 +291,7 @@ private fun InternalChipSearchInput(
                         decorationBox = { innerTextField ->
                             if (isPlaceholder) {
                                 Text(
-                                    placeholder, // [수정] 파라미터 사용
+                                    placeholder,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
                                 )
@@ -391,6 +360,8 @@ fun SuggestionChip(
         )
     }
 }
+
+// 아래는 삭제 예정
 
 /**
  * 검색바 컴포넌트 (내부 상태 관리 버전)
