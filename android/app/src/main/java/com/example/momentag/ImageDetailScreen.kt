@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -74,6 +75,7 @@ import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
 import com.example.momentag.tagXMode
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -220,6 +222,9 @@ fun ImageDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    var showWarningBanner by remember { mutableStateOf(false) }
+    var warningBannerMessage by remember { mutableStateOf("") }
+
     // Screen-scoped ViewModel - fresh instance per screen
     val imageDetailViewModel: ImageDetailViewModel =
         viewModel(factory = ViewModelFactory.getInstance(context))
@@ -353,7 +358,8 @@ fun ImageDetailScreen(
             }
 
             is ImageDetailViewModel.TagDeleteState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                warningBannerMessage = "An Error Occured. Please Try Again"
+                showWarningBanner = true
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
             }
@@ -370,10 +376,25 @@ fun ImageDetailScreen(
                 imageDetailViewModel.resetAddState()
             }
             is ImageDetailViewModel.TagAddState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                warningBannerMessage = "An Error Occured. Please Try Again."
+                showWarningBanner = true
                 imageDetailViewModel.resetAddState()
             }
             else -> Unit
+        }
+    }
+
+    LaunchedEffect(isError, errorMessage) {
+        if (isError) {
+            warningBannerMessage = "An Error Occured While Loading Tags. Please Try Again."
+            showWarningBanner = true
+        }
+    }
+
+    LaunchedEffect(showWarningBanner) {
+        if (showWarningBanner) {
+            kotlinx.coroutines.delay(2000)
+            showWarningBanner = false
         }
     }
 
@@ -431,117 +452,127 @@ fun ImageDetailScreen(
             )
         },
     ) { paddingValues ->
-        Column(
+        Box(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            if (dateTime != null) {
-                val datePart = dateTime!!.split(" ")[0]
-                val formattedDate = datePart.replace(":", ".")
-                Text(
-                    text = formattedDate,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth() // 가로로 꽉 채우기
-                            .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
-                    // 여백
-                    textAlign = TextAlign.Left,
-                )
-            }
-
-            val address = photoAddress
-
-            // 주소를 가져올 수 없는 경우 주소 자리를 아예 표시하지 않음
-            if (!address.isNullOrBlank()) {
-                Text(
-                    text = address,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth() // 가로로 꽉 채우기
-                            .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
-                    // 여백
-                    textAlign = TextAlign.Left,
-                )
-            }
-
-            // 1. 이미지가 표시될 영역 (나머지 공간 전체를 차지)
-            Box(
+            Column(
                 modifier =
                     Modifier
-                        .weight(1f)
-                        .clipToBounds(),
+                        .fillMaxSize(),
             ) {
-                // HorizontalPager로 이미지 스와이프 기능 구현
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    // 줌 상태가 아닐 때만(= isZoomed가 false일 때만) 스와이프를 허용
-                    userScrollEnabled = !isZoomed,
-                ) { page ->
-                    val photo = photos.getOrNull(page)
-                    ZoomableImage(
-                        model = photo?.contentUri,
-                        contentDescription = "Detail image",
-                        modifier = Modifier.fillMaxSize(),
-                        onScaleChanged = { zoomed ->
-                            isZoomed = zoomed
-                        },
+                if (dateTime != null) {
+                    val datePart = dateTime!!.split(" ")[0]
+                    val formattedDate = datePart.replace(":", ".")
+                    Text(
+                        text = formattedDate,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth() // 가로로 꽉 채우기
+                                .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
+                        // 여백
+                        textAlign = TextAlign.Left,
                     )
                 }
-            }
 
-            // 2. 태그가 표시될 새로운 영역
-            if (isError) {
+                val address = photoAddress
+
+                // 주소를 가져올 수 없는 경우 주소 자리를 아예 표시하지 않음
+                if (!address.isNullOrBlank()) {
+                    Text(
+                        text = address,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.headlineLarge,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth() // 가로로 꽉 채우기
+                                .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
+                        // 여백
+                        textAlign = TextAlign.Left,
+                    )
+                }
+
+                // 1. 이미지가 표시될 영역 (나머지 공간 전체를 차지)
                 Box(
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                    contentAlignment = Alignment.Center,
+                            .weight(1f)
+                            .clipToBounds(),
                 ) {
-                    Text(
-                        text = "태그를 불러오는 중 오류가 발생했습니다.\n($errorMessage)",
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
+                    // HorizontalPager로 이미지 스와이프 기능 구현
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        // 줌 상태가 아닐 때만(= isZoomed가 false일 때만) 스와이프를 허용
+                        userScrollEnabled = !isZoomed,
+                    ) { page ->
+                        val photo = photos.getOrNull(page)
+                        ZoomableImage(
+                            model = photo?.contentUri,
+                            contentDescription = "Detail image",
+                            modifier = Modifier.fillMaxSize(),
+                            onScaleChanged = { zoomed ->
+                                isZoomed = zoomed
+                            },
+                        )
+                    }
+                }
+
+                // 2. 태그가 표시될 새로운 영역
+                if (isError) {
+                    Spacer(modifier = Modifier.fillMaxWidth().height(48.dp))
+                } else {
+                    TagsSection(
+                        modifier =
+                            Modifier
+                                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
+                        existingTags = existingTags,
+                        recommendedTags = recommendedTags,
+                        isExistingTagsLoading = isExistingLoading,
+                        isRecommendedTagsLoading = isRecommendedLoading,
+                        isDeleteMode = isDeleteMode,
+                        onEnterDeleteMode = { isDeleteMode = true },
+                        onExitDeleteMode = { isDeleteMode = false },
+                        onDeleteClick = { tagId ->
+                            val currentPhotoId =
+                                currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                            if (currentPhotoId.isNotEmpty()) {
+                                imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
+                            } else {
+                                warningBannerMessage = "No photo to delete tag from."
+                                showWarningBanner = true
+                            }
+                        },
+                        onAddTag = { tagName ->
+                            val currentPhotoId =
+                                currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                            if (currentPhotoId.isNotEmpty()) {
+                                imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
+                            } else {
+                                warningBannerMessage = "No photo to add tag to."
+                                showWarningBanner = true
+                            }
+                        },
+                        snackbarHostState = snackbarHostState,
                     )
                 }
-            } else {
-                TagsSection(
+            }
+            if (showWarningBanner) {
+                WarningBanner(
+                    title = "Error",
+                    message = warningBannerMessage,
+                    onActionClick = { showWarningBanner = false },
+                    showActionButton = false,
+                    onDismiss = { showWarningBanner = false },
+                    showDismissButton = true,
                     modifier =
                         Modifier
-                            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
-                    existingTags = existingTags,
-                    recommendedTags = recommendedTags,
-                    isExistingTagsLoading = isExistingLoading,
-                    isRecommendedTagsLoading = isRecommendedLoading,
-                    isDeleteMode = isDeleteMode,
-                    onEnterDeleteMode = { isDeleteMode = true },
-                    onExitDeleteMode = { isDeleteMode = false },
-                    onDeleteClick = { tagId ->
-                        val currentPhotoId =
-                            currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                        if (currentPhotoId.isNotEmpty()) {
-                            imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
-                        } else {
-                            Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onAddTag = { tagName ->
-                        val currentPhotoId =
-                            currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                        if (currentPhotoId.isNotEmpty()) {
-                            imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
-                        } else {
-                            Toast.makeText(context, "No photo to add tag to", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    snackbarHostState = snackbarHostState,
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp),
                 )
             }
         }
