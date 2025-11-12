@@ -3,6 +3,7 @@
 
 package com.example.momentag.ui.storytag
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -76,11 +77,11 @@ import com.example.momentag.model.StoryTagSubmissionState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
+import com.example.momentag.ui.components.ErrorOverlay
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-// =============== Screen ===============
 
 @Composable
 fun StoryTagSelectionScreen(
@@ -168,7 +169,7 @@ fun StoryTagSelectionScreen(
                             modifier = Modifier.size(24.dp),
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("추억을 불러오는 중...", color = MaterialTheme.colorScheme.onSurface)
+                        Text("Loading memories...", color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
@@ -327,41 +328,33 @@ fun StoryTagSelectionScreen(
                 }
             }
             is StoryState.Error -> {
-                // Show error screen
-                Box(
+                ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
-                            Text("Retry")
-                        }
-                    }
-                }
+                    title = "Error",
+                    errorMessage = state.message,
+                    onRetry = { viewModel.loadStories(10) },
+                    onDismiss = {
+                        viewModel.resetState()
+                        onBack()
+                    },
+                )
             }
             is StoryState.NetworkError -> {
-                // Show network error screen
-                Box(
+                ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Network Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
-                            Text("Retry")
-                        }
-                    }
-                }
+                    title = "Network Error",
+                    errorMessage = state.message,
+                    onRetry = { viewModel.loadStories(10) },
+                    onDismiss = {
+                        viewModel.resetState()
+                        onBack()
+                    },
+                )
             }
         }
     }
 }
 
-// =============== 이게 핵심 블럭 ===============
-// StoryPageFullBlock = 날짜/위치 + 이미지 + (공백) + TagSelectionCard
 @Composable
 private fun StoryPageFullBlock(
     story: StoryModel,
@@ -398,12 +391,11 @@ private fun StoryPageFullBlock(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 이미지 영역 - 고정 높이로 일관성 유지
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(480.dp) // 고정된 높이로 모든 스토리에서 일관된 크기 유지
+                        .height(480.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { onImageClick() },
@@ -430,8 +422,6 @@ private fun StoryPageFullBlock(
         }
     }
 }
-
-// =============== Scroll Hint ===============
 
 @Composable
 internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
@@ -483,8 +473,6 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
     }
 }
 
-// =============== TagSelectionCard ===============
-
 @Composable
 internal fun TagSelectionCard(
     tags: List<String>,
@@ -535,11 +523,11 @@ internal fun TagSelectionCard(
             Text(
                 text =
                     if (isReadOnly) {
-                        "이 추억에 붙인 태그"
+                        "Tags for this memory"
                     } else if (isEditMode) {
-                        "태그 수정하기"
+                        "Edit Tags"
                     } else {
-                        "이 추억을 어떻게 기억하고 싶나요?"
+                        "How do you want to remember this?"
                     },
                 color =
                     if (isReadOnly) {
@@ -585,11 +573,13 @@ internal fun TagSelectionCard(
             val canSubmit = if (isEditMode) true else hasSelection
 
             // Show error message if submission failed
-            if (storyTagSubmissionState is StoryTagSubmissionState.Error) {
-                Text(
-                    text = storyTagSubmissionState.message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
+            AnimatedVisibility(visible = storyTagSubmissionState is StoryTagSubmissionState.Error) {
+                WarningBanner(
+                    title = "Failed to Save Tag",
+                    message = (storyTagSubmissionState as? StoryTagSubmissionState.Error)?.message ?: "Unknown error",
+                    onActionClick = onRetry, // 재시도 버튼 (GradientPillButton이 Retry로 바뀜)
+                    showActionButton = false, // 버튼은 GradientPillButton이 담당
+                    showDismissButton = false,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
@@ -772,15 +762,6 @@ internal fun FlowRow(
         }
     }
 }
-
-// =============== Model & Preview ===============
-
-// Preview disabled - requires ViewModel instantiation
-// @Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
-// @Composable
-// private fun Preview_StoryTagSelectionScreen() {
-//     // Preview would require ViewModel setup
-// }
 
 @Composable
 private fun StoryPageFullBlockPreviewContent(

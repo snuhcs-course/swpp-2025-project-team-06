@@ -1,6 +1,7 @@
 package com.example.momentag
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,7 +33,6 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,12 +43,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +65,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.MyTagsUiState
@@ -72,7 +75,11 @@ import com.example.momentag.model.TagCntData
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.RenameTagDialog
+import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.MyTagsViewModel
+import com.example.momentag.viewmodel.TagActionState
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
@@ -86,6 +93,7 @@ fun MyTagsScreen(navController: NavController) {
     val uiState by viewModel.uiState.collectAsState()
     val isEditMode by viewModel.isEditMode.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
+    val actionState by viewModel.tagActionState.collectAsState()
 
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
@@ -98,6 +106,44 @@ fun MyTagsScreen(navController: NavController) {
     var tagToEdit by remember { mutableStateOf<Pair<String, String>?>(null) }
     var editedTagName by remember { mutableStateOf("") }
 
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    viewModel.refreshTags()
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(actionState) {
+        when (val state = actionState) {
+            is TagActionState.Success -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
+                showErrorBanner = false
+                viewModel.clearActionState()
+            }
+            is TagActionState.Error -> {
+                errorMessage = state.message
+                showErrorBanner = true
+                viewModel.clearActionState()
+            }
+            is TagActionState.Idle -> {
+            }
+            is TagActionState.Loading -> {
+                // TODO: 필요시 로딩 인디케이터 표시 (현재는 Dialog가 닫히므로 생략)
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             val currentState = uiState
@@ -107,7 +153,6 @@ fun MyTagsScreen(navController: NavController) {
                 onBackClick = { navController.popBackStack() },
                 actions = {
                     if (currentState is MyTagsUiState.Success && currentState.tags.isNotEmpty()) {
-                        // Sort Button
                         IconButton(onClick = { showSortSheet = true }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Sort,
@@ -115,7 +160,6 @@ fun MyTagsScreen(navController: NavController) {
                                 tint = MaterialTheme.colorScheme.onSurface,
                             )
                         }
-                        // Edit Button
                         IconButton(onClick = { viewModel.toggleEditMode() }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -134,7 +178,6 @@ fun MyTagsScreen(navController: NavController) {
                         .background(Color.Transparent)
                         .fillMaxWidth(),
             ) {
-                // Create New Tag 버튼
                 Button(
                     onClick = {
                         navController.navigate(Screen.AddTag.route)
@@ -161,7 +204,22 @@ fun MyTagsScreen(navController: NavController) {
                     )
                 }
 
-                // Bottom Navigation Bar
+                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    WarningBanner(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 8.dp),
+                        title = "Action Failed",
+                        message = errorMessage ?: "Unknown error",
+                        onActionClick = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { showErrorBanner = false },
+                    )
+                }
+
                 BottomNavBar(
                     modifier =
                         Modifier
@@ -211,19 +269,19 @@ fun MyTagsScreen(navController: NavController) {
 
                 is MyTagsUiState.Error -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 24.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Error: ${state.message}",
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { viewModel.refreshTags() }) {
-                                Text("Retry")
-                            }
-                        }
+                        WarningBanner(
+                            title = "Failed to Load Tags",
+                            message = state.message,
+                            onActionClick = { viewModel.refreshTags() },
+                            showActionButton = true,
+                            showDismissButton = false,
+                        )
                     }
                 }
 
@@ -250,104 +308,47 @@ fun MyTagsScreen(navController: NavController) {
         }
     }
 
-    // 삭제 확인 다이얼로그
     if (showDeleteDialog && tagToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = {
-                Text(
-                    text = "태그 삭제",
-                    style = MaterialTheme.typography.titleLarge,
-                )
+        confirmDialog(
+            title = "Delete Tag",
+            message = "Are you sure you want to delete '${tagToDelete?.second}' tag?",
+            confirmButtonText = "Delete",
+            onConfirm = {
+                tagToDelete?.first?.let { viewModel.deleteTag(it) }
+                showDeleteDialog = false
+                tagToDelete = null
             },
-            text = {
-                Text(
-                    text = "'${tagToDelete?.second}' 태그를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            onDismiss = {
+                showDeleteDialog = false
+                tagToDelete = null
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        tagToDelete?.first?.let { viewModel.deleteTag(it) }
-                        Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
-                        showDeleteDialog = false
-                        tagToDelete = null
-                    },
-                ) {
-                    Text("삭제", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        tagToDelete = null
-                    },
-                ) {
-                    Text("취소")
-                }
-            },
+            dismissible = true,
         )
     }
-
-    // 태그 수정 다이얼로그
     if (showEditDialog && tagToEdit != null) {
-        AlertDialog(
-            onDismissRequest = { showEditDialog = false },
-            title = {
-                Text(
-                    text = "태그 이름 수정",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "새로운 태그 이름을 입력해주세요",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TextField(
-                        value = editedTagName,
-                        onValueChange = { editedTagName = it },
-                        singleLine = true,
-                        placeholder = { Text("태그 이름") },
-                    )
+        RenameTagDialog(
+            title = "Edit Tag Name",
+            message = "Enter the new tag name",
+            initialValue = editedTagName,
+            onConfirm = { newName ->
+                if (newName.isNotBlank()) {
+                    tagToEdit?.first?.let { tagId ->
+                        viewModel.renameTag(tagId, newName)
+                    }
                 }
+                showEditDialog = false
+                tagToEdit = null
+                editedTagName = ""
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (editedTagName.isNotBlank()) {
-                            tagToEdit?.first?.let { tagId ->
-                                viewModel.renameTag(tagId, editedTagName.trim())
-                            }
-                        }
-                        showEditDialog = false
-                        tagToEdit = null
-                        editedTagName = ""
-                    },
-                    enabled = editedTagName.isNotBlank(),
-                ) {
-                    Text("수정")
-                }
+            onDismiss = {
+                showEditDialog = false
+                tagToEdit = null
+                editedTagName = ""
             },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showEditDialog = false
-                        tagToEdit = null
-                        editedTagName = ""
-                    },
-                ) {
-                    Text("취소")
-                }
-            },
+            dismissible = true,
         )
     }
 
-    // 정렬 옵션 Bottom Sheet
     if (showSortSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSortSheet = false },
@@ -392,7 +393,6 @@ private fun MyTagsContent(
         state = pullToRefreshState,
     ) {
         if (tags.isNotEmpty()) {
-            // 태그가 있을 때 - 스크롤 가능한 컨텐츠
             Column(
                 modifier =
                     Modifier
@@ -411,7 +411,6 @@ private fun MyTagsContent(
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // My Tags 헤더
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -459,15 +458,14 @@ private fun MyTagsContent(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(80.dp)) // 하단 버튼 공간 확보
+                Spacer(modifier = Modifier.height(80.dp))
             }
         } else {
-            // 태그가 없을 때 - Empty State (Pull-to-Refresh 지원을 위해 스크롤 가능한 컨텐츠로 변경)
             Column(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState()), // 스크롤 추가로 Pull-to-Refresh 활성화
+                        .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -483,7 +481,7 @@ private fun MyTagsContent(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "태그를 만들어보세요",
+                    text = "Create memories",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
@@ -491,7 +489,7 @@ private fun MyTagsContent(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "키워드로 추억을\n모아보세요",
+                    text = "Organize your memories\nby keyword",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -501,7 +499,6 @@ private fun MyTagsContent(
     }
 }
 
-// UI 디자인의 색상들을 순서대로 할당
 private val tagColors =
     listOf(
         Color(0xFF93C5FD), // Blue
@@ -554,37 +551,37 @@ private fun SortOptionsSheet(
 ) {
     Column(modifier = Modifier.padding(vertical = 16.dp)) {
         Text(
-            "정렬 기준",
+            "Sort by",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         SortOptionItem(
-            text = "이름 (가나다순)",
+            text = "Name (A-Z)",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.NAME_ASC,
             onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
         )
         SortOptionItem(
-            text = "이름 (가나다 역순)",
+            text = "Name (Z-A)",
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.NAME_DESC,
             onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
         )
         SortOptionItem(
-            text = "최근 추가 순",
+            text = "Recently Added",
             icon = Icons.Default.FiberNew,
             isSelected = currentOrder == TagSortOrder.CREATED_DESC,
             onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
         )
         SortOptionItem(
-            text = "항목 많은 순",
+            text = "Count (Descending)",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
             onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
         )
         SortOptionItem(
-            text = "항목 적은 순",
+            text = "Count (Ascending)",
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.COUNT_ASC,
             onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
