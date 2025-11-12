@@ -16,7 +16,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -143,6 +142,7 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.runtime.mutableStateMapOf
 import java.util.UUID
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -211,6 +211,7 @@ fun HomeScreen(navController: NavController) {
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
     // 5. [신규] BringIntoViewRequester 맵
     val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
+    var searchBarWidth by remember { mutableStateOf(0) }
 
     // **[수정] 현재 포커스된 텍스트 필드의 값을 추적합니다.**
     val currentFocusedTextState = textStates[focusedElementId]
@@ -274,6 +275,7 @@ fun HomeScreen(navController: NavController) {
 
     var hideCursor by remember { mutableStateOf(false) }
 
+    // TODO : prevent text after a tag chip from shifting left.
     // focusedElementId가 변경될 때마다 포커스와 스크롤을 처리하는 Effect
     LaunchedEffect(focusedElementId) {
         hideCursor = true
@@ -295,11 +297,31 @@ fun HomeScreen(navController: NavController) {
             return@LaunchedEffect
         }
 
-        listState.scrollToItem(index)
+//        listState.scrollToItem(index)
+
+        // 1. 현재 화면에 보이는지 확인
+        val visibleItemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
+
+        val isFullyVisible = if (visibleItemInfo != null) {
+            // 2. 화면에 보이긴 하는데, 완전히 보이는지 (오른쪽 끝이 잘리지 않았는지) 확인
+            val viewportEnd = listState.layoutInfo.viewportEndOffset
+            val itemEnd = visibleItemInfo.offset + visibleItemInfo.size
+            itemEnd <= viewportEnd + 1 // (1.dp 정도의 오차 허용)
+        } else {
+            false
+        }
+
+        // 4. [수정] 아이템이 "완전히" 보이지 않을 때만 스크롤 실행
+        if (!isFullyVisible) {
+//            Log.d("searchbar", "width : $searchBarWidth")
+            listState.scrollToItem(index, searchBarWidth - 10) // TODO : modify this
+        } else {
+            bringIntoViewRequesters[id]?.bringIntoView()
+        }
 
 //        awaitFrame()
 
-        bringIntoViewRequesters[id]?.bringIntoView()
+//        bringIntoViewRequesters[id]?.bringIntoView()
 
 //        awaitFrame()
 
@@ -704,7 +726,11 @@ fun HomeScreen(navController: NavController) {
                 ) {
                     // [수정] ChipSearchBar 하나로 교체
                     ChipSearchBar(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .onSizeChanged { intSize ->
+                                searchBarWidth = intSize.width
+                            },
                         listState = listState,
                         isFocused = (focusedElementId != null),
                         hideCursor = hideCursor,
