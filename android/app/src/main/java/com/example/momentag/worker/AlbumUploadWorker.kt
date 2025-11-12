@@ -88,7 +88,10 @@ class AlbumUploadWorker(
         }
     }
 
-    private fun createNotification(text: String, ongoing: Boolean): Notification =
+    private fun createNotification(
+        text: String,
+        ongoing: Boolean,
+    ): Notification =
         NotificationCompat
             .Builder(applicationContext, CHANNEL_ID)
             .setContentTitle("MomenTag 앨범 업로드")
@@ -98,7 +101,12 @@ class AlbumUploadWorker(
             .setAutoCancel(!ongoing)
             .build()
 
-    private fun updateNotification(title: String, text: String, id: Int, ongoing: Boolean) {
+    private fun updateNotification(
+        title: String,
+        text: String,
+        id: Int,
+        ongoing: Boolean,
+    ) {
         val notification =
             NotificationCompat
                 .Builder(applicationContext, CHANNEL_ID)

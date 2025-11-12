@@ -91,7 +91,10 @@ class SelectedPhotoUploadWorker(
         }
     }
 
-    private fun createNotification(text: String, ongoing: Boolean): Notification =
+    private fun createNotification(
+        text: String,
+        ongoing: Boolean,
+    ): Notification =
         NotificationCompat
             .Builder(applicationContext, CHANNEL_ID)
             .setContentTitle("MomenTag 사진 업로드")
@@ -101,7 +104,12 @@ class SelectedPhotoUploadWorker(
             .setAutoCancel(!ongoing)
             .build()
 
-    private fun updateNotification(title: String, text: String, id: Int, ongoing: Boolean) {
+    private fun updateNotification(
+        title: String,
+        text: String,
+        id: Int,
+        ongoing: Boolean,
+    ) {
         val notification =
             NotificationCompat
                 .Builder(applicationContext, CHANNEL_ID)
@@ -144,14 +152,14 @@ class SelectedPhotoUploadWorker(
 
             if (success) {
                 albumUploadSuccessEvent.emit(0L)
-                updateNotification("업로드 완료", "앨범 업로드가 성공적으로 완료되었습니다.", RESULT_NOTIFICATION_ID,false)
+                updateNotification("업로드 완료", "앨범 업로드가 성공적으로 완료되었습니다.", RESULT_NOTIFICATION_ID, false)
                 return Result.success()
             } else {
-                updateNotification("업로드 실패", "일부 파일 업로드에 실패했습니다.", RESULT_NOTIFICATION_ID,false)
+                updateNotification("업로드 실패", "일부 파일 업로드에 실패했습니다.", RESULT_NOTIFICATION_ID, false)
                 return Result.failure()
             }
         } catch (e: Exception) {
-            updateNotification("업로드 오류", "알 수 없는 오류가 발생했습니다.", RESULT_NOTIFICATION_ID,false)
+            updateNotification("업로드 오류", "알 수 없는 오류가 발생했습니다.", RESULT_NOTIFICATION_ID, false)
             return Result.failure()
         } finally {
             albumUploadJobCount.update { it - 1 }
@@ -191,7 +199,7 @@ class SelectedPhotoUploadWorker(
             chunkCount++
             val progressText = "($chunkCount / $totalChunks) 묶음 업로드 중..."
             setProgress(workDataOf(KEY_PROGRESS to progressText))
-            updateNotification("앨범 업로드 중", progressText, NOTIFICATION_ID,true)
+            updateNotification("앨범 업로드 중", progressText, NOTIFICATION_ID, true)
 
             val uploadData = createUploadDataFromChunk(currentChunk)
             val response = remoteRepository.uploadPhotos(uploadData)
