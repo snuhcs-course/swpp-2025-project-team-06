@@ -364,9 +364,30 @@ private fun SearchChipView(
     }
 }
 
-
-// --- [기존 SearchBar.kt 코드] ---
-// (이 컴포넌트들은 다른 곳에서 아직 사용할 수 있으므로 남겨둡니다)
+@Composable
+fun SuggestionChip(
+    tag: TagItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                .clip(CircleShape)
+                .clickable { onClick() }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "#${tag.tagName}",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+    }
+}
 
 /**
  * 검색바 컴포넌트 (내부 상태 관리 버전)

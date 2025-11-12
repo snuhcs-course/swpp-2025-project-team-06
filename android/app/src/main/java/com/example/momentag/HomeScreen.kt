@@ -151,6 +151,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.SearchContentElement
+import com.example.momentag.ui.components.SuggestionChip
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
@@ -204,58 +205,26 @@ fun HomeScreen(navController: NavController) {
         allTags.associateBy { it.tagName.lowercase() }
     }
 
-    // 1. [신규] 모든 텍스트 필드의 UI 상태(TextFieldValue)를 저장하는 맵
     val textStates = remember { mutableStateMapOf<String, TextFieldValue>() }
-    // 2. [신규] 검색창의 구조(Chip/Text)를 정의하는 리스트
     val contentItems = remember { mutableStateListOf<SearchContentElement>() }
-    // 3. [신규] 현재 포커스된 Text 요소의 ID
     var focusedElementId by remember { mutableStateOf<String?>(null) }
-    // 4. [신규] 모든 텍스트 필드의 FocusRequester 맵
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
-    // 5. [신규] BringIntoViewRequester 맵
     val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
     var searchBarWidth by remember { mutableStateOf(0) }
-
     var ignoreFocusLoss by remember { mutableStateOf(false) }
-
-    // **[수정] 현재 포커스된 텍스트 필드의 값을 추적합니다.**
-    val currentFocusedTextState = textStates[focusedElementId]
 
     val currentFocusedElementId = rememberUpdatedState(focusedElementId)
     val currentFocusManager = rememberUpdatedState(focusManager)
 
-    // [수정] 1. Boolean 대신 키보드의 실제 높이(Px)를 추적합니다.
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
-    // [신규] 2. 이전 높이를 기억할 변수를 추가합니다.
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
 
-    /**
-     * [신규] 특정 ID의 텍스트 필드에 포커스를 요청하는 헬퍼 함수
-     */
     fun requestFocusById(id: String) {
         scope.launch {
             focusRequesters[id]?.requestFocus()
         }
     }
 
-    /**
-     * [신규] 현재 인덱스에서 가장 가까운 "이전" 텍스트 필드의 ID를 찾는 헬퍼 함수
-     */
-    fun findPreviousTextElementId(startIndex: Int): String? {
-        if (startIndex <= 0) return null
-        // 역순으로 탐색
-        for (i in (startIndex - 1) downTo 0) {
-            val item = contentItems.getOrNull(i)
-            if (item is SearchContentElement.Text) {
-                return item.id
-            }
-        }
-        return null // 못 찾으면 null
-    }
-
-    /**
-     * [신규] 현재 인덱스에서 가장 가까운 "다음" 텍스트 필드의 ID를 찾는 헬퍼 함수
-     */
     fun findNextTextElementId(startIndex: Int): String? {
         if (startIndex >= contentItems.size - 1) return null
         // 순방향 탐색
@@ -268,68 +237,47 @@ fun HomeScreen(navController: NavController) {
         return null
     }
 
-    // [신규] 3. 키보드가 사라졌을 때 포커스를 해제하는 LaunchedEffect
     LaunchedEffect(imeBottom) {
-        // [신규] 4. 높이가 감소하기 "시작"했는지 확인
-        // (현재 높이 < 이전 높이) 이고 (아직 닫히는 중, 0이 아님)
         val isClosing = imeBottom < previousImeBottom && imeBottom > 0
-
-        // [신규] 5. 높이가 0이 되어 "완료"되었는지 확인
         val isClosed = imeBottom == 0 && previousImeBottom > 0
 
-        // [수정] 2. 플래그가 false일 때만 포커스 해제
         if ((isClosing || isClosed) && currentFocusedElementId.value != null && !ignoreFocusLoss) {
             currentFocusManager.value.clearFocus()
         }
 
-        // [신규] 6. 현재 높이를 이전 높이로 갱신
         previousImeBottom = imeBottom
 
-        // [신규] 3. 키보드 상태가 안정화되면 플래그를 리셋 (안전 장치)
         if (imeBottom == previousImeBottom) {
             ignoreFocusLoss = false
         }
     }
 
-    // 5. [신규] 상태 초기화 로직 (처음 한 번만 실행)
     LaunchedEffect(Unit) {
         if (contentItems.isEmpty()) {
             val initialId = UUID.randomUUID().toString()
-            // 리스트에 Text 요소 추가
             contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
-            // UI 상태 추가
             textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
-            // 포커스 리퀘스터 추가
             focusRequesters[initialId] = FocusRequester()
             bringIntoViewRequesters[initialId] = BringIntoViewRequester()
-//            // 초기 포커스 설정
-//            focusedElementId = initialId
-//            // 실제 포커스 요청
-//            requestFocusById(initialId)
         }
     }
 
     var hideCursor by remember { mutableStateOf(false) }
 
     // TODO : prevent text after a tag chip from shifting left.
-    // focusedElementId가 변경될 때마다 포커스와 스크롤을 처리하는 Effect
     LaunchedEffect(focusedElementId) {
         hideCursor = true
         val id = focusedElementId ?: run {
-            // [신규] 5. ID가 null이 되면 (포커스가 해제되면) 플래그 리셋
             ignoreFocusLoss = false
             return@LaunchedEffect
         }
 
-        // FocusRequester가 등록될 때까지 기다림
         snapshotFlow { focusRequesters[id] }
             .filterNotNull()
             .first()
 
-        // UI가 새로 그려질 때까지 한 프레임 기다림 (중요!)
         awaitFrame()
 
-        // 새로 생성된 TextField 위치로 스크롤
         val index = contentItems.indexOfFirst { it.id == id }
 
         if (index == -1) {
@@ -337,13 +285,9 @@ fun HomeScreen(navController: NavController) {
             return@LaunchedEffect
         }
 
-//        listState.scrollToItem(index)
-
-        // 1. 현재 화면에 보이는지 확인
         val visibleItemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
 
         val isFullyVisible = if (visibleItemInfo != null) {
-            // 2. 화면에 보이긴 하는데, 완전히 보이는지 (오른쪽 끝이 잘리지 않았는지) 확인
             val viewportEnd = listState.layoutInfo.viewportEndOffset
             val itemEnd = visibleItemInfo.offset + visibleItemInfo.size
             itemEnd <= viewportEnd + 1 // (1.dp 정도의 오차 허용)
@@ -351,28 +295,18 @@ fun HomeScreen(navController: NavController) {
             false
         }
 
-        // 4. [수정] 아이템이 "완전히" 보이지 않을 때만 스크롤 실행
         if (!isFullyVisible) {
-//            Log.d("searchbar", "width : $searchBarWidth")
             listState.scrollToItem(index, searchBarWidth - 10) // TODO : modify this
         } else {
             bringIntoViewRequesters[id]?.bringIntoView()
         }
 
-//        awaitFrame()
-
-//        bringIntoViewRequesters[id]?.bringIntoView()
-
-//        awaitFrame()
-
-        // focus 요청 (이제 attach 완료 상태)
         focusRequesters[id]?.requestFocus()
 
         hideCursor = false
         ignoreFocusLoss = false
     }
 
-    // [수정됨] 태그 추천 로직 (현재 포커스된 필드 기준)
     val (isTagSearch, tagQuery) = remember(focusedElementId, textStates[focusedElementId]) {
         val currentInput = textStates[focusedElementId] ?: TextFieldValue()
 
@@ -380,7 +314,6 @@ fun HomeScreen(navController: NavController) {
         if (cursorPosition == 0) Pair(false, "")
         else {
             val textUpToCursor = currentInput.text.substring(0, cursorPosition)
-            // [수정] onClick과 동일한 로직을 사용 (이전 로직 버그 수정)
             val lastHashIndex = textUpToCursor.lastIndexOf('#')
 
             if (lastHashIndex == -1) {
@@ -397,18 +330,11 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    // [수정됨] 태그 추천 목록 필터링
     val tagSuggestions by remember(isTagSearch, tagQuery, allTags) {
         derivedStateOf {
             if (isTagSearch) {
-//                val currentChipTagIds = contentItems
-//                    .filterIsInstance<SearchContentElement.Chip>()
-//                    .map { it.tag.tagId }
-//                    .toSet()
-
                 allTags.filter {
                     it.tagName.contains(tagQuery, ignoreCase = true)
-//                            && it.tagId !in currentChipTagIds
                 }
             } else {
                 emptyList()
@@ -416,12 +342,10 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    // [수정됨] 검색 실행 로직
     val performSearch = {
         focusManager.clearFocus()
         val finalQuery = contentItems.joinToString(separator = "") {
             when (it) {
-                // [수정] Text 요소의 순수 text 값 사용
                 is SearchContentElement.Text -> it.text
                 is SearchContentElement.Chip -> "{${it.tag.tagName}}"
             }
@@ -431,16 +355,6 @@ fun HomeScreen(navController: NavController) {
             navController.navigate(Screen.SearchResult.createRoute(finalQuery))
         }
     }
-    // --- [검색창 상태 관리 끝] ---
-
-//    LaunchedEffect(contentItems.size) {
-//        focusRequester.requestFocus() // 칩 추가 시 키보드 유지
-//    }
-//
-//    // 자동 스크롤 유지
-//    LaunchedEffect(currentInput.text, contentItems.size) {
-//        listState.animateScrollToItem(listState.layoutInfo.totalItemsCount - 1) // 입력 따라가기
-//    }
 
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
@@ -765,13 +679,11 @@ fun HomeScreen(navController: NavController) {
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // --- [검색창 UI 수정됨] ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // [수정] ChipSearchBar 하나로 교체
                     ChipSearchBar(
                         modifier = Modifier
                             .weight(1f)
@@ -782,38 +694,30 @@ fun HomeScreen(navController: NavController) {
                         isFocused = (focusedElementId != null),
                         hideCursor = hideCursor,
 
-                        // 1. 상태 전달
                         contentItems = contentItems,
                         textStates = textStates,
                         focusRequesters = focusRequesters,
                         bringIntoViewRequesters = bringIntoViewRequesters,
 
-                        // 2. 검색 실행 로직 전달
                         onSearch = { performSearch() },
-                        // [수정] 3. 검색창 배경 클릭: 마지막 텍스트 ID로 'focusedElementId' 설정
                         onContainerClick = {
                             val lastTextElement = contentItems.lastOrNull { it is SearchContentElement.Text }
                             if (lastTextElement != null) {
-                                // [신규] 1. 포커스를 주기 전, 커서 위치를 맨 뒤로 설정
                                 val currentTfv = textStates[lastTextElement.id]
                                 if (currentTfv != null) {
                                     val end = currentTfv.text.length
                                     textStates[lastTextElement.id] = currentTfv.copy(selection = TextRange(end))
                                 }
-                                // [유지] 2. 포커스 ID 설정 (LaunchedEffect가 실행됨)
                                 focusedElementId = lastTextElement.id
                             }
                         },
-                        // [수정] 칩 클릭: 칩 뒤의 텍스트 ID로 'focusedElementId' 설정
                         onChipClick = { index ->
                             val nextTextId = findNextTextElementId(index)
                             if (nextTextId != null) {
-                                // [신규] 1. 포커스를 주기 전, 커서 위치를 맨 앞으로 설정 (ZWSP 뒤)
                                 val currentTfv = textStates[nextTextId]
                                 if (currentTfv != null) {
                                     textStates[nextTextId] = currentTfv.copy(selection = TextRange(1))
                                 }
-                                // [유지] 2. 포커스 ID 설정 (LaunchedEffect가 실행됨)
                                 focusedElementId = nextTextId
                             }
                         },
@@ -824,38 +728,35 @@ fun HomeScreen(navController: NavController) {
                             focusedElementId = id
                         },
                         onTextChange = { id, newValue ->
-                            // [수정] 스크롤 로직은 그대로 둠
                             scope.launch {
                                 bringIntoViewRequesters[id]?.bringIntoView()
                             }
 
-                            val oldValue = textStates[id] ?: TextFieldValue() // 이전 TextFieldValue
+                            val oldValue = textStates[id] ?: TextFieldValue()
                             val oldText = oldValue.text
                             val newText = newValue.text
 
-                            // [신규] 2. 한글 등 IME 조합 중인지 확인
+                            // 한글 등 IME 조합 중인지 확인
                             val isComposing = newValue.composition != null
 
-                            // [신규] 3. 조합 중일 때는 UI 상태만 업데이트하고,
-                            // ZWSP/백스페이스/데이터 동기화 로직은 실행하지 않음
+                            // 조합 중일 때는 UI 상태만 업데이트
                             if (isComposing) {
                                 textStates[id] = newValue // UI만 갱신
                                 return@ChipSearchBar
                             }
 
-                            // [수정] ZWSP가 삭제되었는지(커서가 1이었는지) 감지
+                            // ZWSP가 삭제되었는지(커서가 1이었는지) 감지
                             val didBackspaceAtStart = oldText.startsWith("\u200B") &&
                                     !newText.startsWith("\u200B") &&
                                     oldValue.selection.start == 1
 
                             if (didBackspaceAtStart) {
-                                // --- 백스페이스 로직 (병합 기능 추가) ---
                                 val currentIndex = contentItems.indexOfFirst { it.id == id }
                                 val currentItem =
                                     contentItems[currentIndex] as SearchContentElement.Text
 
-                                if (currentIndex <= 0) { // 첫 번째 요소
-                                    textStates[id] = TextFieldValue("\u200B", TextRange(1)) // 리셋
+                                if (currentIndex <= 0) {
+                                    textStates[id] = TextFieldValue("\u200B", TextRange(1))
                                     return@ChipSearchBar
                                 }
 
@@ -924,7 +825,7 @@ fun HomeScreen(navController: NavController) {
                                 return@ChipSearchBar
                             }
 
-                            // --- ZWSP 및 커서 위치 강제 로직 ---
+                            // ZWSP 및 커서 위치 강제 로직
                             val (text, selection) = if (newText.startsWith("\u200B")) {
                                 Pair(newText, newValue.selection)
                             } else {
@@ -937,7 +838,7 @@ fun HomeScreen(navController: NavController) {
                             }
                             val finalValue = TextFieldValue(text, finalSelection)
 
-                            // --- 상태 동기화 로직 ---
+                            // 상태 동기화 로직
                             textStates[id] = finalValue
                             val currentItemIndex = contentItems.indexOfFirst { it.id == id }
                             if (currentItemIndex != -1) {
@@ -975,10 +876,10 @@ fun HomeScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
-                            .clickable( // [신규] 1. 이 클릭 리스너가
+                            .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = { } // 2. 탭 이벤트를 "소비"하여 배경으로 전파되는 것을 막음
+                                onClick = { }
                             ),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -989,7 +890,6 @@ fun HomeScreen(navController: NavController) {
                                     ignoreFocusLoss = true
                                     Log.d("focuss", "onClick sugg chip")
 
-                                    // [신규] 텍스트 필드 분할 로직
                                     if (focusedElementId == null) return@SuggestionChip
 
                                     val currentId = focusedElementId!!
@@ -1028,7 +928,7 @@ fun HomeScreen(navController: NavController) {
 
                                         Log.d("focuss", "onClick sugg chip")
 
-                                        // 6. [수정] "포커스 의도"만 상태에 반영
+                                        // 6. "포커스 의도"만 상태에 반영
                                         focusedElementId = newTextId
                                     }
                                 },
@@ -1036,7 +936,6 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 }
-                // --- [검색창 UI 수정 끝] ---
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -1045,7 +944,6 @@ fun HomeScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // (기존 로직 유지)
                     if (!showAllPhotos) {
                         IconButton(onClick = { scope.launch { sheetState.show() } }) {
                             Icon(
@@ -1073,7 +971,6 @@ fun HomeScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // --- [이하 모든 UI 로직은 기존과 동일] ---
                 if (!hasPermission) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
@@ -1095,11 +992,11 @@ fun HomeScreen(navController: NavController) {
                         modifier = Modifier.weight(1f),
                         onlyTag = onlyTag, // Pass the actual state
                         showAllPhotos = showAllPhotos, // Pass the actual state
-                        tagItems = allTags, // [수정] allTags 전달 (이미 로드됨)
+                        tagItems = allTags, // allTags 전달 (이미 로드됨)
                         groupedPhotos = groupedPhotos,
                         navController = navController,
                         onDeleteClick = { tagId ->
-                            // [수정] 삭제 확인 대화상자 띄우기
+                            // 삭제 확인 대화상자 띄우기
                             val tagItem = allTags.find { it.tagId == tagId }
                             if (tagItem != null) {
                                 tagToDeleteInfo = Pair(tagItem.tagId, tagItem.tagName)
@@ -1838,30 +1735,5 @@ private fun SortOptionItem(
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
-    }
-}
-
-@Composable
-private fun SuggestionChip(
-    tag: TagItem,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier =
-            modifier
-                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
-                .clip(CircleShape)
-                .clickable { onClick() }
-                .padding(horizontal = 10.dp, vertical = 6.dp), // SearchChipView와 유사한 패딩
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            text = "#${tag.tagName}",
-            fontSize = 15.sp, // SearchChipView와 유사한 폰트 크기
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-        )
     }
 }
