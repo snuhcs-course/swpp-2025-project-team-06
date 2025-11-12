@@ -485,68 +485,59 @@ fun ImageDetailScreen(
             }
         },
         topBar = {
-            BackTopBar(
-                title = "MomenTag",
-                onBackClick = onNavigateBack,
-            )
+            if (!isFocusMode) {
+                BackTopBar(
+                    title = "MomenTag",
+                    onBackClick = onNavigateBack,
+                )
+            }
         },
     ) { paddingValues ->
         Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues) // Apply padding to the whole content area
         ) {
+            // Main content column (visible when not in focus mode)
             Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize(),
+                modifier = Modifier.fillMaxSize()
             ) {
-                if (dateTime != null) {
-                    val datePart = dateTime!!.split(" ")[0]
-                    val formattedDate = datePart.replace(":", ".")
-                    Text(
-                        text = formattedDate,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth() // 가로로 꽉 채우기
+                if (!isFocusMode) {
+                    if (dateTime != null) {
+                        val datePart = dateTime!!.split(" ")[0]
+                        val formattedDate = datePart.replace(":", ".")
+                        Text(
+                            text = formattedDate,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .fillMaxWidth()
                                 .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
-                        // 여백
-                        textAlign = TextAlign.Left,
-                    )
-                }
+                            textAlign = TextAlign.Left,
+                        )
+                    }
 
-                val address = photoAddress
-
-                // 주소를 가져올 수 없는 경우 주소 자리를 아예 표시하지 않음
-                if (!address.isNullOrBlank()) {
-                    Text(
-                        text = address,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.headlineLarge,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth() // 가로로 꽉 채우기
+                    val address = photoAddress
+                    if (!address.isNullOrBlank()) {
+                        Text(
+                            text = address,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.headlineLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
                                 .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
-                        // 여백
-                        textAlign = TextAlign.Left,
-                    )
+                            textAlign = TextAlign.Left,
+                        )
+                    }
                 }
 
-                // 1. 이미지가 표시될 영역 (나머지 공간 전체를 차지)
+                // Image display area
                 Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .clipToBounds(),
+                    modifier = if (isFocusMode) Modifier.fillMaxSize() else Modifier.weight(1f).clipToBounds(),
                 ) {
-                    // HorizontalPager로 이미지 스와이프 기능 구현
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
-                        // 줌 상태가 아닐 때만(= isZoomed가 false일 때만) 스와이프를 허용
                         userScrollEnabled = !isZoomed,
                     ) { page ->
                         val photo = photos.getOrNull(page)
@@ -564,45 +555,45 @@ fun ImageDetailScreen(
                     }
                 }
 
-                // 2. 태그가 표시될 새로운 영역
-                if (isError) {
-                    Spacer(modifier = Modifier.fillMaxWidth().height(48.dp))
-                } else {
-                    TagsSection(
-                        modifier =
-                            Modifier
-                                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
-                        existingTags = existingTags,
-                        recommendedTags = recommendedTags,
-                        isExistingTagsLoading = isExistingLoading,
-                        isRecommendedTagsLoading = isRecommendedLoading,
-                        isDeleteMode = isDeleteMode,
-                        onEnterDeleteMode = { isDeleteMode = true },
-                        onExitDeleteMode = { isDeleteMode = false },
-                        onDeleteClick = { tagId ->
-                            val currentPhotoId =
-                                currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                            if (currentPhotoId.isNotEmpty()) {
-                                imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
-                            } else {
-                                warningBannerMessage = "No photo to delete tag from."
-                                showWarningBanner = true
-                            }
-                        },
-                        onAddTag = { tagName ->
-                            val currentPhotoId =
-                                currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                            if (currentPhotoId.isNotEmpty()) {
-                                imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
-                            } else {
-                                warningBannerMessage = "No photo to add tag to."
-                                showWarningBanner = true
-                            }
-                        },
-                        snackbarHostState = snackbarHostState,
-                    )
+                // Tags section
+                if (!isFocusMode) {
+                    if (isError) {
+                        Spacer(modifier = Modifier.fillMaxWidth().height(48.dp))
+                    } else {
+                        TagsSection(
+                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
+                            existingTags = existingTags,
+                            recommendedTags = recommendedTags,
+                            isExistingTagsLoading = isExistingLoading,
+                            isRecommendedTagsLoading = isRecommendedLoading,
+                            isDeleteMode = isDeleteMode,
+                            onEnterDeleteMode = { isDeleteMode = true },
+                            onExitDeleteMode = { isDeleteMode = false },
+                            onDeleteClick = { tagId ->
+                                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                                if (currentPhotoId.isNotEmpty()) {
+                                    imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
+                                } else {
+                                    warningBannerMessage = "No photo to delete tag from."
+                                    showWarningBanner = true
+                                }
+                            },
+                            onAddTag = { tagName ->
+                                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                                if (currentPhotoId.isNotEmpty()) {
+                                    imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
+                                } else {
+                                    warningBannerMessage = "No photo to add tag to."
+                                    showWarningBanner = true
+                                }
+                            },
+                            snackbarHostState = snackbarHostState,
+                        )
+                    }
                 }
             }
+
+            // WarningBanner always at the bottom of the main content Box
             if (showWarningBanner) {
                 WarningBanner(
                     title = "Error",
@@ -611,10 +602,9 @@ fun ImageDetailScreen(
                     showActionButton = false,
                     onDismiss = { showWarningBanner = false },
                     showDismissButton = true,
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(16.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
                 )
             }
         }
