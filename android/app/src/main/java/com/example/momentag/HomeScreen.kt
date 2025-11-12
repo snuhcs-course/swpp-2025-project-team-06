@@ -216,11 +216,18 @@ fun HomeScreen(navController: NavController) {
     val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
     var searchBarWidth by remember { mutableStateOf(0) }
 
+    var ignoreFocusLoss by remember { mutableStateOf(false) }
+
     // **[수정] 현재 포커스된 텍스트 필드의 값을 추적합니다.**
     val currentFocusedTextState = textStates[focusedElementId]
 
-    val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0 // 1. 키보드 가시성 확인
-    val currentFocusedElementId = rememberUpdatedState(focusedElementId) // 2. 최신 ID 추적
+    val currentFocusedElementId = rememberUpdatedState(focusedElementId)
+    val currentFocusManager = rememberUpdatedState(focusManager)
+
+    // [수정] 1. Boolean 대신 키보드의 실제 높이(Px)를 추적합니다.
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    // [신규] 2. 이전 높이를 기억할 변수를 추가합니다.
+    var previousImeBottom by remember { mutableStateOf(imeBottom) }
 
     /**
      * [신규] 특정 ID의 텍스트 필드에 포커스를 요청하는 헬퍼 함수
@@ -262,10 +269,25 @@ fun HomeScreen(navController: NavController) {
     }
 
     // [신규] 3. 키보드가 사라졌을 때 포커스를 해제하는 LaunchedEffect
-    LaunchedEffect(isKeyboardVisible) {
-        if (!isKeyboardVisible && currentFocusedElementId.value != null) {
-            // 키보드가 닫혔는데, 여전히 포커스가 있다고 생각되면
-            focusManager.clearFocus() // 포커스를 강제 해제 (onFocus(null)이 호출됨)
+    LaunchedEffect(imeBottom) {
+        // [신규] 4. 높이가 감소하기 "시작"했는지 확인
+        // (현재 높이 < 이전 높이) 이고 (아직 닫히는 중, 0이 아님)
+        val isClosing = imeBottom < previousImeBottom && imeBottom > 0
+
+        // [신규] 5. 높이가 0이 되어 "완료"되었는지 확인
+        val isClosed = imeBottom == 0 && previousImeBottom > 0
+
+        // [수정] 2. 플래그가 false일 때만 포커스 해제
+        if ((isClosing || isClosed) && currentFocusedElementId.value != null && !ignoreFocusLoss) {
+            currentFocusManager.value.clearFocus()
+        }
+
+        // [신규] 6. 현재 높이를 이전 높이로 갱신
+        previousImeBottom = imeBottom
+
+        // [신규] 3. 키보드 상태가 안정화되면 플래그를 리셋 (안전 장치)
+        if (imeBottom == previousImeBottom) {
+            ignoreFocusLoss = false
         }
     }
 
@@ -293,7 +315,11 @@ fun HomeScreen(navController: NavController) {
     // focusedElementId가 변경될 때마다 포커스와 스크롤을 처리하는 Effect
     LaunchedEffect(focusedElementId) {
         hideCursor = true
-        val id = focusedElementId ?: return@LaunchedEffect
+        val id = focusedElementId ?: run {
+            // [신규] 5. ID가 null이 되면 (포커스가 해제되면) 플래그 리셋
+            ignoreFocusLoss = false
+            return@LaunchedEffect
+        }
 
         // FocusRequester가 등록될 때까지 기다림
         snapshotFlow { focusRequesters[id] }
@@ -343,6 +369,7 @@ fun HomeScreen(navController: NavController) {
         focusRequesters[id]?.requestFocus()
 
         hideCursor = false
+        ignoreFocusLoss = false
     }
 
     // [수정됨] 태그 추천 로직 (현재 포커스된 필드 기준)
@@ -396,7 +423,7 @@ fun HomeScreen(navController: NavController) {
             when (it) {
                 // [수정] Text 요소의 순수 text 값 사용
                 is SearchContentElement.Text -> it.text
-                is SearchContentElement.Chip -> "{${it.tag.tagName}} "
+                is SearchContentElement.Chip -> "{${it.tag.tagName}}"
             }
         }.trim().replace(Regex("\\s+"), " ")
 
@@ -791,6 +818,9 @@ fun HomeScreen(navController: NavController) {
                             }
                         },
                         onFocus = { id ->
+                            if (id == null && ignoreFocusLoss) {
+                                return@ChipSearchBar
+                            }
                             focusedElementId = id
                         },
                         onTextChange = { id, newValue ->
@@ -956,6 +986,9 @@ fun HomeScreen(navController: NavController) {
                             SuggestionChip(
                                 tag = tag,
                                 onClick = {
+                                    ignoreFocusLoss = true
+                                    Log.d("focuss", "onClick sugg chip")
+
                                     // [신규] 텍스트 필드 분할 로직
                                     if (focusedElementId == null) return@SuggestionChip
 
@@ -992,6 +1025,8 @@ fun HomeScreen(navController: NavController) {
                                         textStates[newTextId] = TextFieldValue("\u200B" + succeedingText, TextRange(1))
                                         focusRequesters[newTextId] = FocusRequester()
                                         bringIntoViewRequesters[newTextId] = BringIntoViewRequester()
+
+                                        Log.d("focuss", "onClick sugg chip")
 
                                         // 6. [수정] "포커스 의도"만 상태에 반영
                                         focusedElementId = newTextId
