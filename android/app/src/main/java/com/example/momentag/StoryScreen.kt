@@ -31,9 +31,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -384,7 +382,6 @@ private fun StoryPageFullBlock(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp),
         ) {
             Spacer(modifier = Modifier.height(12.dp))
@@ -799,7 +796,6 @@ private fun StoryPageFullBlockPreviewContent(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp),
         ) {
             Text(
