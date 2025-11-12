@@ -100,7 +100,7 @@ fun ChipSearchBar(
     onContainerClick: () -> Unit,
     onChipClick: (Int) -> Unit,
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
-    onFocus: (id: String) -> Unit,
+    onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
     placeholder: String = "검색 또는 #태그 입력"
 ) {
@@ -119,7 +119,7 @@ fun ChipSearchBar(
         colors.unfocusedContainerColor
     }
 
-// [수정] Row가 기존 SearchBar(TextField)의 모양을 흉내 냄
+    // [수정] Row가 기존 SearchBar(TextField)의 모양을 흉내 냄
     Row(
         modifier = modifier // HomeScreen에서 (Modifier.weight(1f))가 적용될 것임
             .heightIn(min = 48.dp) // TextField의 최소 높이와 맞춤
@@ -127,6 +127,10 @@ fun ChipSearchBar(
                 color = containerColor,
                 shape = RoundedCornerShape(24.dp) // [수정] 기존 SearchBar의 둥근 모서리
             )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onContainerClick() } // 컨테이너(배경) 클릭을 상위로 전달
             .padding(horizontal = 16.dp), // [수정] TextField의 아이콘 패딩과 맞춤
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -175,7 +179,7 @@ private fun InternalChipSearchInput(
     onContainerClick: () -> Unit,
     onChipClick: (Int) -> Unit,
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
-    onFocus: (id: String) -> Unit,
+    onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
     placeholder: String
 ) {
@@ -297,6 +301,8 @@ private fun InternalChipSearchInput(
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
                                     onFocus(item.id)
+                                } else {
+                                    onFocus(null) // [수정] 포커스를 잃으면 null 전달
                                 }
                             }
                             .padding(horizontal = 4.dp, vertical = 8.dp),
@@ -340,7 +346,11 @@ private fun SearchChipView(
             modifier
                 .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
                 .clip(CircleShape)
-                .clickable { onClick() }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { onClick() }
+                )
                 .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),

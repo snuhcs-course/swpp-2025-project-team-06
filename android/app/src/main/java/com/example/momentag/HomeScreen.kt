@@ -137,9 +137,12 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import android.util.Log
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.rememberUpdatedState
 import java.util.UUID
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.onSizeChanged
@@ -216,6 +219,9 @@ fun HomeScreen(navController: NavController) {
     // **[수정] 현재 포커스된 텍스트 필드의 값을 추적합니다.**
     val currentFocusedTextState = textStates[focusedElementId]
 
+    val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0 // 1. 키보드 가시성 확인
+    val currentFocusedElementId = rememberUpdatedState(focusedElementId) // 2. 최신 ID 추적
+
     /**
      * [신규] 특정 ID의 텍스트 필드에 포커스를 요청하는 헬퍼 함수
      */
@@ -255,6 +261,14 @@ fun HomeScreen(navController: NavController) {
         return null
     }
 
+    // [신규] 3. 키보드가 사라졌을 때 포커스를 해제하는 LaunchedEffect
+    LaunchedEffect(isKeyboardVisible) {
+        if (!isKeyboardVisible && currentFocusedElementId.value != null) {
+            // 키보드가 닫혔는데, 여전히 포커스가 있다고 생각되면
+            focusManager.clearFocus() // 포커스를 강제 해제 (onFocus(null)이 호출됨)
+        }
+    }
+
     // 5. [신규] 상태 초기화 로직 (처음 한 번만 실행)
     LaunchedEffect(Unit) {
         if (contentItems.isEmpty()) {
@@ -266,10 +280,10 @@ fun HomeScreen(navController: NavController) {
             // 포커스 리퀘스터 추가
             focusRequesters[initialId] = FocusRequester()
             bringIntoViewRequesters[initialId] = BringIntoViewRequester()
-            // 초기 포커스 설정
-            focusedElementId = initialId
-            // 실제 포커스 요청
-            requestFocusById(initialId)
+//            // 초기 포커스 설정
+//            focusedElementId = initialId
+//            // 실제 포커스 요청
+//            requestFocusById(initialId)
         }
     }
 
@@ -714,7 +728,13 @@ fun HomeScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            focusManager.clearFocus() // 키보드를 내리고 모든 포커스 해제
+                        },
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -743,18 +763,31 @@ fun HomeScreen(navController: NavController) {
 
                         // 2. 검색 실행 로직 전달
                         onSearch = { performSearch() },
-
-                        // 3. 모든 이벤트 핸들러 전달
+                        // [수정] 3. 검색창 배경 클릭: 마지막 텍스트 ID로 'focusedElementId' 설정
                         onContainerClick = {
                             val lastTextElement = contentItems.lastOrNull { it is SearchContentElement.Text }
                             if (lastTextElement != null) {
-                                requestFocusById(lastTextElement.id)
+                                // [신규] 1. 포커스를 주기 전, 커서 위치를 맨 뒤로 설정
+                                val currentTfv = textStates[lastTextElement.id]
+                                if (currentTfv != null) {
+                                    val end = currentTfv.text.length
+                                    textStates[lastTextElement.id] = currentTfv.copy(selection = TextRange(end))
+                                }
+                                // [유지] 2. 포커스 ID 설정 (LaunchedEffect가 실행됨)
+                                focusedElementId = lastTextElement.id
                             }
                         },
+                        // [수정] 칩 클릭: 칩 뒤의 텍스트 ID로 'focusedElementId' 설정
                         onChipClick = { index ->
                             val nextTextId = findNextTextElementId(index)
                             if (nextTextId != null) {
-                                requestFocusById(nextTextId)
+                                // [신규] 1. 포커스를 주기 전, 커서 위치를 맨 앞으로 설정 (ZWSP 뒤)
+                                val currentTfv = textStates[nextTextId]
+                                if (currentTfv != null) {
+                                    textStates[nextTextId] = currentTfv.copy(selection = TextRange(1))
+                                }
+                                // [유지] 2. 포커스 ID 설정 (LaunchedEffect가 실행됨)
+                                focusedElementId = nextTextId
                             }
                         },
                         onFocus = { id ->
@@ -911,7 +944,12 @@ fun HomeScreen(navController: NavController) {
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 8.dp)
+                            .clickable( // [신규] 1. 이 클릭 리스너가
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { } // 2. 탭 이벤트를 "소비"하여 배경으로 전파되는 것을 막음
+                            ),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(tagSuggestions, key = { it.tagId }) { tag ->
