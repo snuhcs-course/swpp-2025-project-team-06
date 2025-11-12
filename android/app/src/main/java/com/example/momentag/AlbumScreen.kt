@@ -399,7 +399,10 @@ fun AlbumScreen(
                                     .weight(1f)
                                     .padding(end = 8.dp)
                                     .onFocusChanged { isFocused = it.isFocused },
-                            textStyle = MaterialTheme.typography.displayMedium,
+                            textStyle =
+                                MaterialTheme.typography.displayMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                ),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { submitAndClearFocus() }),
                             singleLine = true,
