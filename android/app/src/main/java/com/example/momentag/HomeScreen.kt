@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -16,6 +17,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,13 +33,12 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -46,12 +47,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -61,9 +60,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -88,9 +87,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -98,12 +99,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
@@ -122,8 +123,11 @@ import com.example.momentag.model.LogoutState
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
+import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
+import com.example.momentag.ui.components.SearchContentElement
+import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.AuthViewModel
@@ -133,30 +137,15 @@ import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
-import android.util.Log
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.rememberUpdatedState
-import java.util.UUID
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
-import com.example.momentag.ui.components.ChipSearchBar
-import com.example.momentag.ui.components.SearchContentElement
-import com.example.momentag.ui.components.SuggestionChip
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -201,9 +190,10 @@ fun HomeScreen(navController: NavController) {
     // HomeViewModel에서 로드된 전체 태그 목록 가져오기
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
     // 빠른 조회를 위한 태그 맵 (소문자 키)
-    val allTagsMap = remember(allTags) {
-        allTags.associateBy { it.tagName.lowercase() }
-    }
+    val allTagsMap =
+        remember(allTags) {
+            allTags.associateBy { it.tagName.lowercase() }
+        }
 
     val textStates = remember { mutableStateMapOf<String, TextFieldValue>() }
     val contentItems = remember { mutableStateListOf<SearchContentElement>() }
@@ -267,10 +257,11 @@ fun HomeScreen(navController: NavController) {
     // TODO : prevent text after a tag chip from shifting left.
     LaunchedEffect(focusedElementId) {
         hideCursor = true
-        val id = focusedElementId ?: run {
-            ignoreFocusLoss = false
-            return@LaunchedEffect
-        }
+        val id =
+            focusedElementId ?: run {
+                ignoreFocusLoss = false
+                return@LaunchedEffect
+            }
 
         snapshotFlow { focusRequesters[id] }
             .filterNotNull()
@@ -287,13 +278,14 @@ fun HomeScreen(navController: NavController) {
 
         val visibleItemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
 
-        val isFullyVisible = if (visibleItemInfo != null) {
-            val viewportEnd = listState.layoutInfo.viewportEndOffset
-            val itemEnd = visibleItemInfo.offset + visibleItemInfo.size
-            itemEnd <= viewportEnd + 1 // (1.dp 정도의 오차 허용)
-        } else {
-            false
-        }
+        val isFullyVisible =
+            if (visibleItemInfo != null) {
+                val viewportEnd = listState.layoutInfo.viewportEndOffset
+                val itemEnd = visibleItemInfo.offset + visibleItemInfo.size
+                itemEnd <= viewportEnd + 1 // (1.dp 정도의 오차 허용)
+            } else {
+                false
+            }
 
         if (!isFullyVisible) {
             listState.scrollToItem(index, searchBarWidth - 10) // TODO : modify this
@@ -307,28 +299,30 @@ fun HomeScreen(navController: NavController) {
         ignoreFocusLoss = false
     }
 
-    val (isTagSearch, tagQuery) = remember(focusedElementId, textStates[focusedElementId]) {
-        val currentInput = textStates[focusedElementId] ?: TextFieldValue()
+    val (isTagSearch, tagQuery) =
+        remember(focusedElementId, textStates[focusedElementId]) {
+            val currentInput = textStates[focusedElementId] ?: TextFieldValue()
 
-        val cursorPosition = currentInput.selection.start
-        if (cursorPosition == 0) Pair(false, "")
-        else {
-            val textUpToCursor = currentInput.text.substring(0, cursorPosition)
-            val lastHashIndex = textUpToCursor.lastIndexOf('#')
-
-            if (lastHashIndex == -1) {
-                Pair(false, "") // '#' 없음
+            val cursorPosition = currentInput.selection.start
+            if (cursorPosition == 0) {
+                Pair(false, "")
             } else {
-                // '#' 뒤에 띄어쓰기가 있는지 확인
-                val potentialTag = textUpToCursor.substring(lastHashIndex)
-                if (" " in potentialTag) {
-                    Pair(false, "") // '#' 뒤에 띄어쓰기 있음
+                val textUpToCursor = currentInput.text.substring(0, cursorPosition)
+                val lastHashIndex = textUpToCursor.lastIndexOf('#')
+
+                if (lastHashIndex == -1) {
+                    Pair(false, "") // '#' 없음
                 } else {
-                    Pair(true, potentialTag.substring(1)) // '#abc' -> "abc"
+                    // '#' 뒤에 띄어쓰기가 있는지 확인
+                    val potentialTag = textUpToCursor.substring(lastHashIndex)
+                    if (" " in potentialTag) {
+                        Pair(false, "") // '#' 뒤에 띄어쓰기 있음
+                    } else {
+                        Pair(true, potentialTag.substring(1)) // '#abc' -> "abc"
+                    }
                 }
             }
         }
-    }
 
     val tagSuggestions by remember(isTagSearch, tagQuery, allTags) {
         derivedStateOf {
@@ -344,12 +338,15 @@ fun HomeScreen(navController: NavController) {
 
     val performSearch = {
         focusManager.clearFocus()
-        val finalQuery = contentItems.joinToString(separator = "") {
-            when (it) {
-                is SearchContentElement.Text -> it.text
-                is SearchContentElement.Chip -> "{${it.tag.tagName}}"
-            }
-        }.trim().replace(Regex("\\s+"), " ")
+        val finalQuery =
+            contentItems
+                .joinToString(separator = "") {
+                    when (it) {
+                        is SearchContentElement.Text -> it.text
+                        is SearchContentElement.Chip -> "{${it.tag.tagName}}"
+                    }
+                }.trim()
+                .replace(Regex("\\s+"), " ")
 
         if (finalQuery.isNotEmpty()) {
             navController.navigate(Screen.SearchResult.createRoute(finalQuery))
@@ -595,8 +592,7 @@ fun HomeScreen(navController: NavController) {
                                     .background(
                                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                         RoundedCornerShape(20.dp),
-                                    )
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    ).padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
                 },
@@ -652,7 +648,9 @@ fun HomeScreen(navController: NavController) {
         },
     ) { paddingValues ->
         PullToRefreshBox(
-            isRefreshing = (homeLoadingState is HomeViewModel.HomeLoadingState.Loading && groupedPhotos.isEmpty()) || (isLoadingPhotos && groupedPhotos.isEmpty()),
+            isRefreshing =
+                (homeLoadingState is HomeViewModel.HomeLoadingState.Loading && groupedPhotos.isEmpty()) ||
+                    (isLoadingPhotos && groupedPhotos.isEmpty()),
             onRefresh = {
                 if (hasPermission) {
                     isDeleteMode = false
@@ -672,7 +670,7 @@ fun HomeScreen(navController: NavController) {
                         .padding(horizontal = 16.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = null
+                            indication = null,
                         ) {
                             focusManager.clearFocus() // 키보드를 내리고 모든 포커스 해제
                         },
@@ -685,20 +683,19 @@ fun HomeScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ChipSearchBar(
-                        modifier = Modifier
-                            .weight(1f)
-                            .onSizeChanged { intSize ->
-                                searchBarWidth = intSize.width
-                            },
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .onSizeChanged { intSize ->
+                                    searchBarWidth = intSize.width
+                                },
                         listState = listState,
                         isFocused = (focusedElementId != null),
                         hideCursor = hideCursor,
-
                         contentItems = contentItems,
                         textStates = textStates,
                         focusRequesters = focusRequesters,
                         bringIntoViewRequesters = bringIntoViewRequesters,
-
                         onSearch = { performSearch() },
                         onContainerClick = {
                             val lastTextElement = contentItems.lastOrNull { it is SearchContentElement.Text }
@@ -746,7 +743,8 @@ fun HomeScreen(navController: NavController) {
                             }
 
                             // ZWSP가 삭제되었는지(커서가 1이었는지) 감지
-                            val didBackspaceAtStart = oldText.startsWith("\u200B") &&
+                            val didBackspaceAtStart =
+                                oldText.startsWith("\u200B") &&
                                     !newText.startsWith("\u200B") &&
                                     oldValue.selection.start == 1
 
@@ -782,25 +780,24 @@ fun HomeScreen(navController: NavController) {
 
                                         // TextA(index-2) 업데이트
                                         contentItems[prevPrevIndex] = textA.copy(text = mergedText)
-                                        val newTfv = TextFieldValue(
-                                            "\u200B" + mergedText,
-                                            TextRange(textA.text.length + 1)
-                                        )
+                                        val newTfv =
+                                            TextFieldValue(
+                                                "\u200B" + mergedText,
+                                                TextRange(textA.text.length + 1),
+                                            )
                                         textStates[textA.id] = newTfv
 
                                         // TextA로 포커스 이동
                                         requestFocusById(textA.id)
-                                    }
-                                    // 1a-2. [ChipA] [ChipB] [TextC] 또는 [Start] [ChipB] [TextC] -> [ChipA] [TextC]
-                                    else {
+                                    } else {
+                                        // 1a-2. [ChipA] [ChipB] [TextC] 또는 [Start] [ChipB] [TextC] -> [ChipA] [TextC]
                                         // ChipB(index-1)만 제거 (TextC는 남김)
                                         contentItems.removeAt(currentIndex - 1)
                                         // TextC로 포커스 유지 (ID는 동일)
                                         requestFocusById(id)
                                     }
-                                }
-                                // 1b. 바로 앞이 텍스트인 경우 (e.g., [TextA] [TextC(현재)])
-                                else if (prevItem is SearchContentElement.Text) {
+                                } else if (prevItem is SearchContentElement.Text) {
+                                    // 1b. 바로 앞이 텍스트인 경우 (e.g., [TextA] [TextC(현재)])
                                     val textA = prevItem
                                     val textC = currentItem
                                     val mergedText = textA.text + textC.text
@@ -813,10 +810,11 @@ fun HomeScreen(navController: NavController) {
 
                                     // TextA(index-1) 업데이트
                                     contentItems[currentIndex - 1] = textA.copy(text = mergedText)
-                                    val newTfv = TextFieldValue(
-                                        "\u200B" + mergedText,
-                                        TextRange(textA.text.length + 1)
-                                    )
+                                    val newTfv =
+                                        TextFieldValue(
+                                            "\u200B" + mergedText,
+                                            TextRange(textA.text.length + 1),
+                                        )
                                     textStates[textA.id] = newTfv
 
                                     // TextA로 포커스 이동
@@ -826,27 +824,30 @@ fun HomeScreen(navController: NavController) {
                             }
 
                             // ZWSP 및 커서 위치 강제 로직
-                            val (text, selection) = if (newText.startsWith("\u200B")) {
-                                Pair(newText, newValue.selection)
-                            } else {
-                                Pair("\u200B$newText", TextRange(newValue.selection.start + 1, newValue.selection.end + 1))
-                            }
-                            val finalSelection = if (selection.start == 0 && selection.end == 0) {
-                                TextRange(1)
-                            } else {
-                                selection
-                            }
+                            val (text, selection) =
+                                if (newText.startsWith("\u200B")) {
+                                    Pair(newText, newValue.selection)
+                                } else {
+                                    Pair("\u200B$newText", TextRange(newValue.selection.start + 1, newValue.selection.end + 1))
+                                }
+                            val finalSelection =
+                                if (selection.start == 0 && selection.end == 0) {
+                                    TextRange(1)
+                                } else {
+                                    selection
+                                }
                             val finalValue = TextFieldValue(text, finalSelection)
 
                             // 상태 동기화 로직
                             textStates[id] = finalValue
                             val currentItemIndex = contentItems.indexOfFirst { it.id == id }
                             if (currentItemIndex != -1) {
-                                contentItems[currentItemIndex] = (contentItems[currentItemIndex] as SearchContentElement.Text).copy(
-                                    text = text.removePrefix("\u200B")
-                                )
+                                contentItems[currentItemIndex] =
+                                    (contentItems[currentItemIndex] as SearchContentElement.Text).copy(
+                                        text = text.removePrefix("\u200B"),
+                                    )
                             }
-                        }
+                        },
                     )
 
                     IconButton(
@@ -873,14 +874,15 @@ fun HomeScreen(navController: NavController) {
                 // [수정됨] 태그 추천 목록 (LazyRow)
                 if (tagSuggestions.isNotEmpty()) {
                     LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { }
-                            ),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { },
+                                ),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(tagSuggestions, key = { it.tagId }) { tag ->
@@ -914,8 +916,10 @@ fun HomeScreen(navController: NavController) {
                                         val newText = SearchContentElement.Text(newTextId, succeedingText)
 
                                         // 3. 현재 텍스트 필드 업데이트
-                                        contentItems[currentIndex] = (contentItems[currentIndex] as SearchContentElement.Text).copy(text = precedingText)
-                                        textStates[currentId] = TextFieldValue("\u200B" + precedingText, TextRange(precedingText.length + 1))
+                                        contentItems[currentIndex] =
+                                            (contentItems[currentIndex] as SearchContentElement.Text).copy(text = precedingText)
+                                        textStates[currentId] =
+                                            TextFieldValue("\u200B" + precedingText, TextRange(precedingText.length + 1))
 
                                         // 4. 새 칩과 새 텍스트 필드 삽입
                                         contentItems.add(currentIndex + 1, newChip)
@@ -1148,8 +1152,7 @@ private fun ViewToggle(
                             .clip(RoundedCornerShape(6.dp))
                             .background(
                                 if (!onlyTag && !showAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                            )
-                            .clickable { onToggle(false, false) }
+                            ).clickable { onToggle(false, false) }
                             .padding(8.dp),
                 ) {
                     Icon(
@@ -1173,8 +1176,7 @@ private fun ViewToggle(
                             .clip(RoundedCornerShape(6.dp))
                             .background(
                                 if (showAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                            )
-                            .clickable { onToggle(false, true) }
+                            ).clickable { onToggle(false, true) }
                             .padding(8.dp),
                 ) {
                     Icon(
@@ -1467,8 +1469,7 @@ fun TagGridItem(
                         .background(
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(16.dp),
-                        )
-                        .align(Alignment.BottomCenter)
+                        ).align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
                                 if (isDeleteMode) {
@@ -1497,8 +1498,7 @@ fun TagGridItem(
                     .background(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(8.dp),
-                    )
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
         if (isDeleteMode) {
             IconButton(
@@ -1539,9 +1539,10 @@ fun EmptyStateTags(
         Image(
             painter = painterResource(id = R.drawable.ic_empty_tags),
             contentDescription = "추억을 만들어보세요",
-            modifier = Modifier
-                .size(120.dp)
-                .rotate(45f),
+            modifier =
+                Modifier
+                    .size(120.dp)
+                    .rotate(45f),
         )
 
         Spacer(modifier = Modifier.height(24.dp))

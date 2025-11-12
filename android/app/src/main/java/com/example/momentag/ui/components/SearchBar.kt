@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
@@ -56,22 +57,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.model.TagItem
 import kotlinx.coroutines.launch
-import androidx.compose.ui.geometry.Rect
 
 sealed class SearchContentElement {
     abstract val id: String // each element has unique ID
 
     data class Text(
         override val id: String,
-        val text: String = ""
+        val text: String = "",
     ) : SearchContentElement()
 
     data class Chip(
         override val id: String,
-        val tag: TagItem
+        val tag: TagItem,
     ) : SearchContentElement()
 }
-
 
 /**
  * 칩/텍스트 기반 검색바
@@ -102,37 +101,40 @@ fun ChipSearchBar(
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
-    placeholder: String = "검색 또는 #태그 입력"
+    placeholder: String = "검색 또는 #태그 입력",
 ) {
     // [신규] 기존 SearchBar의 색상 정의를 그대로 가져옴
-    val colors = TextFieldDefaults.colors(
-        focusedIndicatorColor = Color.Transparent,
-        unfocusedIndicatorColor = Color.Transparent,
-        focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-        unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
-    )
+    val colors =
+        TextFieldDefaults.colors(
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+            unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+        )
 
     // [신규] 포커스 상태에 따라 컨테이너 색상 결정
-    val containerColor = if (isFocused) {
-        colors.focusedContainerColor
-    } else {
-        colors.unfocusedContainerColor
-    }
+    val containerColor =
+        if (isFocused) {
+            colors.focusedContainerColor
+        } else {
+            colors.unfocusedContainerColor
+        }
 
     // [수정] Row가 기존 SearchBar(TextField)의 모양을 흉내 냄
     Row(
-        modifier = modifier // HomeScreen에서 (Modifier.weight(1f))가 적용될 것임
-            .heightIn(min = 48.dp) // TextField의 최소 높이와 맞춤
-            .background(
-                color = containerColor,
-                shape = RoundedCornerShape(24.dp) // [수정] 기존 SearchBar의 둥근 모서리
-            )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) { onContainerClick() } // 컨테이너(배경) 클릭을 상위로 전달
-            .padding(horizontal = 16.dp), // [수정] TextField의 아이콘 패딩과 맞춤
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            modifier // HomeScreen에서 (Modifier.weight(1f))가 적용될 것임
+                .heightIn(min = 48.dp) // TextField의 최소 높이와 맞춤
+                .background(
+                    color = containerColor,
+                    shape = RoundedCornerShape(24.dp), // [수정] 기존 SearchBar의 둥근 모서리
+                ).clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) { onContainerClick() } // 컨테이너(배경) 클릭을 상위로 전달
+                .padding(horizontal = 16.dp),
+        // [수정] TextField의 아이콘 패딩과 맞춤
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // [신규] 기존 SearchBar의 leadingIcon을 추가
         Icon(
@@ -143,9 +145,11 @@ fun ChipSearchBar(
 
         // [수정] InternalChipSearchInput가 남은 공간을 채움
         InternalChipSearchInput(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 8.dp), // 아이콘과 텍스트 사이 간격
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp),
+            // 아이콘과 텍스트 사이 간격
             listState = listState,
             hideCursor = hideCursor,
             contentItems = contentItems,
@@ -157,7 +161,7 @@ fun ChipSearchBar(
             onTextChange = onTextChange,
             onFocus = onFocus,
             onSearch = onSearch,
-            placeholder = placeholder
+            placeholder = placeholder,
         )
     }
 }
@@ -181,7 +185,7 @@ private fun InternalChipSearchInput(
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
-    placeholder: String
+    placeholder: String,
 ) {
     // [수정] Box 래퍼를 제거하고 LazyRow만 남깁니다.
     // 배경과 클릭 이벤트는 상위 Row(ChipSearchBar)가 처리합니다.
@@ -189,15 +193,16 @@ private fun InternalChipSearchInput(
         state = listState,
         horizontalArrangement = Arrangement.spacedBy(0.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-            ) { onContainerClick() }
+        modifier =
+            modifier
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) { onContainerClick() },
     ) {
         itemsIndexed(
             items = contentItems,
-            key = { _, item -> item.id }
+            key = { _, item -> item.id },
         ) { index, item ->
             when (item) {
                 is SearchContentElement.Chip -> {
@@ -223,9 +228,10 @@ private fun InternalChipSearchInput(
                     val textMeasurer = rememberTextMeasurer()
                     val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp)
 
-                    val measuredWidthInPixels = remember(text, textStyle) {
-                        textMeasurer.measure(AnnotatedString(text), style = textStyle).size.width
-                    }
+                    val measuredWidthInPixels =
+                        remember(text, textStyle) {
+                            textMeasurer.measure(AnnotatedString(text), style = textStyle).size.width
+                        }
 
                     val textWidthDp = with(LocalDensity.current) { measuredWidthInPixels.toDp() }
 
@@ -244,11 +250,12 @@ private fun InternalChipSearchInput(
                     // --- 로직 끝 ---
 
                     // [신규] hideCursor 상태에 따라 커서 브러시 결정
-                    val cursorBrush = if (hideCursor) {
-                        SolidColor(Color.Transparent)
-                    } else {
-                        SolidColor(MaterialTheme.colorScheme.primary)
-                    }
+                    val cursorBrush =
+                        if (hideCursor) {
+                            SolidColor(Color.Transparent)
+                        } else {
+                            SolidColor(MaterialTheme.colorScheme.primary)
+                        }
 
                     // [신규] LaunchedEffect: 텍스트 레이아웃이나 커서 위치가 변경된 *후*에 실행
                     LaunchedEffect(textLayoutResult, textValue.selection) {
@@ -266,12 +273,13 @@ private fun InternalChipSearchInput(
                                 val endPaddingPx = with(density) { sidePadding.toPx() } // + 8.dp
 
                                 // 3. [신규] 커서 사각형의 오른쪽에 패딩을 더한 '새 가상 사각형' 생성
-                                val rectWithPadding = Rect(
-                                    left = cursorRect.left,
-                                    top = cursorRect.top,
-                                    right = cursorRect.right + endPaddingPx, // <-- 핵심: 오른쪽으로 16dp 더 넓게
-                                    bottom = cursorRect.bottom
-                                )
+                                val rectWithPadding =
+                                    Rect(
+                                        left = cursorRect.left,
+                                        top = cursorRect.top,
+                                        right = cursorRect.right + endPaddingPx, // <-- 핵심: 오른쪽으로 16dp 더 넓게
+                                        bottom = cursorRect.bottom,
+                                    )
 
                                 // 4. 커서를 뷰로 스크롤
                                 scope.launch {
@@ -288,32 +296,29 @@ private fun InternalChipSearchInput(
                             onTextChange(item.id, newValue)
                         },
                         onTextLayout = { textLayoutResult = it },
-                        modifier = Modifier
-                            .then(
-                                if (isPlaceholder) {
-                                    Modifier.fillMaxWidth() // 플레이스홀더는 남은 공간 채움
-                                } else {
-                                    Modifier.width(finalWidth) // 텍스트는 계산된 너비
-                                }
-                            )
-                            .focusRequester(focusRequester)
-                            .bringIntoViewRequester(bringIntoViewRequester)
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    onFocus(item.id)
-                                } else {
-                                    onFocus(null) // [수정] 포커스를 잃으면 null 전달
-                                }
-                            }
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                        modifier =
+                            Modifier
+                                .then(
+                                    if (isPlaceholder) {
+                                        Modifier.fillMaxWidth() // 플레이스홀더는 남은 공간 채움
+                                    } else {
+                                        Modifier.width(finalWidth) // 텍스트는 계산된 너비
+                                    },
+                                ).focusRequester(focusRequester)
+                                .bringIntoViewRequester(bringIntoViewRequester)
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        onFocus(item.id)
+                                    } else {
+                                        onFocus(null) // [수정] 포커스를 잃으면 null 전달
+                                    }
+                                }.padding(horizontal = 4.dp, vertical = 8.dp),
                         maxLines = 1, // 스크롤 방지
 //                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         cursorBrush = cursorBrush,
                         textStyle = textStyle,
-
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-
                         decorationBox = { innerTextField ->
                             if (isPlaceholder) {
                                 Text(
@@ -330,7 +335,6 @@ private fun InternalChipSearchInput(
         }
     }
 }
-
 
 /**
  * [신규] 검색창 내부에 표시될 칩 (HomeScreen.kt에서 가져옴)
@@ -349,9 +353,8 @@ private fun SearchChipView(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { onClick() }
-                )
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                    onClick = { onClick() },
+                ).padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
