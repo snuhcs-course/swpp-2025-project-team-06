@@ -610,17 +610,17 @@ fun ImageDetailScreen(
                     }
                 }
             }
-            }
-        }
-
-        // Overlay top bar on top of content
-        if (!isFocusMode) {
-            BackTopBar(
-                title = "MomenTag",
-                onBackClick = onNavigateBack,
-            )
         }
     }
+
+    // Overlay top bar on top of content
+    if (!isFocusMode) {
+        BackTopBar(
+            title = "MomenTag",
+            onBackClick = onNavigateBack,
+        )
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
