@@ -728,6 +728,8 @@ private fun RecommendExpandedPanel(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
+    // 터치이벤트 뒤로 전달 되지 않도록
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier =
             modifier
@@ -737,7 +739,12 @@ private fun RecommendExpandedPanel(
                 .background(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null, // 클릭 효과 제거
+                    onClick = { /* 아무 동작 안 해서 뒤로 안 넘어가게 */ },
+                ),
     ) {
         Column {
             // Drag handle / drag gesture
