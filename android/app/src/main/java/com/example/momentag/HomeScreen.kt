@@ -1113,6 +1113,8 @@ fun TagGridItem(
             text = tagName,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
