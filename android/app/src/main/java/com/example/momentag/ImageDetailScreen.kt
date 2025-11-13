@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -40,6 +39,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
@@ -83,6 +85,7 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -611,7 +614,6 @@ fun ImageDetailScreen(
                                     showWarningBanner = true
                                 }
                             },
-                            snackbarHostState = snackbarHostState,
                         )
                     }
                 }
@@ -705,7 +707,6 @@ fun TagsSection(
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
     onAddTag: (String) -> Unit,
-    snackbarHostState: SnackbarHostState,
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
