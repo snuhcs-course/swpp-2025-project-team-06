@@ -491,18 +491,37 @@ fun ImageDetailScreen(
                     onBackClick = onNavigateBack,
                 )
             }
-        },
+        }
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues) // Apply padding to the whole content area
         ) {
-            // Main content column (visible when not in focus mode)
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                if (!isFocusMode) {
+            // Image Pager as the background layer, always filling the screen
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = !isZoomed,
+            ) { page ->
+                val photo = photos.getOrNull(page)
+                ZoomableImage(
+                    model = photo?.contentUri,
+                    contentDescription = "Detail image",
+                    modifier = Modifier.fillMaxSize(),
+                    onScaleChanged = { zoomed ->
+                        isZoomed = zoomed
+                    },
+                    onSingleTap = {
+                        isFocusMode = !isFocusMode
+                    },
+                )
+            }
+
+            // UI elements as the foreground layer, conditionally visible
+            if (!isFocusMode) {
+                Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+
+                    // Date and Address
                     if (dateTime != null) {
                         val datePart = dateTime!!.split(" ")[0]
                         val formattedDate = datePart.replace(":", ".")
@@ -529,34 +548,11 @@ fun ImageDetailScreen(
                             textAlign = TextAlign.Left,
                         )
                     }
-                }
 
-                // Image display area
-                Box(
-                    modifier = if (isFocusMode) Modifier.fillMaxSize() else Modifier.weight(1f).clipToBounds(),
-                ) {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = !isZoomed,
-                    ) { page ->
-                        val photo = photos.getOrNull(page)
-                        ZoomableImage(
-                            model = photo?.contentUri,
-                            contentDescription = "Detail image",
-                            modifier = Modifier.fillMaxSize(),
-                            onScaleChanged = { zoomed ->
-                                isZoomed = zoomed
-                            },
-                            onSingleTap = {
-                                isFocusMode = !isFocusMode
-                            },
-                        )
-                    }
-                }
+                    // Spacer to push tags to the bottom
+                    Spacer(modifier = Modifier.weight(1f))
 
-                // Tags section
-                if (!isFocusMode) {
+                    // Tags section at the bottom
                     if (isError) {
                         Spacer(modifier = Modifier.fillMaxWidth().height(48.dp))
                     } else {
@@ -593,8 +589,8 @@ fun ImageDetailScreen(
                 }
             }
 
-            // WarningBanner always at the bottom of the main content Box
-            if (showWarningBanner) {
+            // WarningBanner always at the bottom of the main content Box, on top of everything
+            if (showWarningBanner && !isFocusMode) {
                 WarningBanner(
                     title = "Error",
                     message = warningBannerMessage,
