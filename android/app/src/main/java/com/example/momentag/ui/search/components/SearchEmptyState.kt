@@ -65,7 +65,7 @@ fun SearchIdleCustom(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "검색어를 입력해주세요.",
+                text = "Please enter a search term.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -74,7 +74,7 @@ fun SearchIdleCustom(
 
         Column(modifier = modifier) {
             Text(
-                text = "최근 검색어",
+                text = "Recent searches",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -155,7 +155,7 @@ fun SearchErrorStateFallbackCustom(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "오류가 발생했습니다.",
+            text = "An error occurred.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

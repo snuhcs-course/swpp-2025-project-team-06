@@ -3,15 +3,32 @@ package com.example.momentag.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.MyTagsUiState
+import com.example.momentag.model.Photo
 import com.example.momentag.model.TagCntData
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+sealed interface TagActionState {
+    object Idle : TagActionState
+
+    object Loading : TagActionState
+
+    data class Success(
+        val message: String,
+    ) : TagActionState
+
+    data class Error(
+        val message: String,
+    ) : TagActionState
+}
+
 class MyTagsViewModel(
     private val remoteRepository: RemoteRepository,
+    private val photoSelectionRepository: PhotoSelectionRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<MyTagsUiState>(MyTagsUiState.Loading)
     val uiState: StateFlow<MyTagsUiState> = _uiState.asStateFlow()
@@ -22,7 +39,27 @@ class MyTagsViewModel(
     private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
     val sortOrder: StateFlow<TagSortOrder> = _sortOrder.asStateFlow()
 
+    private val _tagActionState = MutableStateFlow<TagActionState>(TagActionState.Idle)
+    val tagActionState: StateFlow<TagActionState> = _tagActionState.asStateFlow()
+
     private var allTags: List<TagCntData> = emptyList()
+
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+
+    sealed class SaveState {
+        object Idle : SaveState()
+
+        object Loading : SaveState()
+
+        object Success : SaveState()
+
+        data class Error(
+            val message: String,
+        ) : SaveState()
+    }
+
+    private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
+    val saveState = _saveState.asStateFlow()
 
     init {
         loadTags()
@@ -105,16 +142,26 @@ class MyTagsViewModel(
 
     fun deleteTag(tagId: String) {
         viewModelScope.launch {
+            _tagActionState.value = TagActionState.Loading
             println("MyTagsViewModel: deleteTag($tagId)")
             when (val result = remoteRepository.removeTag(tagId)) {
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: Tag deleted successfully")
-                    loadTags() // 태그 목록 새로고침
+                    _tagActionState.value = TagActionState.Success("Deleted")
+                    loadTags() // 성공 시에만 태그 목록 새로고침
                 }
                 is RemoteRepository.Result.Error -> {
+                    _tagActionState.value = TagActionState.Error(result.message)
                     println("MyTagsViewModel: Failed to delete tag - ${result.message}")
                 }
-                else -> {
+                else -> { // NetworkError, Exception 등
+                    val errorMsg =
+                        when (result) {
+                            is RemoteRepository.Result.NetworkError -> result.message
+                            is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
+                            else -> "Failed to delete tag"
+                        }
+                    _tagActionState.value = TagActionState.Error(errorMsg)
                     println("MyTagsViewModel: Failed to delete tag")
                 }
             }
@@ -126,19 +173,82 @@ class MyTagsViewModel(
         newName: String,
     ) {
         viewModelScope.launch {
+            _tagActionState.value = TagActionState.Loading
             println("MyTagsViewModel: renameTag($tagId, $newName)")
             when (val result = remoteRepository.renameTag(tagId, newName)) {
                 is RemoteRepository.Result.Success -> {
                     println("MyTagsViewModel: Tag renamed successfully")
-                    loadTags() // 태그 목록 새로고침
+                    _tagActionState.value = TagActionState.Success("Updated")
+                    loadTags() // 성공 시에만 태그 목록 새로고침
                 }
                 is RemoteRepository.Result.Error -> {
+                    _tagActionState.value = TagActionState.Error(result.message)
                     println("MyTagsViewModel: Failed to rename tag - ${result.message}")
                 }
-                else -> {
+                else -> { // NetworkError, Exception 등
+                    val errorMsg =
+                        when (result) {
+                            is RemoteRepository.Result.NetworkError -> result.message
+                            is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
+                            else -> "Failed to rename tag"
+                        }
+                    _tagActionState.value = TagActionState.Error(errorMsg)
                     println("MyTagsViewModel: Failed to rename tag")
                 }
             }
         }
+    }
+
+    fun isSelectedPhotosEmpty(): Boolean = selectedPhotos.value.isEmpty()
+
+    fun clearDraft() {
+        photoSelectionRepository.clear()
+    }
+
+    fun savePhotosToExistingTag(tagId: String) {
+        // Reset error state on retry
+        if (_saveState.value is SaveState.Error) {
+            _saveState.value = SaveState.Idle
+        }
+
+        if (selectedPhotos.value.isEmpty()) {
+            _saveState.value = SaveState.Error("Tag cannot be empty and photos must be selected")
+            return
+        }
+
+        viewModelScope.launch {
+            _saveState.value = SaveState.Loading
+
+            var allSucceeded = true
+            for (photo in selectedPhotos.value) {
+                when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
+                    is RemoteRepository.Result.Success -> {
+                    }
+                    else -> {
+                        _saveState.value = SaveState.Error(getErrorMessage(result))
+                        allSucceeded = false
+                        break
+                    }
+                }
+            }
+
+            if (allSucceeded) {
+                _saveState.value = SaveState.Success
+            }
+        }
+    }
+
+    private fun getErrorMessage(result: RemoteRepository.Result<*>): String =
+        when (result) {
+            is RemoteRepository.Result.BadRequest -> "Bad Request: ${result.message}"
+            is RemoteRepository.Result.Unauthorized -> "Login error: ${result.message}"
+            is RemoteRepository.Result.Error -> "Server Error (${result.code}): ${result.message}"
+            is RemoteRepository.Result.Exception -> "Network Error: ${result.e.message}"
+            is RemoteRepository.Result.Success -> "An unknown error occurred (Success was passed to error handler)"
+            is RemoteRepository.Result.NetworkError -> "Network Error: ${result.message}"
+        }
+
+    fun clearActionState() {
+        _tagActionState.value = TagActionState.Idle
     }
 }

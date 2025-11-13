@@ -40,6 +40,9 @@ class SearchViewModel(
     private val _searchText = MutableStateFlow("")
     val searchText: StateFlow<String> = _searchText.asStateFlow()
 
+    private val _isSelectionMode = MutableStateFlow(false)
+    val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+
     // TokenRepository의 로그인 상태 Flow 구독
     private val isLoggedInFlow = tokenRepository.isLoggedIn
 
@@ -53,6 +56,10 @@ class SearchViewModel(
                 }
             }
         }
+    }
+
+    fun setSelectionMode(isOn: Boolean) {
+        _isSelectionMode.value = isOn
     }
 
     fun loadSearchHistory() {

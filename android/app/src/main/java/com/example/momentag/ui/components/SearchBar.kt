@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -306,7 +305,7 @@ private fun InternalChipSearchInput(
 }
 
 /**
- * [신규] 검색창 내부에 표시될 칩 (HomeScreen.kt에서 가져옴)
+ * 검색창 내부에 표시될 칩 (HomeScreen.kt에서 가져옴)
  */
 @Composable
 private fun SearchChipView(
@@ -432,25 +431,27 @@ fun SearchBarControlledCustom(
         value = value,
         onValueChange = onValueChange,
         placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
         colors =
             TextFieldDefaults.colors(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+                unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.25f),
+                focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             ),
-        textStyle = MaterialTheme.typography.bodyLarge,
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-        trailingIcon = {
-            IconButton(onClick = onSearch) {
-                Icon(imageVector = Icons.Default.Search, contentDescription = "검색 실행")
-            }
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         },
     )
 }

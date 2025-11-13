@@ -2,9 +2,11 @@ package com.example.momentag
 
 import android.Manifest
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -79,6 +83,25 @@ fun LocalAlbumScreen(
     val selectedPhotos by localViewModel.selectedPhotosInAlbum.collectAsState()
     var isSelectionMode by remember { mutableStateOf(false) }
     val uploadState by photoViewModel.uiState.collectAsState()
+
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(uploadState.userMessage) {
+        uploadState.userMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            photoViewModel.infoMessageShown()
+        }
+    }
+
+    LaunchedEffect(uploadState.errorMessage) {
+        if (uploadState.errorMessage != null) {
+            errorMessage = uploadState.errorMessage
+            showErrorBanner = true
+        } else {
+            showErrorBanner = false
+        }
+    }
 
     BackHandler(enabled = isSelectionMode) {
         isSelectionMode = false
@@ -164,9 +187,9 @@ fun LocalAlbumScreen(
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
-                            Text("업로드 시작됨 (알림 확인)")
+                            Text("Upload started (check notification)")
                         } else {
-                            Text("선택한 ${selectedPhotos.size}개 사진 업로드하기")
+                            Text("Upload ${selectedPhotos.size} selected photos")
                         }
                     },
                     icon = {
@@ -226,6 +249,21 @@ fun LocalAlbumScreen(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
 
+                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        title = "Upload Failed",
+                        message = errorMessage ?: "An error occurred",
+                        onActionClick = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = {
+                            showErrorBanner = false
+                            photoViewModel.errorMessageShown()
+                        },
+                    )
+                }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier.weight(1f),
@@ -243,13 +281,12 @@ fun LocalAlbumScreen(
                             modifier =
                                 Modifier
                                     .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(12.dp)) // 모서리 둥글게
+                                    .clip(RoundedCornerShape(12.dp))
                                     .combinedClickable(
                                         onClick = {
                                             if (isSelectionMode) {
                                                 localViewModel.togglePhotoSelection(photo)
                                             } else {
-                                                // 기존 로직: 이미지 상세 보기
                                                 localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
                                                 navController.navigate(
                                                     Screen.Image.createRoute(
@@ -288,7 +325,6 @@ fun LocalAlbumScreen(
                                             ),
                                 )
 
-                                // 👇 체크박스 (HomeScreen.kt 참고)
                                 Box(
                                     modifier =
                                         Modifier

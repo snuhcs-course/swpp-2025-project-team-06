@@ -3,6 +3,7 @@
 
 package com.example.momentag.ui.storytag
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -11,7 +12,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -32,9 +32,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -47,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +66,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.CustomTagChip
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.StoryTagChip
@@ -76,11 +76,11 @@ import com.example.momentag.model.StoryTagSubmissionState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
+import com.example.momentag.ui.components.ErrorOverlay
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-// =============== Screen ===============
 
 @Composable
 fun StoryTagSelectionScreen(
@@ -102,6 +102,13 @@ fun StoryTagSelectionScreen(
     LaunchedEffect(Unit) {
         if (storyState is StoryState.Idle) {
             viewModel.loadStories(10)
+        }
+    }
+
+    // Stop polling when navigating away from screen
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.stopPolling()
         }
     }
 
@@ -162,9 +169,13 @@ fun StoryTagSelectionScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp,
+                            modifier = Modifier.size(24.dp),
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("추억을 불러오는 중...", color = MaterialTheme.colorScheme.onSurface)
+                        Text("Loading memories...", color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
@@ -254,7 +265,7 @@ fun StoryTagSelectionScreen(
                                         val photo =
                                             com.example.momentag.model.Photo(
                                                 photoId = story.photoId,
-                                                contentUri = android.net.Uri.parse(story.images.firstOrNull() ?: ""),
+                                                contentUri = story.images.firstOrNull() ?: android.net.Uri.EMPTY,
                                                 createdAt = "",
                                             )
                                         // Set browsing session
@@ -279,6 +290,9 @@ fun StoryTagSelectionScreen(
                                 isEditMode = isEditMode,
                                 onTagToggle = { tag ->
                                     viewModel.toggleTag(story.id, tag)
+                                },
+                                onAddCustomTag = { customTag ->
+                                    viewModel.addCustomTagToStory(story.id, customTag)
                                 },
                                 onDone = {
                                     viewModel.submitTagsForStory(story.id)
@@ -320,41 +334,33 @@ fun StoryTagSelectionScreen(
                 }
             }
             is StoryState.Error -> {
-                // Show error screen
-                Box(
+                ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
-                            Text("Retry")
-                        }
-                    }
-                }
+                    title = "Error",
+                    errorMessage = state.message,
+                    onRetry = { viewModel.loadStories(10) },
+                    onDismiss = {
+                        viewModel.resetState()
+                        onBack()
+                    },
+                )
             }
             is StoryState.NetworkError -> {
-                // Show network error screen
-                Box(
+                ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Network Error: ${state.message}", color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        androidx.compose.material3.Button(onClick = { viewModel.loadStories(10) }) {
-                            Text("Retry")
-                        }
-                    }
-                }
+                    title = "Network Error",
+                    errorMessage = state.message,
+                    onRetry = { viewModel.loadStories(10) },
+                    onDismiss = {
+                        viewModel.resetState()
+                        onBack()
+                    },
+                )
             }
         }
     }
 }
 
-// =============== 이게 핵심 블럭 ===============
-// StoryPageFullBlock = 날짜/위치 + 이미지 + (공백) + TagSelectionCard
 @Composable
 private fun StoryPageFullBlock(
     story: StoryModel,
@@ -377,7 +383,6 @@ private fun StoryPageFullBlock(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp),
         ) {
             Spacer(modifier = Modifier.height(12.dp))
@@ -389,15 +394,14 @@ private fun StoryPageFullBlock(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // 이미지 영역 - 고정 높이로 일관성 유지
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(480.dp) // 고정된 높이로 모든 스토리에서 일관된 크기 유지
-                        .clip(RoundedCornerShape(8.dp))
+                        .height(480.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { onImageClick() },
                 contentAlignment = Alignment.Center,
@@ -423,8 +427,6 @@ private fun StoryPageFullBlock(
         }
     }
 }
-
-// =============== Scroll Hint ===============
 
 @Composable
 internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
@@ -476,8 +478,6 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
     }
 }
 
-// =============== TagSelectionCard ===============
-
 @Composable
 internal fun TagSelectionCard(
     tags: List<String>,
@@ -486,6 +486,7 @@ internal fun TagSelectionCard(
     isViewed: Boolean,
     isEditMode: Boolean,
     onTagToggle: (String) -> Unit,
+    onAddCustomTag: (String) -> Unit,
     onDone: () -> Unit,
     onRetry: () -> Unit,
     onEdit: () -> Unit,
@@ -507,7 +508,7 @@ internal fun TagSelectionCard(
             modifier
                 .fillMaxWidth()
                 .wrapContentHeight(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         colors =
             CardDefaults.cardColors(
                 containerColor =
@@ -527,11 +528,11 @@ internal fun TagSelectionCard(
             Text(
                 text =
                     if (isReadOnly) {
-                        "이 추억에 붙인 태그"
+                        "Tags for this memory"
                     } else if (isEditMode) {
-                        "태그 수정하기"
+                        "Edit Tags"
                     } else {
-                        "이 추억을 어떻게 기억하고 싶나요?"
+                        "How do you want to remember this?"
                     },
                 color =
                     if (isReadOnly) {
@@ -547,29 +548,27 @@ internal fun TagSelectionCard(
                 modifier = Modifier.padding(bottom = 16.dp),
             ) {
                 tags.forEach { tagText ->
-                    val isAddChip =
-                        (tagText == "+" || tagText == "＋" || tagText == "add")
+                    val isSelected = selectedTags.contains(tagText)
 
-                    if (isAddChip && !isReadOnly) {
-                        AddTagChip(
-                            onClick = {
-                                // TODO: 사용자 새 태그 추가
-                            },
-                        )
-                    } else if (!isAddChip) {
-                        val isSelected = selectedTags.contains(tagText)
+                    StoryTagChip(
+                        text = tagText,
+                        isSelected = isSelected,
+                        onClick = {
+                            if (!isReadOnly) {
+                                onTagToggle(tagText)
+                            }
+                        },
+                        enabled = !isReadOnly,
+                    )
+                }
 
-                        StoryTagChip(
-                            text = tagText,
-                            isSelected = isSelected,
-                            onClick = {
-                                if (!isReadOnly) {
-                                    onTagToggle(tagText)
-                                }
-                            },
-                            enabled = !isReadOnly,
-                        )
-                    }
+                // Always show StoryAddTagChip at the end when not in read-only mode
+                if (!isReadOnly) {
+                    CustomTagChip(
+                        onTagAdded = { customTag ->
+                            onAddCustomTag(customTag)
+                        },
+                    )
                 }
             }
 
@@ -579,11 +578,13 @@ internal fun TagSelectionCard(
             val canSubmit = if (isEditMode) true else hasSelection
 
             // Show error message if submission failed
-            if (storyTagSubmissionState is StoryTagSubmissionState.Error) {
-                Text(
-                    text = storyTagSubmissionState.message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
+            AnimatedVisibility(visible = storyTagSubmissionState is StoryTagSubmissionState.Error) {
+                WarningBanner(
+                    title = "Failed to Save Tag",
+                    message = (storyTagSubmissionState as? StoryTagSubmissionState.Error)?.message ?: "Unknown error",
+                    onActionClick = onRetry, // 재시도 버튼 (GradientPillButton이 Retry로 바뀜)
+                    showActionButton = false, // 버튼은 GradientPillButton이 담당
+                    showDismissButton = false,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
@@ -610,29 +611,6 @@ internal fun TagSelectionCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-internal fun AddTagChip(onClick: () -> Unit) {
-    Box(
-        modifier =
-            Modifier
-                .clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline,
-                    shape = RoundedCornerShape(50),
-                ).clickable { onClick() }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "+",
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-        )
     }
 }
 
@@ -790,15 +768,6 @@ internal fun FlowRow(
     }
 }
 
-// =============== Model & Preview ===============
-
-// Preview disabled - requires ViewModel instantiation
-// @Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
-// @Composable
-// private fun Preview_StoryTagSelectionScreen() {
-//     // Preview would require ViewModel setup
-// }
-
 @Composable
 private fun StoryPageFullBlockPreviewContent(
     @androidx.annotation.DrawableRes drawableResId: Int,
@@ -816,7 +785,6 @@ private fun StoryPageFullBlockPreviewContent(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp),
         ) {
             Text(
@@ -859,6 +827,7 @@ private fun StoryPageFullBlockPreviewContent(
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
+                onAddCustomTag = {},
                 onDone = {},
                 onRetry = {},
                 onEdit = {},
@@ -881,7 +850,7 @@ private fun StoryPageFullBlockPreview() {
             drawableResId = R.drawable.img1,
             date = "2024년 8월 1일",
             location = "서울 특별시",
-            suggestedTags = listOf("#카페", "#친구와", "#디저트", "+"),
+            suggestedTags = listOf("#카페", "#친구와", "#디저트"),
         )
     }
 }

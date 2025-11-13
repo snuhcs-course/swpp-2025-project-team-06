@@ -37,6 +37,18 @@ class ImageDetailViewModel(
         ) : TagDeleteState()
     }
 
+    sealed class TagAddState {
+        object Idle : TagAddState()
+
+        object Loading : TagAddState()
+
+        object Success : TagAddState()
+
+        data class Error(
+            val message: String,
+        ) : TagAddState()
+    }
+
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
     val imageContext = _imageContext.asStateFlow()
 
@@ -46,6 +58,12 @@ class ImageDetailViewModel(
 
     private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
     val tagDeleteState = _tagDeleteState.asStateFlow()
+
+    private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
+    val tagAddState = _tagAddState.asStateFlow()
+
+    private val _photoAddress = MutableStateFlow<String?>(null)
+    val photoAddress = _photoAddress.asStateFlow()
 
     /**
      * photoId를 기반으로 ImageContext를 Repository에서 조회하여 설정
@@ -65,12 +83,13 @@ class ImageDetailViewModel(
     }
 
     /**
-     * photoId를 기반으로 사진의 태그와 추천 태그를 로드
+     * photoId를 기반으로 사진의 태그와 추천 태그를 로드 + 사진이 찍힌 주소도 로드
      * @param photoId 사진 ID (로컬 사진의 경우 photo_path_id일 수 있음)
      */
     fun loadPhotoTags(photoId: String) {
         if (photoId.isEmpty()) {
             _imageDetailTagState.value = ImageDetailTagState.Idle
+            _photoAddress.value = null
             return
         }
 
@@ -94,6 +113,7 @@ class ImageDetailViewModel(
                         isExistingLoading = false,
                         isRecommendedLoading = false,
                     )
+                _photoAddress.value = null
                 return@launch
             }
 
@@ -102,6 +122,10 @@ class ImageDetailViewModel(
 
             when (photoDetailResult) {
                 is RemoteRepository.Result.Success -> {
+                    // 우선 photo_address를 저장
+                    _photoAddress.value = photoDetailResult.data.address
+
+                    // 이제 태그 처리
                     val existingTags = photoDetailResult.data.tags
                     val existingTagNames = existingTags.map { it.tagName }
 
@@ -230,6 +254,58 @@ class ImageDetailViewModel(
 
     fun resetDeleteState() {
         _tagDeleteState.value = TagDeleteState.Idle
+    }
+
+    fun addTagToPhoto(
+        photoId: String,
+        tagName: String,
+    ) {
+        viewModelScope.launch {
+            _tagAddState.value = TagAddState.Loading
+
+            val actualPhotoId =
+                if (photoId.toLongOrNull() != null) {
+                    findPhotoIdByPathId(photoId.toLong())
+                } else {
+                    photoId
+                }
+
+            if (actualPhotoId == null) {
+                _tagAddState.value = TagAddState.Error("Photo not found in backend")
+                return@launch
+            }
+
+            // Step 1: Create the tag and get its ID
+            when (val postTagResult = remoteRepository.postTags(tagName)) {
+                is RemoteRepository.Result.Success -> {
+                    val tagId = postTagResult.data.id
+                    // Step 2: Associate the new tag with the photo
+                    when (val postToPhotoResult = remoteRepository.postTagsToPhoto(actualPhotoId, tagId)) {
+                        is RemoteRepository.Result.Success -> {
+                            _tagAddState.value = TagAddState.Success
+                            // Reload tags to show the new tag
+                            loadPhotoTags(actualPhotoId)
+                        }
+                        is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
+                        is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
+                        is RemoteRepository.Result.Unauthorized -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
+                        is RemoteRepository.Result.NetworkError -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
+                        is RemoteRepository.Result.Exception ->
+                            _tagAddState.value =
+                                TagAddState.Error(postToPhotoResult.e.message ?: "Unknown error")
+                    }
+                }
+                is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(postTagResult.message)
+                is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(postTagResult.message)
+                is RemoteRepository.Result.Unauthorized -> _tagAddState.value = TagAddState.Error(postTagResult.message)
+                is RemoteRepository.Result.NetworkError -> _tagAddState.value = TagAddState.Error(postTagResult.message)
+                is RemoteRepository.Result.Exception -> _tagAddState.value = TagAddState.Error(postTagResult.e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    fun resetAddState() {
+        _tagAddState.value = TagAddState.Idle
     }
 
     /**
