@@ -63,10 +63,7 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     photo_uuids = list(map(uuid.UUID, (point.id for point in points)))
     photos = Photo.objects.filter(photo_id__in=photo_uuids)
     id_to_meta = {
-        str(p.photo_id): {
-            "photo_path_id": p.photo_path_id, 
-            "created_at": p.created_at
-        } 
+        str(p.photo_id): {"photo_path_id": p.photo_path_id, "created_at": p.created_at}
         for p in photos
     }
 
@@ -82,9 +79,9 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     # Maintain order from sorted scores
     return [
         {
-            "photo_id": point.id, 
+            "photo_id": point.id,
             "photo_path_id": id_to_meta[point.id]["photo_path_id"],
-            "created_at": id_to_meta[point.id]["created_at"]
+            "created_at": id_to_meta[point.id]["created_at"],
         }
         for point in points
         if point.id in id_to_meta and point.id not in tagged_photo_ids
@@ -121,20 +118,20 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
     photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
         "photo_id", "photo_path_id", "created_at"
     )
-    
+
     id_to_meta = {
         str(p["photo_id"]): {
             "photo_path_id": p["photo_path_id"],
-            "created_at": p["created_at"]
+            "created_at": p["created_at"],
         }
         for p in photos
     }
 
     return [
         {
-            "photo_id": point.id, 
+            "photo_id": point.id,
             "photo_path_id": id_to_meta[point.id]["photo_path_id"],
-            "created_at": id_to_meta[point.id]["created_at"]
+            "created_at": id_to_meta[point.id]["created_at"],
         }
         for point in points
         if point.id in id_to_meta
@@ -190,23 +187,23 @@ def tag_recommendation(user, photo_id):
 def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list]:
     """
     여러 사진의 태그 추천을 배치로 처리 (병렬 최적화)
-    
+
     Args:
         user: 사용자 객체
         photo_ids: 사진 ID 리스트 (문자열)
-    
+
     Returns:
         {photo_id: [Tag, Tag, ...], ...}
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
-    
+
     PRESET_LIMIT = 2
     LIMIT = 10
     client = get_qdrant_client()
-    
+
     if not photo_ids:
         return {}
-    
+
     # 1. 배치로 이미지 벡터 조회 (한 번에!)
     try:
         retrieved_points = client.retrieve(
@@ -217,13 +214,15 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     except Exception as e:
         print(f"[ERROR] Batch retrieve failed: {e}")
         return {}
-    
+
     # photo_id -> vector 매핑
-    photo_vectors = {point.id: point.vector for point in retrieved_points if point.vector}
-    
+    photo_vectors = {
+        point.id: point.vector for point in retrieved_points if point.vector
+    }
+
     if not photo_vectors:
         return {}
-    
+
     user_filter = models.Filter(
         must=[
             models.FieldCondition(
@@ -232,7 +231,7 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
             )
         ]
     )
-    
+
     # 2. 병렬로 태그 검색 (ThreadPoolExecutor)
     def search_tags_for_photo(photo_id, image_vector):
         try:
@@ -252,26 +251,26 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
                 limit=LIMIT,
                 with_payload=True,
             )
-            
-            tag_ids = list(dict.fromkeys(
-                result.payload["tag_id"] for result in search_results
-            ))
-            
+
+            tag_ids = list(
+                dict.fromkeys(result.payload["tag_id"] for result in search_results)
+            )
+
             return photo_id, preset_tags, tag_ids
         except Exception as e:
             print(f"[ERROR] Search failed for photo {photo_id}: {e}")
             return photo_id, [], []
-    
+
     preset_results = {}
     tag_results = {}
-    
+
     # 최대 10개 스레드로 병렬 검색
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = {
             executor.submit(search_tags_for_photo, photo_id, vector): photo_id
             for photo_id, vector in photo_vectors.items()
         }
-        
+
         for future in as_completed(futures):
             try:
                 photo_id, preset_tags, tag_ids = future.result()
@@ -282,34 +281,31 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
                 print(f"[ERROR] Future failed for photo {photo_id}: {e}")
                 preset_results[photo_id] = []
                 tag_results[photo_id] = []
-    
+
     # 3. 모든 태그 ID를 한 번에 조회 (DB 최적화)
     all_tag_ids = set()
     for tag_ids in tag_results.values():
         all_tag_ids.update(tag_ids)
-    
+
     if not all_tag_ids:
         return preset_results
-    
-    tag_name_dict= {
-        str(tag.tag_id): tag.tag
-        for tag in Tag.objects.filter(tag_id__in=all_tag_ids)
+
+    tag_name_dict = {
+        str(tag.tag_id): tag.tag for tag in Tag.objects.filter(tag_id__in=all_tag_ids)
     }
-    
+
     # 4. 최종 결과 조합
     final_results = {}
     for photo_id, tag_ids in tag_results.items():
         tag_names = [
-            tag_name_dict[tag_id] for tag_id in tag_ids
-            if tag_id in tag_name_dict
+            tag_name_dict[tag_id] for tag_id in tag_ids if tag_id in tag_name_dict
         ]
 
         final_results[photo_id] = preset_results[photo_id]
-        final_results[photo_id].extend([
-            name for name in tag_names
-            if name not in preset_results[photo_id]
-        ])
-    
+        final_results[photo_id].extend(
+            [name for name in tag_names if name not in preset_results[photo_id]]
+        )
+
     return final_results
 
 
@@ -489,12 +485,9 @@ def execute_hybrid_search(
 
     # Photo 모델에서 photo_path_id 조회
     photos = Photo.objects.filter(photo_id__in=photo_uuids)
-    
+
     id_to_meta = {
-        str(p.photo_id): {
-            "photo_path_id": p.photo_path_id,
-            "created_at": p.created_at
-        }
+        str(p.photo_id): {"photo_path_id": p.photo_path_id, "created_at": p.created_at}
         for p in photos
     }
 
@@ -502,10 +495,10 @@ def execute_hybrid_search(
         {
             "photo_id": photo_id_str,
             "photo_path_id": id_to_meta[photo_id_str]["photo_path_id"],
-            "created_at": id_to_meta[photo_id_str]["created_at"]
+            "created_at": id_to_meta[photo_id_str]["created_at"],
         }
         for photo_id_str in recommend_photo_ids_str
-        if photo_id_str in id_to_meta 
+        if photo_id_str in id_to_meta
     ]
 
     return final_results
@@ -523,7 +516,7 @@ def is_valid_uuid(uuid_to_test):
 def generate_stories_task(user_id: int, size: int):
     """
     백그라운드에서 스토리 생성 및 Redis 저장 (Celery 비동기 처리)
-    
+
     Args:
         user_id: 사용자 ID
         size: 생성할 스토리 개수
@@ -531,12 +524,12 @@ def generate_stories_task(user_id: int, size: int):
     from django.db.models import Exists, OuterRef
     from config.redis import get_redis
     import json
-    
+
     print(f"[Task Start] Story generation for User: {user_id}, Size: {size}")
-    
+
     try:
         user = User.objects.get(id=user_id)
-        
+
         # 태그 없는 사진 랜덤 조회
         has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=user)
         photos_queryset = (
@@ -544,28 +537,32 @@ def generate_stories_task(user_id: int, size: int):
             .exclude(Exists(has_tags))
             .order_by("?")[:size]
         )
-        
+
         # 배치 처리로 병렬 태그 추천
         photo_ids = [str(photo.photo_id) for photo in photos_queryset]
         photo_dict = {str(photo.photo_id): photo for photo in photos_queryset}
-        
+
         tag_rec_batch = tag_recommendation_batch(user, photo_ids)
-        
+
         story_data = []
         for photo_id, tag_list in tag_rec_batch.items():
             photo = photo_dict[photo_id]
-            story_data.append({
-                "photo_id": photo_id,
-                "photo_path_id": photo.photo_path_id,
-                "tags": tag_list,
-            })
-        
+            story_data.append(
+                {
+                    "photo_id": photo_id,
+                    "photo_path_id": photo.photo_path_id,
+                    "tags": tag_list,
+                }
+            )
+
         # Redis에 저장
         r = get_redis()
         r.set(user_id, json.dumps(story_data))
-        
-        print(f"[Task Success] Story generation completed for User: {user_id}, Generated: {len(story_data)} stories")
-        
+
+        print(
+            f"[Task Success] Story generation completed for User: {user_id}, Generated: {len(story_data)} stories"
+        )
+
     except Exception as e:
         print(f"[Task Exception] Story generation failed for User {user_id}: {str(e)}")
 

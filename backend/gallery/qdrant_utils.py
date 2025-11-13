@@ -78,5 +78,6 @@ def initialize_qdrant():
         except UnexpectedResponse:
             pass
 
+
 if __name__ == "__main__":
     initialize_qdrant()
