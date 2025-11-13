@@ -153,6 +153,10 @@ fun MyTagsScreen(navController: NavController) {
         navController.popBackStack()
     }
 
+    val isSelectingForPhotos by remember(uiState) {
+        mutableStateOf(!myTagsViewModel.isSelectedPhotosEmpty())
+    }
+
     LaunchedEffect(saveState) {
         when (saveState) {
             is MyTagsViewModel.SaveState.Success -> {
@@ -219,6 +223,28 @@ fun MyTagsScreen(navController: NavController) {
                         showDismissButton = true,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                AnimatedVisibility(visible = isSelectingForPhotos) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 8.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = RoundedCornerShape(12.dp),
+                                ).padding(horizontal = 16.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "Select a tag or create a new one",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
                 }
 
                 // Create New Tag 버튼
@@ -462,6 +488,7 @@ private fun MyTagsContent(
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
+    val isSelectingTagForPhotos = !myTagsViewModel.isSelectedPhotosEmpty()
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -497,7 +524,7 @@ private fun MyTagsContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = if (myTagsViewModel.isSelectedPhotosEmpty()) "My Tags" else "Choose Tag to add photos",
+                        text = if (isSelectingTagForPhotos) "Choose Tag to add photos" else "My Tags",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -516,12 +543,20 @@ private fun MyTagsContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     tags.forEach { tagData ->
+                        val tagModifier =
+                            if (isSelectingTagForPhotos) {
+                                Modifier.shadow(elevation = 4.dp, shape = RoundedCornerShape(26.dp))
+                            } else {
+                                Modifier
+                            }
+
                         TagChipWithCount(
+                            modifier = tagModifier,
                             tagName = tagData.tagName,
                             count = tagData.count,
                             color = getTagColor(tagData.tagId),
                             onClick = {
-                                if (!myTagsViewModel.isSelectedPhotosEmpty()) {
+                                if (isSelectingTagForPhotos) {
                                     myTagsViewModel.savePhotosToExistingTag(tagData.tagId)
                                 } else if (!isEditMode) {
                                     navController.navigate(
