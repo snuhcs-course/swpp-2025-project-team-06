@@ -1,6 +1,7 @@
 package com.example.momentag
 
 import android.Manifest
+import android.app.Activity
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -45,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -63,9 +65,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -267,6 +273,29 @@ fun ImageDetailScreen(
 
     // Focus mode state
     var isFocusMode by remember { mutableStateOf(false) }
+
+    // Hide/Show navigation bar based on focus mode
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        val window = (view.context as? Activity)?.window
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+
+        LaunchedEffect(insetsController, isFocusMode) {
+            if (isFocusMode) {
+                insetsController?.hide(WindowInsetsCompat.Type.navigationBars())
+                insetsController?.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController?.show(WindowInsetsCompat.Type.navigationBars())
+            }
+        }
+
+        DisposableEffect(insetsController) {
+            onDispose {
+                insetsController?.show(WindowInsetsCompat.Type.navigationBars())
+            }
+        }
+    }
 
     // Observe ImageContext from ViewModel
     val imageContext by imageDetailViewModel.imageContext.collectAsState()
