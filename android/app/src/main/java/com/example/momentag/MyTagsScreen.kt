@@ -110,6 +110,9 @@ fun MyTagsScreen(navController: NavController) {
     var tagToEdit by remember { mutableStateOf<Pair<String, String>?>(null) }
     var editedTagName by remember { mutableStateOf("") }
 
+    var showAddTagConfirmDialog by remember { mutableStateOf(false) }
+    var tagToAddPhotosTo by remember { mutableStateOf<TagCntData?>(null) }
+
     var showErrorBanner by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -173,242 +176,258 @@ fun MyTagsScreen(navController: NavController) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            val currentState = uiState
-            CommonTopBar(
-                title = "#Tag",
-                showBackButton = true,
-                onBackClick = { navController.popBackStack() },
-                actions = {
-                    if (myTagsViewModel.isSelectedPhotosEmpty() &&
-                        currentState is MyTagsUiState.Success &&
-                        currentState.tags.isNotEmpty()
-                    ) {
-                        // Sort Button
-                        IconButton(onClick = { showSortSheet = true }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = "Sort",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                        // Edit Button
-                        IconButton(onClick = { myTagsViewModel.toggleEditMode() }) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit",
-                                tint = if (isEditMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                    }
-                },
-            )
-        },
-        bottomBar = {
-            Column(
-                modifier =
-                    Modifier
-                        .background(Color.Transparent)
-                        .fillMaxWidth(),
-            ) {
-                // Error Banner
-                if (showErrorBanner && saveState is MyTagsViewModel.SaveState.Error) {
-                    WarningBanner(
-                        title = "Save failed",
-                        message = (saveState as MyTagsViewModel.SaveState.Error).message,
-                        onActionClick = { },
-                        onDismiss = { showErrorBanner = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                AnimatedVisibility(visible = isSelectingForPhotos) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                                .padding(bottom = 8.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.secondaryContainer,
-                                    shape = RoundedCornerShape(12.dp),
-                                ).padding(horizontal = 16.dp, vertical = 10.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "Select a tag or create a new one",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        )
-                    }
-                }
-
-                // Create New Tag 버튼
-                Button(
-                    onClick = {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("selectionModeComplete", true)
-                        navController.navigate(Screen.AddTag.route)
-                    },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .padding(top = 8.dp, bottom = 8.dp)
-                            .height(52.dp),
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    shape = RoundedCornerShape(26.dp),
-                ) {
-                    Text(
-                        text = "+ Create New Tag",
-                        style =
-                            MaterialTheme.typography.bodyLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                            ),
-                    )
-                }
-
-                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
-                    WarningBanner(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                                .padding(bottom = 8.dp),
-                        title = "Action Failed",
-                        message = errorMessage ?: "Unknown error",
-                        onActionClick = { showErrorBanner = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { showErrorBanner = false },
-                    )
-                }
-
-                BottomNavBar(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                WindowInsets.navigationBars
-                                    .only(WindowInsetsSides.Bottom)
-                                    .asPaddingValues(),
-                            ),
-                    currentTab = BottomTab.MyTagsScreen,
-                    onTabSelected = { tab ->
-                        when (tab) {
-                            BottomTab.HomeScreen -> {
-                                myTagsViewModel.clearDraft()
-                                navController.navigate(Screen.Home.route)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                val currentState = uiState
+                CommonTopBar(
+                    title = "#Tag",
+                    showBackButton = true,
+                    onBackClick = { navController.popBackStack() },
+                    actions = {
+                        if (myTagsViewModel.isSelectedPhotosEmpty() &&
+                            currentState is MyTagsUiState.Success &&
+                            currentState.tags.isNotEmpty()
+                        ) {
+                            // Sort Button
+                            IconButton(onClick = { showSortSheet = true }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = "Sort",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
                             }
-                            BottomTab.SearchResultScreen -> {
-                                myTagsViewModel.clearDraft()
-                                navController.navigate(Screen.SearchResult.createRoute(""))
-                            }
-                            BottomTab.MyTagsScreen -> { /* 현재 화면이므로 아무것도 안 함 */ }
-                            BottomTab.StoryScreen -> {
-                                myTagsViewModel.clearDraft()
-                                navController.navigate(Screen.Story.route)
+                            // Edit Button
+                            IconButton(onClick = { myTagsViewModel.toggleEditMode() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit",
+                                    tint = if (isEditMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                )
                             }
                         }
                     },
                 )
-            }
-        },
-    ) { paddingValues ->
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush =
-                            Brush.verticalGradient(
-                                colorStops =
-                                    arrayOf(
-                                        0.5f to MaterialTheme.colorScheme.surface,
-                                        1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                                    ),
-                            ),
-                    ).padding(paddingValues),
-        ) {
-            when (val state = uiState) {
-                is MyTagsUiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
+            },
+            bottomBar = {
+                Column(
+                    modifier =
+                        Modifier
+                            .background(Color.Transparent)
+                            .fillMaxWidth(),
+                ) {
+                    // Error Banner
+                    if (showErrorBanner && saveState is MyTagsViewModel.SaveState.Error) {
+                        WarningBanner(
+                            title = "Save failed",
+                            message = (saveState as MyTagsViewModel.SaveState.Error).message,
+                            onActionClick = { },
+                            onDismiss = { showErrorBanner = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                }
 
-                is MyTagsUiState.Error -> {
-                    Box(
+                    AnimatedVisibility(visible = isSelectingForPhotos) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .padding(bottom = 8.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.secondaryContainer,
+                                        shape = RoundedCornerShape(12.dp),
+                                    ).padding(horizontal = 16.dp, vertical = 10.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "Select a tag or create a new one",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            )
+                        }
+                    }
+
+                    // Create New Tag 버튼
+                    Button(
+                        onClick = {
+                            navController.previousBackStackEntry?.savedStateHandle?.set(
+                                "selectionModeComplete",
+                                true,
+                            )
+                            navController.navigate(Screen.AddTag.route)
+                        },
                         modifier =
                             Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 24.dp),
-                        contentAlignment = Alignment.Center,
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 8.dp, bottom = 8.dp)
+                                .height(52.dp),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        shape = RoundedCornerShape(26.dp),
                     ) {
+                        Text(
+                            text = "+ Create New Tag",
+                            style =
+                                MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                ),
+                        )
+                    }
+
+                    AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
                         WarningBanner(
-                            title = "Failed to Load Tags",
-                            message = state.message,
-                            onActionClick = { myTagsViewModel.refreshTags() },
-                            showActionButton = true,
-                            showDismissButton = false,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .padding(bottom = 8.dp),
+                            title = "Action Failed",
+                            message = errorMessage ?: "Unknown error",
+                            onActionClick = { showErrorBanner = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { showErrorBanner = false },
+                        )
+                    }
+
+                    BottomNavBar(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    WindowInsets.navigationBars
+                                        .only(WindowInsetsSides.Bottom)
+                                        .asPaddingValues(),
+                                ),
+                        currentTab = BottomTab.MyTagsScreen,
+                        onTabSelected = { tab ->
+                            when (tab) {
+                                BottomTab.HomeScreen -> {
+                                    myTagsViewModel.clearDraft()
+                                    navController.navigate(Screen.Home.route)
+                                }
+
+                                BottomTab.SearchResultScreen -> {
+                                    myTagsViewModel.clearDraft()
+                                    navController.navigate(Screen.SearchResult.createRoute(""))
+                                }
+
+                                BottomTab.MyTagsScreen -> { // 현재 화면이므로 아무것도 안 함
+                                }
+
+                                BottomTab.StoryScreen -> {
+                                    myTagsViewModel.clearDraft()
+                                    navController.navigate(Screen.Story.route)
+                                }
+                            }
+                        },
+                    )
+                }
+            },
+        ) { paddingValues ->
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush =
+                                Brush.verticalGradient(
+                                    colorStops =
+                                        arrayOf(
+                                            0.5f to MaterialTheme.colorScheme.surface,
+                                            1.0f to
+                                                MaterialTheme.colorScheme.primaryContainer.copy(
+                                                    alpha = 0.7f,
+                                                ),
+                                        ),
+                                ),
+                        ).padding(paddingValues),
+            ) {
+                when (val state = uiState) {
+                    is MyTagsUiState.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    is MyTagsUiState.Error -> {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 24.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            WarningBanner(
+                                title = "Failed to Load Tags",
+                                message = state.message,
+                                onActionClick = { myTagsViewModel.refreshTags() },
+                                showActionButton = true,
+                                showDismissButton = false,
+                            )
+                        }
+                    }
+
+                    is MyTagsUiState.Success -> {
+                        MyTagsContent(
+                            tags = state.tags,
+                            navController = navController,
+                            isEditMode = isEditMode,
+                            onEditTag = { tagId, tagName ->
+                                tagToEdit = Pair(tagId, tagName)
+                                editedTagName = tagName
+                                showEditDialog = true
+                            },
+                            onDeleteTag = { tagId, tagName ->
+                                tagToDelete = Pair(tagId, tagName)
+                                showDeleteDialog = true
+                            },
+                            onConfirmAddTag = { tagData ->
+                                tagToAddPhotosTo = tagData
+                                showAddTagConfirmDialog = true
+                            },
+                            onRefresh = { myTagsViewModel.refreshTags() },
+                            onEnterEditMode = { myTagsViewModel.toggleEditMode() },
+                            onExitEditMode = { if (isEditMode) myTagsViewModel.toggleEditMode() },
+                            myTagsViewModel = myTagsViewModel,
                         )
                     }
                 }
-
-                is MyTagsUiState.Success -> {
-                    MyTagsContent(
-                        tags = state.tags,
-                        navController = navController,
-                        isEditMode = isEditMode,
-                        onEditTag = { tagId, tagName ->
-                            tagToEdit = Pair(tagId, tagName)
-                            editedTagName = tagName
-                            showEditDialog = true
-                        },
-                        onDeleteTag = { tagId, tagName ->
-                            tagToDelete = Pair(tagId, tagName)
-                            showDeleteDialog = true
-                        },
-                        onRefresh = { myTagsViewModel.refreshTags() },
-                        onEnterEditMode = { myTagsViewModel.toggleEditMode() },
-                        onExitEditMode = { if (isEditMode) myTagsViewModel.toggleEditMode() },
-                        myTagsViewModel = myTagsViewModel,
-                    )
-                }
             }
+        }
 
-            // Full Screen Loading Overlay
-            if (saveState == MyTagsViewModel.SaveState.Loading) {
-                Box(
+        // Full Screen Loading Overlay
+        if (saveState == MyTagsViewModel.SaveState.Loading) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
                     modifier =
                         Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(
-                        modifier =
-                            Modifier
-                                .size(56.dp)
-                                .shadow(
-                                    elevation = 8.dp,
-                                    shape = CircleShape,
-                                    clip = false,
-                                ),
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 5.dp,
-                    )
-                }
+                            .size(56.dp)
+                            .shadow(
+                                elevation = 8.dp,
+                                shape = CircleShape,
+                                clip = false,
+                            ),
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 5.dp,
+                )
             }
         }
     }
@@ -454,6 +473,26 @@ fun MyTagsScreen(navController: NavController) {
         )
     }
 
+    if (showAddTagConfirmDialog && tagToAddPhotosTo != null) {
+        confirmDialog(
+            title = "Add to Tag",
+            message = "Are you sure you want to add the selected photos to '${tagToAddPhotosTo?.tagName}'?",
+            confirmButtonText = "Add",
+            onConfirm = {
+                tagToAddPhotosTo?.tagId?.let {
+                    myTagsViewModel.savePhotosToExistingTag(it)
+                }
+                showAddTagConfirmDialog = false
+                tagToAddPhotosTo = null
+            },
+            onDismiss = {
+                showAddTagConfirmDialog = false
+                tagToAddPhotosTo = null
+            },
+            dismissible = true,
+        )
+    }
+
     if (showSortSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSortSheet = false },
@@ -484,6 +523,7 @@ private fun MyTagsContent(
     onRefresh: () -> Unit = {},
     onEnterEditMode: () -> Unit = {},
     onExitEditMode: () -> Unit = {},
+    onConfirmAddTag: (TagCntData) -> Unit = {},
     myTagsViewModel: MyTagsViewModel,
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
@@ -557,7 +597,7 @@ private fun MyTagsContent(
                             color = getTagColor(tagData.tagId),
                             onClick = {
                                 if (isSelectingTagForPhotos) {
-                                    myTagsViewModel.savePhotosToExistingTag(tagData.tagId)
+                                    onConfirmAddTag(tagData)
                                 } else if (!isEditMode) {
                                     navController.navigate(
                                         Screen.Album.createRoute(

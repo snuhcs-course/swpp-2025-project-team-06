@@ -574,8 +574,17 @@ fun HomeScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (!hasPermission) {
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Text("To view tags and images,\nplease allow access to your photos.")
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "To view tags and images,\nplease allow access to your photos.",
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 } else {
                     val tagItems =
