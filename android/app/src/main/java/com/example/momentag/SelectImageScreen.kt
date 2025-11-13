@@ -745,20 +745,16 @@ private fun RecommendExpandedPanel(
                 .background(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null, // 클릭 효과 제거
-                    onClick = { /* 아무 동작 안 함 */ },
-                ),
+                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
     ) {
-        Column {
-            // Drag Handle
-            Box(
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            // Drag Handle + Header 영역 (드래그 가능)
+            Column(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(40.dp)
                         .pointerInput(Unit) {
                             detectVerticalDragGestures { change, dragAmount ->
                                 change.consume()
@@ -766,25 +762,38 @@ private fun RecommendExpandedPanel(
                                     onHeightChange(dragAmount.toDp())
                                 }
                             }
-                        },
-                contentAlignment = Alignment.Center,
+                        }.clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = { /* 클릭 효과 없음 */ },
+                        ),
             ) {
+                // Drag Handle
                 Box(
                     modifier =
                         Modifier
-                            .width(40.dp)
-                            .height(4.dp)
-                            .background(
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                RoundedCornerShape(2.dp),
-                            ),
-                )
-            }
+                            .fillMaxWidth()
+                            .height(40.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .width(40.dp)
+                                .height(4.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    RoundedCornerShape(2.dp),
+                                ),
+                    )
+                }
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 // Header
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -831,6 +840,10 @@ private fun RecommendExpandedPanel(
                         )
                     }
                 }
+            }
+
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                // Header
 
                 Spacer(modifier = Modifier.height(16.dp))
 
