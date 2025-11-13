@@ -66,6 +66,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation(libs.androidx.foundation)
+    implementation(libs.androidx.compose.animation)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)
