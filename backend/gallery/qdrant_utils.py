@@ -16,6 +16,7 @@ def get_qdrant_client():
 
 IMAGE_COLLECTION_NAME = "my_image_collection"
 REPVEC_COLLECTION_NAME = "my_repvec_collection"
+TAG_PRESET_COLLECTION_NAME = "tag_recommendation_preset"
 
 
 def initialize_qdrant():
@@ -77,7 +78,5 @@ def initialize_qdrant():
         except UnexpectedResponse:
             pass
 
-
-initialize_qdrant()
-
-print("Qdrant initialization process completed.")
+if __name__ == "__main__":
+    initialize_qdrant()

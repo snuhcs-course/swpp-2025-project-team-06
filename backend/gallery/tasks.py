@@ -18,6 +18,7 @@ from .qdrant_utils import (
     get_qdrant_client,
     IMAGE_COLLECTION_NAME,
     REPVEC_COLLECTION_NAME,
+    TAG_PRESET_COLLECTION_NAME,
 )
 from .models import User, Photo_Caption, Photo_Tag, Tag, Photo
 from search.embedding_service import create_query_embedding
@@ -199,6 +200,7 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
     
+    PRESET_LIMIT = 2
     LIMIT = 10
     client = get_qdrant_client()
     
@@ -234,6 +236,15 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     # 2. 병렬로 태그 검색 (ThreadPoolExecutor)
     def search_tags_for_photo(photo_id, image_vector):
         try:
+            preset_results = client.search(
+                collection_name=TAG_PRESET_COLLECTION_NAME,
+                query_vector=image_vector,
+                limit=PRESET_LIMIT,
+                with_payload=True,
+            )
+
+            preset_tags = [result.payload["name"] for result in preset_results]
+
             search_results = client.search(
                 collection_name=REPVEC_COLLECTION_NAME,
                 query_vector=image_vector,
@@ -246,12 +257,13 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
                 result.payload["tag_id"] for result in search_results
             ))
             
-            return photo_id, tag_ids
+            return photo_id, preset_tags, tag_ids
         except Exception as e:
             print(f"[ERROR] Search failed for photo {photo_id}: {e}")
-            return photo_id, []
+            return photo_id, [], []
     
-    results = {}
+    preset_results = {}
+    tag_results = {}
     
     # 최대 10개 스레드로 병렬 검색
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -262,20 +274,22 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
         
         for future in as_completed(futures):
             try:
-                photo_id, tag_ids = future.result()
-                results[photo_id] = tag_ids
+                photo_id, preset_tags, tag_ids = future.result()
+                preset_results[photo_id] = preset_tags
+                tag_results[photo_id] = tag_ids
             except Exception as e:
                 photo_id = futures[future]
                 print(f"[ERROR] Future failed for photo {photo_id}: {e}")
-                results[photo_id] = []
+                preset_results[photo_id] = []
+                tag_results[photo_id] = []
     
     # 3. 모든 태그 ID를 한 번에 조회 (DB 최적화)
     all_tag_ids = set()
-    for tag_ids in results.values():
+    for tag_ids in tag_results.values():
         all_tag_ids.update(tag_ids)
     
     if not all_tag_ids:
-        return {photo_id: [] for photo_id in photo_ids}
+        return preset_results
     
     tags_dict = {
         str(tag.tag_id): tag 
@@ -284,11 +298,16 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     
     # 4. 최종 결과 조합
     final_results = {}
-    for photo_id, tag_ids in results.items():
-        final_results[photo_id] = [
-            tags_dict[tag_id] for tag_id in tag_ids 
+    for photo_id, tag_ids in tag_results.items():
+        tag_names = [
+            tags_dict[tag_id] for tag_id in tag_ids
             if tag_id in tags_dict
         ]
+
+        final_results[photo_id] = preset_results[photo_id].extend([
+            name for name in tag_names
+            if name not in preset_results[photo_id]
+        ])
     
     return final_results
 
@@ -534,16 +553,10 @@ def generate_stories_task(user_id: int, size: int):
         story_data = []
         for photo_id, tag_list in tag_rec_batch.items():
             photo = photo_dict[photo_id]
-            tags = [
-                {
-                    "tag_id": str(t.tag_id),
-                    "tag": t.tag,
-                } for t in tag_list
-            ]
             story_data.append({
                 "photo_id": photo_id,
                 "photo_path_id": photo.photo_path_id,
-                "tags": tags,
+                "tags": tag_list,
             })
         
         # Redis에 저장
