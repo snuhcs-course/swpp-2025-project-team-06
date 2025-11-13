@@ -24,8 +24,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -87,7 +87,7 @@ fun SearchResultScreen(
     val searchText by searchViewModel.searchText.collectAsState()
     val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
 
-    var isSelectionMode by remember { mutableStateOf(false) }
+    // var isSelectionMode by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
     var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
@@ -371,7 +371,7 @@ fun SearchResultScreenUi(
                 Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = 16.dp),
             searchText = searchText,
             onSearchTextChange = onSearchTextChange,
             onSearchSubmit = onSearchSubmit,
