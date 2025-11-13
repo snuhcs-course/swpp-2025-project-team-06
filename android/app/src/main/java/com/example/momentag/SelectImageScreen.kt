@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -733,6 +734,8 @@ private fun RecommendExpandedPanel(
 ) {
     val density = LocalDensity.current
 
+    val interactionSource = remember { MutableInteractionSource() }
+
     Box(
         modifier =
             Modifier
@@ -742,7 +745,12 @@ private fun RecommendExpandedPanel(
                 .background(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null, // 클릭 효과 제거
+                    onClick = { /* 아무 동작 안 함 */ },
+                ),
     ) {
         Column {
             // Drag Handle
