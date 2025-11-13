@@ -304,7 +304,8 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
             if tag_id in tag_name_dict
         ]
 
-        final_results[photo_id] = preset_results[photo_id].extend([
+        final_results[photo_id] = preset_results[photo_id]
+        final_results[photo_id].extend([
             name for name in tag_names
             if name not in preset_results[photo_id]
         ])
