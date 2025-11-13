@@ -316,7 +316,7 @@ private fun SearchChipView(
     Row(
         modifier =
             modifier
-                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                .background(MaterialTheme.colorScheme.primary, CircleShape)
                 .clip(CircleShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -330,7 +330,7 @@ private fun SearchChipView(
             text = "#${tag.tagName}",
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            color = MaterialTheme.colorScheme.onPrimary,
         )
     }
 }
