@@ -291,8 +291,8 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     if not all_tag_ids:
         return preset_results
     
-    tags_dict = {
-        str(tag.tag_id): tag 
+    tag_name_dict= {
+        str(tag.tag_id): tag.tag
         for tag in Tag.objects.filter(tag_id__in=all_tag_ids)
     }
     
@@ -300,8 +300,8 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     final_results = {}
     for photo_id, tag_ids in tag_results.items():
         tag_names = [
-            tags_dict[tag_id] for tag_id in tag_ids
-            if tag_id in tags_dict
+            tag_name_dict[tag_id] for tag_id in tag_ids
+            if tag_id in tag_name_dict
         ]
 
         final_results[photo_id] = preset_results[photo_id].extend([
