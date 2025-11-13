@@ -1,12 +1,18 @@
 package com.example.momentag
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -20,7 +26,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,10 +39,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -54,21 +60,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -80,7 +88,6 @@ import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.AlbumViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,6 +100,7 @@ fun AlbumScreen(
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val config = LocalConfiguration.current
 
     val albumViewModel: AlbumViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
@@ -118,6 +126,14 @@ fun AlbumScreen(
 
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+
+    // === Edge-to-edge Overlay 상태를 상위로 끌어올림 ===
+    var isRecommendationExpanded by remember { mutableStateOf(false) }
+
+    // 추천 패널 높이 (드래그로 조절). min/max도 상위에서 계산해 공유
+    val minPanelHeight = 200.dp
+    val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
+    var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
 
     var showErrorBanner by remember { mutableStateOf(false) }
     var errorBannerTitle by remember { mutableStateOf("Error") }
@@ -177,7 +193,6 @@ fun AlbumScreen(
         }
     }
 
-    // Handle Add Photos state (success/error toast)
     LaunchedEffect(tagAddState) {
         when (val state = tagAddState) {
             is AlbumViewModel.TagAddState.Success -> {
@@ -191,7 +206,7 @@ fun AlbumScreen(
                 showErrorBanner = true // 실패: Banner
                 albumViewModel.resetAddState()
             }
-            else -> Unit // Idle, Loading
+            else -> Unit
         }
     }
 
@@ -259,6 +274,13 @@ fun AlbumScreen(
                             photos = selectedTagAlbumPhotos,
                             tagId = tagId,
                         )
+                        Toast
+                            .makeText(
+                                context,
+                                "${selectedTagAlbumPhotos.size} photo(s) removed",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+
                         showDeleteConfirmationDialog = false
                         isTagAlbumPhotoSelectionMode = false
                         showMenu = false
@@ -355,167 +377,197 @@ fun AlbumScreen(
             )
         },
     ) { paddingValues ->
-        PullToRefreshBox(
-            isRefreshing = imageLoadState is AlbumViewModel.AlbumLoadingState.Loading,
-            onRefresh = {
-                scope.launch {
-                    if (hasPermission) {
-                        albumViewModel.loadAlbum(tagId, tagName)
-                    }
-                }
-            },
+
+        // === 최상단 레이어 컨테이너: Edge-to-edge 오버레이를 Column 밖의 sibling으로 렌더링 ===
+        Box(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {
-                            submitAndClearFocus() // Run the same logic as "Done"
-                        },
+            // 당겨서 새로고침은 본문 레이어에만
+            PullToRefreshBox(
+                isRefreshing = imageLoadState is AlbumViewModel.AlbumLoadingState.Loading,
+                onRefresh = {
+                    scope.launch {
+                        if (hasPermission) albumViewModel.loadAlbum(tagId, tagName)
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                // 본문: 가로 16dp 패딩
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { submitAndClearFocus() },
                 ) {
-                    BasicTextField(
-                        value = editableTagName,
-                        onValueChange = { editableTagName = it },
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp)
-                                .onFocusChanged { focusState ->
-                                    isFocused = focusState.isFocused
-                                },
-                        textStyle =
-                            MaterialTheme.typography.displayMedium,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions =
-                            KeyboardActions(
-                                onDone = {
-                                    submitAndClearFocus()
-                                },
-                            ),
-                        singleLine = true,
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // 'Clear text' (x) button
-                    // Show only when focused AND not empty
-                    if (editableTagName.isNotEmpty() && isFocused) {
-                        IconButton(
-                            onClick = { editableTagName = "" },
-                            modifier = Modifier.size(32.dp),
-                        ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(24.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = CircleShape),
-                                contentAlignment = Alignment.Center,
+                    // 제목(태그명) 행
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        BasicTextField(
+                            value = editableTagName,
+                            onValueChange = { editableTagName = it },
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                                    .onFocusChanged { isFocused = it.isFocused },
+                            textStyle =
+                                MaterialTheme.typography.displayMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { submitAndClearFocus() }),
+                            singleLine = true,
+                        )
+
+                        if (editableTagName.isNotEmpty() && isFocused) {
+                            IconButton(
+                                onClick = { editableTagName = "" },
+                                modifier = Modifier.size(32.dp),
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Clear text",
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(16.dp),
-                                )
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(24.dp)
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                shape = CircleShape,
+                                            ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear text",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
                             }
                         }
                     }
-                }
-                HorizontalDivider(
-                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                )
 
-                AnimatedVisibility(visible = showSelectPhotosBanner) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        title = "No Photos Selected",
-                        message = "Please select photos to delete.",
-                        onActionClick = { showSelectPhotosBanner = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { showSelectPhotosBanner = false },
+                    HorizontalDivider(
+                        modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
-                }
 
-                AnimatedVisibility(visible = showErrorBanner) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        title = errorBannerTitle,
-                        message = errorBannerMessage,
-                        onActionClick = { showErrorBanner = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { showErrorBanner = false },
-                    )
-                }
-
-                if (!hasPermission) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Please allow access to your photos.")
+                    AnimatedVisibility(visible = showSelectPhotosBanner) {
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            title = "No Photos Selected",
+                            message = "Please select photos to delete.",
+                            onActionClick = { showSelectPhotosBanner = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { showSelectPhotosBanner = false },
+                        )
                     }
-                } else {
-                    AlbumContent(
-                        albumLoadState = imageLoadState,
-                        recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
-                        selectedRecommendPhotos = albumViewModel.selectedRecommendPhotos.collectAsState().value,
-                        selectedTagAlbumPhotos = selectedTagAlbumPhotos,
-                        navController = navController,
-                        onToggleRecommendPhoto = { photo -> albumViewModel.toggleRecommendPhoto(photo) },
-                        onResetRecommendSelection = { albumViewModel.resetRecommendSelection() },
-                        onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
-                        onResetTagAlbumPhotoSelection = { albumViewModel.resetTagAlbumPhotoSelection() },
-                        tagId = tagId,
-                        onAddPhotosToAlbum = { photos ->
-                            albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId, tagName)
-                        },
-                        isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
-                        onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
-                    )
+
+                    AnimatedVisibility(visible = showErrorBanner) {
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            title = errorBannerTitle,
+                            message = errorBannerMessage,
+                            onActionClick = { showErrorBanner = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { showErrorBanner = false },
+                        )
+                    }
+
+                    if (!hasPermission) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Please allow access to your photos.")
+                        }
+                    } else {
+                        AlbumGridArea(
+                            albumLoadState = imageLoadState,
+                            recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
+                            selectedTagAlbumPhotos = selectedTagAlbumPhotos,
+                            navController = navController,
+                            isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
+                            onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
+                            onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
+                            // 펼쳐짐 여부와 패널 높이에 따라 그리드 bottom padding 조절
+                            isRecommendationExpanded = isRecommendationExpanded,
+                            panelHeight = panelHeight,
+                            // Chip 클릭 시 오버레이 열기
+                            onExpandRecommend = { isRecommendationExpanded = true },
+                        )
+                    }
+                    if (!hasPermission) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("이미지 접근 권한을 허용해주세요.")
+                        }
+                    } else {
+                        // === 그리드 + 축소 Chip (오버레이 X) ===
+                        AlbumGridArea(
+                            albumLoadState = imageLoadState,
+                            recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
+                            selectedTagAlbumPhotos = selectedTagAlbumPhotos,
+                            navController = navController,
+                            isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
+                            onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
+                            onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
+                            // 펼쳐짐 여부와 패널 높이에 따라 그리드 bottom padding 조절
+                            isRecommendationExpanded = isRecommendationExpanded,
+                            panelHeight = panelHeight,
+                            // Chip 클릭 시 오버레이 열기
+                            onExpandRecommend = { isRecommendationExpanded = true },
+                        )
+                    }
                 }
+            }
+
+            // === Edge-to-edge 오버레이 (Column 바깥, 동일 Box의 sibling) ===
+            if (isRecommendationExpanded) {
+                RecommendExpandedPanel(
+                    recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
+                    selectedRecommendPhotos = albumViewModel.selectedRecommendPhotos.collectAsState().value,
+                    navController = navController,
+                    onToggleRecommendPhoto = { photo -> albumViewModel.toggleRecommendPhoto(photo) },
+                    onResetRecommendSelection = { albumViewModel.resetRecommendSelection() },
+                    onAddPhotosToAlbum = { photos ->
+                        albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId, tagName)
+                    },
+                    panelHeight = panelHeight,
+                    onHeightChange = { delta ->
+                        panelHeight = (panelHeight - delta).coerceIn(minPanelHeight, maxPanelHeight)
+                    },
+                    onCollapse = { isRecommendationExpanded = false },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
     }
 }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
-private fun AlbumContent(
+private fun AlbumGridArea(
     albumLoadState: AlbumViewModel.AlbumLoadingState,
     recommendLoadState: AlbumViewModel.RecommendLoadingState,
-    selectedRecommendPhotos: List<Photo>,
     selectedTagAlbumPhotos: List<Photo>,
     navController: NavController,
-    onToggleRecommendPhoto: (Photo) -> Unit,
-    onResetRecommendSelection: () -> Unit,
-    onToggleTagAlbumPhoto: (Photo) -> Unit,
-    onResetTagAlbumPhotoSelection: () -> Unit,
-    tagId: String,
-    onAddPhotosToAlbum: (List<Photo>) -> Unit,
     isTagAlbumPhotoSelectionMode: Boolean,
     onSetTagAlbumPhotoSelectionMode: (Boolean) -> Unit,
+    onToggleTagAlbumPhoto: (Photo) -> Unit,
+    isRecommendationExpanded: Boolean,
+    panelHeight: Dp,
+    onExpandRecommend: () -> Unit,
 ) {
-    var isRecommendSelectionMode by remember { mutableStateOf(false) }
-    var recommendOffsetY by remember { mutableFloatStateOf(600f) }
-    val minOffset = 0f
-    val maxOffset = 600f
-
-    val buttonShape = RoundedCornerShape(16.dp)
-    val buttonPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-
     Box(modifier = Modifier.fillMaxSize()) {
-        // Tag Album Grid
         when (albumLoadState) {
             is AlbumViewModel.AlbumLoadingState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -524,12 +576,15 @@ private fun AlbumContent(
             }
             is AlbumViewModel.AlbumLoadingState.Success -> {
                 val photos = albumLoadState.photos
-
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     verticalArrangement = Arrangement.spacedBy(verticalArrangement),
                     horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
-                    contentPadding = PaddingValues(bottom = 450.dp), // Space for AI Recommend section
+                    contentPadding =
+                        PaddingValues(
+                            bottom = if (isRecommendationExpanded) panelHeight else 80.dp,
+                        ),
+                    modifier = Modifier.fillMaxSize(),
                 ) {
                     items(
                         count = photos.size,
@@ -540,12 +595,8 @@ private fun AlbumContent(
                             navController = navController,
                             isSelectionMode = isTagAlbumPhotoSelectionMode,
                             isSelected = selectedTagAlbumPhotos.contains(photos[index]),
-                            onToggleSelection = {
-                                onToggleTagAlbumPhoto(photos[index])
-                            },
-                            onLongPress = {
-                                onSetTagAlbumPhotoSelectionMode(true)
-                            },
+                            onToggleSelection = { onToggleTagAlbumPhoto(photos[index]) },
+                            onLongPress = { onSetTagAlbumPhotoSelectionMode(true) },
                         )
                     }
                 }
@@ -560,190 +611,291 @@ private fun AlbumContent(
                     showDismissButton = false,
                 )
             }
-            is AlbumViewModel.AlbumLoadingState.Idle -> {
-            }
+            is AlbumViewModel.AlbumLoadingState.Idle -> {}
         }
 
-        // AI Recommend Section (draggable)
-        Box(
+        // 축소 상태의 Chip (그리드 위에)
+        AnimatedVisibility(
+            visible = !isRecommendationExpanded,
+            enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+            exit = fadeOut(tween(300)) + shrinkVertically(tween(300)),
             modifier =
                 Modifier
-                    .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .offset { IntOffset(0, recommendOffsetY.roundToInt()) }
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onDragEnd = {
-                                // Snap to closest position
-                                recommendOffsetY =
-                                    if (recommendOffsetY < (minOffset + maxOffset) / 2) {
-                                        minOffset
-                                    } else {
-                                        maxOffset
-                                    }
-                            },
-                        ) { _, dragAmount ->
-                            val newOffset = recommendOffsetY + dragAmount
-                            recommendOffsetY = newOffset.coerceIn(minOffset, maxOffset)
-                        }
-                    }.background(MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .padding(16.dp),
+                    .padding(bottom = 16.dp),
         ) {
-            Column {
+            RecommendChip(
+                recommendLoadState = recommendLoadState,
+                onExpand = onExpandRecommend,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecommendChip(
+    recommendLoadState: AlbumViewModel.RecommendLoadingState,
+    onExpand: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .shadow(elevation = 4.dp, shape = RoundedCornerShape(20.dp))
+                .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(onClick = onExpand)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        when (recommendLoadState) {
+            is AlbumViewModel.RecommendLoadingState.Loading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "AI Recommending...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            is AlbumViewModel.RecommendLoadingState.Success -> {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = "AI",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "AI Recommend",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            is AlbumViewModel.RecommendLoadingState.Error -> {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Error",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Recommendation Failed",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            is AlbumViewModel.RecommendLoadingState.Idle -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Preparing...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(4.dp))
+        Icon(
+            imageVector = Icons.Default.ExpandLess,
+            contentDescription = "Expand",
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun RecommendExpandedPanel(
+    recommendLoadState: AlbumViewModel.RecommendLoadingState,
+    selectedRecommendPhotos: List<Photo>,
+    navController: NavController,
+    onToggleRecommendPhoto: (Photo) -> Unit,
+    onResetRecommendSelection: () -> Unit,
+    onAddPhotosToAlbum: (List<Photo>) -> Unit,
+    panelHeight: Dp,
+    onHeightChange: (Dp) -> Unit,
+    onCollapse: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    // 터치이벤트 뒤로 전달 되지 않도록
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(panelHeight)
+                .shadow(elevation = 8.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+    ) {
+        Column {
+            // Drag handle + Header 영역 (드래그 가능)
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures { change, dragAmount ->
+                                change.consume()
+                                with(density) {
+                                    onHeightChange(dragAmount.toDp())
+                                }
+                            }
+                        }.clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = { /* 클릭 효과 없음 */ },
+                        ),
+            ) {
                 // Drag handle
                 Box(
                     modifier =
                         Modifier
-                            .width(40.dp)
-                            .height(4.dp)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), shape = CircleShape)
-                            .align(Alignment.CenterHorizontally),
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // AI Recommend Badge
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
+                            .fillMaxWidth()
+                            .height(40.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (recommendLoadState is AlbumViewModel.RecommendLoadingState.Success && recommendLoadState.photos.isNotEmpty()) {
-                        if (isRecommendSelectionMode) {
-                            // X button
-                            IconButton(
-                                onClick = {
-                                    isRecommendSelectionMode = false
-                                    onResetRecommendSelection()
-                                },
-                                modifier = Modifier.align(Alignment.CenterStart),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Cancel selection",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant, // Color.Gray,
-                                    modifier = Modifier.size(24.dp),
-                                )
+                    Box(
+                        modifier =
+                            Modifier
+                                .width(40.dp)
+                                .height(4.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    RoundedCornerShape(2.dp),
+                                ),
+                    )
+                }
+
+                // Header
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    if (recommendLoadState is AlbumViewModel.RecommendLoadingState.Success &&
+                        recommendLoadState.photos.isNotEmpty() &&
+                        selectedRecommendPhotos.isNotEmpty()
+                    ) {
+                        // 사진 선택 시: Add와 Cancel 버튼
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(onClick = onResetRecommendSelection) {
+                                Text("Cancel")
                             }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Add to album button
                             Button(
                                 onClick = {
                                     onAddPhotosToAlbum(selectedRecommendPhotos)
-                                    isRecommendSelectionMode = false
                                     onResetRecommendSelection()
+                                    onCollapse()
                                 },
-                                enabled = selectedRecommendPhotos.isNotEmpty(), // 선택된 사진이 있어야 활성화
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                                shape = buttonShape,
-                                contentPadding = buttonPadding,
+                                colors =
+                                    androidx.compose.material3.ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                    ),
+                                shape = RoundedCornerShape(20.dp),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                             ) {
                                 Text(
-                                    text = "Add to Album (${selectedRecommendPhotos.size})",
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    text = "Add ${selectedRecommendPhotos.size} Photo${if (selectedRecommendPhotos.size > 1) "s" else ""}",
+                                    style = MaterialTheme.typography.labelLarge,
                                 )
-                            }
-                        } else {
-                            // Non-selection mode
-                            Button(
-                                onClick = { isRecommendSelectionMode = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                                shape = buttonShape,
-                                contentPadding = buttonPadding,
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = "AI",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "AI Recommend",
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    )
-                                }
                             }
                         }
                     } else {
-                        // Empty recommended result or Loading state - non-clickable button "AI recommend"
-                        Button(
-                            onClick = {}, // can not click
-                            colors =
-                                ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), // 비활성 색
-                                ),
-                            shape = buttonShape,
-                            contentPadding = buttonPadding,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = "AI",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "AI Recommend",
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                )
-                            }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "AI",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "AI Recommend",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                         }
                     }
+
+                    IconButton(onClick = onCollapse) {
+                        Icon(
+                            imageVector = Icons.Default.ExpandMore,
+                            contentDescription = "Collapse",
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // AI Recommendations Grid
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                // Grid / states
                 when (recommendLoadState) {
-                    is AlbumViewModel.RecommendLoadingState.Loading -> {
-                        Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
+                    is AlbumViewModel.RecommendLoadingState.Loading,
+                    is AlbumViewModel.RecommendLoadingState.Idle,
+                    -> {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                            contentAlignment = Alignment.Center,
+                        ) { CircularProgressIndicator(modifier = Modifier.size(48.dp), strokeWidth = 4.dp) }
                     }
                     is AlbumViewModel.RecommendLoadingState.Success -> {
                         val recommendPhotos = recommendLoadState.photos
-
                         if (recommendPhotos.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                                Text("No recommended photos.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    "No recommendations available",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         } else {
-                            Column {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(3),
-                                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
-                                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
-                                    modifier = Modifier.height(300.dp),
-                                ) {
-                                    items(
-                                        count = recommendPhotos.size,
-                                        key = { index -> index },
-                                    ) { index ->
-                                        ImageGridUriItem(
-                                            photo = recommendPhotos[index],
-                                            navController = navController,
-                                            isSelectionMode = isRecommendSelectionMode,
-                                            isSelected = selectedRecommendPhotos.contains(recommendPhotos[index]),
-                                            onToggleSelection = {
-                                                onToggleRecommendPhoto(recommendPhotos[index])
-                                            },
-                                            onLongPress = {
-                                                isRecommendSelectionMode = true
-                                            },
-                                        )
-                                    }
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                verticalArrangement = Arrangement.spacedBy(verticalArrangement),
+                                horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                                modifier = Modifier.weight(1f),
+                                userScrollEnabled = true,
+                            ) {
+                                items(
+                                    count = recommendPhotos.size,
+                                    key = { idx -> recommendPhotos[idx].photoId },
+                                ) { idx ->
+                                    ImageGridUriItem(
+                                        photo = recommendPhotos[idx],
+                                        navController = navController,
+                                        isSelectionMode = true,
+                                        isSelected = selectedRecommendPhotos.contains(recommendPhotos[idx]),
+                                        onToggleSelection = { onToggleRecommendPhoto(recommendPhotos[idx]) },
+                                        onLongPress = {},
+                                    )
                                 }
                             }
                         }
