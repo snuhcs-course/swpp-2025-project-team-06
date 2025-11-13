@@ -11,6 +11,7 @@ import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,6 +62,10 @@ class StoryViewModel(
 
     // Track current stories list for pagination
     private val currentStories = mutableListOf<StoryModel>()
+
+    // Track polling jobs to allow cancellation
+    private var loadStoriesJob: Job? = null
+    private var loadMoreStoriesJob: Job? = null
 
     /**
      * Trigger story generation in the background (for pre-loading)
@@ -143,45 +148,49 @@ class StoryViewModel(
      * @param size Number of stories to fetch
      */
     fun loadStories(size: Int) {
-        viewModelScope.launch {
-            _storyState.value = StoryState.Loading
+        // Cancel any existing polling job
+        loadStoriesJob?.cancel()
 
-            // Poll until stories are ready or error occurs
-            while (true) {
-                when (val result = recommendRepository.getStories()) {
-                    is RecommendRepository.StoryResult.Success -> {
-                        processInitialStories(result.data, size)
-                        return@launch
-                    }
+        loadStoriesJob =
+            viewModelScope.launch {
+                _storyState.value = StoryState.Loading
 
-                    is RecommendRepository.StoryResult.NotReady -> {
-                        // Wait 1 second before retrying
-                        delay(1000)
-                        continue
-                    }
+                // Poll until stories are ready or error occurs
+                while (true) {
+                    when (val result = recommendRepository.getStories()) {
+                        is RecommendRepository.StoryResult.Success -> {
+                            processInitialStories(result.data, size)
+                            return@launch
+                        }
 
-                    is RecommendRepository.StoryResult.NetworkError -> {
-                        _storyState.value = StoryState.NetworkError(result.message)
-                        return@launch
-                    }
+                        is RecommendRepository.StoryResult.NotReady -> {
+                            // Wait 1 second before retrying
+                            delay(1000)
+                            continue
+                        }
 
-                    is RecommendRepository.StoryResult.Unauthorized -> {
-                        _storyState.value = StoryState.Error("Please login again")
-                        return@launch
-                    }
+                        is RecommendRepository.StoryResult.NetworkError -> {
+                            _storyState.value = StoryState.NetworkError(result.message)
+                            return@launch
+                        }
 
-                    is RecommendRepository.StoryResult.BadRequest -> {
-                        _storyState.value = StoryState.Error(result.message)
-                        return@launch
-                    }
+                        is RecommendRepository.StoryResult.Unauthorized -> {
+                            _storyState.value = StoryState.Error("Please login again")
+                            return@launch
+                        }
 
-                    is RecommendRepository.StoryResult.Error -> {
-                        _storyState.value = StoryState.Error(result.message)
-                        return@launch
+                        is RecommendRepository.StoryResult.BadRequest -> {
+                            _storyState.value = StoryState.Error(result.message)
+                            return@launch
+                        }
+
+                        is RecommendRepository.StoryResult.Error -> {
+                            _storyState.value = StoryState.Error(result.message)
+                            return@launch
+                        }
                     }
                 }
             }
-        }
     }
 
     /**
@@ -258,32 +267,36 @@ class StoryViewModel(
         val currentState = _storyState.value
         if (currentState !is StoryState.Success) return
 
-        viewModelScope.launch {
-            // Poll until stories are ready or error occurs
-            while (true) {
-                when (val result = recommendRepository.getStories()) {
-                    is RecommendRepository.StoryResult.Success -> {
-                        processAdditionalStories(result.data, currentState, size)
-                        return@launch
-                    }
+        // Cancel any existing pagination polling job
+        loadMoreStoriesJob?.cancel()
 
-                    is RecommendRepository.StoryResult.NotReady -> {
-                        // Wait 1 second before retrying
-                        delay(1000)
-                        continue
-                    }
+        loadMoreStoriesJob =
+            viewModelScope.launch {
+                // Poll until stories are ready or error occurs
+                while (true) {
+                    when (val result = recommendRepository.getStories()) {
+                        is RecommendRepository.StoryResult.Success -> {
+                            processAdditionalStories(result.data, currentState, size)
+                            return@launch
+                        }
 
-                    is RecommendRepository.StoryResult.NetworkError,
-                    is RecommendRepository.StoryResult.Unauthorized,
-                    is RecommendRepository.StoryResult.BadRequest,
-                    is RecommendRepository.StoryResult.Error,
-                    -> {
-                        // Silently fail for pagination - don't disrupt current state
-                        return@launch
+                        is RecommendRepository.StoryResult.NotReady -> {
+                            // Wait 1 second before retrying
+                            delay(1000)
+                            continue
+                        }
+
+                        is RecommendRepository.StoryResult.NetworkError,
+                        is RecommendRepository.StoryResult.Unauthorized,
+                        is RecommendRepository.StoryResult.BadRequest,
+                        is RecommendRepository.StoryResult.Error,
+                        -> {
+                            // Silently fail for pagination - don't disrupt current state
+                            return@launch
+                        }
                     }
                 }
             }
-        }
     }
 
     /**
@@ -738,9 +751,21 @@ class StoryViewModel(
     }
 
     /**
+     * Stop all active polling jobs
+     * Should be called when user navigates away from StoryScreen
+     */
+    fun stopPolling() {
+        loadStoriesJob?.cancel()
+        loadStoriesJob = null
+        loadMoreStoriesJob?.cancel()
+        loadMoreStoriesJob = null
+    }
+
+    /**
      * Reset story state
      */
     fun resetState() {
+        stopPolling()
         _storyState.value = StoryState.Idle
         _selectedTags.value = emptyMap()
         _storyTagSubmissionStates.value = emptyMap()
