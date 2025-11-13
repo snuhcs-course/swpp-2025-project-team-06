@@ -57,7 +57,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -233,7 +232,6 @@ fun ZoomableImage(
         )
     }
 }
-
 
 // event.calculateCentroid()는 internal API이므로, 직접 구현해야 함.
 internal fun androidx.compose.ui.input.pointer.PointerEvent.calculateCentroid(useCurrentPosition: Boolean = true): Offset {
@@ -520,11 +518,12 @@ fun ImageDetailScreen(
                     onBackClick = onNavigateBack,
                 )
             }
-        }
+        },
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier =
+                Modifier
+                    .fillMaxSize(),
         ) {
             // Image Pager as the background layer, always filling the screen
             HorizontalPager(
@@ -549,7 +548,6 @@ fun ImageDetailScreen(
             // UI elements as the foreground layer, conditionally visible
             if (!isFocusMode) {
                 Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-
                     // Date and Address
                     if (dateTime != null) {
                         val datePart = dateTime!!.split(" ")[0]
@@ -558,9 +556,10 @@ fun ImageDetailScreen(
                             text = formattedDate,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
                             textAlign = TextAlign.Left,
                         )
                     }
@@ -571,9 +570,10 @@ fun ImageDetailScreen(
                             text = address,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.headlineLarge,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
                             textAlign = TextAlign.Left,
                         )
                     }
@@ -627,9 +627,10 @@ fun ImageDetailScreen(
                     showActionButton = false,
                     onDismiss = { showWarningBanner = false },
                     showDismissButton = true,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp),
                 )
             }
         }
