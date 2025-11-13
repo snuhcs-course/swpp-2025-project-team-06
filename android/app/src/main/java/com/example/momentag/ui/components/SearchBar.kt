@@ -75,7 +75,7 @@ fun SearchBar(
  * @param onValueChange 검색어 변경 콜백
  * @param onSearch 검색 실행 콜백
  * @param modifier Modifier
- * @param placeholder 플레이스홀더 텍스트 (기본: "Search Photos")
+ * @param placeholder 플레이스홀더 텍스트 (기본: "Search Anything...")
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,7 +84,7 @@ fun SearchBarControlledCustom(
     onValueChange: (String) -> Unit,
     onSearch: () -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Search Photos",
+    placeholder: String = "Search Anything...",
 ) {
     TextField(
         value = value,

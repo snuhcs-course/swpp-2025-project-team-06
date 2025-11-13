@@ -1,6 +1,7 @@
 package com.example.momentag
 
 import android.Manifest
+import android.app.Activity
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -17,25 +18,24 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,25 +57,37 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.momentag.ConfirmableRecommendedTag
+import com.example.momentag.CustomTagChip
 import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
+import com.example.momentag.tagXMode
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.IOException
 import kotlin.math.abs
@@ -85,6 +98,7 @@ fun ZoomableImage(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     onScaleChanged: (isZoomed: Boolean) -> Unit,
+    onSingleTap: () -> Unit = {},
 ) {
     // 1. 상태 변수 선언
     val scaleAnim = remember { Animatable(1f) }
@@ -94,6 +108,7 @@ fun ZoomableImage(
     var size by remember { mutableStateOf(IntSize.Zero) }
 
     val scope = rememberCoroutineScope()
+    var tapJob by remember { mutableStateOf<Job?>(null) }
 
     // 2. 페이지 전환 시 모든 상태를 완벽하게 초기화
     LaunchedEffect(model) {
@@ -108,6 +123,34 @@ fun ZoomableImage(
             modifier
                 .onSizeChanged { size = it }
                 .pointerInput(Unit) {
+                    // Single tap detection
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val downTime = System.currentTimeMillis()
+                        val downPosition = down.position
+
+                        // Wait for up event
+                        val up = waitForUpOrCancellation()
+
+                        if (up != null) {
+                            val upTime = System.currentTimeMillis()
+                            val upPosition = up.position
+                            val timeDiff = upTime - downTime
+                            val positionDiff = (upPosition - downPosition).getDistance()
+
+                            // Single tap: quick and no movement
+                            if (timeDiff < 300 && positionDiff < 20f) {
+                                // Cancel any pending tap job and start new one
+                                tapJob?.cancel()
+                                tapJob =
+                                    scope.launch {
+                                        delay(200) // Timeout to ensure it's not a double tap
+                                        onSingleTap()
+                                    }
+                            }
+                        }
+                    }
+                }.pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false) // 다른 제스처와 경쟁하기 위해 false로 설정
                         do {
@@ -117,6 +160,8 @@ fun ZoomableImage(
 
                             // 두 손가락 제스처(줌)이거나, 이미 확대된 상태에서의 한 손가락 드래그일 경우
                             if (event.changes.size > 1 || scale > 1.01f) { // scale > 1.01f 로 약간의 여유를 줌
+                                // Cancel tap job if zoom/pan starts
+                                tapJob?.cancel()
                                 val oldScale = scale
                                 val newScale = (scale * (1f + (zoom - 1f) * 1f)).coerceIn(1f, 5f)
 
@@ -190,7 +235,7 @@ fun ZoomableImage(
     }
 }
 
-// event.calculateCentroid()는 internal API이므로, 직접 구현합니다.
+// event.calculateCentroid()는 internal API이므로, 직접 구현해야 함.
 internal fun androidx.compose.ui.input.pointer.PointerEvent.calculateCentroid(useCurrentPosition: Boolean = true): Offset {
     var totalX = 0.0f
     var totalY = 0.0f
@@ -219,9 +264,38 @@ fun ImageDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    var showWarningBanner by remember { mutableStateOf(false) }
+    var warningBannerMessage by remember { mutableStateOf("") }
+
     // Screen-scoped ViewModel - fresh instance per screen
     val imageDetailViewModel: ImageDetailViewModel =
         viewModel(factory = ViewModelFactory.getInstance(context))
+
+    // Focus mode state
+    var isFocusMode by remember { mutableStateOf(false) }
+
+    // Hide/Show navigation bar based on focus mode
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        val window = (view.context as? Activity)?.window
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+
+        LaunchedEffect(insetsController, isFocusMode) {
+            if (isFocusMode) {
+                insetsController?.hide(WindowInsetsCompat.Type.navigationBars())
+                insetsController?.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController?.show(WindowInsetsCompat.Type.navigationBars())
+            }
+        }
+
+        DisposableEffect(insetsController) {
+            onDispose {
+                insetsController?.show(WindowInsetsCompat.Type.navigationBars())
+            }
+        }
+    }
 
     // Observe ImageContext from ViewModel
     val imageContext by imageDetailViewModel.imageContext.collectAsState()
@@ -229,6 +303,7 @@ fun ImageDetailScreen(
     // Observe PhotoTagState from ViewModel
     val imageDetailTagState by imageDetailViewModel.imageDetailTagState.collectAsState()
     val tagDeleteState by imageDetailViewModel.tagDeleteState.collectAsState()
+    val tagAddState by imageDetailViewModel.tagAddState.collectAsState()
 
     // Observe the photo address from ViewModel
     val photoAddress by imageDetailViewModel.photoAddress.collectAsState()
@@ -351,12 +426,43 @@ fun ImageDetailScreen(
             }
 
             is ImageDetailViewModel.TagDeleteState.Error -> {
-                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                warningBannerMessage = "An Error Occured. Please Try Again"
+                showWarningBanner = true
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
             }
 
             else -> Unit
+        }
+    }
+
+    LaunchedEffect(tagAddState) {
+        when (val state = tagAddState) {
+            is ImageDetailViewModel.TagAddState.Success -> {
+                Toast.makeText(context, "Tag Added", Toast.LENGTH_SHORT).show()
+                // The viewmodel already reloads the tags, so we just reset the state here
+                imageDetailViewModel.resetAddState()
+            }
+            is ImageDetailViewModel.TagAddState.Error -> {
+                warningBannerMessage = "An Error Occured. Please Try Again."
+                showWarningBanner = true
+                imageDetailViewModel.resetAddState()
+            }
+            else -> Unit
+        }
+    }
+
+    LaunchedEffect(isError, errorMessage) {
+        if (isError) {
+            warningBannerMessage = "An Error Occured While Loading Tags. Please Try Again."
+            showWarningBanner = true
+        }
+    }
+
+    LaunchedEffect(showWarningBanner) {
+        if (showWarningBanner) {
+            kotlinx.coroutines.delay(2000)
+            showWarningBanner = false
         }
     }
 
@@ -397,7 +503,7 @@ fun ImageDetailScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = if (isFocusMode) Color.Black else MaterialTheme.colorScheme.surface,
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
@@ -408,118 +514,184 @@ fun ImageDetailScreen(
             }
         },
         topBar = {
-            BackTopBar(
-                title = "MomenTag",
-                onBackClick = onNavigateBack,
-            )
+            if (!isFocusMode) {
+                BackTopBar(
+                    title = "MomenTag",
+                    onBackClick = onNavigateBack,
+                )
+            }
         },
     ) { paddingValues ->
-        Column(
+        Box(
             modifier =
                 Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
+                    .fillMaxSize(),
         ) {
-            if (dateTime != null) {
-                val datePart = dateTime!!.split(" ")[0]
-                val formattedDate = datePart.replace(":", ".")
-                Text(
-                    text = formattedDate,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth() // 가로로 꽉 채우기
-                            .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
-                    // 여백
-                    textAlign = TextAlign.Left,
-                )
-            }
-
-            val address = photoAddress
-
-            // 주소를 가져올 수 없는 경우 주소 자리를 아예 표시하지 않음
-            if (!address.isNullOrBlank()) {
-                Text(
-                    text = address,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth() // 가로로 꽉 채우기
-                            .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
-                    // 여백
-                    textAlign = TextAlign.Left,
-                )
-            }
-
-            // 1. 이미지가 표시될 영역 (나머지 공간 전체를 차지)
-            Box(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .clipToBounds(),
-            ) {
-                // HorizontalPager로 이미지 스와이프 기능 구현
-                HorizontalPager(
-                    state = pagerState,
+            // Image Pager as the background layer, always filling the screen
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = !isZoomed,
+            ) { page ->
+                val photo = photos.getOrNull(page)
+                ZoomableImage(
+                    model = photo?.contentUri,
+                    contentDescription = "Detail image",
                     modifier = Modifier.fillMaxSize(),
-                    // 줌 상태가 아닐 때만(= isZoomed가 false일 때만) 스와이프를 허용
-                    userScrollEnabled = !isZoomed,
-                ) { page ->
-                    val photo = photos.getOrNull(page)
-                    ZoomableImage(
-                        model = photo?.contentUri,
-                        contentDescription = "Detail image",
-                        modifier = Modifier.fillMaxSize(),
-                        onScaleChanged = { zoomed ->
-                            isZoomed = zoomed
-                        },
-                    )
+                    onScaleChanged = { zoomed ->
+                        isZoomed = zoomed
+                    },
+                    onSingleTap = {
+                        isFocusMode = !isFocusMode
+                    },
+                )
+            }
+
+            // UI elements as the foreground layer, conditionally visible
+            if (!isFocusMode) {
+                Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                    // Date and Address
+                    if (dateTime != null) {
+                        val datePart = dateTime!!.split(" ")[0]
+                        val formattedDate = datePart.replace(":", ".")
+                        Text(
+                            text = formattedDate,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
+                            textAlign = TextAlign.Left,
+                        )
+                    }
+
+                    val address = photoAddress
+                    if (!address.isNullOrBlank()) {
+                        Text(
+                            text = address,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.headlineLarge,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
+                            textAlign = TextAlign.Left,
+                        )
+                    }
+
+                    // Spacer to push tags to the bottom
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Tags section at the bottom
+                    if (isError) {
+                        Spacer(modifier = Modifier.fillMaxWidth().height(48.dp))
+                    } else {
+                        TagsSection(
+                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
+                            existingTags = existingTags,
+                            recommendedTags = recommendedTags,
+                            isExistingTagsLoading = isExistingLoading,
+                            isRecommendedTagsLoading = isRecommendedLoading,
+                            isDeleteMode = isDeleteMode,
+                            onEnterDeleteMode = { isDeleteMode = true },
+                            onExitDeleteMode = { isDeleteMode = false },
+                            onDeleteClick = { tagId ->
+                                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                                if (currentPhotoId.isNotEmpty()) {
+                                    imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
+                                } else {
+                                    warningBannerMessage = "No photo to delete tag from."
+                                    showWarningBanner = true
+                                }
+                            },
+                            onAddTag = { tagName ->
+                                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                                if (currentPhotoId.isNotEmpty()) {
+                                    imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
+                                } else {
+                                    warningBannerMessage = "No photo to add tag to."
+                                    showWarningBanner = true
+                                }
+                            },
+                        )
+                    }
                 }
             }
 
-            // 2. 태그가 표시될 새로운 영역
-            if (isError) {
-                Box(
+            // WarningBanner always at the bottom of the main content Box, on top of everything
+            if (showWarningBanner && !isFocusMode) {
+                WarningBanner(
+                    title = "Error",
+                    message = warningBannerMessage,
+                    onActionClick = { showWarningBanner = false },
+                    showActionButton = false,
+                    onDismiss = { showWarningBanner = false },
+                    showDismissButton = true,
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "태그를 불러오는 중 오류가 발생했습니다.\n($errorMessage)",
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            } else {
-                TagsSection(
-                    modifier =
-                        Modifier
-                            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
-                    existingTags = existingTags,
-                    recommendedTags = recommendedTags,
-                    isExistingTagsLoading = isExistingLoading,
-                    isRecommendedTagsLoading = isRecommendedLoading,
-                    isDeleteMode = isDeleteMode,
-                    onEnterDeleteMode = { isDeleteMode = true },
-                    onExitDeleteMode = { isDeleteMode = false },
-                    onDeleteClick = { tagId ->
-                        val currentPhotoId =
-                            currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                        if (currentPhotoId.isNotEmpty()) {
-                            imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
-                        } else {
-                            Toast.makeText(context, "No photo", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    snackbarHostState = snackbarHostState,
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp),
                 )
             }
         }
     }
+}
+
+// UI 디자인의 색상들을 순서대로 할당
+private val tagColors =
+    listOf(
+        Color(0xFF93C5FD), // Blue
+        Color(0xFFFCA5A5), // Red
+        Color(0xFF86EFAC), // Green
+        Color(0xFFFDE047), // Yellow
+        Color(0xFFFDA4AF), // Pink
+        Color(0xFFA78BFA), // Purple
+        Color(0xFF67E8F9), // Cyan
+        Color(0xFFFBBF24), // Amber
+        Color(0xFFE879F9), // Magenta
+        Color(0xFF34D399), // Emerald
+        Color(0xFFF97316), // Orange
+        Color(0xFF94A3B8), // Slate
+        Color(0xFFE7A396), // Dusty Rose
+        Color(0xFFEACE84), // Soft Gold
+        Color(0xFF9AB9E1), // Periwinkle
+        Color(0xFFD9A1C0), // Mauve
+        Color(0xFFF7A97B), // Peach
+        Color(0xFFF0ACB7), // Blush Pink
+        Color(0xFFEBCF92), // Cream
+        Color(0xFFDDE49E), // Pale Lime
+        Color(0xFF80E3CD), // Mint Green
+        Color(0xFFCCC0F2), // Lavender
+        Color(0xFFCAD892), // Sage Green
+        Color(0xFF969A60), // Olive
+        Color(0xFF758D46), // Moss Green
+        Color(0xFF98D0F5), // Baby Blue
+        Color(0xFF5E9D8E), // Dusty Teal
+        Color(0xFF3C8782), // Deep Teal
+        Color(0xFFEB5A6D), // Coral Red
+        Color(0xFFF3C9E4), // Light Orchid
+        Color(0xFFEEADA7), // Salmon Pink
+        Color(0xFFBD8DBD), // Soft Purple
+        Color(0xFFFAF5AF), // Pale Yellow
+        Color(0xFFAD9281), // Warm Gray
+        Color(0xFFF2C6C7), // Rose Beige
+        Color(0xFFE87757), // Terracotta
+        Color(0xFFED6C84), // Watermelon
+        Color(0xFFB9A061), // Khaki
+        Color(0xFFA0BA46), // Lime Green
+    )
+
+private fun getTagColor(tagId: String): Color = tagColors[abs(tagId.hashCode()) % tagColors.size]
+
+private fun lightenColor(
+    color: Color,
+    factor: Float = 0.5f,
+): Color {
+    val red = (color.red + (1 - color.red) * factor)
+    val green = (color.green + (1 - color.green) * factor)
+    val blue = (color.blue + (1 - color.blue) * factor)
+    return Color(red, green, blue, color.alpha)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -534,7 +706,7 @@ fun TagsSection(
     onDeleteClick: (String) -> Unit,
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
-    snackbarHostState: SnackbarHostState,
+    onAddTag: (String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
@@ -562,6 +734,7 @@ fun TagsSection(
                         text = tagItem.tagName,
                         isDeleteMode = isDeleteMode,
                         onDismiss = { onDeleteClick(tagItem.tagId) },
+                        color = getTagColor(tagItem.tagId),
                     )
                 }
             }
@@ -573,24 +746,27 @@ fun TagsSection(
         } else {
             // Display recommended tags
             recommendedTags.forEach { tagName ->
-                Box {
-                    tagRecommended(
-                        text = tagName,
-                    )
-                }
+                val baseColor = getTagColor(tagName)
+                val lightenedColor = lightenColor(baseColor)
+                ConfirmableRecommendedTag(
+                    tagName = tagName,
+                    onConfirm = { onAddTag(it) },
+                    color = lightenedColor,
+                )
             }
         }
 
-        // Add Tag 버튼 (기존과 동일)
-        IconButton(
-            onClick = {
+        // Add Tag Chip
+        CustomTagChip(
+            onTagAdded = onAddTag,
+            onExpanded = {
                 scope.launch {
-                    snackbarHostState.showSnackbar("🛠️개발예정")
+                    // Increase delay to ensure the UI has fully recomposed and measured
+                    // the expanded chip before attempting to scroll to the end.
+                    kotlinx.coroutines.delay(400)
+                    scrollState.animateScrollTo(scrollState.maxValue)
                 }
             },
-            modifier = Modifier.size(32.dp),
-        ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "Add Tag")
-        }
+        )
     }
 }

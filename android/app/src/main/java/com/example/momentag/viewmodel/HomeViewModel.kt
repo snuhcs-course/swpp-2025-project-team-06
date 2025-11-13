@@ -70,6 +70,20 @@ class HomeViewModel(
         ) : HomeDeleteState()
     }
 
+    private val _isSelectionMode = MutableStateFlow(false)
+    val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+
+    fun setSelectionMode(isOn: Boolean) {
+        _isSelectionMode.value = isOn
+    }
+
+    private val _showAllPhotos = MutableStateFlow(false)
+    val showAllPhotos: StateFlow<Boolean> = _showAllPhotos.asStateFlow()
+
+    fun setShowAllPhotos(isAllPhotos: Boolean) {
+        _showAllPhotos.value = isAllPhotos
+    }
+
     private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
     val sortOrder = _sortOrder.asStateFlow()
 
