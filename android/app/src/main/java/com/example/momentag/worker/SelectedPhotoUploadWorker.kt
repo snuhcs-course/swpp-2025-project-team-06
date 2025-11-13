@@ -70,12 +70,14 @@ class SelectedPhotoUploadWorker(
 
         private const val NOTIFICATION_ID = 12345
         private const val CHANNEL_ID = "AlbumUploadChannel"
+
+        private const val RESULT_NOTIFICATION_ID = 12346
     }
 
     private fun createForegroundInfo(progress: String): ForegroundInfo {
         createNotificationChannel()
 
-        val notification = createNotification(progress)
+        val notification = createNotification(progress, true)
 
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
@@ -88,14 +90,36 @@ class SelectedPhotoUploadWorker(
         }
     }
 
-    private fun createNotification(text: String): Notification =
+    private fun createNotification(
+        text: String,
+        ongoing: Boolean,
+    ): Notification =
         NotificationCompat
             .Builder(applicationContext, CHANNEL_ID)
             .setContentTitle("MomenTag Album Upload")
             .setContentText(text)
             .setSmallIcon(R.mipmap.ic_launcher_foreground)
-            .setOngoing(true)
+            .setOngoing(ongoing)
+            .setAutoCancel(!ongoing)
             .build()
+
+    private fun updateNotification(
+        title: String,
+        text: String,
+        id: Int,
+        ongoing: Boolean,
+    ) {
+        val notification =
+            NotificationCompat
+                .Builder(applicationContext, CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(R.mipmap.ic_launcher_foreground)
+                .setOngoing(ongoing)
+                .setAutoCancel(!ongoing)
+                .build()
+        notificationManager.notify(id, notification)
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -127,14 +151,14 @@ class SelectedPhotoUploadWorker(
 
             if (success) {
                 albumUploadSuccessEvent.emit(0L)
-                updateNotification("Upload Complete", "Album upload completed successfully.")
+                updateNotification("Upload Complete", "Album upload completed successfully.", RESULT_NOTIFICATION_ID, false)
                 return Result.success()
             } else {
-                updateNotification("Upload Failed", "Failed to upload some files.")
+                updateNotification("Upload Failed", "Failed to upload some files.", RESULT_NOTIFICATION_ID, false)
                 return Result.failure()
             }
         } catch (e: Exception) {
-            updateNotification("Upload Error", "An unknown error occurred.")
+            updateNotification("Upload Error", "An unknown error occurred.", RESULT_NOTIFICATION_ID, false)
             return Result.failure()
         } finally {
             albumUploadJobCount.update { it - 1 }
@@ -173,7 +197,7 @@ class SelectedPhotoUploadWorker(
             chunkCount++
             val progressText = "Uploading chunk ($chunkCount / $totalChunks)..."
             setProgress(workDataOf(KEY_PROGRESS to progressText))
-            updateNotification("앨범 업로드 중", progressText)
+            updateNotification("Uploading Photos", progressText, NOTIFICATION_ID, true)
 
             val uploadData = createUploadDataFromChunk(currentChunk)
             val response = remoteRepository.uploadPhotos(uploadData)
@@ -192,28 +216,40 @@ class SelectedPhotoUploadWorker(
         contentUri: Uri,
     ): PhotoMetadataHolder {
         var filename = "unknown.jpg"
-        var createdAt = ""
         var finalLat = 0.0
         var finalLng = 0.0
 
+        // 1. dateValue를 0L (Epoch)로 기본값 설정
+        var dateValue = 0L
+
         val projection =
             arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
-        applicationContext.contentResolver.query(contentUri, projection, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                filename = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)) ?: "unknown.jpg"
-                var dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
-                if (dateValue == 0L) {
-                    val dateAddedSeconds = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
-                    if (dateAddedSeconds > 0L) {
-                        dateValue = dateAddedSeconds * 1000L
+
+        try {
+            // 쿼리 실패에 대비해 try-catch 추가
+            applicationContext.contentResolver.query(contentUri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    filename = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)) ?: "unknown.jpg"
+
+                    // 2. dateValue를 여기서 덮어씀
+                    dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
+                    if (dateValue == 0L) {
+                        val dateAddedSeconds = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
+                        if (dateAddedSeconds > 0L) {
+                            dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                        }
                     }
                 }
-                createdAt =
-                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                        .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
-                        .format(Date(dateValue))
             }
+        } catch (e: Exception) {
+            Log.e("SelectedPhotoUploadWorker", "Failed to query ContentResolver for $id. Using default date (Epoch).", e)
         }
+
+        // 3. createdAt 포맷을 *항상* 실행 (cursor.use 밖에서)
+        val createdAt =
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
+                .format(Date(dateValue))
 
         try {
             applicationContext.contentResolver.openInputStream(contentUri)?.use { inputStream ->
@@ -228,21 +264,6 @@ class SelectedPhotoUploadWorker(
         }
 
         return PhotoMetadataHolder(filename, createdAt, finalLat, finalLng)
-    }
-
-    private fun updateNotification(
-        title: String,
-        text: String,
-    ) {
-        val notification =
-            NotificationCompat
-                .Builder(applicationContext, CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSmallIcon(R.mipmap.ic_launcher_foreground)
-                .setOngoing(false)
-                .build()
-        notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
     private fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
@@ -260,10 +281,13 @@ class SelectedPhotoUploadWorker(
                         quality = 85,
                     )
 
-                if (resizedBytes != null) {
+                // 3. 리사이즈 성공 시에만 처리 (실패 시 원본 전송 안 함)
+                if (resizedBytes != null && resizedBytes.isNotEmpty()) {
                     val mime = "image/jpeg"
                     val requestBody = resizedBytes.toRequestBody(mime.toMediaTypeOrNull())
-                    val part = MultipartBody.Part.createFormData("photo", photoInfo.meta.filename, requestBody)
+                    val filenameWithoutExtension = photoInfo.meta.filename.substringBeforeLast(".", photoInfo.meta.filename)
+                    val newFilename = "$filenameWithoutExtension.jpg"
+                    val part = MultipartBody.Part.createFormData("photo", newFilename, requestBody)
 
                     photoParts.add(part)
                     metadataList.add(photoInfo.meta)
