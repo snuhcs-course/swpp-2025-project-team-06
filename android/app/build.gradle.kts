@@ -65,7 +65,10 @@ dependencies {
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.room.ktx)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation(libs.androidx.foundation)
     implementation(libs.androidx.compose.animation)
+    implementation(libs.material3)
+    implementation(libs.material)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)

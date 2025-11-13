@@ -67,13 +67,14 @@ sealed interface TagVariant {
 @Composable
 private fun TagContainer(
     modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
     content: @Composable RowScope.() -> Unit,
 ) {
     Row(
         modifier =
             modifier
                 .height(32.dp)
-                .background(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(50))
+                .background(color = color, shape = RoundedCornerShape(50))
                 .padding(horizontal = 12.dp), // vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
@@ -88,10 +89,11 @@ fun TagChip(
     text: String,
     variant: TagVariant = TagVariant.Plain,
     modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
     val alpha = if (variant is TagVariant.Recommended) 0.5f else 1f
 
-    TagContainer(modifier = modifier.alpha(alpha)) {
+    TagContainer(modifier = modifier.alpha(alpha), color = color) {
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
@@ -134,7 +136,8 @@ fun TagChip(
 fun tag(
     text: String,
     modifier: Modifier = Modifier,
-) = TagChip(text = text, variant = TagVariant.Plain, modifier = modifier)
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
+) = TagChip(text = text, variant = TagVariant.Plain, modifier = modifier, color = color)
 
 /** X 버튼 항상 보이는 태그 */
 @Composable
@@ -142,7 +145,8 @@ fun tagX(
     text: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-) = TagChip(text = text, variant = TagVariant.CloseAlways(onDismiss), modifier = modifier)
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
+) = TagChip(text = text, variant = TagVariant.CloseAlways(onDismiss), modifier = modifier, color = color)
 
 /** 삭제 모드일 때만 X 버튼 보이는 태그 */
 @Composable
@@ -151,10 +155,12 @@ fun tagXMode(
     isDeleteMode: Boolean,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) = TagChip(
     text = text,
     variant = TagVariant.CloseWhen(isDeleteMode, onDismiss),
     modifier = modifier,
+    color = color,
 )
 
 /** 추천 태그 (투명도가 적용된 태그) */
@@ -162,7 +168,8 @@ fun tagXMode(
 fun tagRecommended(
     text: String,
     modifier: Modifier = Modifier,
-) = TagChip(text = text, variant = TagVariant.Recommended, modifier = modifier)
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
+) = TagChip(text = text, variant = TagVariant.Recommended, modifier = modifier, color = color)
 
 /**
  * 태그와 개수를 함께 보여주는 컴포넌트 (MyTags 화면용)
@@ -295,6 +302,7 @@ fun StoryTagChip(
 fun CustomTagChip(
     onTagAdded: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onExpanded: (() -> Unit)? = null,
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     var tagText by remember { mutableStateOf("") }
@@ -313,6 +321,7 @@ fun CustomTagChip(
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable {
                             isExpanded = true
+                            onExpanded?.invoke()
                         }.padding(horizontal = 12.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -402,6 +411,70 @@ fun CustomTagChip(
                         modifier = Modifier.size(16.dp),
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun ConfirmableRecommendedTag(
+    tagName: String,
+    onConfirm: (String) -> Unit,
+    color: Color = MaterialTheme.colorScheme.primaryContainer,
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    AnimatedContent(
+        targetState = isExpanded,
+        label = "confirmable_recommended_tag",
+    ) { expanded ->
+        if (expanded) {
+            // Expanded state with confirm/dismiss buttons
+            Row(
+                modifier =
+                    Modifier
+                        .height(32.dp)
+                        .background(
+                            color = color,
+                            shape = RoundedCornerShape(50),
+                        ).padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = { isExpanded = false },
+                    modifier = Modifier.size(24.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss Recommended Tag",
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                Text(
+                    text = tagName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+                IconButton(
+                    onClick = {
+                        onConfirm(tagName)
+                        isExpanded = false
+                    },
+                    modifier = Modifier.size(24.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Confirm Recommended Tag",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        } else {
+            // Collapsed state, looks like a normal recommended tag but is clickable
+            Box(modifier = Modifier.clickable { isExpanded = true }) {
+                tagRecommended(text = tagName, color = color)
             }
         }
     }
