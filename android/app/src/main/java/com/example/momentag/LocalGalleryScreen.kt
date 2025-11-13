@@ -3,7 +3,6 @@
 package com.example.momentag
 
 import android.Manifest
-import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -26,12 +25,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,8 +43,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,9 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -236,15 +232,15 @@ fun LocalGalleryScreen(
                 }
             },
             modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             Column(
                 modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
@@ -269,11 +265,12 @@ fun LocalGalleryScreen(
                             isSelectionMode = isSelectionMode,
                             onClick = {
                                 if (isSelectionMode) {
-                                    selectedAlbums = if (isSelected) {
-                                        selectedAlbums - album
-                                    } else {
-                                        selectedAlbums + album
-                                    }
+                                    selectedAlbums =
+                                        if (isSelected) {
+                                            selectedAlbums - album
+                                        } else {
+                                            selectedAlbums + album
+                                        }
                                 } else {
                                     navController.navigate(
                                         Screen.LocalAlbum.createRoute(album.albumId, album.albumName),
@@ -328,13 +325,13 @@ private fun AlbumGridItem(
 ) {
     Box(
         modifier =
-        Modifier
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(12.dp))
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
-            ),
+            Modifier
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
     ) {
         AsyncImage(
             model = album.thumbnailUri,
@@ -347,43 +344,43 @@ private fun AlbumGridItem(
             color = Color.White,
             style = MaterialTheme.typography.bodySmall,
             modifier =
-            Modifier
-                .align(Alignment.BottomStart)
-                .padding(8.dp) // Position from the corner
-                .background(
-                    color = Color.Black.copy(alpha = 0.6f), // Use black with some transparency
-                    shape = RoundedCornerShape(8.dp),
-                ).padding(horizontal = 8.dp, vertical = 4.dp), // Padding inside the background
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp) // Position from the corner
+                    .background(
+                        color = Color.Black.copy(alpha = 0.6f), // Use black with some transparency
+                        shape = RoundedCornerShape(8.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp), // Padding inside the background
         )
 
         if (isSelectionMode) {
             Box(
                 modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                        } else {
-                            Color.Transparent
-                        },
-                    ),
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            } else {
+                                Color.Transparent
+                            },
+                        ),
             )
 
             Box(
                 modifier =
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .background(
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
-                        },
-                        CircleShape,
-                    ),
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(24.dp)
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                            },
+                            CircleShape,
+                        ),
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
@@ -398,4 +395,3 @@ private fun AlbumGridItem(
         }
     }
 }
-
