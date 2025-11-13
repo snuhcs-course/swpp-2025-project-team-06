@@ -1,16 +1,16 @@
+@file:Suppress("ktlint:standard:function-naming")
+
 package com.example.momentag
 
 import android.Manifest
-import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,17 +25,24 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,12 +55,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.model.Album
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.LocalViewModel
@@ -61,7 +70,6 @@ import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocalGalleryScreen(
@@ -74,7 +82,9 @@ fun LocalGalleryScreen(
     var hasPermission by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
-    val selectedAlbumIds by localViewModel.selectedAlbumIds.collectAsState()
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedAlbums by remember { mutableStateOf<Set<Album>>(emptySet()) }
+
     val uploadState by photoViewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
@@ -89,15 +99,22 @@ fun LocalGalleryScreen(
             showErrorBanner = false
         }
     }
+    LaunchedEffect(isSelectionMode) {
+        if (!isSelectionMode) {
+            selectedAlbums = emptySet()
+        }
+    }
+
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionMode = false
+    }
 
     val notificationPermissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
             onResult = { isGranted ->
                 if (isGranted) {
-                    if (selectedAlbumIds.isNotEmpty()) {
-                        photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
-                    }
+                    // TODO: Implement upload logic for selected albums
                 } else {
                 }
             },
@@ -134,19 +151,44 @@ fun LocalGalleryScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            BackTopBar(
-                title = "MomenTag",
-                onBackClick = onNavigateBack,
-            )
+            if (isSelectionMode) {
+                TopAppBar(
+                    title = { Text("${selectedAlbums.size} selected") },
+                    navigationIcon = {
+                        IconButton(onClick = { isSelectionMode = false }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            if (selectedAlbums.size == albumSet.size) {
+                                selectedAlbums = emptySet()
+                            } else {
+                                selectedAlbums = albumSet.toSet()
+                            }
+                        }) {
+                            Icon(
+                                if (selectedAlbums.size == albumSet.size) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                contentDescription = "Select All",
+                            )
+                        }
+                    },
+                )
+            } else {
+                BackTopBar(
+                    title = "MomenTag",
+                    onBackClick = onNavigateBack,
+                )
+            }
         },
         floatingActionButton = {
-            if (selectedAlbumIds.isNotEmpty()) {
+            if (selectedAlbums.isNotEmpty() && isSelectionMode) {
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
                             Text("Upload started (check notification)")
                         } else {
-                            Text("Upload ${selectedAlbumIds.size} selected albums")
+                            Text("Upload ${selectedAlbums.size} selected albums")
                         }
                     },
                     icon = {
@@ -168,7 +210,7 @@ fun LocalGalleryScreen(
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         } else {
-                            photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
+                            // TODO: Implement upload logic for selected albums
                         }
                     },
                 )
@@ -216,18 +258,30 @@ fun LocalGalleryScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(albumSet) { album ->
-                        albumGridItem(
-                            albumName = album.albumName,
-                            albumId = album.albumId,
-                            imageUri = album.thumbnailUri,
-                            isSelected = (album.albumId in selectedAlbumIds),
+                        val isSelected = selectedAlbums.contains(album)
+                        AlbumGridItem(
+                            album = album,
+                            isSelected = isSelected,
+                            isSelectionMode = isSelectionMode,
                             onClick = {
-                                navController.navigate(
-                                    Screen.LocalAlbum.createRoute(album.albumId, album.albumName),
-                                )
+                                if (isSelectionMode) {
+                                    selectedAlbums =
+                                        if (isSelected) {
+                                            selectedAlbums - album
+                                        } else {
+                                            selectedAlbums + album
+                                        }
+                                } else {
+                                    navController.navigate(
+                                        Screen.LocalAlbum.createRoute(album.albumId, album.albumName),
+                                    )
+                                }
                             },
                             onLongClick = {
-                                localViewModel.toggleAlbumSelection(album.albumId)
+                                if (!isSelectionMode) {
+                                    isSelectionMode = true
+                                    selectedAlbums = selectedAlbums + album
+                                }
                             },
                         )
                     }
@@ -262,68 +316,82 @@ fun LocalGalleryScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun albumGridItem(
-    albumName: String,
-    albumId: Long,
-    imageUri: Uri?,
+private fun AlbumGridItem(
+    album: Album,
     isSelected: Boolean,
+    isSelectionMode: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
     Box(
         modifier =
             Modifier
-                .then(
-                    if (isSelected) {
-                        Modifier.border(
-                            BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
-                            RoundedCornerShape(16.dp),
-                        )
-                    } else {
-                        Modifier
-                    },
-                ).combinedClickable(
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
                 ),
     ) {
-        if (imageUri != null) {
-            AsyncImage(
-                model = imageUri,
-                contentDescription = albumName,
-                modifier =
-                    Modifier
-                        .padding(top = 12.dp)
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .align(Alignment.BottomCenter),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Spacer(
-                modifier =
-                    Modifier
-                        .padding(top = 12.dp)
-                        .aspectRatio(1f)
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(16.dp),
-                        ).align(Alignment.BottomCenter),
-            )
-        }
-
+        AsyncImage(
+            model = album.thumbnailUri,
+            contentDescription = "Album ${album.albumName}",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
         Text(
-            text = albumName,
-            color = MaterialTheme.colorScheme.onSurface,
+            text = album.albumName,
+            color = Color.White,
             style = MaterialTheme.typography.bodySmall,
             modifier =
                 Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 8.dp)
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp) // Position from the corner
                     .background(
-                        color = MaterialTheme.colorScheme.primaryContainer,
+                        color = Color.Black.copy(alpha = 0.6f), // Use black with some transparency
                         shape = RoundedCornerShape(8.dp),
-                    ).padding(horizontal = 8.dp, vertical = 4.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp), // Padding inside the background
         )
+
+        if (isSelectionMode) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            } else {
+                                Color.Transparent
+                            },
+                        ),
+            )
+
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(24.dp)
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                            },
+                            CircleShape,
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
     }
 }
