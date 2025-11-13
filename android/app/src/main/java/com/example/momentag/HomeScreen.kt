@@ -143,13 +143,13 @@ fun HomeScreen(navController: NavController) {
     val selectedPhotos by homeViewModel.selectedPhotos.collectAsState() // draftTagRepository에서 가져옴!
     val isLoadingPhotos by homeViewModel.isLoadingPhotos.collectAsState()
     val isLoadingMorePhotos by homeViewModel.isLoadingMorePhotos.collectAsState()
-    var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
+    val showAllPhotos by homeViewModel.showAllPhotos.collectAsState()
+    val isSelectionMode by homeViewModel.isSelectionMode.collectAsState()
 
     var onlyTag by remember { mutableStateOf(false) }
-    var showAllPhotos by remember { mutableStateOf(false) }
     var isDeleteMode by remember { mutableStateOf(false) }
-    var isSelectionMode by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) }
+    var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
 
     val shouldReturnToAllPhotos by homeViewModel.shouldReturnToAllPhotos.collectAsState()
 
@@ -166,6 +166,20 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
         isSelectionModeDelay = isSelectionMode
+    }
+
+    val navBackStackEntry = navController.currentBackStackEntry
+
+    LaunchedEffect(navBackStackEntry) {
+        navBackStackEntry
+            ?.savedStateHandle
+            ?.getLiveData<Boolean>("selectionModeComplete")
+            ?.observe(navBackStackEntry) { isSuccess ->
+                if (isSuccess) {
+                    homeViewModel.setSelectionMode(false)
+                    navBackStackEntry.savedStateHandle.remove<Boolean>("selectionModeComplete")
+                }
+            }
     }
 
     var isUploadBannerDismissed by remember { mutableStateOf(false) }
@@ -210,7 +224,7 @@ fun HomeScreen(navController: NavController) {
 
     LaunchedEffect(Unit) {
         if (shouldReturnToAllPhotos) {
-            showAllPhotos = true
+            homeViewModel.setShowAllPhotos(true)
             onlyTag = false
             homeViewModel.setShouldReturnToAllPhotos(false) // flag reset
         }
@@ -311,7 +325,7 @@ fun HomeScreen(navController: NavController) {
     }
 
     BackHandler(enabled = isSelectionMode && showAllPhotos) {
-        isSelectionMode = false
+        homeViewModel.setSelectionMode(false)
         homeViewModel.resetSelection()
     }
 
@@ -384,7 +398,7 @@ fun HomeScreen(navController: NavController) {
                                     DropdownMenuItem(
                                         text = { Text("Cancel") },
                                         onClick = {
-                                            isSelectionMode = false
+                                            homeViewModel.setSelectionMode(false)
                                             homeViewModel.resetSelection()
                                             showMenu = false
                                         },
@@ -393,7 +407,7 @@ fun HomeScreen(navController: NavController) {
                                     DropdownMenuItem(
                                         text = { Text("Select") },
                                         onClick = {
-                                            isSelectionMode = true
+                                            homeViewModel.setSelectionMode(true)
                                             homeViewModel.resetSelection()
                                             showMenu = false
                                         },
@@ -448,12 +462,12 @@ fun HomeScreen(navController: NavController) {
             if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
-                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Create with ${selectedPhotos.size}" else "Create Tag",
+                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Add Tag with ${selectedPhotos.size}" else "Create Tag",
                     onClick = {
                         // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
                         // SearchResultScreen과 동일한 패턴
-                        isSelectionMode = false
-                        navController.navigate(Screen.AddTag.route)
+                        // isSelectionMode = false
+                        navController.navigate(Screen.MyTags.route)
                     },
                 )
             }
@@ -548,9 +562,9 @@ fun HomeScreen(navController: NavController) {
                         showAllPhotos = showAllPhotos,
                         onToggle = { tagOnly, allPhotos ->
                             onlyTag = tagOnly
-                            showAllPhotos = allPhotos
+                            homeViewModel.setShowAllPhotos(allPhotos)
                             if (isSelectionMode) {
-                                isSelectionMode = false
+                                homeViewModel.setSelectionMode(false)
                                 homeViewModel.resetSelection() // draftRepository 초기화
                             }
                         },
@@ -589,7 +603,7 @@ fun HomeScreen(navController: NavController) {
                         onEnterDeleteMode = { isDeleteMode = true },
                         onExitDeleteMode = { isDeleteMode = false },
                         isSelectionMode = isSelectionMode,
-                        onEnterSelectionMode = { isSelectionMode = true },
+                        onEnterSelectionMode = { homeViewModel.setSelectionMode(true) },
                         selectedItems = selectedPhotos.map { it.photoId }.toSet(),
                         onItemSelectionToggle = { photoId ->
                             val photo = allPhotos.find { it.photoId == photoId }

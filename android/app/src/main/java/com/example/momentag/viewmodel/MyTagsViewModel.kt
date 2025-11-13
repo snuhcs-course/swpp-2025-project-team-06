@@ -3,7 +3,9 @@ package com.example.momentag.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.MyTagsUiState
+import com.example.momentag.model.Photo
 import com.example.momentag.model.TagCntData
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,7 @@ sealed interface TagActionState {
 
 class MyTagsViewModel(
     private val remoteRepository: RemoteRepository,
+    private val photoSelectionRepository: PhotoSelectionRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<MyTagsUiState>(MyTagsUiState.Loading)
     val uiState: StateFlow<MyTagsUiState> = _uiState.asStateFlow()
@@ -40,6 +43,23 @@ class MyTagsViewModel(
     val tagActionState: StateFlow<TagActionState> = _tagActionState.asStateFlow()
 
     private var allTags: List<TagCntData> = emptyList()
+
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+
+    sealed class SaveState {
+        object Idle : SaveState()
+
+        object Loading : SaveState()
+
+        object Success : SaveState()
+
+        data class Error(
+            val message: String,
+        ) : SaveState()
+    }
+
+    private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
+    val saveState = _saveState.asStateFlow()
 
     init {
         loadTags()
@@ -178,6 +198,55 @@ class MyTagsViewModel(
             }
         }
     }
+
+    fun isSelectedPhotosEmpty(): Boolean = selectedPhotos.value.isEmpty()
+
+    fun clearDraft() {
+        photoSelectionRepository.clear()
+    }
+
+    fun savePhotosToExistingTag(tagId: String) {
+        // Reset error state on retry
+        if (_saveState.value is SaveState.Error) {
+            _saveState.value = SaveState.Idle
+        }
+
+        if (selectedPhotos.value.isEmpty()) {
+            _saveState.value = SaveState.Error("Tag cannot be empty and photos must be selected")
+            return
+        }
+
+        viewModelScope.launch {
+            _saveState.value = SaveState.Loading
+
+            var allSucceeded = true
+            for (photo in selectedPhotos.value) {
+                when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
+                    is RemoteRepository.Result.Success -> {
+                    }
+                    else -> {
+                        _saveState.value = SaveState.Error(getErrorMessage(result))
+                        allSucceeded = false
+                        break
+                    }
+                }
+            }
+
+            if (allSucceeded) {
+                _saveState.value = SaveState.Success
+            }
+        }
+    }
+
+    private fun getErrorMessage(result: RemoteRepository.Result<*>): String =
+        when (result) {
+            is RemoteRepository.Result.BadRequest -> "Bad Request: ${result.message}"
+            is RemoteRepository.Result.Unauthorized -> "Login error: ${result.message}"
+            is RemoteRepository.Result.Error -> "Server Error (${result.code}): ${result.message}"
+            is RemoteRepository.Result.Exception -> "Network Error: ${result.e.message}"
+            is RemoteRepository.Result.Success -> "An unknown error occurred (Success was passed to error handler)"
+            is RemoteRepository.Result.NetworkError -> "Network Error: ${result.message}"
+        }
 
     fun clearActionState() {
         _tagActionState.value = TagActionState.Idle
