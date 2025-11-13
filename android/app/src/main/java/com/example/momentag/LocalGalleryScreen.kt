@@ -3,8 +3,10 @@ package com.example.momentag
 import android.Manifest
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,8 +35,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -54,6 +55,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -76,7 +78,17 @@ fun LocalGalleryScreen(
     val uploadState by photoViewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    val snackbarHostState = remember { SnackbarHostState() }
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(uploadState.errorMessage) {
+        if (uploadState.errorMessage != null) {
+            errorMessage = uploadState.errorMessage
+            showErrorBanner = true
+        } else {
+            showErrorBanner = false
+        }
+    }
 
     val notificationPermissionLauncher =
         rememberLauncherForActivityResult(
@@ -87,7 +99,6 @@ fun LocalGalleryScreen(
                         photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
                     }
                 } else {
-                    // (권한 거부 시 토스트 메시지 등)
                 }
             },
         )
@@ -128,17 +139,14 @@ fun LocalGalleryScreen(
                 onBackClick = onNavigateBack,
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        // 👇 [수정] 2: floatingActionButton 추가
         floatingActionButton = {
-            // 앨범이 선택됐을 때만 FAB 보이기
             if (selectedAlbumIds.isNotEmpty()) {
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
-                            Text("업로드 시작됨 (알림 확인)")
+                            Text("Upload started (check notification)")
                         } else {
-                            Text("선택한 ${selectedAlbumIds.size}개 앨범 업로드하기")
+                            Text("Upload ${selectedAlbumIds.size} selected albums")
                         }
                     },
                     icon = {
@@ -228,11 +236,24 @@ fun LocalGalleryScreen(
 
                 uploadState.userMessage?.let { message ->
                     LaunchedEffect(uploadState.userMessage) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(message)
-                        }
-                        photoViewModel.userMessageShown()
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        photoViewModel.infoMessageShown()
                     }
+                }
+
+                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth(),
+                        title = "Upload Failed",
+                        message = errorMessage ?: "An error occurred",
+                        onActionClick = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = {
+                            showErrorBanner = false
+                            photoViewModel.errorMessageShown()
+                        },
+                    )
                 }
             }
         }

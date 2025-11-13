@@ -68,8 +68,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -87,6 +85,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -130,7 +129,6 @@ fun HomeScreen(navController: NavController) {
     val focusManager = LocalFocusManager.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
     var showMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -161,6 +159,10 @@ fun HomeScreen(navController: NavController) {
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
     var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
 
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorBannerTitle by remember { mutableStateOf("Error") }
+    var errorBannerMessage by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(isSelectionMode) {
         kotlinx.coroutines.delay(200L) // 0.2초
         isSelectionModeDelay = isSelectionMode
@@ -185,6 +187,25 @@ fun HomeScreen(navController: NavController) {
     val currentSortOrder by homeViewModel.sortOrder.collectAsState()
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val gradientBrush =
+        Brush.verticalGradient(
+            colorStops =
+                arrayOf(
+                    0.5f to MaterialTheme.colorScheme.surface,
+                    1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                ),
+        )
+
+    val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
+    val isTagsLoaded =
+        homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
+    val arePhotosLoaded = !isLoadingPhotos
+    val isDataReady = isTagsLoaded && arePhotosLoaded
+    val areTagsEmpty = tagItems.isEmpty()
+    val arePhotosEmpty = groupedPhotos.isEmpty()
+
+    val showEmptyTagGradient = !showAllPhotos && areTagsEmpty && isDataReady && !arePhotosEmpty
 
     LaunchedEffect(uiState.isLoading) {
         if (uiState.isLoading) {
@@ -235,8 +256,9 @@ fun HomeScreen(navController: NavController) {
                 }
             }
             is LogoutState.Error -> {
-                val msg = (logoutState as LogoutState.Error).message ?: "Logout failed"
-                scope.launch { snackbarHostState.showSnackbar(msg) }
+                errorBannerTitle = "Logout Failed"
+                errorBannerMessage = (logoutState as LogoutState.Error).message ?: "Logout failed"
+                showErrorBanner = true
             }
             else -> Unit
         }
@@ -261,18 +283,21 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(uiState.userMessage) {
         uiState.userMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-            photoViewModel.userMessageShown()
+            photoViewModel.infoMessageShown()
         }
     }
 
     LaunchedEffect(homeLoadingState) {
-        val message =
-            when (homeLoadingState) {
-                is HomeViewModel.HomeLoadingState.Error -> (homeLoadingState as HomeViewModel.HomeLoadingState.Error).message
-                else -> null
+        when (homeLoadingState) {
+            is HomeViewModel.HomeLoadingState.Error -> {
+                errorBannerTitle = "Failed to Load Tags"
+                errorBannerMessage = (homeLoadingState as HomeViewModel.HomeLoadingState.Error).message
+                showErrorBanner = true
             }
-        message?.let {
-            scope.launch { snackbarHostState.showSnackbar(it) }
+            is HomeViewModel.HomeLoadingState.Success -> {
+                showErrorBanner = false // 로드 성공 시 배너 숨김
+            }
+            else -> Unit // Loading, Idle
         }
     }
 
@@ -283,9 +308,12 @@ fun HomeScreen(navController: NavController) {
                 homeViewModel.loadServerTags()
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
+                showErrorBanner = false
             }
             is HomeViewModel.HomeDeleteState.Error -> {
-                scope.launch { snackbarHostState.showSnackbar(state.message) }
+                errorBannerTitle = "Failed to Delete Tag"
+                errorBannerMessage = state.message
+                showErrorBanner = true
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
             }
@@ -293,13 +321,6 @@ fun HomeScreen(navController: NavController) {
             }
             is HomeViewModel.HomeDeleteState.Idle -> {
             }
-        }
-    }
-
-    // Show snackbar when selection count changes
-    LaunchedEffect(selectedPhotos.size, isSelectionMode) {
-        if (isSelectionMode && selectedPhotos.isNotEmpty()) {
-            snackbarHostState.showSnackbar("${selectedPhotos.size}개 선택됨")
         }
     }
 
@@ -398,29 +419,6 @@ fun HomeScreen(navController: NavController) {
                 },
             )
         },
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                snackbar = { data ->
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = data.visuals.message,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier =
-                                Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                        RoundedCornerShape(20.dp),
-                                    ).padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                    }
-                },
-            )
-        },
         bottomBar = {
             BottomNavBar(
                 modifier =
@@ -493,7 +491,13 @@ fun HomeScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .then(
+                            if (showEmptyTagGradient) {
+                                Modifier.background(gradientBrush)
+                            } else {
+                                Modifier
+                            },
+                        ).padding(horizontal = 16.dp),
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -571,17 +575,7 @@ fun HomeScreen(navController: NavController) {
 
                 if (!hasPermission) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Text("태그와 이미지를 보려면\n이미지 접근 권한을 허용해주세요.")
-                    }
-                } else if (isLoadingPhotos || homeLoadingState is HomeViewModel.HomeLoadingState.Loading) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
+                        Text("To view tags and images,\nplease allow access to your photos.")
                     }
                 } else {
                     val tagItems =
@@ -617,9 +611,11 @@ fun HomeScreen(navController: NavController) {
                         },
                         homeViewModel = homeViewModel,
                         lazyGridState = listState,
-                        isLoadingMorePhotos = isLoadingMorePhotos,
-                        isLoadingPhotos = false, // 이 블록은 로딩이 끝났을 때만 실행됨
-                        homeLoadingState = homeLoadingState, // Success 또는 Error 상태 전달
+                        isLoadingPhotos = false,
+                        homeLoadingState = homeLoadingState,
+                        isDataReady = isDataReady,
+                        arePhotosEmpty = arePhotosEmpty,
+                        areTagsEmpty = areTagsEmpty,
                     )
 
                     // 페이지네이션 로직을 MainContent 밖으로 이동
@@ -667,8 +663,8 @@ fun HomeScreen(navController: NavController) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
                         WarningBanner(
-                            title = "업로드 진행 중 🚀",
-                            message = "사진을 백그라운드에서 업로드하고 있습니다.",
+                            title = "Uploading...🚀",
+                            message = "Photos are uploading in the background.",
                             onActionClick = { },
                             showActionButton = false,
                             backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -677,6 +673,29 @@ fun HomeScreen(navController: NavController) {
                             onDismiss = {
                                 isUploadBannerDismissed = true
                             },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+                AnimatedVisibility(visible = showErrorBanner && errorBannerMessage != null) {
+                    Column {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        WarningBanner(
+                            title = errorBannerTitle,
+                            message = errorBannerMessage!!,
+                            onActionClick = {
+                                // 재시도 로직
+                                if (hasPermission) {
+                                    homeViewModel.loadServerTags()
+                                    homeViewModel.loadAllPhotos()
+                                }
+                                showErrorBanner = false
+                            },
+                            onDismiss = { showErrorBanner = false },
+                            showActionButton = true,
+                            showDismissButton = true,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -689,12 +708,11 @@ fun HomeScreen(navController: NavController) {
         val (tagId, tagName) = tagToDeleteInfo!!
 
         confirmDialog(
-            title = "태그 삭제",
-            message = "'$tagName' 태그를 삭제하시겠습니까?",
+            title = "Delete Tag",
+            message = "Are you sure you want to delete '$tagName' tag?",
             confirmButtonText = "Delete Tag",
             onConfirm = {
                 homeViewModel.deleteTag(tagId)
-                Toast.makeText(context, "삭제되었습니다", Toast.LENGTH_SHORT).show()
                 showDeleteConfirmationDialog = false
                 tagToDeleteInfo = null
             },
@@ -811,17 +829,10 @@ private fun MainContent(
     isLoadingMorePhotos: Boolean = false,
     isLoadingPhotos: Boolean,
     homeLoadingState: HomeViewModel.HomeLoadingState,
+    isDataReady: Boolean,
+    arePhotosEmpty: Boolean,
+    areTagsEmpty: Boolean,
 ) {
-    val isTagsLoaded =
-        homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
-    val arePhotosLoaded = !isLoadingPhotos
-    // 태그와 사진 로딩이 모두 끝나야 빈 화면 여부를 최종 결정
-    val isDataReady = isTagsLoaded && arePhotosLoaded
-
-    // 데이터 상태 정의
-    val arePhotosEmpty = groupedPhotos.isEmpty()
-    val areTagsEmpty = tagItems.isEmpty()
-
     when {
         isDataReady && arePhotosEmpty -> {
             EmptyStatePhotos(modifier = modifier, navController = navController)
@@ -1148,8 +1159,8 @@ fun EmptyStateTags(
         verticalArrangement = Arrangement.Center,
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ic_empty_tags),
-            contentDescription = "추억을 만들어보세요",
+            painter = painterResource(id = R.drawable.tag),
+            contentDescription = "Create memories",
             modifier = Modifier.size(120.dp).rotate(45f),
         )
 
@@ -1157,18 +1168,18 @@ fun EmptyStateTags(
 
         // 2. 텍스트
         Text(
-            text = "추억을 만들어보세요",
+            text = "Create memories",
             style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
+
         Spacer(modifier = Modifier.height(8.dp))
+
         Text(
-            text = "키워드로 추억을\n모아보세요",
-            style = MaterialTheme.typography.bodyLarge,
+            text = "Organize your memories\nby keyword",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -1217,7 +1228,7 @@ fun EmptyStatePhotos(
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_empty_photos),
-            contentDescription = "사진을 업로드해주세요",
+            contentDescription = "Please upload photos",
             modifier = Modifier.size(120.dp),
         )
 
@@ -1225,14 +1236,14 @@ fun EmptyStatePhotos(
 
         // 2. 텍스트
         Text(
-            text = "사진을 업로드해주세요",
+            text = "Please upload photos",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "추억을 담을 사진들을\n골라보아요",
+            text = "Select photos\nto store your memories",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1272,37 +1283,37 @@ private fun SortOptionsSheet(
 ) {
     Column(modifier = Modifier.padding(vertical = 16.dp)) {
         Text(
-            "정렬 기준",
+            "Sort by",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         SortOptionItem(
-            text = "이름 (가나다순)",
+            text = "Name (A-Z)",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.NAME_ASC,
             onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
         )
         SortOptionItem(
-            text = "이름 (가나다 역순)",
+            text = "Name (Z-A)",
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.NAME_DESC,
             onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
         )
         SortOptionItem(
-            text = "최근 추가 순",
+            text = "Recently Added",
             icon = Icons.Default.FiberNew,
             isSelected = currentOrder == TagSortOrder.CREATED_DESC,
             onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
         )
         SortOptionItem(
-            text = "항목 많은 순",
+            text = "Count (Descending)",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
             onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
         )
         SortOptionItem(
-            text = "항목 적은 순",
+            text = "Count (Ascending)",
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.COUNT_ASC,
             onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },

@@ -109,7 +109,7 @@ fun SearchBarControlledCustom(
         keyboardActions = KeyboardActions(onSearch = { onSearch() }),
         trailingIcon = {
             IconButton(onClick = onSearch) {
-                Icon(imageVector = Icons.Default.Search, contentDescription = "검색 실행")
+                Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
             }
         },
     )
