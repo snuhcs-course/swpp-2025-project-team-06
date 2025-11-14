@@ -548,7 +548,7 @@ fun HomeScreen(navController: NavController) {
                 actions = {
                     if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                         Box {
-                            if (isSelectionModeDelay && selectedPhotos.isNotEmpty()) {
+                            if (isSelectionMode && selectedPhotos.isNotEmpty()) {
                                 //selectedPhotos.isNotEmpty()
                                 IconButton(onClick = {
 
@@ -573,7 +573,7 @@ fun HomeScreen(navController: NavController) {
                                     )
                                 }
                             }
-                            if (isSelectionModeDelay && !selectedPhotos.isNotEmpty()) {
+                            if (isSelectionMode && !selectedPhotos.isNotEmpty()) {
                                 IconButton(
                                     onClick = {},
                                     enabled = false,
