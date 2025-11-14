@@ -279,6 +279,10 @@ class SelectImageViewModel(
         photoSelectionRepository.removePhoto(photo)
     }
 
+    fun clearDraft() {
+        photoSelectionRepository.clear()
+    }
+
     /**
      * Check if a photo is selected
      */
