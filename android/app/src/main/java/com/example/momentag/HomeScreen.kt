@@ -526,16 +526,18 @@ fun HomeScreen(navController: NavController) {
         homeViewModel.setShowAllPhotos(false)
     }
 
-    BackHandler(enabled = !isSelectionMode && !showAllPhotos && !showDeleteConfirmationDialog) {
+    BackHandler(enabled = !isSelectionMode && !showAllPhotos && !showDeleteConfirmationDialog && !isDeleteMode) {
         val currentTime = System.currentTimeMillis()
         if (currentTime - backPressedTime < 2000) {
-            // 2초 안에 다시 누름 -> 앱 종료
             activity?.finish()
         } else {
-            // 첫 번째 누름 -> 토스트
             backPressedTime = currentTime
             Toast.makeText(context, "Press again to exit.", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    BackHandler(enabled = isDeleteMode && !showAllPhotos) {
+        isDeleteMode = false
     }
 
     // 화면이 다시 보일 때 (ON_RESUME) 태그와 사진 새로고침
@@ -711,6 +713,7 @@ fun HomeScreen(navController: NavController) {
                             indication = null,
                         ) {
                             focusManager.clearFocus()
+                            isDeleteMode = false
                         },
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
