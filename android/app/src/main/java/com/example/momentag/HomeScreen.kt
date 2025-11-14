@@ -1,8 +1,10 @@
 package com.example.momentag
 
 import android.Manifest
+import android.app.Activity
 import android.content.ContentUris
 import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -105,6 +107,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -203,6 +206,9 @@ fun HomeScreen(navController: NavController) {
 
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
+
+    val activity = LocalContext.current.findActivity()
+    var backPressedTime by remember { mutableStateOf(0L) }
 
     fun requestFocusById(id: String) {
         scope.launch {
@@ -518,6 +524,18 @@ fun HomeScreen(navController: NavController) {
 
     BackHandler(enabled = !isSelectionMode && showAllPhotos) {
         homeViewModel.setShowAllPhotos(false)
+    }
+
+    BackHandler(enabled = !isSelectionMode && !showAllPhotos && !showDeleteConfirmationDialog) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - backPressedTime < 2000) {
+            // 2초 안에 다시 누름 -> 앱 종료
+            activity?.finish()
+        } else {
+            // 첫 번째 누름 -> 토스트
+            backPressedTime = currentTime
+            Toast.makeText(context, "Press again to exit.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // 화면이 다시 보일 때 (ON_RESUME) 태그와 사진 새로고침
@@ -1789,4 +1807,13 @@ private fun SortOptionItem(
             )
         }
     }
+}
+
+private fun Context.findActivity(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
 }
