@@ -710,10 +710,10 @@ fun TagsSection(
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
-    
+
     // 개별 태그의 삭제 모드 상태 관리
     var deleteModeTagId by remember { mutableStateOf<String?>(null) }
-    
+
     Row(
         modifier = modifier.horizontalScroll(scrollState),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -726,7 +726,7 @@ fun TagsSection(
             // Display existing tags - 개별 롱프레스로 해당 태그만 삭제 모드
             existingTags.forEach { tagItem ->
                 val isThisTagInDeleteMode = deleteModeTagId == tagItem.tagId
-                
+
                 Box(
                     modifier =
                         Modifier.combinedClickable(
@@ -745,7 +745,7 @@ fun TagsSection(
                     tagXMode(
                         text = tagItem.tagName,
                         isDeleteMode = isThisTagInDeleteMode,
-                        onDismiss = { 
+                        onDismiss = {
                             onDeleteClick(tagItem.tagId)
                             deleteModeTagId = null
                         },

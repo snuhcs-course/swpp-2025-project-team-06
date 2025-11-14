@@ -75,11 +75,12 @@ class MyTagsViewModel(
     }
 
     fun toggleTagSelection(tagId: String) {
-        _selectedTagsForBulkEdit.value = if (_selectedTagsForBulkEdit.value.contains(tagId)) {
-            _selectedTagsForBulkEdit.value - tagId
-        } else {
-            _selectedTagsForBulkEdit.value + tagId
-        }
+        _selectedTagsForBulkEdit.value =
+            if (_selectedTagsForBulkEdit.value.contains(tagId)) {
+                _selectedTagsForBulkEdit.value - tagId
+            } else {
+                _selectedTagsForBulkEdit.value + tagId
+            }
     }
 
     fun clearTagSelection() {

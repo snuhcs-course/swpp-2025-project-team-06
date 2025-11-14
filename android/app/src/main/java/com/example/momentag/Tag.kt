@@ -235,11 +235,11 @@ fun TagChipWithCount(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onPrimary,
         )
-        
+
         // Edit 모드가 아닐 때만 카운트 표시
         if (!isEditMode) {
             Spacer(modifier = Modifier.width(6.dp))
-            
+
             // showCheckbox가 true면 체크박스, 아니면 카운트
             if (showCheckbox) {
                 Box(
@@ -248,8 +248,11 @@ fun TagChipWithCount(
                             .size(16.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isChecked) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                                if (isChecked) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+                                },
                             ),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -304,18 +307,20 @@ fun StoryTagChip(
         contentAlignment = Alignment.CenterStart,
     ) {
         // 1) TagChip with dynamic color based on selection and enabled state
-        val backgroundColor = when {
-            isSelected -> MaterialTheme.colorScheme.primary
-            !enabled -> MaterialTheme.colorScheme.surfaceVariant
-            else -> MaterialTheme.colorScheme.primaryContainer
-        }
-        
-        val textColor = when {
-            isSelected -> MaterialTheme.colorScheme.onPrimary
-            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-            else -> MaterialTheme.colorScheme.onSurface
-        }
-        
+        val backgroundColor =
+            when {
+                isSelected -> MaterialTheme.colorScheme.primary
+                !enabled -> MaterialTheme.colorScheme.surfaceVariant
+                else -> MaterialTheme.colorScheme.primaryContainer
+            }
+
+        val textColor =
+            when {
+                isSelected -> MaterialTheme.colorScheme.onPrimary
+                !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                else -> MaterialTheme.colorScheme.onSurface
+            }
+
         TagContainer(
             modifier = Modifier,
             color = backgroundColor,

@@ -205,26 +205,27 @@ fun MyTagsScreen(navController: NavController) {
                             if (isEditMode) {
                                 val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
                                 IconButton(
-                                    onClick = { 
+                                    onClick = {
                                         if (hasSelectedTags) {
                                             showBulkDeleteConfirm = true
                                         }
                                     },
-                                    enabled = hasSelectedTags
+                                    enabled = hasSelectedTags,
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
                                         contentDescription = "Delete",
-                                        tint = if (hasSelectedTags) {
-                                            MaterialTheme.colorScheme.error
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                        },
+                                        tint =
+                                            if (hasSelectedTags) {
+                                                MaterialTheme.colorScheme.error
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                            },
                                     )
                                 }
                             }
                             // Edit Button
-                            IconButton(onClick = { 
+                            IconButton(onClick = {
                                 myTagsViewModel.toggleEditMode()
                             }) {
                                 Icon(
@@ -575,10 +576,10 @@ private fun MyTagsContent(
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
     val isSelectingTagForPhotos = !myTagsViewModel.isSelectedPhotosEmpty()
-    
+
     // Track which tags are in individual edit mode (long-pressed)
     var individualEditTagId by remember { mutableStateOf<String?>(null) }
-    
+
     // Exit individual edit mode when entering/exiting global edit mode
     LaunchedEffect(isEditMode) {
         // 글로벌 선택 모드 진입 시에도 개별 편집 모드 해제
@@ -646,7 +647,7 @@ private fun MyTagsContent(
                             } else {
                                 Modifier
                             }
-                        
+
                         val isThisTagInEditMode = individualEditTagId == tagData.tagId
 
                         TagChipWithCount(
@@ -672,7 +673,7 @@ private fun MyTagsContent(
                             isEditMode = isThisTagInEditMode,
                             onEdit = { onEditTag(tagData.tagId, tagData.tagName) },
                             onDelete = { onDeleteTag(tagData.tagId, tagData.tagName) },
-                            onLongClick = { 
+                            onLongClick = {
                                 if (individualEditTagId == tagData.tagId) {
                                     // Exit individual edit mode for this tag
                                     individualEditTagId = null
@@ -689,7 +690,7 @@ private fun MyTagsContent(
 
                 Spacer(modifier = Modifier.height(80.dp))
             }
-            
+
             // Bulk delete confirmation dialog
             if (showBulkDeleteConfirm && selectedTagsForBulkEdit.isNotEmpty()) {
                 confirmDialog(
@@ -749,7 +750,7 @@ private fun MyTagsContent(
 private val tagColors =
     listOf(
         Color(0xFF5A8DE1), // 미디엄 블루
-        Color(0xFFC0405A), //딥 로즈
+        Color(0xFFC0405A), // 딥 로즈
         Color(0xFF759D5A), // 모스 그린
         Color(0xFF865FAD), // 미디엄 퍼플
         Color(0xFFD1A82A), // 머스타드/골드
