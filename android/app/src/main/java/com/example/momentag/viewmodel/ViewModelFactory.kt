@@ -124,7 +124,13 @@ class ViewModelFactory private constructor(
                 ) as T
             }
             modelClass.isAssignableFrom(AlbumViewModel::class.java) -> {
-                AlbumViewModel(localRepository, remoteRepository, recommendRepository, imageBrowserRepository) as T
+                AlbumViewModel(
+                    localRepository,
+                    remoteRepository,
+                    recommendRepository,
+                    imageBrowserRepository,
+                    photoSelectionRepository,
+                ) as T
             }
             modelClass.isAssignableFrom(StoryViewModel::class.java) -> {
                 StoryViewModel(recommendRepository, localRepository, remoteRepository, imageBrowserRepository) as T

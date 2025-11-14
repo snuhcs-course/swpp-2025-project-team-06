@@ -70,6 +70,7 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.viewmodel.AddTagViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -394,7 +395,7 @@ private fun PhotoItem(
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(imageCornerRadius))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(onClick = onClick),
     ) {

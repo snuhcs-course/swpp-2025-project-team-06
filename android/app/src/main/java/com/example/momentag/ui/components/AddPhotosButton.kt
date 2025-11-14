@@ -12,7 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.imageCornerRadius
 
 @Composable
 fun AddPhotosButton(
@@ -22,7 +22,7 @@ fun AddPhotosButton(
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(imageCornerRadius))
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .clickable(onClick = onClick),
         contentAlignment = Alignment.Companion.Center,

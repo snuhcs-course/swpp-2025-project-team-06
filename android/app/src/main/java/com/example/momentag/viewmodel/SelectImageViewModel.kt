@@ -33,9 +33,22 @@ class SelectImageViewModel(
     private val imageBrowserRepository: ImageBrowserRepository,
     private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
+    sealed class AddPhotosState {
+        object Idle : AddPhotosState()
+
+        object Loading : AddPhotosState()
+
+        object Success : AddPhotosState()
+
+        data class Error(
+            val message: String,
+        ) : AddPhotosState()
+    }
+
     // Expose repository state as read-only flows
     val tagName: StateFlow<String> = photoSelectionRepository.tagName
     val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+    val existingTagId: StateFlow<String?> = photoSelectionRepository.existingTagId
 
     private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
     val allPhotos: StateFlow<List<Photo>> = _allPhotos.asStateFlow()
@@ -54,6 +67,9 @@ class SelectImageViewModel(
 
     private val _recommendedPhotos = MutableStateFlow<List<Photo>>(emptyList())
     val recommendedPhotos: StateFlow<List<Photo>> = _recommendedPhotos.asStateFlow()
+
+    private val _addPhotosState = MutableStateFlow<AddPhotosState>(AddPhotosState.Idle)
+    val addPhotosState: StateFlow<AddPhotosState> = _addPhotosState.asStateFlow()
 
     val lazyGridState = LazyGridState()
 
@@ -293,5 +309,80 @@ class SelectImageViewModel(
 
     fun setSelectionMode(isSelection: Boolean) {
         _isSelectionMode.value = isSelection
+    }
+
+    /**
+     * Check if we're adding photos to an existing tag
+     */
+    fun isAddingToExistingTag(): Boolean = existingTagId.value != null
+
+    /**
+     * Handle done button click - adds photos to existing tag if in that mode
+     */
+    fun handleDoneButtonClick() {
+        val tagId = existingTagId.value ?: return
+        val name = tagName.value
+        addPhotosToExistingTag(tagId, name)
+    }
+
+    /**
+     * Add selected photos to existing tag
+     */
+    private fun addPhotosToExistingTag(
+        tagId: String,
+        tagName: String,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                _addPhotosState.value = AddPhotosState.Loading
+            }
+
+            val photos = selectedPhotos.value
+
+            for (photo in photos) {
+                when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
+                    is RemoteRepository.Result.Success -> {
+                        // Success, continue to next photo
+                    }
+                    is RemoteRepository.Result.Error -> {
+                        withContext(Dispatchers.Main) {
+                            _addPhotosState.value = AddPhotosState.Error(result.message)
+                        }
+                        return@launch
+                    }
+                    is RemoteRepository.Result.Unauthorized -> {
+                        withContext(Dispatchers.Main) {
+                            _addPhotosState.value = AddPhotosState.Error("Please login again")
+                        }
+                        return@launch
+                    }
+                    is RemoteRepository.Result.BadRequest -> {
+                        withContext(Dispatchers.Main) {
+                            _addPhotosState.value = AddPhotosState.Error(result.message)
+                        }
+                        return@launch
+                    }
+                    is RemoteRepository.Result.NetworkError -> {
+                        withContext(Dispatchers.Main) {
+                            _addPhotosState.value = AddPhotosState.Error(result.message)
+                        }
+                        return@launch
+                    }
+                    is RemoteRepository.Result.Exception -> {
+                        withContext(Dispatchers.Main) {
+                            _addPhotosState.value = AddPhotosState.Error(result.e.message ?: "Unknown error")
+                        }
+                        return@launch
+                    }
+                }
+            }
+
+            // Clear selection after success
+            photoSelectionRepository.clear()
+
+            withContext(Dispatchers.Main) {
+                _addPhotosState.value = AddPhotosState.Success
+            }
+        }
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -81,6 +82,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.horizontalArrangement
@@ -239,6 +241,18 @@ fun AlbumScreen(
                 Manifest.permission.READ_EXTERNAL_STORAGE
             }
         permissionLauncher.launch(permission)
+    }
+
+    // Refresh album when returning from SelectImageScreen
+    LaunchedEffect(navController) {
+        val currentBackStackEntry = navController.currentBackStackEntry
+        val savedStateHandle = currentBackStackEntry?.savedStateHandle
+        savedStateHandle?.getLiveData<Boolean>("photos_added")?.observeForever { photosAdded ->
+            if (photosAdded == true) {
+                albumViewModel.loadAlbum(tagId, currentTagName)
+                savedStateHandle.remove<Boolean>("photos_added")
+            }
+        }
     }
 
     val submitAndClearFocus = {
@@ -504,27 +518,10 @@ fun AlbumScreen(
                             panelHeight = panelHeight,
                             // Chip 클릭 시 오버레이 열기
                             onExpandRecommend = { isRecommendationExpanded = true },
-                        )
-                    }
-                    if (!hasPermission) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("이미지 접근 권한을 허용해주세요.")
-                        }
-                    } else {
-                        // === 그리드 + 축소 Chip (오버레이 X) ===
-                        AlbumGridArea(
-                            albumLoadState = imageLoadState,
-                            recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
-                            selectedTagAlbumPhotos = selectedTagAlbumPhotos,
-                            navController = navController,
-                            isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
-                            onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
-                            onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
-                            // 펼쳐짐 여부와 패널 높이에 따라 그리드 bottom padding 조절
-                            isRecommendationExpanded = isRecommendationExpanded,
-                            panelHeight = panelHeight,
-                            // Chip 클릭 시 오버레이 열기
-                            onExpandRecommend = { isRecommendationExpanded = true },
+                            // Add photos button handler
+                            albumViewModel = albumViewModel,
+                            tagId = tagId,
+                            tagName = currentTagName,
                         )
                     }
                 }
@@ -566,6 +563,9 @@ private fun AlbumGridArea(
     isRecommendationExpanded: Boolean,
     panelHeight: Dp,
     onExpandRecommend: () -> Unit,
+    albumViewModel: AlbumViewModel,
+    tagId: String,
+    tagName: String,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (albumLoadState) {
@@ -586,9 +586,23 @@ private fun AlbumGridArea(
                         ),
                     modifier = Modifier.fillMaxSize(),
                 ) {
+                    // Add Photos Button as first item
+                    item(
+                        key = "add_photos_button",
+                    ) {
+                        AddPhotosButton(
+                            onClick = {
+                                albumViewModel.initializeAddPhotosFlow(tagId, tagName)
+                                navController.navigate(Screen.SelectImage.route)
+                            },
+                            modifier = Modifier.aspectRatio(1f),
+                        )
+                    }
+
+                    // Photo grid items
                     items(
                         count = photos.size,
-                        key = { index -> index },
+                        key = { index -> "photo_$index" },
                     ) { index ->
                         ImageGridUriItem(
                             photo = photos[index],

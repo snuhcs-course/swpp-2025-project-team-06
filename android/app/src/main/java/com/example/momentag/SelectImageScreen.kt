@@ -82,6 +82,8 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.horizontalArrangement
+import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
@@ -113,6 +115,7 @@ fun SelectImageScreen(navController: NavController) {
     val recommendState by selectImageViewModel.recommendState.collectAsState()
     val recommendedPhotos by selectImageViewModel.recommendedPhotos.collectAsState()
     val isSelectionMode by selectImageViewModel.isSelectionMode.collectAsState()
+    val addPhotosState by selectImageViewModel.addPhotosState.collectAsState()
 
     var isSelectionModeDelay by remember { mutableStateOf(true) }
     var currentTab by remember { mutableStateOf(BottomTab.MyTagsScreen) }
@@ -193,6 +196,15 @@ fun SelectImageScreen(navController: NavController) {
     LaunchedEffect(hasPermission) {
         if (hasPermission && selectImageViewModel.allPhotos.value.isEmpty()) {
             selectImageViewModel.getAllPhotos()
+        }
+    }
+
+    // Handle add photos success
+    LaunchedEffect(addPhotosState) {
+        if (addPhotosState is SelectImageViewModel.AddPhotosState.Success) {
+            // Set result to trigger refresh in AlbumScreen
+            navController.previousBackStackEntry?.savedStateHandle?.set("photos_added", true)
+            navController.popBackStack()
         }
     }
 
@@ -329,8 +341,8 @@ fun SelectImageScreen(navController: NavController) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         state = listState,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(verticalArrangement),
+                        horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding =
                             PaddingValues(
@@ -435,8 +447,14 @@ fun SelectImageScreen(navController: NavController) {
             if (!isRecommendationExpanded) {
                 Button(
                     onClick = {
-                        navController.navigate(Screen.AddTag.route) {
-                            popUpTo(Screen.AddTag.route) { inclusive = true }
+                        if (selectImageViewModel.isAddingToExistingTag()) {
+                            // Add photos to existing tag
+                            selectImageViewModel.handleDoneButtonClick()
+                        } else {
+                            // Navigate to AddTagScreen for new tag creation
+                            navController.navigate(Screen.AddTag.route) {
+                                popUpTo(Screen.AddTag.route) { inclusive = true }
+                            }
                         }
                     },
                     shape = RoundedCornerShape(24.dp),
@@ -459,12 +477,20 @@ fun SelectImageScreen(navController: NavController) {
                                 shape = RoundedCornerShape(24.dp),
                                 clip = false,
                             ),
-                    enabled = selectedPhotos.isNotEmpty(),
+                    enabled = selectedPhotos.isNotEmpty() && addPhotosState !is SelectImageViewModel.AddPhotosState.Loading,
                 ) {
-                    Text(
-                        text = "Add to Tag",
-                        style = MaterialTheme.typography.labelLarge,
-                    )
+                    if (addPhotosState is SelectImageViewModel.AddPhotosState.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text(
+                            text = "Add to Tag",
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
                 }
             }
         }
