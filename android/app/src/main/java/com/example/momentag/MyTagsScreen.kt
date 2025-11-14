@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material3.Button
@@ -95,6 +96,7 @@ fun MyTagsScreen(navController: NavController) {
     val myTagsViewModel: MyTagsViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val uiState by myTagsViewModel.uiState.collectAsState()
     val isEditMode by myTagsViewModel.isEditMode.collectAsState()
+    val selectedTagsForBulkEdit by myTagsViewModel.selectedTagsForBulkEdit.collectAsState()
     val sortOrder by myTagsViewModel.sortOrder.collectAsState()
     val saveState by myTagsViewModel.saveState.collectAsState()
     val actionState by myTagsViewModel.tagActionState.collectAsState()
@@ -115,6 +117,8 @@ fun MyTagsScreen(navController: NavController) {
 
     var showErrorBanner by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -189,7 +193,7 @@ fun MyTagsScreen(navController: NavController) {
                             currentState is MyTagsUiState.Success &&
                             currentState.tags.isNotEmpty()
                         ) {
-                            // Sort Button
+                            // Sort Button (always visible)
                             IconButton(onClick = { showSortSheet = true }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
@@ -197,8 +201,32 @@ fun MyTagsScreen(navController: NavController) {
                                     tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
+                            // Delete Button (only when in edit mode)
+                            if (isEditMode) {
+                                val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
+                                IconButton(
+                                    onClick = { 
+                                        if (hasSelectedTags) {
+                                            showBulkDeleteConfirm = true
+                                        }
+                                    },
+                                    enabled = hasSelectedTags
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = if (hasSelectedTags) {
+                                            MaterialTheme.colorScheme.error
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                        },
+                                    )
+                                }
+                            }
                             // Edit Button
-                            IconButton(onClick = { myTagsViewModel.toggleEditMode() }) {
+                            IconButton(onClick = { 
+                                myTagsViewModel.toggleEditMode()
+                            }) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Edit",
@@ -384,6 +412,12 @@ fun MyTagsScreen(navController: NavController) {
                             tags = state.tags,
                             navController = navController,
                             isEditMode = isEditMode,
+                            selectedTagsForBulkEdit = selectedTagsForBulkEdit,
+                            onToggleTagSelection = { tagId ->
+                                myTagsViewModel.toggleTagSelection(tagId)
+                            },
+                            showBulkDeleteConfirm = showBulkDeleteConfirm,
+                            onShowBulkDeleteConfirmChange = { showBulkDeleteConfirm = it },
                             onEditTag = { tagId, tagName ->
                                 tagToEdit = Pair(tagId, tagName)
                                 editedTagName = tagName
@@ -400,6 +434,13 @@ fun MyTagsScreen(navController: NavController) {
                             onRefresh = { myTagsViewModel.refreshTags() },
                             onEnterEditMode = { myTagsViewModel.toggleEditMode() },
                             onExitEditMode = { if (isEditMode) myTagsViewModel.toggleEditMode() },
+                            onDeleteSelectedTags = { selectedTagIds ->
+                                // Delete each selected tag
+                                selectedTagIds.forEach { tagId ->
+                                    val tagName = state.tags.find { it.tagId == tagId }?.tagName ?: ""
+                                    myTagsViewModel.deleteTag(tagId)
+                                }
+                            },
                             myTagsViewModel = myTagsViewModel,
                         )
                     }
@@ -518,17 +559,31 @@ private fun MyTagsContent(
     tags: List<TagCntData>,
     navController: NavController,
     isEditMode: Boolean = false,
+    selectedTagsForBulkEdit: Set<String>,
+    onToggleTagSelection: (String) -> Unit,
+    showBulkDeleteConfirm: Boolean,
+    onShowBulkDeleteConfirmChange: (Boolean) -> Unit,
     onEditTag: (String, String) -> Unit = { _, _ -> },
     onDeleteTag: (String, String) -> Unit = { _, _ -> },
     onRefresh: () -> Unit = {},
     onEnterEditMode: () -> Unit = {},
     onExitEditMode: () -> Unit = {},
     onConfirmAddTag: (TagCntData) -> Unit = {},
+    onDeleteSelectedTags: (Set<String>) -> Unit = {},
     myTagsViewModel: MyTagsViewModel,
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
     val isSelectingTagForPhotos = !myTagsViewModel.isSelectedPhotosEmpty()
+    
+    // Track which tags are in individual edit mode (long-pressed)
+    var individualEditTagId by remember { mutableStateOf<String?>(null) }
+    
+    // Exit individual edit mode when entering/exiting global edit mode
+    LaunchedEffect(isEditMode) {
+        // 글로벌 선택 모드 진입 시에도 개별 편집 모드 해제
+        individualEditTagId = null
+    }
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -554,6 +609,8 @@ private fun MyTagsContent(
                                 },
                         ) {
                             onExitEditMode()
+                            // 빈 공간 클릭 시 개별 편집 모드도 해제
+                            individualEditTagId = null
                         }.padding(horizontal = 24.dp),
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -585,10 +642,12 @@ private fun MyTagsContent(
                     tags.forEach { tagData ->
                         val tagModifier =
                             if (isSelectingTagForPhotos) {
-                                Modifier.shadow(elevation = 4.dp, shape = RoundedCornerShape(26.dp))
+                                Modifier.shadow(elevation = 4.dp, shape = RoundedCornerShape(16.dp))
                             } else {
                                 Modifier
                             }
+                        
+                        val isThisTagInEditMode = individualEditTagId == tagData.tagId
 
                         TagChipWithCount(
                             modifier = tagModifier,
@@ -598,7 +657,10 @@ private fun MyTagsContent(
                             onClick = {
                                 if (isSelectingTagForPhotos) {
                                     onConfirmAddTag(tagData)
-                                } else if (!isEditMode) {
+                                } else if (isEditMode && !isThisTagInEditMode) {
+                                    // In global edit mode, toggle checkbox selection
+                                    onToggleTagSelection(tagData.tagId)
+                                } else if (!isEditMode && !isThisTagInEditMode) {
                                     navController.navigate(
                                         Screen.Album.createRoute(
                                             tagId = tagData.tagId,
@@ -607,15 +669,43 @@ private fun MyTagsContent(
                                     )
                                 }
                             },
-                            isEditMode = isEditMode,
+                            isEditMode = isThisTagInEditMode,
                             onEdit = { onEditTag(tagData.tagId, tagData.tagName) },
                             onDelete = { onDeleteTag(tagData.tagId, tagData.tagName) },
-                            onLongClick = { onEnterEditMode() },
+                            onLongClick = { 
+                                if (individualEditTagId == tagData.tagId) {
+                                    // Exit individual edit mode for this tag
+                                    individualEditTagId = null
+                                } else {
+                                    // Enter individual edit mode for this tag
+                                    individualEditTagId = tagData.tagId
+                                }
+                            },
+                            showCheckbox = isEditMode && !isThisTagInEditMode,
+                            isChecked = selectedTagsForBulkEdit.contains(tagData.tagId),
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(80.dp))
+            }
+            
+            // Bulk delete confirmation dialog
+            if (showBulkDeleteConfirm && selectedTagsForBulkEdit.isNotEmpty()) {
+                confirmDialog(
+                    title = "Delete Tags",
+                    message = "Are you sure you want to delete ${selectedTagsForBulkEdit.size} tag(s)?",
+                    confirmButtonText = "Delete",
+                    onConfirm = {
+                        onDeleteSelectedTags(selectedTagsForBulkEdit)
+                        onShowBulkDeleteConfirmChange(false)
+                        onExitEditMode()
+                    },
+                    onDismiss = {
+                        onShowBulkDeleteConfirmChange(false)
+                    },
+                    dismissible = true,
+                )
             }
         } else {
             Column(
@@ -658,45 +748,13 @@ private fun MyTagsContent(
 
 private val tagColors =
     listOf(
-        Color(0xFF93C5FD), // Blue
-        Color(0xFFFCA5A5), // Red
-        Color(0xFF86EFAC), // Green
-        Color(0xFFFDE047), // Yellow
-        Color(0xFFFDA4AF), // Pink
-        Color(0xFFA78BFA), // Purple
-        Color(0xFF67E8F9), // Cyan
-        Color(0xFFFBBF24), // Amber
-        Color(0xFFE879F9), // Magenta
-        Color(0xFF34D399), // Emerald
-        Color(0xFFF97316), // Orange
-        Color(0xFF94A3B8), // Slate
-        Color(0xFFE7A396), // Dusty Rose
-        Color(0xFFEACE84), // Soft Gold
-        Color(0xFF9AB9E1), // Periwinkle
-        Color(0xFFD9A1C0), // Mauve
-        Color(0xFFF7A97B), // Peach
-        Color(0xFFF0ACB7), // Blush Pink
-        Color(0xFFEBCF92), // Cream
-        Color(0xFFDDE49E), // Pale Lime
-        Color(0xFF80E3CD), // Mint Green
-        Color(0xFFCCC0F2), // Lavender
-        Color(0xFFCAD892), // Sage Green
-        Color(0xFF969A60), // Olive
-        Color(0xFF758D46), // Moss Green
-        Color(0xFF98D0F5), // Baby Blue
-        Color(0xFF5E9D8E), // Dusty Teal
-        Color(0xFF3C8782), // Deep Teal
-        Color(0xFFEB5A6D), // Coral Red
-        Color(0xFFF3C9E4), // Light Orchid
-        Color(0xFFEEADA7), // Salmon Pink
-        Color(0xFFBD8DBD), // Soft Purple
-        Color(0xFFFAF5AF), // Pale Yellow
-        Color(0xFFAD9281), // Warm Gray
-        Color(0xFFF2C6C7), // Rose Beige
-        Color(0xFFE87757), // Terracotta
-        Color(0xFFED6C84), // Watermelon
-        Color(0xFFB9A061), // Khaki
-        Color(0xFFA0BA46), // Lime Green
+        Color(0xFF5A8DE1), // 미디엄 블루
+        Color(0xFFC0405A), //딥 로즈
+        Color(0xFF759D5A), // 모스 그린
+        Color(0xFF865FAD), // 미디엄 퍼플
+        Color(0xFFD1A82A), // 머스타드/골드
+        Color(0xFF5F9191), // 미디엄 틸
+        Color(0xFFD9661E), // 번트 오렌지
     )
 
 private fun getTagColor(tagId: String): Color = tagColors[abs(tagId.hashCode()) % tagColors.size]

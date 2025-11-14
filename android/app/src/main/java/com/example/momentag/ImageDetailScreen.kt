@@ -710,6 +710,10 @@ fun TagsSection(
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    
+    // 개별 태그의 삭제 모드 상태 관리
+    var deleteModeTagId by remember { mutableStateOf<String?>(null) }
+    
     Row(
         modifier = modifier.horizontalScroll(scrollState),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -719,22 +723,33 @@ fun TagsSection(
         if (isExistingTagsLoading) {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
         } else {
-            // Display existing tags
+            // Display existing tags - 개별 롱프레스로 해당 태그만 삭제 모드
             existingTags.forEach { tagItem ->
+                val isThisTagInDeleteMode = deleteModeTagId == tagItem.tagId
+                
                 Box(
                     modifier =
                         Modifier.combinedClickable(
-                            onLongClick = onEnterDeleteMode,
+                            onLongClick = {
+                                // 롱프레스 시 이 태그만 삭제 모드로 전환 (토글)
+                                deleteModeTagId = if (isThisTagInDeleteMode) null else tagItem.tagId
+                            },
                             onClick = {
-                                if (isDeleteMode) onExitDeleteMode()
+                                // 클릭 시 해당 태그의 삭제 모드 해제
+                                if (isThisTagInDeleteMode) {
+                                    deleteModeTagId = null
+                                }
                             },
                         ),
                 ) {
                     tagXMode(
                         text = tagItem.tagName,
-                        isDeleteMode = isDeleteMode,
-                        onDismiss = { onDeleteClick(tagItem.tagId) },
-                        color = getTagColor(tagItem.tagId),
+                        isDeleteMode = isThisTagInDeleteMode,
+                        onDismiss = { 
+                            onDeleteClick(tagItem.tagId)
+                            deleteModeTagId = null
+                        },
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -744,14 +759,12 @@ fun TagsSection(
         if (isRecommendedTagsLoading) {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
         } else {
-            // Display recommended tags
+            // Display recommended tags (통일된 색상 사용)
             recommendedTags.forEach { tagName ->
-                val baseColor = getTagColor(tagName)
-                val lightenedColor = lightenColor(baseColor)
                 ConfirmableRecommendedTag(
                     tagName = tagName,
                     onConfirm = { onAddTag(it) },
-                    color = lightenedColor,
+                    color = MaterialTheme.colorScheme.primaryContainer,
                 )
             }
         }
