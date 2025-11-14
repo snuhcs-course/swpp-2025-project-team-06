@@ -1713,6 +1713,12 @@ private fun SortOptionsSheet(
         )
 
         SortOptionItem(
+            text = "Most Recently Added",
+            icon = Icons.Default.FiberNew,
+            isSelected = currentOrder == TagSortOrder.CREATED_DESC,
+            onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
+        )
+        SortOptionItem(
             text = "Name (A-Z)",
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.NAME_ASC,
@@ -1725,22 +1731,16 @@ private fun SortOptionsSheet(
             onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
         )
         SortOptionItem(
-            text = "Recently Added",
-            icon = Icons.Default.FiberNew,
-            isSelected = currentOrder == TagSortOrder.CREATED_DESC,
-            onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
+            text = "Count (Ascending)",
+            icon = Icons.Default.ArrowUpward,
+            isSelected = currentOrder == TagSortOrder.COUNT_ASC,
+            onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
         )
         SortOptionItem(
             text = "Count (Descending)",
-            icon = Icons.Default.ArrowUpward,
+            icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
             onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
-        )
-        SortOptionItem(
-            text = "Count (Ascending)",
-            icon = Icons.Default.ArrowDownward,
-            isSelected = currentOrder == TagSortOrder.COUNT_ASC,
-            onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
         )
     }
 }
