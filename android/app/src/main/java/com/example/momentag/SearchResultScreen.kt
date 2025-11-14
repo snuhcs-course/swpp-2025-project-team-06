@@ -503,21 +503,19 @@ private fun SearchResultContent(
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 16.dp),
             ) {
-                CreateTagButton(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(start = 16.dp),
-                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Add Tag with ${selectedPhotos.size}" else "Create Tag",
-                    enabled = !isSelectionMode || selectedPhotos.isNotEmpty(),
-                    onClick = {
-                        if (!isSelectionMode) {
-                            onToggleSelectionMode()
-                        } else if (selectedPhotos.isNotEmpty()) {
+                // Only show CreateTagButton when in selection mode and photos are selected
+                if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                    CreateTagButton(
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(start = 16.dp),
+                        text = "Add Tag with ${selectedPhotos.size}",
+                        onClick = {
                             onCreateTagClick()
-                        }
-                    },
-                )
+                        },
+                    )
+                }
 
                 Text(
                     text = "${uiState.results.size} photos total",
