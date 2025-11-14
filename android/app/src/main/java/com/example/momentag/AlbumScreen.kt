@@ -42,13 +42,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -140,21 +137,21 @@ fun AlbumScreen(
     var showErrorBanner by remember { mutableStateOf(false) }
     var errorBannerTitle by remember { mutableStateOf("Error") }
     var errorBannerMessage by remember { mutableStateOf("An error occurred") }
-    var showSelectPhotosBanner_share by remember { mutableStateOf(false) }
+    var showSelectPhotosBannerShare by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showSelectPhotosBanner_share) {
-        if (showSelectPhotosBanner_share) {
+    LaunchedEffect(showSelectPhotosBannerShare) {
+        if (showSelectPhotosBannerShare) {
             kotlinx.coroutines.delay(2000)
-            showSelectPhotosBanner_share = false
+            showSelectPhotosBannerShare = false
         }
     }
 
-    var showSelectPhotosBanner_untag by remember { mutableStateOf(false) }
+    var showSelectPhotosBannerUntag by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showSelectPhotosBanner_untag) {
-        if (showSelectPhotosBanner_untag) {
+    LaunchedEffect(showSelectPhotosBannerUntag) {
+        if (showSelectPhotosBannerUntag) {
             kotlinx.coroutines.delay(2000)
-            showSelectPhotosBanner_untag = false
+            showSelectPhotosBannerUntag = false
         }
     }
 
@@ -338,7 +335,7 @@ fun AlbumScreen(
                                                 Toast.LENGTH_SHORT,
                                             ).show()
                                     } else {
-                                        showSelectPhotosBanner_share = true
+                                        showSelectPhotosBannerShare = true
                                     }
                                 },
                                 modifier = Modifier.width(32.dp),
@@ -353,7 +350,7 @@ fun AlbumScreen(
                                     if (selectedTagAlbumPhotos.isNotEmpty()) {
                                         showDeleteConfirmationDialog = true
                                     } else {
-                                        showSelectPhotosBanner_untag = true
+                                        showSelectPhotosBannerUntag = true
                                     }
                                 },
                             ) {
@@ -479,27 +476,27 @@ fun AlbumScreen(
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
 
-                    AnimatedVisibility(visible = showSelectPhotosBanner_share) {
+                    AnimatedVisibility(visible = showSelectPhotosBannerShare) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             title = "No Photos Selected",
                             message = "Please select photos to share.",
-                            onActionClick = { showSelectPhotosBanner_share = false },
+                            onActionClick = { showSelectPhotosBannerShare = false },
                             showActionButton = false,
                             showDismissButton = true,
-                            onDismiss = { showSelectPhotosBanner_share = false },
+                            onDismiss = { showSelectPhotosBannerShare = false },
                         )
                     }
 
-                    AnimatedVisibility(visible = showSelectPhotosBanner_untag) {
+                    AnimatedVisibility(visible = showSelectPhotosBannerUntag) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             title = "No Photos Selected",
                             message = "Please select photos to untag.",
-                            onActionClick = { showSelectPhotosBanner_untag = false },
+                            onActionClick = { showSelectPhotosBannerUntag = false },
                             showActionButton = false,
                             showDismissButton = true,
-                            onDismiss = { showSelectPhotosBanner_untag = false },
+                            onDismiss = { showSelectPhotosBannerUntag = false },
                         )
                     }
 

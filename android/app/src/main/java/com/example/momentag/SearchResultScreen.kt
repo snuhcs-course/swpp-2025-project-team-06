@@ -25,10 +25,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -172,7 +169,6 @@ fun SearchResultScreen(
     }
 
     val topBarActions = @Composable {
-
         if (isSelectionModeDelay && selectedPhotos.isNotEmpty()) {
             Box {
                 IconButton(onClick = {
@@ -185,7 +181,6 @@ fun SearchResultScreen(
                             "Share ${photos.size} photo(s)",
                             Toast.LENGTH_SHORT,
                         ).show()
-
                 }) {
                     Icon(
                         imageVector = Icons.Default.Share,

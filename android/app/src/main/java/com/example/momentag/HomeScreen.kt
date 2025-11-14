@@ -60,15 +60,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -549,9 +546,8 @@ fun HomeScreen(navController: NavController) {
                     if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                         Box {
                             if (isSelectionMode && selectedPhotos.isNotEmpty()) {
-                                //selectedPhotos.isNotEmpty()
+                                // selectedPhotos.isNotEmpty()
                                 IconButton(onClick = {
-
                                     val photos = homeViewModel.getPhotosToShare()
                                     ShareUtils.sharePhotos(context, photos)
 
@@ -563,9 +559,7 @@ fun HomeScreen(navController: NavController) {
                                                 Toast.LENGTH_SHORT,
                                             ).show()
                                     } else {
-
                                     }
-
                                 }) {
                                     Icon(
                                         imageVector = Icons.Default.Share,
