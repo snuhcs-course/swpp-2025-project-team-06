@@ -275,18 +275,23 @@ fun SearchResultScreen(
             when (tab) {
                 BottomTab.HomeScreen -> {
                     searchViewModel.resetSelection()
-                    navController.navigate(Screen.Home.route)
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
                 BottomTab.SearchResultScreen -> {
-                    // 이미 Search 화면
                 }
                 BottomTab.MyTagsScreen -> {
                     searchViewModel.resetSelection()
-                    navController.navigate(Screen.MyTags.route)
+                    navController.navigate(Screen.MyTags.route) {
+                        popUpTo(Screen.Home.route)
+                    }
                 }
                 BottomTab.StoryScreen -> {
                     searchViewModel.resetSelection()
-                    navController.navigate(Screen.Story.route)
+                    navController.navigate(Screen.Story.route) {
+                        popUpTo(Screen.Home.route)
+                    }
                 }
             }
         },

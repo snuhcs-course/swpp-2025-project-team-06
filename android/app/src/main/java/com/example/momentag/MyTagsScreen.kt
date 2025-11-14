@@ -312,20 +312,26 @@ fun MyTagsScreen(navController: NavController) {
                             when (tab) {
                                 BottomTab.HomeScreen -> {
                                     myTagsViewModel.clearDraft()
-                                    navController.navigate(Screen.Home.route)
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(0) { inclusive = true }
+                                    }
                                 }
 
                                 BottomTab.SearchResultScreen -> {
                                     myTagsViewModel.clearDraft()
-                                    navController.navigate(Screen.SearchResult.createRoute(""))
+                                    navController.navigate(Screen.SearchResult.initialRoute()) {
+                                        popUpTo(Screen.Home.route)
+                                    }
                                 }
 
-                                BottomTab.MyTagsScreen -> { // 현재 화면이므로 아무것도 안 함
+                                BottomTab.MyTagsScreen -> {
                                 }
 
                                 BottomTab.StoryScreen -> {
                                     myTagsViewModel.clearDraft()
-                                    navController.navigate(Screen.Story.route)
+                                    navController.navigate(Screen.Story.route) {
+                                        popUpTo(Screen.Home.route)
+                                    }
                                 }
                             }
                         },

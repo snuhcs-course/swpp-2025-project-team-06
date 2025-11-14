@@ -617,19 +617,24 @@ fun HomeScreen(navController: NavController) {
 
                     when (tab) {
                         BottomTab.HomeScreen -> {
-                            // 이미 홈 화면
                         }
                         BottomTab.SearchResultScreen -> {
                             homeViewModel.resetSelection()
-                            navController.navigate(Screen.SearchResult.initialRoute())
+                            navController.navigate(Screen.SearchResult.initialRoute()) {
+                                popUpTo(Screen.Home.route)
+                            }
                         }
                         BottomTab.MyTagsScreen -> {
                             homeViewModel.resetSelection()
-                            navController.navigate(Screen.MyTags.route)
+                            navController.navigate(Screen.MyTags.route) {
+                                popUpTo(Screen.Home.route)
+                            }
                         }
                         BottomTab.StoryScreen -> {
                             homeViewModel.resetSelection()
-                            navController.navigate(Screen.Story.route)
+                            navController.navigate(Screen.Story.route) {
+                                popUpTo(Screen.Home.route)
+                            }
                         }
                     }
                 },
