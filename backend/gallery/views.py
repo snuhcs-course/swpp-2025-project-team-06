@@ -151,7 +151,7 @@ class PhotoView(APIView):
 
             for data in photos_data:
                 storage_key = None
-                
+
                 try:
                     image_file = data["photo"]
 
@@ -178,24 +178,30 @@ class PhotoView(APIView):
                             "lng": data["lng"],
                         }
                     )
-                
+
                 except IntegrityError:
                     skipped_count += 1
-                    print(f"[INFO] Skipping duplicate photo: User {request.user.id}, Path ID {data['photo_path_id']}")
-                    
+                    print(
+                        f"[INFO] Skipping duplicate photo: User {request.user.id}, Path ID {data['photo_path_id']}"
+                    )
+
                     if storage_key:
-                        print(f"       ... Cleaning up orphaned file from storage: {storage_key}")
+                        print(
+                            f"       ... Cleaning up orphaned file from storage: {storage_key}"
+                        )
                         delete_photo(storage_key)
-                    
+
                     continue
 
             # Split into batches of 8 for GPU memory management
             if not all_metadata:
                 return Response(
-                    {"message": f"Processed {len(photos_data)} photos. All were duplicates."},
-                    status=status.HTTP_200_OK, # 새 작업이 없으므로 200 OK
+                    {
+                        "message": f"Processed {len(photos_data)} photos. All were duplicates."
+                    },
+                    status=status.HTTP_200_OK,  # 새 작업이 없으므로 200 OK
                 )
-            
+
             # all_metadata 리스트 (신규 사진) 기준으로 배치 생성
             BATCH_SIZE = 8
             for i in range(0, len(all_metadata), BATCH_SIZE):
@@ -207,7 +213,9 @@ class PhotoView(APIView):
 
             # 응답 메시지를 더 명확하게
             return Response(
-                {"message": f"Processed {len(photos_data)} photos. {len(all_metadata)} new photos are being processed. {skipped_count} duplicates skipped."},
+                {
+                    "message": f"Processed {len(photos_data)} photos. {len(all_metadata)} new photos are being processed. {skipped_count} duplicates skipped."
+                },
                 status=status.HTTP_202_ACCEPTED,
             )
         except Exception as e:
@@ -259,7 +267,9 @@ class PhotoView(APIView):
                 limit = int(request.GET.get("limit", 100))
                 if offset < 0 or limit < 1:
                     return Response(
-                        {"error": "Offset must be non-negative and limit must be positive"},
+                        {
+                            "error": "Offset must be non-negative and limit must be positive"
+                        },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 limit = min(limit, 100)  # 최대 100개 제한
@@ -273,7 +283,7 @@ class PhotoView(APIView):
             photos = Photo.objects.filter(user=request.user).order_by("-created_at")
 
             # 페이지네이션 적용
-            photos = photos[offset:offset + limit]
+            photos = photos[offset : offset + limit]
 
             serializer = ResPhotoSerializer(photos, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -352,15 +362,15 @@ class PhotoDetailView(APIView):
                 if resp.status_code == 200:
                     data = resp.json()
                     if data.get("documents"):
-                        address = data["documents"][0]["address_name"]   
+                        address = data["documents"][0]["address_name"]
 
                 # Cache the result
-                r.set(hashed_key, address, ex=60 * 60 * 24)  # Cache for a day         
+                r.set(hashed_key, address, ex=60 * 60 * 24)  # Cache for a day
 
             photo_data = {
                 "photo_path_id": photo.photo_path_id,
                 "address": address,
-                "tags": tag_list
+                "tags": tag_list,
             }
 
             serializer = ResPhotoTagListSerializer(photo_data)
@@ -520,7 +530,11 @@ class GetPhotosByTagView(APIView):
             photos = [photo_tag.photo for photo_tag in photo_tags]
 
             photos_data = [
-                {"photo_id": photo.photo_id, "photo_path_id": photo.photo_path_id, "created_at": photo.created_at}
+                {
+                    "photo_id": photo.photo_id,
+                    "photo_path_id": photo.photo_path_id,
+                    "created_at": photo.created_at,
+                }
                 for photo in photos
             ]
 
@@ -822,16 +836,17 @@ class TagView(APIView):
     )
     def get(self, request):
         try:
-            latest_photo_subquery = Photo_Tag.objects.filter(
-                tag=OuterRef("pk"), 
-                user=request.user
-            ).select_related("photo").order_by("-photo__created_at")
+            latest_photo_subquery = (
+                Photo_Tag.objects.filter(tag=OuterRef("pk"), user=request.user)
+                .select_related("photo")
+                .order_by("-photo__created_at")
+            )
 
-            tags = Tag.objects.filter(
-                user=request.user
-            ).annotate(
-                photo_count=Count('photo_tag', filter=Q(photo_tag__user=request.user)),
-                thumbnail_path_id=Subquery(latest_photo_subquery.values("photo__photo_path_id")[:1])
+            tags = Tag.objects.filter(user=request.user).annotate(
+                photo_count=Count("photo_tag", filter=Q(photo_tag__user=request.user)),
+                thumbnail_path_id=Subquery(
+                    latest_photo_subquery.values("photo__photo_path_id")[:1]
+                ),
             )
 
             response_serializer = ResTagThumbnailSerializer(tags, many=True)
@@ -842,7 +857,10 @@ class TagView(APIView):
                 {"error": "The user has no tags"}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            logger.error(f"[TagView GET] 500 ERROR for user: {request.user.id}. Exception: {str(e)}", exc_info=True)
+            logger.error(
+                f"[TagView GET] 500 ERROR for user: {request.user.id}. Exception: {str(e)}",
+                exc_info=True,
+            )
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -1115,7 +1133,11 @@ class StoryView(APIView):
 
             # QuerySet을 유지하면서 데이터 직렬화
             photos_data = [
-                {"photo_id": str(photo.photo_id), "photo_path_id": photo.photo_path_id, "created_at": photo.created_at}
+                {
+                    "photo_id": str(photo.photo_id),
+                    "photo_path_id": photo.photo_path_id,
+                    "created_at": photo.created_at,
+                }
                 for photo in photos_queryset
             ]
 
@@ -1143,7 +1165,9 @@ class NewStoryView(APIView):
         operation_description="Get stories from redis",
         request_body=None,
         responses={
-            200: openapi.Response(description="Success", schema=NewResStorySerializer()),
+            200: openapi.Response(
+                description="Success", schema=NewResStorySerializer()
+            ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
@@ -1155,7 +1179,7 @@ class NewStoryView(APIView):
                 description="access token",
                 type=openapi.TYPE_STRING,
             )
-        ]
+        ],
     )
     def get(self, request):
         try:
@@ -1166,7 +1190,7 @@ class NewStoryView(APIView):
                     {"error": "We're working on your stories! Please wait a moment."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            
+
             story_data_json = r.get(request.user.id)
             story_data = json.loads(story_data_json)
             serializer = NewResStorySerializer(story_data, many=True)
@@ -1174,12 +1198,11 @@ class NewStoryView(APIView):
             r.delete(request.user.id)
 
             return Response(serializer.data, status=status.HTTP_200_OK)
-        
+
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 
     @swagger_auto_schema(
         operation_summary="Generate and save stories into redis",
@@ -1223,16 +1246,15 @@ class NewStoryView(APIView):
                     {"error": "Invalid size parameter"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             # Celery 백그라운드 작업으로 위임
             generate_stories_task.delay(request.user.id, size)
 
             return Response(
-                {"message": "Story generation started"},
-                status=status.HTTP_202_ACCEPTED
+                {"message": "Story generation started"}, status=status.HTTP_202_ACCEPTED
             )
 
         except Exception as e:
             return Response(
-                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
