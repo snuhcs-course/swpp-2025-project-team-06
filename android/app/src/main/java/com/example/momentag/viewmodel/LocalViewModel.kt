@@ -137,6 +137,14 @@ class LocalViewModel(
         }
     }
 
+    fun clearAlbumSelection() {
+        _selectedAlbumIds.value = emptySet()
+    }
+
+    fun selectAllAlbums(albums: List<Album>) {
+        _selectedAlbumIds.value = albums.map { it.albumId }.toSet()
+    }
+
     fun toggleAlbumSelection(albumId: Long) {
         _selectedAlbumIds.update { currentSet ->
             if (albumId in currentSet) {
