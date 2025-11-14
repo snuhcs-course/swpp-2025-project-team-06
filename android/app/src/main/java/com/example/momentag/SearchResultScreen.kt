@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -89,7 +90,6 @@ fun SearchResultScreen(
 
     // var isSelectionMode by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
-    var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
     val focusManager = LocalFocusManager.current
@@ -171,51 +171,24 @@ fun SearchResultScreen(
     }
 
     val topBarActions = @Composable {
-        Box {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options",
-                )
-            }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
-            ) {
-                if (isSelectionModeDelay) {
-                    DropdownMenuItem(
-                        text = { Text("Share") },
-                        onClick = {
-                            val photos = searchViewModel.getPhotosToShare()
-                            ShareUtils.sharePhotos(context, photos)
 
-                            Toast
-                                .makeText(
-                                    context,
-                                    "Share ${photos.size} photo(s)",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
+        if (isSelectionModeDelay) {
+            Box {
+                IconButton(onClick = {
+                    val photos = searchViewModel.getPhotosToShare()
+                    ShareUtils.sharePhotos(context, photos)
 
-                            showMenu = false
-                            searchViewModel.setSelectionMode(false)
-                            searchViewModel.resetSelection()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Cancel") },
-                        onClick = {
-                            searchViewModel.setSelectionMode(false)
-                            searchViewModel.resetSelection()
-                            showMenu = false
-                        },
-                    )
-                } else {
-                    DropdownMenuItem(
-                        text = { Text("Select") },
-                        onClick = {
-                            searchViewModel.setSelectionMode(true)
-                            showMenu = false
-                        },
+                    Toast
+                        .makeText(
+                            context,
+                            "Share ${photos.size} photo(s)",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share",
                     )
                 }
             }

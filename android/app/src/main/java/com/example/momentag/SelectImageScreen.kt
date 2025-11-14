@@ -233,40 +233,7 @@ fun SelectImageScreen(navController: NavController) {
                     navController.popBackStack()
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-                actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options",
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                        ) {
-                            if (isSelectionModeDelay) {
-                                DropdownMenuItem(
-                                    text = { Text("Cancel") },
-                                    onClick = {
-                                        isSelectionModeDelay = false
-                                        selectImageViewModel.setSelectionMode(false)
-                                        showMenu = false
-                                    },
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text("Select") },
-                                    onClick = {
-                                        isSelectionModeDelay = true
-                                        selectImageViewModel.setSelectionMode(true)
-                                        showMenu = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                },
+                actions = {},
             )
         },
         bottomBar = {

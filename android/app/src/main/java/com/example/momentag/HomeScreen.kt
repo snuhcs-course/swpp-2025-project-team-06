@@ -62,6 +62,7 @@ import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -152,7 +153,6 @@ fun HomeScreen(navController: NavController) {
     val focusManager = LocalFocusManager.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
@@ -548,51 +548,28 @@ fun HomeScreen(navController: NavController) {
                 actions = {
                     if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                         Box {
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "More options",
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false },
-                            ) {
-                                if (isSelectionModeDelay) {
-                                    DropdownMenuItem(
-                                        text = { Text("Share") },
-                                        onClick = {
-                                            val photos = homeViewModel.getPhotosToShare()
-                                            ShareUtils.sharePhotos(context, photos)
+                            if (isSelectionModeDelay) {
+                                //selectedPhotos.isNotEmpty()
+                                IconButton(onClick = {
 
-                                            Toast
-                                                .makeText(
-                                                    context,
-                                                    "Share ${photos.size} photo(s)",
-                                                    Toast.LENGTH_SHORT,
-                                                ).show()
+                                    val photos = homeViewModel.getPhotosToShare()
+                                    ShareUtils.sharePhotos(context, photos)
 
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
-                                        enabled = selectedPhotos.isNotEmpty(),
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Cancel") },
-                                        onClick = {
-                                            homeViewModel.setSelectionMode(false)
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
-                                    )
-                                } else {
-                                    DropdownMenuItem(
-                                        text = { Text("Select") },
-                                        onClick = {
-                                            homeViewModel.setSelectionMode(true)
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
+                                    if (photos.isNotEmpty()) {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                "Share ${photos.size} photo(s)",
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                    } else {
+
+                                    }
+
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = "Share",
                                     )
                                 }
                             }
