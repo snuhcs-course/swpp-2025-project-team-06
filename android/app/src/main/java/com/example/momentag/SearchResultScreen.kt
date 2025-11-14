@@ -40,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,6 +95,8 @@ fun SearchResultScreen(
 
     val focusManager = LocalFocusManager.current
 
+    var hasPerformedInitialSearch by rememberSaveable { mutableStateOf(false) }
+
     BackHandler(enabled = isSelectionMode) {
         searchViewModel.setSelectionMode(false)
         searchViewModel.resetSelection()
@@ -119,10 +122,11 @@ fun SearchResultScreen(
     }
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
-    LaunchedEffect(initialQuery) {
-        if (initialQuery.isNotEmpty()) {
+    LaunchedEffect(initialQuery, hasPerformedInitialSearch) {
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
             searchViewModel.onSearchTextChanged(initialQuery)
             searchViewModel.search(initialQuery)
+            hasPerformedInitialSearch = true
         }
     }
 

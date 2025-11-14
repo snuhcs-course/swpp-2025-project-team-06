@@ -512,6 +512,19 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
+    LaunchedEffect(navController, hasPermission) {
+        val navBackStackEntry = navController.currentBackStackEntry
+        navBackStackEntry?.savedStateHandle?.getLiveData<Boolean>("shouldRefresh")?.observe(navBackStackEntry) { shouldRefresh ->
+            if (shouldRefresh) {
+                if (hasPermission) {
+                    homeViewModel.loadServerTags()
+                    homeViewModel.loadAllPhotos()
+                }
+                navBackStackEntry.savedStateHandle.remove<Boolean>("shouldRefresh")
+            }
+        }
+    }
+
     BackHandler(enabled = isSelectionMode && showAllPhotos) {
         homeViewModel.setSelectionMode(false)
         homeViewModel.resetSelection()
@@ -541,23 +554,23 @@ fun HomeScreen(navController: NavController) {
     }
 
     // 화면이 다시 보일 때 (ON_RESUME) 태그와 사진 새로고침
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, hasPermission) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    if (hasPermission) {
-                        homeViewModel.loadServerTags()
-                        homeViewModel.loadAllPhotos()
-                    }
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
+//    val lifecycleOwner = LocalLifecycleOwner.current
+//    DisposableEffect(lifecycleOwner, hasPermission) {
+//        val observer =
+//            LifecycleEventObserver { _, event ->
+//                if (event == Lifecycle.Event.ON_RESUME) {
+//                    if (hasPermission) {
+//                        homeViewModel.loadServerTags()
+//                        homeViewModel.loadAllPhotos()
+//                    }
+//                }
+//            }
+//        lifecycleOwner.lifecycle.addObserver(observer)
+//
+//        onDispose {
+//            lifecycleOwner.lifecycle.removeObserver(observer)
+//        }
+//    }
 
     Scaffold(
         topBar = {

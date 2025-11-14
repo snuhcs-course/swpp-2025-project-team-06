@@ -152,7 +152,7 @@ fun MyTagsScreen(navController: NavController) {
     }
 
     BackHandler {
-        // myTagsViewModel.clearDraft()
+        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
         navController.popBackStack()
     }
 
@@ -183,7 +183,10 @@ fun MyTagsScreen(navController: NavController) {
                 CommonTopBar(
                     title = "#Tag",
                     showBackButton = true,
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = {
+                        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                        navController.popBackStack()
+                    },
                     actions = {
                         if (myTagsViewModel.isSelectedPhotosEmpty() &&
                             currentState is MyTagsUiState.Success &&
