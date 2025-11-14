@@ -516,6 +516,10 @@ fun HomeScreen(navController: NavController) {
         tagToDeleteInfo = null
     }
 
+    BackHandler(enabled = !isSelectionMode && showAllPhotos) {
+        homeViewModel.setShowAllPhotos(false)
+    }
+
     // 화면이 다시 보일 때 (ON_RESUME) 태그와 사진 새로고침
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, hasPermission) {
