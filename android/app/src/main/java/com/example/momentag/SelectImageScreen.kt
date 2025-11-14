@@ -285,18 +285,22 @@ fun SelectImageScreen(navController: NavController) {
                     selectImageViewModel.clearDraft()
 
                     when (tab) {
-                        BottomTab.HomeScreen -> navController.navigate(Screen.Home.route) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                        BottomTab.SearchResultScreen -> navController.navigate(Screen.SearchResult.initialRoute()) {
-                            popUpTo(Screen.Home.route)
-                        }
-                        BottomTab.MyTagsScreen -> navController.navigate(Screen.MyTags.route) {
-                            popUpTo(Screen.Home.route)
-                        }
-                        BottomTab.StoryScreen -> navController.navigate(Screen.Story.route) {
-                            popUpTo(Screen.Home.route)
-                        }
+                        BottomTab.HomeScreen ->
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        BottomTab.SearchResultScreen ->
+                            navController.navigate(Screen.SearchResult.initialRoute()) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        BottomTab.MyTagsScreen ->
+                            navController.navigate(Screen.MyTags.route) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        BottomTab.StoryScreen ->
+                            navController.navigate(Screen.Story.route) {
+                                popUpTo(Screen.Home.route)
+                            }
                     }
                 },
             )

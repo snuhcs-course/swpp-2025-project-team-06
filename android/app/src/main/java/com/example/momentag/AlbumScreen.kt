@@ -147,9 +147,13 @@ fun AlbumScreen(
         }
     }
 
-    BackHandler(enabled = isTagAlbumPhotoSelectionMode) {
-        isTagAlbumPhotoSelectionMode = false
-        albumViewModel.resetTagAlbumPhotoSelection()
+    BackHandler(enabled = isRecommendationExpanded || isTagAlbumPhotoSelectionMode) {
+        if (isRecommendationExpanded) {
+            isRecommendationExpanded = false
+        } else if (isTagAlbumPhotoSelectionMode) {
+            isTagAlbumPhotoSelectionMode = false
+            albumViewModel.resetTagAlbumPhotoSelection()
+        }
     }
 
     LaunchedEffect(isTagAlbumPhotoSelectionMode) {

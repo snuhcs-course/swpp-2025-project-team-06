@@ -151,9 +151,13 @@ fun MyTagsScreen(navController: NavController) {
         }
     }
 
-    BackHandler {
-        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
-        navController.popBackStack()
+    BackHandler(enabled = true) {
+        if (isEditMode) {
+            myTagsViewModel.toggleEditMode()
+        } else {
+            navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+            navController.popBackStack()
+        }
     }
 
     val isSelectingForPhotos by remember(uiState) {

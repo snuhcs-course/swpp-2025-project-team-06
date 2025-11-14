@@ -80,7 +80,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -106,8 +105,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -115,8 +112,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -209,6 +204,46 @@ fun HomeScreen(navController: NavController) {
 
     val activity = LocalContext.current.findActivity()
     var backPressedTime by remember { mutableStateOf(0L) }
+
+    val allPhotosInitialIndex by homeViewModel.allPhotosScrollIndex.collectAsState()
+    val allPhotosInitialOffset by homeViewModel.allPhotosScrollOffset.collectAsState()
+    val tagAlbumInitialIndex by homeViewModel.tagAlbumScrollIndex.collectAsState()
+    val tagAlbumInitialOffset by homeViewModel.tagAlbumScrollOffset.collectAsState()
+
+    val allPhotosGridState =
+        rememberLazyGridState(
+            initialFirstVisibleItemIndex = allPhotosInitialIndex,
+            initialFirstVisibleItemScrollOffset = allPhotosInitialOffset,
+        )
+    val tagAlbumGridState =
+        rememberLazyGridState(
+            initialFirstVisibleItemIndex = tagAlbumInitialIndex,
+            initialFirstVisibleItemScrollOffset = tagAlbumInitialOffset,
+        )
+
+    LaunchedEffect(allPhotosGridState) {
+        snapshotFlow {
+            Pair(
+                allPhotosGridState.firstVisibleItemIndex,
+                allPhotosGridState.firstVisibleItemScrollOffset,
+            )
+        }.distinctUntilChanged()
+            .collect { (index, offset) ->
+                homeViewModel.setAllPhotosScrollPosition(index, offset)
+            }
+    }
+
+    LaunchedEffect(tagAlbumGridState) {
+        snapshotFlow {
+            Pair(
+                tagAlbumGridState.firstVisibleItemIndex,
+                tagAlbumGridState.firstVisibleItemScrollOffset,
+            )
+        }.distinctUntilChanged()
+            .collect { (index, offset) ->
+                homeViewModel.setTagAlbumScrollPosition(index, offset)
+            }
+    }
 
     fun requestFocusById(id: String) {
         scope.launch {
@@ -552,25 +587,6 @@ fun HomeScreen(navController: NavController) {
     BackHandler(enabled = isDeleteMode && !showAllPhotos) {
         isDeleteMode = false
     }
-
-    // 화면이 다시 보일 때 (ON_RESUME) 태그와 사진 새로고침
-//    val lifecycleOwner = LocalLifecycleOwner.current
-//    DisposableEffect(lifecycleOwner, hasPermission) {
-//        val observer =
-//            LifecycleEventObserver { _, event ->
-//                if (event == Lifecycle.Event.ON_RESUME) {
-//                    if (hasPermission) {
-//                        homeViewModel.loadServerTags()
-//                        homeViewModel.loadAllPhotos()
-//                    }
-//                }
-//            }
-//        lifecycleOwner.lifecycle.addObserver(observer)
-//
-//        onDispose {
-//            lifecycleOwner.lifecycle.removeObserver(observer)
-//        }
-//    }
 
     Scaffold(
         topBar = {
@@ -1043,8 +1059,6 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
                 } else {
-                    val listState = if (showAllPhotos) rememberLazyGridState() else null
-
                     MainContent(
                         modifier = Modifier.weight(1f),
                         onlyTag = onlyTag, // Pass the actual state
@@ -1072,7 +1086,8 @@ fun HomeScreen(navController: NavController) {
                             photo?.let { homeViewModel.togglePhoto(it) }
                         },
                         homeViewModel = homeViewModel,
-                        lazyGridState = listState,
+                        allPhotosGridState = allPhotosGridState,
+                        tagAlbumGridState = tagAlbumGridState,
                         isLoadingPhotos = false,
                         homeLoadingState = homeLoadingState,
                         isDataReady = isDataReady,
@@ -1081,18 +1096,18 @@ fun HomeScreen(navController: NavController) {
                     )
 
                     // 페이지네이션 로직을 MainContent 밖으로 이동
-                    if (showAllPhotos && listState != null) {
-                        LaunchedEffect(listState, isLoadingMorePhotos) {
+                    if (showAllPhotos) {
+                        LaunchedEffect(allPhotosGridState, isLoadingMorePhotos) {
                             // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
                             if (!isLoadingMorePhotos) {
                                 snapshotFlow {
-                                    listState.layoutInfo.visibleItemsInfo
+                                    allPhotosGridState.layoutInfo.visibleItemsInfo
                                         .lastOrNull()
                                         ?.index
                                 }.distinctUntilChanged()
                                     .debounce(150)
                                     .collect { lastVisibleIndex ->
-                                        val totalItemCount = listState.layoutInfo.totalItemsCount
+                                        val totalItemCount = allPhotosGridState.layoutInfo.totalItemsCount
                                         if (lastVisibleIndex != null && totalItemCount > 0) {
                                             val remainingItems =
                                                 totalItemCount - (lastVisibleIndex + 1)
@@ -1287,7 +1302,8 @@ private fun MainContent(
     selectedItems: Set<String>,
     onItemSelectionToggle: (String) -> Unit,
     homeViewModel: HomeViewModel? = null,
-    lazyGridState: LazyGridState? = null,
+    allPhotosGridState: LazyGridState,
+    tagAlbumGridState: LazyGridState,
     isLoadingMorePhotos: Boolean = false,
     isLoadingPhotos: Boolean,
     homeLoadingState: HomeViewModel.HomeLoadingState,
@@ -1302,12 +1318,9 @@ private fun MainContent(
 
         // 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
         showAllPhotos -> {
-            // 사진이 있거나, 아직 로딩 중
-            val listState = lazyGridState ?: rememberLazyGridState()
-
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
-                state = listState,
+                state = allPhotosGridState,
                 modifier = modifier,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -1466,6 +1479,7 @@ private fun MainContent(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         modifier = modifier,
+                        state = tagAlbumGridState,
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
