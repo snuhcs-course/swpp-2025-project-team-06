@@ -82,8 +82,8 @@ fun LocalGalleryScreen(
     var hasPermission by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
-    var isSelectionMode by remember { mutableStateOf(false) }
-    var selectedAlbums by remember { mutableStateOf<Set<Album>>(emptySet()) }
+    val selectedAlbumIds by localViewModel.selectedAlbumIds.collectAsState()
+    val isSelectionMode = selectedAlbumIds.isNotEmpty()
 
     val uploadState by photoViewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
@@ -99,14 +99,9 @@ fun LocalGalleryScreen(
             showErrorBanner = false
         }
     }
-    LaunchedEffect(isSelectionMode) {
-        if (!isSelectionMode) {
-            selectedAlbums = emptySet()
-        }
-    }
 
     BackHandler(enabled = isSelectionMode) {
-        isSelectionMode = false
+        localViewModel.clearAlbumSelection()
     }
 
     val notificationPermissionLauncher =
@@ -114,7 +109,9 @@ fun LocalGalleryScreen(
             contract = ActivityResultContracts.RequestPermission(),
             onResult = { isGranted ->
                 if (isGranted) {
-                    // TODO: Implement upload logic for selected albums
+                    if (selectedAlbumIds.isNotEmpty()) {
+                        photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
+                    }
                 } else {
                 }
             },
@@ -153,22 +150,22 @@ fun LocalGalleryScreen(
         topBar = {
             if (isSelectionMode) {
                 TopAppBar(
-                    title = { Text("${selectedAlbums.size} selected") },
+                    title = { Text("${selectedAlbumIds.size} selected") },
                     navigationIcon = {
-                        IconButton(onClick = { isSelectionMode = false }) {
+                        IconButton(onClick = { localViewModel.clearAlbumSelection() }) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                         }
                     },
                     actions = {
                         IconButton(onClick = {
-                            if (selectedAlbums.size == albumSet.size) {
-                                selectedAlbums = emptySet()
+                            if (selectedAlbumIds.size == albumSet.size) {
+                                localViewModel.clearAlbumSelection()
                             } else {
-                                selectedAlbums = albumSet.toSet()
+                                localViewModel.selectAllAlbums(albumSet)
                             }
                         }) {
                             Icon(
-                                if (selectedAlbums.size == albumSet.size) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                if (selectedAlbumIds.size == albumSet.size) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
                                 contentDescription = "Select All",
                             )
                         }
@@ -182,13 +179,13 @@ fun LocalGalleryScreen(
             }
         },
         floatingActionButton = {
-            if (selectedAlbums.isNotEmpty() && isSelectionMode) {
+            if (isSelectionMode) {
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
                             Text("Upload started (check notification)")
                         } else {
-                            Text("Upload ${selectedAlbums.size} selected albums")
+                            Text("Upload ${selectedAlbumIds.size} selected albums")
                         }
                     },
                     icon = {
@@ -210,7 +207,7 @@ fun LocalGalleryScreen(
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         } else {
-                            // TODO: Implement upload logic for selected albums
+                            photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
                         }
                     },
                 )
@@ -258,19 +255,14 @@ fun LocalGalleryScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(albumSet) { album ->
-                        val isSelected = selectedAlbums.contains(album)
+                        val isSelected = selectedAlbumIds.contains(album.albumId)
                         AlbumGridItem(
                             album = album,
                             isSelected = isSelected,
                             isSelectionMode = isSelectionMode,
                             onClick = {
                                 if (isSelectionMode) {
-                                    selectedAlbums =
-                                        if (isSelected) {
-                                            selectedAlbums - album
-                                        } else {
-                                            selectedAlbums + album
-                                        }
+                                    localViewModel.toggleAlbumSelection(album.albumId)
                                 } else {
                                     navController.navigate(
                                         Screen.LocalAlbum.createRoute(album.albumId, album.albumName),
@@ -279,8 +271,7 @@ fun LocalGalleryScreen(
                             },
                             onLongClick = {
                                 if (!isSelectionMode) {
-                                    isSelectionMode = true
-                                    selectedAlbums = selectedAlbums + album
+                                    localViewModel.toggleAlbumSelection(album.albumId)
                                 }
                             },
                         )
