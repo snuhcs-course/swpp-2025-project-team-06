@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -61,12 +60,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -81,7 +80,6 @@ fun AddTagScreen(navController: NavController) {
     val focusManager = LocalFocusManager.current
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
-    var selectedTab by remember { mutableStateOf(0) } // Add this line to manage selected tab state
     var showErrorBanner by remember { mutableStateOf(false) }
 
     val addTagViewModel: AddTagViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
@@ -138,7 +136,7 @@ fun AddTagScreen(navController: NavController) {
     Scaffold(
         topBar = {
             BackTopBar(
-                title = "New Tag",
+                title = "Create Tag",
                 onBackClick = {
                     addTagViewModel.clearDraft()
                     navController.popBackStack()
@@ -175,18 +173,6 @@ fun AddTagScreen(navController: NavController) {
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            // Tab Navigation
-            TabNavigation(
-                selectedTab = selectedTab,
-                onTabSelected = { tabIndex ->
-                    selectedTab = tabIndex
-                    if (tabIndex == 1) {
-                        navController.navigate(Screen.SelectImage.route)
-                    }
-                },
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-            )
-
             Box(
                 modifier =
                     Modifier
@@ -213,7 +199,7 @@ fun AddTagScreen(navController: NavController) {
 
                     // Added Pictures Section
                     Text(
-                        text = "Added Pictures",
+                        text = if (selectedPhotos.isEmpty()) "Photos" else "Photos (${selectedPhotos.size})",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -221,10 +207,10 @@ fun AddTagScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(12.dp))
 
                     if (hasPermission) {
-                        AddedPicturesGrid(
+                        SelectedPhotosGrid(
                             photos = selectedPhotos,
                             onPhotoClick = onDeselectPhoto,
-                            onAddPictureClick = {
+                            onAddPhotosClick = {
                                 navController.navigate(Screen.SelectImage.route)
                             },
                             modifier = Modifier.fillMaxSize(),
@@ -243,7 +229,7 @@ fun AddTagScreen(navController: NavController) {
                     // Error Banner - Floating above Done button
                     if (showErrorBanner && saveState is AddTagViewModel.SaveState.Error) {
                         WarningBanner(
-                            title = "Save failed",
+                            title = "Unable to save tag",
                             message = (saveState as AddTagViewModel.SaveState.Error).message,
                             onActionClick = { },
                             onDismiss = { showErrorBanner = false },
@@ -328,70 +314,6 @@ fun AddTagScreen(navController: NavController) {
 }
 
 @Composable
-private fun TabNavigation(
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        TabItem(
-            text = "Tag Details",
-            isSelected = selectedTab == 0,
-            onClick = { onTabSelected(0) },
-            modifier = Modifier.weight(1f),
-        )
-        TabItem(
-            text = "Select Pictures",
-            isSelected = selectedTab == 1,
-            onClick = { onTabSelected(1) },
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun TabItem(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier =
-            modifier
-                .shadow(
-                    elevation = if (isSelected) 4.dp else 2.dp,
-                    shape = RoundedCornerShape(24.dp),
-                    clip = false,
-                ).clip(RoundedCornerShape(24.dp))
-                .background(
-                    if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                ).clickable(onClick = onClick)
-                .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color =
-                if (isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@Composable
 private fun TagNameSection(
     tagName: String,
     onTagNameChange: (String) -> Unit,
@@ -405,7 +327,7 @@ private fun TagNameSection(
             textStyle = MaterialTheme.typography.headlineSmall,
             placeholder = {
                 Text(
-                    "Insert your tag name",
+                    "Enter tag name",
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 )
@@ -431,10 +353,10 @@ private fun TagNameSection(
 }
 
 @Composable
-private fun AddedPicturesGrid(
+private fun SelectedPhotosGrid(
     photos: List<Photo>,
     onPhotoClick: (Photo) -> Unit,
-    onAddPictureClick: () -> Unit,
+    onAddPhotosClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
@@ -446,8 +368,8 @@ private fun AddedPicturesGrid(
     ) {
         // Add Picture Button - Always first
         item {
-            AddPictureButton(
-                onClick = onAddPictureClick,
+            AddPhotosButton(
+                onClick = onAddPhotosClick,
                 modifier = Modifier.aspectRatio(1f),
             )
         }
@@ -486,37 +408,6 @@ private fun PhotoItem(
             isSelected = true,
             modifier = Modifier.align(Alignment.TopEnd),
         )
-    }
-}
-
-@Composable
-private fun AddPictureButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = "+",
-                style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = "Add Picture",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
     }
 }
 

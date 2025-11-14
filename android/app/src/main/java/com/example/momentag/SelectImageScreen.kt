@@ -39,15 +39,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -117,7 +115,6 @@ fun SelectImageScreen(navController: NavController) {
     val isSelectionMode by selectImageViewModel.isSelectionMode.collectAsState()
 
     var isSelectionModeDelay by remember { mutableStateOf(true) }
-    var showMenu by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.MyTagsScreen) }
 
     val permission =
@@ -227,43 +224,24 @@ fun SelectImageScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "Select Picture",
+                title = "Select Photos",
                 showBackButton = true,
                 onBackClick = {
                     navController.popBackStack()
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
                 actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options",
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
+                    if (isSelectionModeDelay) {
+                        IconButton(
+                            onClick = {
+                                isSelectionModeDelay = false
+                                selectImageViewModel.setSelectionMode(false)
+                            },
                         ) {
-                            if (isSelectionModeDelay) {
-                                DropdownMenuItem(
-                                    text = { Text("Cancel") },
-                                    onClick = {
-                                        isSelectionModeDelay = false
-                                        selectImageViewModel.setSelectionMode(false)
-                                        showMenu = false
-                                    },
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text("Select") },
-                                    onClick = {
-                                        isSelectionModeDelay = true
-                                        selectImageViewModel.setSelectionMode(true)
-                                        showMenu = false
-                                    },
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cancel selection",
+                            )
                         }
                     }
                 },
@@ -306,19 +284,6 @@ fun SelectImageScreen(navController: NavController) {
                         .fillMaxSize()
                         .padding(horizontal = 24.dp),
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Tab Navigation
-                TabNavigation(
-                    selectedTab = 1,
-                    onTabSelected = { tab ->
-                        if (tab == 0) {
-                            navController.popBackStack()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Pictures Header with count
@@ -497,75 +462,12 @@ fun SelectImageScreen(navController: NavController) {
                     enabled = selectedPhotos.isNotEmpty(),
                 ) {
                     Text(
-                        text = "Add Pic to Tag",
+                        text = "Add to Tag",
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TabNavigation(
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        TabItem(
-            text = "Tag Details",
-            isSelected = selectedTab == 0,
-            onClick = { onTabSelected(0) },
-            modifier = Modifier.weight(1f),
-        )
-        TabItem(
-            text = "Select Pictures",
-            isSelected = selectedTab == 1,
-            onClick = { onTabSelected(1) },
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun TabItem(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier =
-            modifier
-                .shadow(
-                    elevation = if (isSelected) 4.dp else 2.dp,
-                    shape = RoundedCornerShape(24.dp),
-                    clip = false,
-                ).clip(RoundedCornerShape(24.dp))
-                .background(
-                    if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                ).clickable(onClick = onClick)
-                .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color =
-                if (isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-        )
     }
 }
 
@@ -664,7 +566,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "AI Recommending...",
+                    text = "Finding suggestions...",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -678,7 +580,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "AI Recommend",
+                    text = "Suggested for You",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -692,7 +594,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Recommendation Failed",
+                    text = "Could not load suggestions",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -705,7 +607,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Preparing...",
+                    text = "Getting ready...",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -825,7 +727,7 @@ private fun RecommendExpandedPanel(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "AI Recommend",
+                            text = "Suggested for You",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -873,7 +775,7 @@ private fun RecommendExpandedPanel(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    "No recommendations available",
+                                    "No suggestions at this time",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
