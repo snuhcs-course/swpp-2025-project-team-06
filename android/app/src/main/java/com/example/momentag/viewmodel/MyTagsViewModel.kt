@@ -36,6 +36,9 @@ class MyTagsViewModel(
     private val _isEditMode = MutableStateFlow(false)
     val isEditMode: StateFlow<Boolean> = _isEditMode.asStateFlow()
 
+    private val _selectedTagsForBulkEdit = MutableStateFlow<Set<String>>(emptySet())
+    val selectedTagsForBulkEdit: StateFlow<Set<String>> = _selectedTagsForBulkEdit.asStateFlow()
+
     private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
     val sortOrder: StateFlow<TagSortOrder> = _sortOrder.asStateFlow()
 
@@ -67,6 +70,21 @@ class MyTagsViewModel(
 
     fun toggleEditMode() {
         _isEditMode.value = !_isEditMode.value
+        // Clear selections when toggling edit mode
+        _selectedTagsForBulkEdit.value = emptySet()
+    }
+
+    fun toggleTagSelection(tagId: String) {
+        _selectedTagsForBulkEdit.value =
+            if (_selectedTagsForBulkEdit.value.contains(tagId)) {
+                _selectedTagsForBulkEdit.value - tagId
+            } else {
+                _selectedTagsForBulkEdit.value + tagId
+            }
+    }
+
+    fun clearTagSelection() {
+        _selectedTagsForBulkEdit.value = emptySet()
     }
 
     fun loadTags() {
