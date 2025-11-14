@@ -67,7 +67,7 @@ data class PhotoResponse(
 data class StoryResponse(
     @SerializedName("photo_id") val photoId: String,
     @SerializedName("photo_path_id") val photoPathId: Long,
-    val tags: List<Tag>,
+    val tags: List<String>,
 )
 
 data class Photo(

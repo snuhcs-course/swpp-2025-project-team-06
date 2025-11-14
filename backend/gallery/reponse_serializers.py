@@ -29,7 +29,8 @@ class ResTagVectorSerializer(serializers.Serializer):
 class NewResStorySerializer(serializers.Serializer):
     photo_id = serializers.UUIDField(help_text="사진의 고유 ID")
     photo_path_id = serializers.IntegerField(help_text="사진 파일의 경로 ID")
-    tags = TagSerializer(many=True)
+    tags = serializers.ListField(child=serializers.CharField(max_length="255"))
+
 
 class ResStorySerializer(serializers.Serializer):
     recs = ResPhotoSerializer(many=True)
@@ -47,4 +48,6 @@ class ResTagThumbnailSerializer(serializers.Serializer):
     )
     created_at = serializers.DateTimeField(read_only=True, help_text="태그 생성 시각")
     updated_at = serializers.DateTimeField(read_only=True, help_text="태그 수정 시각")
-    photo_count = serializers.IntegerField(read_only=True, help_text="태그에 포함된 사진 수")
+    photo_count = serializers.IntegerField(
+        read_only=True, help_text="태그에 포함된 사진 수"
+    )

@@ -115,7 +115,7 @@ class StoryViewModel(
                 val location = localRepository.getPhotoLocation(story.photoPathId)
 
                 // Pre-populate suggested tags from the API response
-                val suggestedTags = story.tags.map { it.tagName }
+                val suggestedTags = story.tags.take(4)
 
                 StoryModel(
                     id = photo.photoId,
@@ -227,12 +227,12 @@ class StoryViewModel(
         // Convert photos to StoryModels with metadata
         val newStories =
             photos.mapIndexed { index, photo ->
-                val photoDetail = storyResponses[index]
-                val date = localRepository.getPhotoDate(photoDetail.photoPathId)
-                val location = localRepository.getPhotoLocation(photoDetail.photoPathId)
+                val storyResponse = storyResponses[index]
+                val date = localRepository.getPhotoDate(storyResponse.photoPathId)
+                val location = localRepository.getPhotoLocation(storyResponse.photoPathId)
 
                 // Pre-populate suggested tags from the API response
-                val suggestedTags = photoDetail.tags.map { it.tagName }
+                val suggestedTags = storyResponse.tags.take(4)
 
                 StoryModel(
                     id = photo.photoId,
