@@ -548,7 +548,7 @@ fun HomeScreen(navController: NavController) {
                 actions = {
                     if (showAllPhotos && groupedPhotos.isNotEmpty()) {
                         Box {
-                            if (isSelectionModeDelay) {
+                            if (isSelectionModeDelay && selectedPhotos.isNotEmpty()) {
                                 //selectedPhotos.isNotEmpty()
                                 IconButton(onClick = {
 
@@ -569,6 +569,18 @@ fun HomeScreen(navController: NavController) {
                                 }) {
                                     Icon(
                                         imageVector = Icons.Default.Share,
+                                        contentDescription = "Share",
+                                    )
+                                }
+                            }
+                            if (isSelectionModeDelay && !selectedPhotos.isNotEmpty()) {
+                                IconButton(
+                                    onClick = {},
+                                    enabled = false,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        tint = Color.LightGray,
                                         contentDescription = "Share",
                                     )
                                 }

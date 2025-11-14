@@ -44,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
@@ -172,7 +173,7 @@ fun SearchResultScreen(
 
     val topBarActions = @Composable {
 
-        if (isSelectionModeDelay) {
+        if (isSelectionModeDelay && selectedPhotos.isNotEmpty()) {
             Box {
                 IconButton(onClick = {
                     val photos = searchViewModel.getPhotosToShare()
@@ -188,6 +189,20 @@ fun SearchResultScreen(
                 }) {
                     Icon(
                         imageVector = Icons.Default.Share,
+                        contentDescription = "Share",
+                    )
+                }
+            }
+        }
+        if (isSelectionModeDelay && !selectedPhotos.isNotEmpty()) {
+            Box {
+                IconButton(
+                    onClick = {},
+                    enabled = false,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        tint = Color.LightGray,
                         contentDescription = "Share",
                     )
                 }

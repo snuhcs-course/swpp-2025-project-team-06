@@ -71,6 +71,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -322,7 +323,7 @@ fun AlbumScreen(
                     }
                 },
                 actions = {
-                    if (isTagAlbumPhotoSelectionMode) {
+                    if (isTagAlbumPhotoSelectionMode && selectedTagAlbumPhotos.isNotEmpty()) {
                         Row {
                             IconButton(onClick = {
                                 val photos = albumViewModel.getPhotosToShare()
@@ -353,12 +354,36 @@ fun AlbumScreen(
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
+                                    tint = MaterialTheme.colorScheme.error,
                                     contentDescription = "Untag",
                                 )
                             }
                         }
                     }
-
+                    if (isTagAlbumPhotoSelectionMode && !selectedTagAlbumPhotos.isNotEmpty()) {
+                        Row {
+                            IconButton(
+                                onClick = {},
+                                enabled = false,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    tint = Color.LightGray,
+                                    contentDescription = "Share",
+                                )
+                            }
+                            IconButton(
+                                onClick = {},
+                                enabled = false,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    tint = Color.LightGray,
+                                    contentDescription = "Untag",
+                                )
+                            }
+                        }
+                    }
                 },
             )
         },
