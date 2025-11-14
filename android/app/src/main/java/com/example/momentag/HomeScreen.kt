@@ -538,7 +538,7 @@ fun HomeScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "#MomenTag",
+                title = "MomenTag",
                 onTitleClick = {
                     navController.navigate(Screen.LocalGallery.route)
                 },

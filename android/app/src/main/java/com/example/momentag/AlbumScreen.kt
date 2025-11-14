@@ -325,33 +325,38 @@ fun AlbumScreen(
                 actions = {
                     if (isTagAlbumPhotoSelectionMode && selectedTagAlbumPhotos.isNotEmpty()) {
                         Row {
-                            IconButton(onClick = {
-                                val photos = albumViewModel.getPhotosToShare()
-                                ShareUtils.sharePhotos(context, photos)
+                            IconButton(
+                                onClick = {
+                                    val photos = albumViewModel.getPhotosToShare()
+                                    ShareUtils.sharePhotos(context, photos)
 
-                                if (selectedTagAlbumPhotos.isNotEmpty()) {
-                                    Toast // 성공: Toast
-                                        .makeText(
-                                            context,
-                                            "Share ${photos.size} photo(s)",
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                } else {
-                                    showSelectPhotosBanner_share = true
-                                }
-                            }) {
+                                    if (selectedTagAlbumPhotos.isNotEmpty()) {
+                                        Toast // 성공: Toast
+                                            .makeText(
+                                                context,
+                                                "Share ${photos.size} photo(s)",
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                    } else {
+                                        showSelectPhotosBanner_share = true
+                                    }
+                                },
+                                modifier = Modifier.width(32.dp),
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = "Share",
                                 )
                             }
-                            IconButton(onClick = {
-                                if (selectedTagAlbumPhotos.isNotEmpty()) {
-                                    showDeleteConfirmationDialog = true
-                                } else {
-                                    showSelectPhotosBanner_untag = true
-                                }
-                            }) {
+                            IconButton(
+                                onClick = {
+                                    if (selectedTagAlbumPhotos.isNotEmpty()) {
+                                        showDeleteConfirmationDialog = true
+                                    } else {
+                                        showSelectPhotosBanner_untag = true
+                                    }
+                                },
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     tint = MaterialTheme.colorScheme.error,
@@ -365,6 +370,7 @@ fun AlbumScreen(
                             IconButton(
                                 onClick = {},
                                 enabled = false,
+                                modifier = Modifier.width(32.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Share,
