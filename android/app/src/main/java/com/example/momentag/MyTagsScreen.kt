@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -201,37 +200,28 @@ fun MyTagsScreen(navController: NavController) {
                                     tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
-                            // Delete Button (only when in edit mode)
-                            if (isEditMode) {
-                                val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
-                                IconButton(
-                                    onClick = {
-                                        if (hasSelectedTags) {
-                                            showBulkDeleteConfirm = true
-                                        }
-                                    },
-                                    enabled = hasSelectedTags,
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete",
-                                        tint =
-                                            if (hasSelectedTags) {
-                                                MaterialTheme.colorScheme.error
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                            },
-                                    )
-                                }
-                            }
-                            // Edit Button
-                            IconButton(onClick = {
-                                myTagsViewModel.toggleEditMode()
-                            }) {
+                            // Delete Button (always visible, enters edit mode on click)
+                            val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
+                            IconButton(
+                                onClick = {
+                                    if (isEditMode && hasSelectedTags) {
+                                        showBulkDeleteConfirm = true
+                                    } else if (!isEditMode) {
+                                        myTagsViewModel.toggleEditMode()
+                                    }
+                                },
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    tint = if (isEditMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete",
+                                    tint =
+                                        if (isEditMode && hasSelectedTags) {
+                                            MaterialTheme.colorScheme.error
+                                        } else if (isEditMode) {
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
                                 )
                             }
                         }
@@ -674,7 +664,7 @@ private fun MyTagsContent(
                             onEdit = { onEditTag(tagData.tagId, tagData.tagName) },
                             onDelete = { onDeleteTag(tagData.tagId, tagData.tagName) },
                             onLongClick = {
-                                if (individualEditTagId == tagData.tagId) {
+                                if (isThisTagInEditMode) {
                                     // Exit individual edit mode for this tag
                                     individualEditTagId = null
                                 } else {
