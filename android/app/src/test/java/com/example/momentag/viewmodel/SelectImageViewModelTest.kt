@@ -228,151 +228,171 @@ class SelectImageViewModelTest {
     }
 
     @Test
-    fun `loadMorePhotos success appends new photos`() = runTest {
-        // Given
-        val initialPhotoResponses = (1..100).map { createPhotoResponse("photo$it") }
-        val initialPhotos = (1..100).map { createPhoto("photo$it") }
-        val newPhotoResponses = listOf(createPhotoResponse("photo101"))
-        val newPhotos = listOf(createPhoto("photo101"))
+    fun `loadMorePhotos success appends new photos`() =
+        runTest {
+            // Given
+            val initialPhotoResponses = (1..100).map { createPhotoResponse("photo$it") }
+            val initialPhotos = (1..100).map { createPhoto("photo$it") }
+            val newPhotoResponses = listOf(createPhotoResponse("photo101"))
+            val newPhotos = listOf(createPhoto("photo101"))
 
-        coEvery { remoteRepository.getAllPhotos(limit = 100, offset = 0) } returns
+            coEvery { remoteRepository.getAllPhotos(limit = 100, offset = 0) } returns
                 RemoteRepository.Result.Success(initialPhotoResponses)
-        coEvery { localRepository.toPhotos(initialPhotoResponses) } returns initialPhotos
-        viewModel.getAllPhotos()
-        advanceUntilIdle()
+            coEvery { localRepository.toPhotos(initialPhotoResponses) } returns initialPhotos
+            viewModel.getAllPhotos()
+            advanceUntilIdle()
 
-        coEvery { remoteRepository.getAllPhotos(limit = 100, offset = 100) } returns
+            coEvery { remoteRepository.getAllPhotos(limit = 100, offset = 100) } returns
                 RemoteRepository.Result.Success(newPhotoResponses)
-        coEvery { localRepository.toPhotos(newPhotoResponses) } returns newPhotos
+            coEvery { localRepository.toPhotos(newPhotoResponses) } returns newPhotos
 
-        // When
-        viewModel.loadMorePhotos()
-        advanceUntilIdle()
+            // When
+            viewModel.loadMorePhotos()
+            advanceUntilIdle()
 
-        // Then
-        assertEquals(initialPhotos + newPhotos, viewModel.allPhotos.value)
-        assertFalse(viewModel.isLoadingMore.value)
-    }
-
-    @Test
-    fun `loadMorePhotos does not load when already loading`() = runTest {
-        // Given
-        coEvery { remoteRepository.getAllPhotos(any(), any()) } returns RemoteRepository.Result.Success(emptyList())
-        viewModel.loadMorePhotos() // Start loading
-
-        // When
-        viewModel.loadMorePhotos() // Try to load again
-        advanceUntilIdle()
-
-        // Then
-        coVerify(exactly = 1) { remoteRepository.getAllPhotos(any(), any()) }
-    }
+            // Then
+            assertEquals(initialPhotos + newPhotos, viewModel.allPhotos.value)
+            assertFalse(viewModel.isLoadingMore.value)
+        }
 
     @Test
-    fun `loadMorePhotos does not load when no more pages`() = runTest {
-        // Given
-        coEvery { remoteRepository.getAllPhotos(any(), any()) } returns RemoteRepository.Result.Success(emptyList())
-        viewModel.getAllPhotos()
-        advanceUntilIdle()
+    fun `loadMorePhotos does not load when already loading`() =
+        runTest {
+            // Given
+            coEvery { remoteRepository.getAllPhotos(any(), any()) } returns RemoteRepository.Result.Success(emptyList())
+            viewModel.loadMorePhotos() // Start loading
 
-        // When
-        viewModel.loadMorePhotos()
-        advanceUntilIdle()
+            // When
+            viewModel.loadMorePhotos() // Try to load again
+            advanceUntilIdle()
 
-        // Then
-        coVerify(exactly = 1) { remoteRepository.getAllPhotos(any(), any()) }
-    }
-
-    @Test
-    fun `loadMorePhotos handles error from repository`() = runTest {
-        // Given
-        viewModel.getAllPhotos()
-        advanceUntilIdle()
-        coEvery { remoteRepository.getAllPhotos(any(), any()) } returns RemoteRepository.Result.Error(500, "Error")
-
-        // When
-        viewModel.loadMorePhotos()
-        advanceUntilIdle()
-
-        // Then
-        assertFalse(viewModel.isLoadingMore.value)
-    }
+            // Then
+            coVerify(exactly = 1) { remoteRepository.getAllPhotos(any(), any()) }
+        }
 
     @Test
-    fun `getAllPhotos with selected photos prepends them`() = runTest {
-        // Given
-        val selectedPhotos = listOf(createPhoto("selected"))
-        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(selectedPhotos)
-        val photoResponses = listOf(createPhotoResponse("photo1"))
-        val photos = listOf(createPhoto("photo1"))
-        coEvery { remoteRepository.getAllPhotos(any(), any()) } returns RemoteRepository.Result.Success(photoResponses)
-        coEvery { localRepository.toPhotos(photoResponses) } returns photos
+    fun `loadMorePhotos does not load when no more pages`() =
+        runTest {
+            // Given
+            coEvery { remoteRepository.getAllPhotos(any(), any()) } returns RemoteRepository.Result.Success(emptyList())
+            viewModel.getAllPhotos()
+            advanceUntilIdle()
 
-        val newViewModel = SelectImageViewModel(photoSelectionRepository, localRepository, remoteRepository, imageBrowserRepository, recommendRepository)
+            // When
+            viewModel.loadMorePhotos()
+            advanceUntilIdle()
 
-        // When
-        newViewModel.getAllPhotos()
-        advanceUntilIdle()
-
-        // Then
-        assertEquals(selectedPhotos + photos, newViewModel.allPhotos.value)
-    }
+            // Then
+            coVerify(exactly = 1) { remoteRepository.getAllPhotos(any(), any()) }
+        }
 
     @Test
-    fun `recommendPhoto handles Unauthorized error`() = runTest {
-        // Given
-        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
-        coEvery { recommendRepository.recommendPhotosFromPhotos(any()) } returns RecommendRepository.RecommendResult.Unauthorized("Unauthorized")
+    fun `loadMorePhotos handles error from repository`() =
+        runTest {
+            // Given
+            viewModel.getAllPhotos()
+            advanceUntilIdle()
+            coEvery { remoteRepository.getAllPhotos(any(), any()) } returns RemoteRepository.Result.Error(500, "Error")
 
-        // When
-        viewModel.recommendPhoto()
-        advanceUntilIdle()
+            // When
+            viewModel.loadMorePhotos()
+            advanceUntilIdle()
 
-        // Then
-        assertTrue(viewModel.recommendState.value is RecommendState.Error)
-    }
-
-    @Test
-    fun `recommendPhoto handles NetworkError`() = runTest {
-        // Given
-        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
-        coEvery { recommendRepository.recommendPhotosFromPhotos(any()) } returns RecommendRepository.RecommendResult.NetworkError("Network Error")
-
-        // When
-        viewModel.recommendPhoto()
-        advanceUntilIdle()
-
-        // Then
-        assertTrue(viewModel.recommendState.value is RecommendState.NetworkError)
-    }
+            // Then
+            assertFalse(viewModel.isLoadingMore.value)
+        }
 
     @Test
-    fun `recommendPhoto handles BadRequest`() = runTest {
-        // Given
-        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
-        coEvery { recommendRepository.recommendPhotosFromPhotos(any()) } returns RecommendRepository.RecommendResult.BadRequest("Bad Request")
+    fun `getAllPhotos with selected photos prepends them`() =
+        runTest {
+            // Given
+            val selectedPhotos = listOf(createPhoto("selected"))
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(selectedPhotos)
+            val photoResponses = listOf(createPhotoResponse("photo1"))
+            val photos = listOf(createPhoto("photo1"))
+            coEvery { remoteRepository.getAllPhotos(any(), any()) } returns RemoteRepository.Result.Success(photoResponses)
+            coEvery { localRepository.toPhotos(photoResponses) } returns photos
 
-        // When
-        viewModel.recommendPhoto()
-        advanceUntilIdle()
+            val newViewModel =
+                SelectImageViewModel(
+                    photoSelectionRepository,
+                    localRepository,
+                    remoteRepository,
+                    imageBrowserRepository,
+                    recommendRepository,
+                )
 
-        // Then
-        assertTrue(viewModel.recommendState.value is RecommendState.Error)
-    }
+            // When
+            newViewModel.getAllPhotos()
+            advanceUntilIdle()
+
+            // Then
+            assertEquals(selectedPhotos + photos, newViewModel.allPhotos.value)
+        }
 
     @Test
-    fun `recommendPhoto handles generic error`() = runTest {
-        // Given
-        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
-        coEvery { recommendRepository.recommendPhotosFromPhotos(any()) } returns RecommendRepository.RecommendResult.Error("Generic error")
+    fun `recommendPhoto handles Unauthorized error`() =
+        runTest {
+            // Given
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
+            coEvery { recommendRepository.recommendPhotosFromPhotos(any()) } returns
+                RecommendRepository.RecommendResult.Unauthorized("Unauthorized")
 
-        // When
-        viewModel.recommendPhoto()
-        advanceUntilIdle()
+            // When
+            viewModel.recommendPhoto()
+            advanceUntilIdle()
 
-        // Then
-        assertTrue(viewModel.recommendState.value is RecommendState.Error)
-    }
+            // Then
+            assertTrue(viewModel.recommendState.value is RecommendState.Error)
+        }
+
+    @Test
+    fun `recommendPhoto handles NetworkError`() =
+        runTest {
+            // Given
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
+            coEvery { recommendRepository.recommendPhotosFromPhotos(any()) } returns
+                RecommendRepository.RecommendResult.NetworkError("Network Error")
+
+            // When
+            viewModel.recommendPhoto()
+            advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.recommendState.value is RecommendState.NetworkError)
+        }
+
+    @Test
+    fun `recommendPhoto handles BadRequest`() =
+        runTest {
+            // Given
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
+            coEvery { recommendRepository.recommendPhotosFromPhotos(any()) } returns
+                RecommendRepository.RecommendResult.BadRequest("Bad Request")
+
+            // When
+            viewModel.recommendPhoto()
+            advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.recommendState.value is RecommendState.Error)
+        }
+
+    @Test
+    fun `recommendPhoto handles generic error`() =
+        runTest {
+            // Given
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
+            coEvery { recommendRepository.recommendPhotosFromPhotos(any()) } returns
+                RecommendRepository.RecommendResult.Error("Generic error")
+
+            // When
+            viewModel.recommendPhoto()
+            advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.recommendState.value is RecommendState.Error)
+        }
 
     @Test
     fun `addPhotoFromRecommendation adds photo and updates lists`() {
@@ -445,8 +465,8 @@ class SelectImageViewModelTest {
         val photo1 = createPhoto("photo1")
         val photo2 = createPhoto("photo2")
         every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(photo1))
-        val newViewModel = SelectImageViewModel(photoSelectionRepository, localRepository, remoteRepository, imageBrowserRepository, recommendRepository)
-
+        val newViewModel =
+            SelectImageViewModel(photoSelectionRepository, localRepository, remoteRepository, imageBrowserRepository, recommendRepository)
 
         // Then
         assertTrue(newViewModel.isPhotoSelected(photo1))
@@ -454,65 +474,88 @@ class SelectImageViewModelTest {
     }
 
     @Test
-    fun `handleDoneButtonClick calls addPhotosToExistingTag`() = runTest {
-        // Given
-        every { photoSelectionRepository.existingTagId } returns MutableStateFlow("tag1")
-        every { photoSelectionRepository.tagName } returns MutableStateFlow("Tag 1")
-        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
-        coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns RemoteRepository.Result.Success(Unit)
-        every { photoSelectionRepository.clear() } returns Unit
-        val newViewModel = SelectImageViewModel(photoSelectionRepository, localRepository, remoteRepository, imageBrowserRepository, recommendRepository)
+    fun `handleDoneButtonClick calls addPhotosToExistingTag`() =
+        runTest {
+            // Given
+            every { photoSelectionRepository.existingTagId } returns MutableStateFlow("tag1")
+            every { photoSelectionRepository.tagName } returns MutableStateFlow("Tag 1")
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(listOf(createPhoto()))
+            coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns RemoteRepository.Result.Success(Unit)
+            every { photoSelectionRepository.clear() } returns Unit
+            val newViewModel =
+                SelectImageViewModel(
+                    photoSelectionRepository,
+                    localRepository,
+                    remoteRepository,
+                    imageBrowserRepository,
+                    recommendRepository,
+                )
 
+            // When
+            newViewModel.handleDoneButtonClick()
+            advanceUntilIdle()
 
-        // When
-        newViewModel.handleDoneButtonClick()
-        advanceUntilIdle()
-
-        // Then
-        coVerify { remoteRepository.postTagsToPhoto(any(), "tag1") }
-    }
-
-    @Test
-    fun `addPhotosToExistingTag success case`() = runTest {
-        // Given
-        val photos = listOf(createPhoto("photo1"), createPhoto("photo2"))
-        every { photoSelectionRepository.existingTagId } returns MutableStateFlow("tag1")
-        every { photoSelectionRepository.tagName } returns MutableStateFlow("Tag 1")
-        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(photos)
-        coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns RemoteRepository.Result.Success(Unit)
-        every { photoSelectionRepository.clear() } returns Unit
-        val newViewModel = SelectImageViewModel(photoSelectionRepository, localRepository, remoteRepository, imageBrowserRepository, recommendRepository)
-
-        // When
-        newViewModel.handleDoneButtonClick()
-        advanceUntilIdle()
-
-        // Then
-        coVerify(exactly = 2) { remoteRepository.postTagsToPhoto(any(), "tag1") }
-        verify { photoSelectionRepository.clear() }
-        assertTrue(newViewModel.addPhotosState.value is SelectImageViewModel.AddPhotosState.Success)
-    }
+            // Then
+            coVerify { remoteRepository.postTagsToPhoto(any(), "tag1") }
+        }
 
     @Test
-    fun `addPhotosToExistingTag handles error on one photo`() = runTest {
-        // Given
-        val photos = listOf(createPhoto("photo1"), createPhoto("photo2"))
-        every { photoSelectionRepository.existingTagId } returns MutableStateFlow("tag1")
-        every { photoSelectionRepository.tagName } returns MutableStateFlow("Tag 1")
-        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(photos)
-        coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.Success(Unit)
-        coEvery { remoteRepository.postTagsToPhoto("photo2", "tag1") } returns RemoteRepository.Result.Error(500, "Error")
-        val newViewModel = SelectImageViewModel(photoSelectionRepository, localRepository, remoteRepository, imageBrowserRepository, recommendRepository)
+    fun `addPhotosToExistingTag success case`() =
+        runTest {
+            // Given
+            val photos = listOf(createPhoto("photo1"), createPhoto("photo2"))
+            every { photoSelectionRepository.existingTagId } returns MutableStateFlow("tag1")
+            every { photoSelectionRepository.tagName } returns MutableStateFlow("Tag 1")
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(photos)
+            coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns RemoteRepository.Result.Success(Unit)
+            every { photoSelectionRepository.clear() } returns Unit
+            val newViewModel =
+                SelectImageViewModel(
+                    photoSelectionRepository,
+                    localRepository,
+                    remoteRepository,
+                    imageBrowserRepository,
+                    recommendRepository,
+                )
 
-        // When
-        newViewModel.handleDoneButtonClick()
-        advanceUntilIdle()
+            // When
+            newViewModel.handleDoneButtonClick()
+            advanceUntilIdle()
 
-        // Then
-        coVerify(exactly = 1) { remoteRepository.postTagsToPhoto("photo1", "tag1") }
-        coVerify(exactly = 1) { remoteRepository.postTagsToPhoto("photo2", "tag1") }
-        assertTrue(newViewModel.addPhotosState.value is SelectImageViewModel.AddPhotosState.Error)
-    }
+            // Then
+            coVerify(exactly = 2) { remoteRepository.postTagsToPhoto(any(), "tag1") }
+            verify { photoSelectionRepository.clear() }
+            assertTrue(newViewModel.addPhotosState.value is SelectImageViewModel.AddPhotosState.Success)
+        }
+
+    @Test
+    fun `addPhotosToExistingTag handles error on one photo`() =
+        runTest {
+            // Given
+            val photos = listOf(createPhoto("photo1"), createPhoto("photo2"))
+            every { photoSelectionRepository.existingTagId } returns MutableStateFlow("tag1")
+            every { photoSelectionRepository.tagName } returns MutableStateFlow("Tag 1")
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(photos)
+            coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.Success(Unit)
+            coEvery { remoteRepository.postTagsToPhoto("photo2", "tag1") } returns RemoteRepository.Result.Error(500, "Error")
+            val newViewModel =
+                SelectImageViewModel(
+                    photoSelectionRepository,
+                    localRepository,
+                    remoteRepository,
+                    imageBrowserRepository,
+                    recommendRepository,
+                )
+
+            // When
+            newViewModel.handleDoneButtonClick()
+            advanceUntilIdle()
+
+            // Then
+            coVerify(exactly = 1) { remoteRepository.postTagsToPhoto("photo1", "tag1") }
+            coVerify(exactly = 1) { remoteRepository.postTagsToPhoto("photo2", "tag1") }
+            assertTrue(newViewModel.addPhotosState.value is SelectImageViewModel.AddPhotosState.Error)
+        }
 
     // Adding to existing tag tests
     @Test
