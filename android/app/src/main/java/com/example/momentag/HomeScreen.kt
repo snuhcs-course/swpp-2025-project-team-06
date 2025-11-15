@@ -143,7 +143,6 @@ import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
-import com.example.momentag.worker.SearchWorker
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.flow.debounce
@@ -202,14 +201,14 @@ fun HomeScreen(navController: NavController) {
 
     val topSpacerHeight = 8.dp
 
-    val textStates = remember { mutableStateMapOf<String, TextFieldValue>() }
-    val contentItems = remember { mutableStateListOf<SearchContentElement>() }
-    var focusedElementId by remember { mutableStateOf<String?>(null) }
+    val textStates = searchViewModel.textStates // remember { mutableStateMapOf<String, TextFieldValue>() }
+    val contentItems = searchViewModel.contentItems // remember { mutableStateListOf<SearchContentElement>() }
+    var focusedElementId = searchViewModel.focusedElementId //by remember { mutableStateOf<String?>(null) }
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
     val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
-    var ignoreFocusLoss by remember { mutableStateOf(false) }
+    var ignoreFocusLoss = searchViewModel.ignoreFocusLoss // by remember { mutableStateOf(false) }
 
     val currentFocusedElementId = rememberUpdatedState(focusedElementId)
     val currentFocusManager = rememberUpdatedState(focusManager)
@@ -281,15 +280,29 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    fun findNextTextElementId(startIndex: Int): String? {
-        if (startIndex >= contentItems.size - 1) return null
-        for (i in (startIndex + 1) until contentItems.size) {
-            val item = contentItems.getOrNull(i)
-            if (item is SearchContentElement.Text) {
-                return item.id
-            }
+//    fun findNextTextElementId(startIndex: Int): String? {
+//        if (startIndex >= contentItems.size - 1) return null
+//        for (i in (startIndex + 1) until contentItems.size) {
+//            val item = contentItems.getOrNull(i)
+//            if (item is SearchContentElement.Text) {
+//                return item.id
+//            }
+//        }
+//        return null
+//    }
+
+    // ViewModel의 'requestFocus' 신호를 구독합니다.
+    LaunchedEffect(searchViewModel.requestFocus) {
+        searchViewModel.requestFocus.collect { id ->
+            focusRequesters[id]?.requestFocus()
         }
-        return null
+    }
+
+    // ViewModel의 'bringIntoView' 신호를 구독합니다.
+    LaunchedEffect(searchViewModel.bringIntoView) {
+        searchViewModel.bringIntoView.collect { id ->
+            bringIntoViewRequesters[id]?.bringIntoView()
+        }
     }
 
     LaunchedEffect(imeBottom) {
@@ -307,13 +320,23 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (contentItems.isEmpty()) {
-            val initialId = UUID.randomUUID().toString()
-            contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
-            textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
-            focusRequesters[initialId] = FocusRequester()
-            bringIntoViewRequesters[initialId] = BringIntoViewRequester()
+//    LaunchedEffect(Unit) {
+//        if (contentItems.isEmpty()) {
+//            val initialId = UUID.randomUUID().toString()
+//            contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
+//            textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
+//            focusRequesters[initialId] = FocusRequester()
+//            bringIntoViewRequesters[initialId] = BringIntoViewRequester()
+//        }
+//    }
+
+    LaunchedEffect(contentItems.size) {
+        contentItems.forEach { item ->
+            // 맵에 해당 아이템의 Requester가 아직 없으면 새로 만듭니다.
+            if (!focusRequesters.containsKey(item.id)) {
+                focusRequesters[item.id] = FocusRequester()
+                bringIntoViewRequesters[item.id] = BringIntoViewRequester()
+            }
         }
     }
 
@@ -817,169 +840,10 @@ fun HomeScreen(navController: NavController) {
                             focusRequesters = focusRequesters,
                             bringIntoViewRequesters = bringIntoViewRequesters,
                             onSearch = { performSearch() },
-                            onContainerClick = {
-                                val lastTextElement =
-                                    contentItems.lastOrNull { it is SearchContentElement.Text }
-                                if (lastTextElement != null) {
-                                    val currentTfv = textStates[lastTextElement.id]
-                                    if (currentTfv != null) {
-                                        val end = currentTfv.text.length
-                                        textStates[lastTextElement.id] =
-                                            currentTfv.copy(selection = TextRange(end))
-                                    }
-                                    focusedElementId = lastTextElement.id
-                                }
-                            },
-                            onChipClick = { index ->
-                                val nextTextId = findNextTextElementId(index)
-                                if (nextTextId != null) {
-                                    val currentTfv = textStates[nextTextId]
-                                    if (currentTfv != null) {
-                                        textStates[nextTextId] =
-                                            currentTfv.copy(selection = TextRange(1))
-                                    }
-                                    focusedElementId = nextTextId
-                                }
-                            },
-                            onFocus = { id ->
-                                if (id == null && ignoreFocusLoss) {
-                                    return@ChipSearchBar
-                                }
-                                focusedElementId = id
-                            },
-                            onTextChange = { id, newValue ->
-                                scope.launch {
-                                    bringIntoViewRequesters[id]?.bringIntoView()
-                                }
-
-                                val oldValue = textStates[id] ?: TextFieldValue()
-                                val oldText = oldValue.text
-                                val newText = newValue.text
-
-                                // 한글 등 IME 조합 중인지 확인
-                                val isComposing = newValue.composition != null
-
-                                // 조합 중일 때는 UI 상태만 업데이트
-                                if (isComposing) {
-                                    textStates[id] = newValue // UI만 갱신
-                                    return@ChipSearchBar
-                                }
-
-                                // ZWSP가 삭제되었는지(커서가 1이었는지) 감지
-                                val didBackspaceAtStart =
-                                    oldText.startsWith("\u200B") &&
-                                        !newText.startsWith("\u200B") &&
-                                        oldValue.selection.start == 1
-
-                                if (didBackspaceAtStart) {
-                                    val currentIndex = contentItems.indexOfFirst { it.id == id }
-                                    val currentItem =
-                                        contentItems[currentIndex] as SearchContentElement.Text
-
-                                    if (currentIndex <= 0) {
-                                        textStates[id] = TextFieldValue("\u200B", TextRange(1))
-                                        return@ChipSearchBar
-                                    }
-
-                                    val prevItem = contentItems[currentIndex - 1]
-
-                                    // 1a. 바로 앞이 칩인 경우 (e.g., [TextA] [ChipB] [TextC(현재)])
-                                    if (prevItem is SearchContentElement.Chip) {
-                                        val prevPrevIndex = currentIndex - 2
-
-                                        // 1a-1. [TextA] [ChipB] [TextC] -> [TextA + TextC]
-                                        if (prevPrevIndex >= 0 && contentItems[prevPrevIndex] is SearchContentElement.Text) {
-                                            val textA =
-                                                contentItems[prevPrevIndex] as SearchContentElement.Text
-                                            val textC = currentItem
-                                            val mergedText =
-                                                textA.text + textC.text // A와 C의 텍스트 병합
-
-                                            // ChipB(index-1)와 TextC(index) 제거
-                                            contentItems.removeAt(currentIndex)
-                                            contentItems.removeAt(currentIndex - 1)
-                                            textStates.remove(id)
-                                            focusRequesters.remove(id)
-                                            bringIntoViewRequesters.remove(id)
-
-                                            // TextA(index-2) 업데이트
-                                            contentItems[prevPrevIndex] =
-                                                textA.copy(text = mergedText)
-                                            val newTfv =
-                                                TextFieldValue(
-                                                    "\u200B" + mergedText,
-                                                    TextRange(textA.text.length + 1),
-                                                )
-                                            textStates[textA.id] = newTfv
-
-                                            // TextA로 포커스 이동
-                                            requestFocusById(textA.id)
-                                        } else {
-                                            // 1a-2. [ChipA] [ChipB] [TextC] 또는 [Start] [ChipB] [TextC] -> [ChipA] [TextC]
-                                            // ChipB(index-1)만 제거 (TextC는 남김)
-                                            contentItems.removeAt(currentIndex - 1)
-                                            // TextC로 포커스 유지 (ID는 동일)
-                                            requestFocusById(id)
-                                        }
-                                    } else if (prevItem is SearchContentElement.Text) {
-                                        // 1b. 바로 앞이 텍스트인 경우 (e.g., [TextA] [TextC(현재)])
-                                        val textA = prevItem
-                                        val textC = currentItem
-                                        val mergedText = textA.text + textC.text
-
-                                        // TextC(index) 제거
-                                        contentItems.removeAt(currentIndex)
-                                        textStates.remove(id)
-                                        focusRequesters.remove(id)
-                                        bringIntoViewRequesters.remove(id)
-
-                                        // TextA(index-1) 업데이트
-                                        contentItems[currentIndex - 1] =
-                                            textA.copy(text = mergedText)
-                                        val newTfv =
-                                            TextFieldValue(
-                                                "\u200B" + mergedText,
-                                                TextRange(textA.text.length + 1),
-                                            )
-                                        textStates[textA.id] = newTfv
-
-                                        // TextA로 포커스 이동
-                                        requestFocusById(textA.id)
-                                    }
-                                    return@ChipSearchBar
-                                }
-
-                                // ZWSP 및 커서 위치 강제 로직
-                                val (text, selection) =
-                                    if (newText.startsWith("\u200B")) {
-                                        Pair(newText, newValue.selection)
-                                    } else {
-                                        Pair(
-                                            "\u200B$newText",
-                                            TextRange(
-                                                newValue.selection.start + 1,
-                                                newValue.selection.end + 1,
-                                            ),
-                                        )
-                                    }
-                                val finalSelection =
-                                    if (selection.start == 0 && selection.end == 0) {
-                                        TextRange(1)
-                                    } else {
-                                        selection
-                                    }
-                                val finalValue = TextFieldValue(text, finalSelection)
-
-                                // 상태 동기화 로직
-                                textStates[id] = finalValue
-                                val currentItemIndex = contentItems.indexOfFirst { it.id == id }
-                                if (currentItemIndex != -1) {
-                                    contentItems[currentItemIndex] =
-                                        (contentItems[currentItemIndex] as SearchContentElement.Text).copy(
-                                            text = text.removePrefix("\u200B"),
-                                        )
-                                }
-                            },
+                            onContainerClick = searchViewModel::onContainerClick,
+                            onChipClick = searchViewModel::onChipClick,
+                            onFocus = searchViewModel::onFocus,
+                            onTextChange = searchViewModel::onTextChange,
                         )
 
                         IconButton(
@@ -1020,51 +884,7 @@ fun HomeScreen(navController: NavController) {
                             items(tagSuggestions, key = { it.tagId }) { tag ->
                                 SuggestionChip(
                                     tag = tag,
-                                    onClick = {
-                                        ignoreFocusLoss = true
-
-                                        if (focusedElementId == null) return@SuggestionChip
-
-                                        val currentId = focusedElementId!!
-                                        val currentIndex = contentItems.indexOfFirst { it.id == currentId }
-                                        val currentInput = textStates[currentId] ?: return@SuggestionChip
-
-                                        val text = currentInput.text
-                                        val cursor = currentInput.selection.start
-                                        val textUpToCursor = text.substring(0, cursor)
-                                        val lastHashIndex = textUpToCursor.lastIndexOf('#')
-
-                                        if (lastHashIndex != -1) {
-                                            // 텍스트 분리
-                                            val precedingText = text.substring(0, lastHashIndex).removePrefix("\u200B")
-                                            val succeedingText = text.substring(cursor)
-
-                                            // 새 칩과 새 텍스트 필드 생성
-                                            val newChipId = UUID.randomUUID().toString()
-                                            val newChip = SearchContentElement.Chip(newChipId, tag)
-
-                                            val newTextId = UUID.randomUUID().toString()
-                                            val newText = SearchContentElement.Text(newTextId, succeedingText)
-
-                                            // 현재 텍스트 필드 업데이트
-                                            contentItems[currentIndex] =
-                                                (contentItems[currentIndex] as SearchContentElement.Text).copy(text = precedingText)
-                                            textStates[currentId] =
-                                                TextFieldValue("\u200B" + precedingText, TextRange(precedingText.length + 1))
-
-                                            // 새 칩과 새 텍스트 필드 삽입
-                                            contentItems.add(currentIndex + 1, newChip)
-                                            contentItems.add(currentIndex + 2, newText)
-
-                                            // 새 텍스트 필드 상태 및 포커스 설정
-                                            textStates[newTextId] = TextFieldValue("\u200B" + succeedingText, TextRange(1))
-                                            focusRequesters[newTextId] = FocusRequester()
-                                            bringIntoViewRequesters[newTextId] = BringIntoViewRequester()
-
-                                            // 포커스 의도만 상태에 반영
-                                            focusedElementId = newTextId
-                                        }
-                                    },
+                                    onClick = { searchViewModel.addTagFromSuggestion(tag) },
                                 )
                             }
                         }
@@ -1274,7 +1094,7 @@ fun HomeScreen(navController: NavController) {
                                     query = query,
                                     allTags = allTags,
                                     onHistoryClick = { clickedQuery ->
-                                        val newElements = SearchWorker.parseQueryToElements(clickedQuery, allTags)
+                                        val newElements = searchViewModel.parseQueryToElements(clickedQuery, allTags)
 
                                         contentItems.clear()
                                         textStates.clear()
