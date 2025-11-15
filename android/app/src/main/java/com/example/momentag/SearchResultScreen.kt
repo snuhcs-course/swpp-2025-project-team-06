@@ -3,7 +3,13 @@ package com.example.momentag
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,12 +22,20 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
@@ -31,40 +45,60 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
+import com.example.momentag.model.TagItem
+import com.example.momentag.model.TagLoadingState
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
+import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
-import com.example.momentag.ui.components.SearchBarControlledCustom
+import com.example.momentag.ui.components.SearchContentElement
+import com.example.momentag.ui.components.SearchHistoryItem
+import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.search.components.SearchEmptyStateCustom
-import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 
 /**
  *  * ========================================
@@ -84,14 +118,143 @@ fun SearchResultScreen(
     val semanticSearchState by searchViewModel.searchState.collectAsState()
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
     val searchHistory by searchViewModel.searchHistory.collectAsState()
-    val searchText by searchViewModel.searchText.collectAsState()
-    val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
 
-    // var isSelectionMode by remember { mutableStateOf(false) }
+    val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
+    val tagLoadingState by searchViewModel.tagLoadingState.collectAsState()
+
+    val contentItems = searchViewModel.contentItems
+    val textStates = searchViewModel.textStates
+    val focusedElementId by searchViewModel.focusedElementId
+    val tagSuggestions by searchViewModel.tagSuggestions.collectAsState()
+    val showSearchHistoryDropdown by searchViewModel.showSearchHistoryDropdown.collectAsState()
+    val allTags = (tagLoadingState as? TagLoadingState.Success)?.tags ?: emptyList<TagItem>()
+    val listState = rememberLazyListState()
+    val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
+    val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
+    var searchBarWidth by remember { mutableStateOf(0) }
+    var searchBarRowHeight by remember { mutableStateOf(0) }
+    val topSpacerHeight = 8.dp
+
+    var hideCursor by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
     val focusManager = LocalFocusManager.current
+    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
+    val currentFocusedElementId = rememberUpdatedState(focusedElementId)
+    val currentFocusManager = rememberUpdatedState(focusManager)
+
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    var previousImeBottom by remember { mutableStateOf(imeBottom) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(tagLoadingState) {
+        if (tagLoadingState is TagLoadingState.Error) {
+            val errorMessage = (tagLoadingState as TagLoadingState.Error).message ?: "Unknown error"
+
+            // TODO : change to error box
+            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+
+            searchViewModel.resetTagLoadingState()
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                searchViewModel.loadServerTags()
+                hideCursor = false
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(imeBottom) {
+        kotlinx.coroutines.android.awaitFrame()
+
+        val isClosing = imeBottom < previousImeBottom && imeBottom > 0
+        val isClosed = imeBottom == 0 && previousImeBottom > 0
+
+        if ((isClosing || isClosed) && currentFocusedElementId.value != null && !ignoreFocusLoss) {
+            currentFocusManager.value.clearFocus()
+        }
+
+        previousImeBottom = imeBottom
+    }
+
+    LaunchedEffect(searchViewModel.requestFocus) {
+        searchViewModel.requestFocus.collect { id ->
+            hideCursor = true
+
+            try {
+                snapshotFlow { focusRequesters.containsKey(id) }
+                    .filter { it == true }
+                    .first()
+            } catch (e: Exception) {
+                hideCursor = false
+                searchViewModel.resetIgnoreFocusLossFlag()
+                return@collect
+            }
+
+            kotlinx.coroutines.android.awaitFrame()
+
+            val index = contentItems.indexOfFirst { it.id == id }
+            if (index != -1) {
+                val visibleItemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
+                val isFullyVisible =
+                    if (visibleItemInfo != null) {
+                        val viewportEnd = listState.layoutInfo.viewportEndOffset
+                        val itemEnd = visibleItemInfo.offset + visibleItemInfo.size
+                        itemEnd <= viewportEnd + 1
+                    } else {
+                        false
+                    }
+
+                if (!isFullyVisible) {
+                    listState.scrollToItem(index, searchBarWidth - 10)
+                } else {
+                    bringIntoViewRequesters[id]?.bringIntoView()
+                }
+            }
+
+            focusRequesters[id]?.requestFocus()
+
+            hideCursor = false
+            searchViewModel.resetIgnoreFocusLossFlag()
+        }
+    }
+
+    LaunchedEffect(searchViewModel.bringIntoView) {
+        searchViewModel.bringIntoView.collect { id ->
+            bringIntoViewRequesters[id]?.bringIntoView()
+        }
+    }
+
+    LaunchedEffect(contentItems.size) {
+        val currentIds = contentItems.map { it.id }.toSet()
+
+        val iterator = focusRequesters.keys.iterator()
+        while (iterator.hasNext()) {
+            val id = iterator.next()
+            if (id !in currentIds) {
+                iterator.remove()
+                bringIntoViewRequesters.remove(id)
+            }
+        }
+
+        contentItems.forEach { item ->
+            if (!focusRequesters.containsKey(item.id)) {
+                focusRequesters[item.id] = FocusRequester()
+                bringIntoViewRequesters[item.id] = BringIntoViewRequester()
+            }
+        }
+    }
 
     var hasPerformedInitialSearch by rememberSaveable { mutableStateOf(false) }
 
@@ -120,9 +283,10 @@ fun SearchResultScreen(
     }
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
-    LaunchedEffect(initialQuery, hasPerformedInitialSearch) {
-        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
-            searchViewModel.onSearchTextChanged(initialQuery)
+    LaunchedEffect(initialQuery, hasPerformedInitialSearch, tagLoadingState) {
+        // 태그 목록 로딩이 완료된 후에만 initialQuery를 파싱
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch && tagLoadingState is TagLoadingState.Success) {
+            searchViewModel.selectHistoryItem(initialQuery)
             searchViewModel.search(initialQuery)
             hasPerformedInitialSearch = true
         }
@@ -209,19 +373,37 @@ fun SearchResultScreen(
         }
     }
 
+    val performSearch = {
+        focusManager.clearFocus()
+        searchViewModel.performSearch { route ->
+            // 이미 search result 화면
+        }
+    }
+
     SearchResultScreenUi(
-        searchText = searchText,
-        onSearchTextChange = { searchViewModel.onSearchTextChanged(it) },
-        onSearchSubmit = {
-            if (searchText.isNotEmpty()) {
-                if (isSelectionMode) {
-                    searchViewModel.setSelectionMode(false)
-                    searchViewModel.resetSelection()
-                }
-                searchViewModel.search(searchText)
-                focusManager.clearFocus()
-            }
-        },
+        listState = listState,
+        contentItems = contentItems,
+        textStates = textStates,
+        focusRequesters = focusRequesters,
+        bringIntoViewRequesters = bringIntoViewRequesters,
+        focusedElementId = focusedElementId,
+        hideCursor = hideCursor,
+        tagSuggestions = tagSuggestions,
+        showSearchHistoryDropdown = showSearchHistoryDropdown,
+        allTags = allTags,
+        parser = searchViewModel::parseQueryToElements,
+        onPerformSearch = performSearch,
+        onChipSearchBarContainerClick = searchViewModel::onContainerClick,
+        onChipClick = searchViewModel::onChipClick,
+        onFocus = searchViewModel::onFocus,
+        onTextChange = searchViewModel::onTextChange,
+        onAddTagFromSuggestion = searchViewModel::addTagFromSuggestion,
+        searchBarRowHeight = searchBarRowHeight,
+        onSearchBarRowHeightChange = { searchBarRowHeight = it },
+        topSpacerHeight = topSpacerHeight,
+        searchBarWidth = searchBarWidth,
+        onSearchBarWidthChange = { searchBarWidth = it },
+
         uiState = uiState,
         isSelectionMode = isSelectionMode,
         selectedPhotos = selectedPhotos,
@@ -257,9 +439,7 @@ fun SearchResultScreen(
             }
         },
         onRetry = {
-            if (searchText.isNotEmpty()) {
-                searchViewModel.search(searchText)
-            }
+            performSearch()
             showErrorBanner = false
         },
         navController = navController,
@@ -296,9 +476,10 @@ fun SearchResultScreen(
                 {}
             },
         searchHistory = searchHistory,
-        onHistoryClick = { query ->
-            searchViewModel.onSearchTextChanged(query)
-            searchViewModel.search(query)
+        onHistoryClick = { clickedQuery ->
+            searchViewModel.selectHistoryItem(clickedQuery)
+            focusManager.clearFocus()
+            performSearch()
         },
         onHistoryDelete = { query ->
             searchViewModel.removeSearchHistory(query)
@@ -316,9 +497,28 @@ fun SearchResultScreen(
 @Composable
 fun SearchResultScreenUi(
     modifier: Modifier = Modifier,
-    searchText: String,
-    onSearchTextChange: (String) -> Unit,
-    onSearchSubmit: () -> Unit,
+    listState: LazyListState,
+    contentItems: List<SearchContentElement>,
+    textStates: Map<String, TextFieldValue>,
+    focusRequesters: Map<String, FocusRequester>,
+    bringIntoViewRequesters: Map<String, BringIntoViewRequester>,
+    focusedElementId: String?,
+    hideCursor: Boolean,
+    tagSuggestions: List<TagItem>,
+    showSearchHistoryDropdown: Boolean,
+    allTags: List<TagItem>,
+    parser: (String, List<TagItem>) -> List<SearchContentElement>,
+    onPerformSearch: () -> Unit,
+    onChipSearchBarContainerClick: () -> Unit,
+    onChipClick: (Int) -> Unit,
+    onFocus: (String?) -> Unit,
+    onTextChange: (String, TextFieldValue) -> Unit,
+    onAddTagFromSuggestion: (TagItem) -> Unit,
+    searchBarRowHeight: Int,
+    onSearchBarRowHeightChange: (Int) -> Unit,
+    topSpacerHeight: Dp,
+    searchBarWidth: Int,
+    onSearchBarWidthChange: (Int) -> Unit,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
     selectedPhotos: List<Photo>,
@@ -369,11 +569,30 @@ fun SearchResultScreenUi(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp),
-            searchText = searchText,
-            onSearchTextChange = onSearchTextChange,
-            onSearchSubmit = onSearchSubmit,
+                    .padding(paddingValues),
+//                    .padding(horizontal = 16.dp),
+            listState = listState,
+            contentItems = contentItems,
+            textStates = textStates,
+            focusRequesters = focusRequesters,
+            bringIntoViewRequesters = bringIntoViewRequesters,
+            focusedElementId = focusedElementId,
+            hideCursor = hideCursor,
+            tagSuggestions = tagSuggestions,
+            showSearchHistoryDropdown = showSearchHistoryDropdown,
+            allTags = allTags,
+            parser = parser,
+            onPerformSearch = onPerformSearch,
+            onChipSearchBarContainerClick = onChipSearchBarContainerClick,
+            onChipClick = onChipClick,
+            onFocus = onFocus,
+            onTextChange = onTextChange,
+            onAddTagFromSuggestion = onAddTagFromSuggestion,
+            searchBarRowHeight = searchBarRowHeight,
+            onSearchBarRowHeightChange = onSearchBarRowHeightChange,
+            topSpacerHeight = topSpacerHeight,
+            searchBarWidth = searchBarWidth,
+            onSearchBarWidthChange = onSearchBarWidthChange,
             uiState = uiState,
             isSelectionMode = isSelectionMode,
             selectedPhotos = selectedPhotos,
@@ -399,9 +618,28 @@ fun SearchResultScreenUi(
 @Composable
 private fun SearchResultContent(
     modifier: Modifier = Modifier,
-    searchText: String,
-    onSearchTextChange: (String) -> Unit,
-    onSearchSubmit: () -> Unit,
+    listState: LazyListState,
+    contentItems: List<SearchContentElement>,
+    textStates: Map<String, TextFieldValue>,
+    focusRequesters: Map<String, FocusRequester>,
+    bringIntoViewRequesters: Map<String, BringIntoViewRequester>,
+    focusedElementId: String?,
+    hideCursor: Boolean,
+    tagSuggestions: List<TagItem>,
+    showSearchHistoryDropdown: Boolean,
+    allTags: List<TagItem>,
+    parser: (String, List<TagItem>) -> List<SearchContentElement>,
+    onPerformSearch: () -> Unit,
+    onChipSearchBarContainerClick: () -> Unit,
+    onChipClick: (Int) -> Unit,
+    onFocus: (String?) -> Unit,
+    onTextChange: (String, TextFieldValue) -> Unit,
+    onAddTagFromSuggestion: (TagItem) -> Unit,
+    searchBarRowHeight: Int,
+    onSearchBarRowHeightChange: (Int) -> Unit,
+    topSpacerHeight: Dp,
+    searchBarWidth: Int,
+    onSearchBarWidthChange: (Int) -> Unit,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
     selectedPhotos: List<Photo>,
@@ -421,22 +659,38 @@ private fun SearchResultContent(
     val context = LocalContext.current
     Box(modifier = modifier) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Input
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { onSearchBarRowHeightChange(it.size.height) },
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SearchBarControlledCustom(
-                    value = searchText,
-                    onValueChange = onSearchTextChange,
-                    onSearch = onSearchSubmit,
-                    modifier = Modifier.weight(1f),
+                ChipSearchBar(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .onSizeChanged { onSearchBarWidthChange(it.width) },
+                    listState = listState,
+                    isFocused = (focusedElementId != null),
+                    hideCursor = hideCursor,
+                    contentItems = contentItems,
+                    textStates = textStates,
+                    focusRequesters = focusRequesters,
+                    bringIntoViewRequesters = bringIntoViewRequesters,
+                    onSearch = onPerformSearch,
+                    onContainerClick = onChipSearchBarContainerClick,
+                    onChipClick = onChipClick,
+                    onFocus = onFocus,
+                    onTextChange = onTextChange,
                 )
                 IconButton(
                     onClick = {
@@ -459,6 +713,29 @@ private fun SearchResultContent(
                 }
             }
 
+            // 태그 추천 목록 (LazyRow)
+            if (tagSuggestions.isNotEmpty()) {
+                LazyRow(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { },
+                            ),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(tagSuggestions, key = { it.tagId }) { tag ->
+                        SuggestionChip(
+                            tag = tag,
+                            onClick = { onAddTagFromSuggestion(tag) },
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Results
@@ -474,23 +751,57 @@ private fun SearchResultContent(
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
                 navController = navController,
-                searchHistory = searchHistory,
-                onHistoryClick = onHistoryClick,
-                onHistoryDelete = onHistoryDelete,
             )
+
             AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
                 WarningBanner(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     title = "Search Failed",
                     message = errorMessage ?: "Unknown error",
-                    onActionClick = onRetry, // 재시도
-                    onDismiss = onDismissError, // 닫기
+                    onActionClick = onRetry,
+                    onDismiss = onDismissError,
                     showActionButton = true,
                     showDismissButton = true,
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // search history dropdown
+        AnimatedVisibility(
+            visible = showSearchHistoryDropdown,
+            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+            modifier =
+                Modifier
+                    .offset(y = topSpacerHeight + with(LocalDensity.current) { searchBarRowHeight.toDp() } + 4.dp)
+                    .padding(horizontal = 16.dp)
+                    .zIndex(1f),
+        ) {
+            Surface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(end = 48.dp + 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                shadowElevation = 8.dp,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    items(searchHistory.take(4), key = { it }) { query ->
+                        SearchHistoryItem(
+                            query = query,
+                            allTags = allTags,
+                            parser = parser,
+                            onHistoryClick = onHistoryClick,
+                            onHistoryDelete = onHistoryDelete,
+                        )
+                    }
+                }
+            }
         }
 
         // Bottom overlay: Photo count + Create Tag button
@@ -500,7 +811,8 @@ private fun SearchResultContent(
                     Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 16.dp)
+                        .padding(horizontal = 16.dp),
             ) {
                 // Only show CreateTagButton when in selection mode and photos are selected
                 if (isSelectionMode && selectedPhotos.isNotEmpty()) {
@@ -547,19 +859,11 @@ private fun SearchResultsFromState(
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
-    searchHistory: List<String>,
-    onHistoryClick: (String) -> Unit,
-    onHistoryDelete: (String) -> Unit,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
             is SearchUiState.Idle -> {
-                SearchIdleCustom(
-                    history = searchHistory,
-                    onHistoryClick = onHistoryClick,
-                    onHistoryDelete = onHistoryDelete,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                Box(modifier = Modifier.fillMaxSize()) // ?
             }
 
             is SearchUiState.Loading -> {

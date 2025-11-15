@@ -57,7 +57,7 @@ sealed class SemanticSearchState {
 }
 
 /**
- * Tag loading state for tag suggestions
+ * tag loading 상태
  */
 sealed class TagLoadingState {
     object Idle : TagLoadingState()
