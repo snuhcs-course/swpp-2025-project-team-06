@@ -70,6 +70,14 @@ val MomenTagTypography =
                 letterSpacing = 0.sp,
             ),
         // 본문/설명 텍스트 (Body/Description)
+        bodyLarge =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                letterSpacing = 0.5.sp,
+            ),
         bodyMedium =
             TextStyle(
                 fontFamily = Pretendard,

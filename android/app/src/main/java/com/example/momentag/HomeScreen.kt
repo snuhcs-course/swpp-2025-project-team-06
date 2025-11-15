@@ -696,10 +696,11 @@ fun HomeScreen(navController: NavController) {
         containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
             // 태그 앨범 뷰(!showAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
-            if (showAllPhotos && groupedPhotos.isNotEmpty()) {
+            // Only show when in selection mode and photos are selected
+            if (showAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
-                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Add Tag with ${selectedPhotos.size}" else "Create Tag",
+                    text = "Add Tag (${selectedPhotos.size})",
                     onClick = {
                         // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
                         // SearchResultScreen과 동일한 패턴

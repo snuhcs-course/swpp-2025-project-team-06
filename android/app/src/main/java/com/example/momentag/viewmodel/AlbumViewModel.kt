@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -18,6 +19,7 @@ class AlbumViewModel(
     private val remoteRepository: RemoteRepository,
     private val recommendRepository: RecommendRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
+    private val photoSelectionRepository: PhotoSelectionRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     sealed class AlbumLoadingState {
@@ -404,4 +406,18 @@ class AlbumViewModel(
      * Returns list of content URIs to share via Android ShareSheet
      */
     fun getPhotosToShare() = selectedTagAlbumPhotos.value
+
+    /**
+     * Initialize photo selection for adding photos to existing tag
+     */
+    fun initializeAddPhotosFlow(
+        tagId: String,
+        tagName: String,
+    ) {
+        photoSelectionRepository.initialize(
+            initialTagName = tagName,
+            initialPhotos = emptyList(),
+            existingTagId = tagId,
+        )
+    }
 }
