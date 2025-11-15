@@ -13,6 +13,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -36,10 +40,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -74,15 +80,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -99,17 +104,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -120,7 +125,7 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
-import com.example.momentag.ui.components.SearchContentElement
+import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
@@ -128,18 +133,16 @@ import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
 import com.example.momentag.viewmodel.HomeViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
+import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.android.awaitFrame
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -153,6 +156,7 @@ fun HomeScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val searchViewModel: SearchViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
     val logoutState by authViewModel.logoutState.collectAsState()
     val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
@@ -163,6 +167,7 @@ fun HomeScreen(navController: NavController) {
     val isLoadingMorePhotos by homeViewModel.isLoadingMorePhotos.collectAsState()
     val showAllPhotos by homeViewModel.showAllPhotos.collectAsState()
     val isSelectionMode by homeViewModel.isSelectionMode.collectAsState()
+    val searchHistory by searchViewModel.searchHistory.collectAsState()
 
     var onlyTag by remember { mutableStateOf(false) }
     var isDeleteMode by remember { mutableStateOf(false) }
@@ -185,13 +190,16 @@ fun HomeScreen(navController: NavController) {
 
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
 
-    val textStates = remember { mutableStateMapOf<String, TextFieldValue>() }
-    val contentItems = remember { mutableStateListOf<SearchContentElement>() }
-    var focusedElementId by remember { mutableStateOf<String?>(null) }
+    val topSpacerHeight = 8.dp
+
+    val textStates = searchViewModel.textStates
+    val contentItems = searchViewModel.contentItems
+    val focusedElementId by searchViewModel.focusedElementId
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
     val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
     var searchBarWidth by remember { mutableStateOf(0) }
-    var ignoreFocusLoss by remember { mutableStateOf(false) }
+    var searchBarRowHeight by remember { mutableStateOf(0) }
+    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
 
     val currentFocusedElementId = rememberUpdatedState(focusedElementId)
     val currentFocusManager = rememberUpdatedState(focusManager)
@@ -201,6 +209,7 @@ fun HomeScreen(navController: NavController) {
 
     val activity = LocalContext.current.findActivity()
     var backPressedTime by remember { mutableStateOf(0L) }
+    var hideCursor by remember { mutableStateOf(false) }
 
     val allPhotosInitialIndex by homeViewModel.allPhotosScrollIndex.collectAsState()
     val allPhotosInitialOffset by homeViewModel.allPhotosScrollOffset.collectAsState()
@@ -217,6 +226,8 @@ fun HomeScreen(navController: NavController) {
             initialFirstVisibleItemIndex = tagAlbumInitialIndex,
             initialFirstVisibleItemScrollOffset = tagAlbumInitialOffset,
         )
+
+    val showSearchHistoryDropdown by searchViewModel.showSearchHistoryDropdown.collectAsState()
 
     LaunchedEffect(allPhotosGridState) {
         snapshotFlow {
@@ -242,24 +253,57 @@ fun HomeScreen(navController: NavController) {
             }
     }
 
-    fun requestFocusById(id: String) {
-        scope.launch {
+    LaunchedEffect(searchViewModel.requestFocus) {
+        searchViewModel.requestFocus.collect { id ->
+            hideCursor = true
+
+            try {
+                snapshotFlow { focusRequesters.containsKey(id) }
+                    .filter { it == true }
+                    .first()
+            } catch (e: Exception) {
+                hideCursor = false
+                searchViewModel.resetIgnoreFocusLossFlag()
+                return@collect
+            }
+
+            awaitFrame()
+
+            val index = contentItems.indexOfFirst { it.id == id }
+            if (index != -1) {
+                val visibleItemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
+                val isFullyVisible =
+                    if (visibleItemInfo != null) {
+                        val viewportEnd = listState.layoutInfo.viewportEndOffset
+                        val itemEnd = visibleItemInfo.offset + visibleItemInfo.size
+                        itemEnd <= viewportEnd + 1
+                    } else {
+                        false
+                    }
+
+                if (!isFullyVisible) {
+                    listState.scrollToItem(index, searchBarWidth - 10)
+                } else {
+                    bringIntoViewRequesters[id]?.bringIntoView()
+                }
+            }
+
             focusRequesters[id]?.requestFocus()
+
+            hideCursor = false
+            searchViewModel.resetIgnoreFocusLossFlag()
         }
     }
 
-    fun findNextTextElementId(startIndex: Int): String? {
-        if (startIndex >= contentItems.size - 1) return null
-        for (i in (startIndex + 1) until contentItems.size) {
-            val item = contentItems.getOrNull(i)
-            if (item is SearchContentElement.Text) {
-                return item.id
-            }
+    LaunchedEffect(searchViewModel.bringIntoView) {
+        searchViewModel.bringIntoView.collect { id ->
+            bringIntoViewRequesters[id]?.bringIntoView()
         }
-        return null
     }
 
     LaunchedEffect(imeBottom) {
+        awaitFrame()
+
         val isClosing = imeBottom < previousImeBottom && imeBottom > 0
         val isClosed = imeBottom == 0 && previousImeBottom > 0
 
@@ -268,120 +312,35 @@ fun HomeScreen(navController: NavController) {
         }
 
         previousImeBottom = imeBottom
-
-        if (imeBottom == previousImeBottom) {
-            ignoreFocusLoss = false
-        }
     }
 
-    LaunchedEffect(Unit) {
-        if (contentItems.isEmpty()) {
-            val initialId = UUID.randomUUID().toString()
-            contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
-            textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
-            focusRequesters[initialId] = FocusRequester()
-            bringIntoViewRequesters[initialId] = BringIntoViewRequester()
-        }
-    }
+    LaunchedEffect(contentItems.size) {
+        val currentIds = contentItems.map { it.id }.toSet()
 
-    var hideCursor by remember { mutableStateOf(false) }
-
-    // TODO : prevent text after a tag chip from shifting left.
-    LaunchedEffect(focusedElementId) {
-        hideCursor = true
-        val id =
-            focusedElementId ?: run {
-                ignoreFocusLoss = false
-                return@LaunchedEffect
-            }
-
-        snapshotFlow { focusRequesters[id] }
-            .filterNotNull()
-            .first()
-
-        awaitFrame()
-
-        val index = contentItems.indexOfFirst { it.id == id }
-
-        if (index == -1) {
-            hideCursor = false
-            return@LaunchedEffect
-        }
-
-        val visibleItemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
-
-        val isFullyVisible =
-            if (visibleItemInfo != null) {
-                val viewportEnd = listState.layoutInfo.viewportEndOffset
-                val itemEnd = visibleItemInfo.offset + visibleItemInfo.size
-                itemEnd <= viewportEnd + 1
-            } else {
-                false
-            }
-
-        if (!isFullyVisible) {
-            listState.scrollToItem(index, searchBarWidth - 10) // TODO : modify this
-        } else {
-            bringIntoViewRequesters[id]?.bringIntoView()
-        }
-
-        focusRequesters[id]?.requestFocus()
-
-        hideCursor = false
-        ignoreFocusLoss = false
-    }
-
-    val (isTagSearch, tagQuery) =
-        remember(focusedElementId, textStates[focusedElementId]) {
-            val currentInput = textStates[focusedElementId] ?: TextFieldValue()
-
-            val cursorPosition = currentInput.selection.start
-            if (cursorPosition == 0) {
-                Pair(false, "")
-            } else {
-                val textUpToCursor = currentInput.text.substring(0, cursorPosition)
-                val lastHashIndex = textUpToCursor.lastIndexOf('#')
-
-                if (lastHashIndex == -1) {
-                    Pair(false, "") // '#' 없음
-                } else {
-                    // '#' 뒤에 띄어쓰기가 있는지 확인
-                    val potentialTag = textUpToCursor.substring(lastHashIndex)
-                    if (" " in potentialTag) {
-                        Pair(false, "") // '#' 뒤에 띄어쓰기 있음
-                    } else {
-                        Pair(true, potentialTag.substring(1)) // '#abc' -> "abc"
-                    }
-                }
+        val iterator = focusRequesters.keys.iterator()
+        while (iterator.hasNext()) {
+            val id = iterator.next()
+            if (id !in currentIds) {
+                iterator.remove()
+                bringIntoViewRequesters.remove(id)
             }
         }
 
-    val tagSuggestions by remember(isTagSearch, tagQuery, allTags) {
-        derivedStateOf {
-            if (isTagSearch) {
-                allTags.filter {
-                    it.tagName.contains(tagQuery, ignoreCase = true)
-                }
-            } else {
-                emptyList()
+        contentItems.forEach { item ->
+            if (!focusRequesters.containsKey(item.id)) {
+                focusRequesters[item.id] = FocusRequester()
+                bringIntoViewRequesters[item.id] = BringIntoViewRequester()
             }
         }
     }
+
+    val tagSuggestions by searchViewModel.tagSuggestions.collectAsState()
 
     val performSearch = {
         focusManager.clearFocus()
-        val finalQuery =
-            contentItems
-                .joinToString(separator = "") {
-                    when (it) {
-                        is SearchContentElement.Text -> it.text
-                        is SearchContentElement.Chip -> "{${it.tag.tagName}}"
-                    }
-                }.trim()
-                .replace(Regex("\\s+"), " ")
 
-        if (finalQuery.isNotEmpty()) {
-            navController.navigate(Screen.SearchResult.createRoute(finalQuery))
+        searchViewModel.performSearch { route ->
+            navController.navigate(route)
         }
     }
 
@@ -490,6 +449,7 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
             homeViewModel.loadServerTags()
+            searchViewModel.loadServerTags()
             homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
         }
     }
@@ -520,6 +480,7 @@ fun HomeScreen(navController: NavController) {
             is HomeViewModel.HomeDeleteState.Success -> {
                 Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
                 homeViewModel.loadServerTags()
+                searchViewModel.loadServerTags()
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
                 showErrorBanner = false
@@ -544,6 +505,7 @@ fun HomeScreen(navController: NavController) {
             if (shouldRefresh) {
                 if (hasPermission) {
                     homeViewModel.loadServerTags()
+                    searchViewModel.loadServerTags()
                     homeViewModel.loadAllPhotos()
                 }
                 navBackStackEntry.savedStateHandle.remove<Boolean>("shouldRefresh")
@@ -696,6 +658,7 @@ fun HomeScreen(navController: NavController) {
                 if (hasPermission) {
                     isDeleteMode = false
                     homeViewModel.loadServerTags()
+                    searchViewModel.loadServerTags()
                     homeViewModel.loadAllPhotos() // 서버 사진도 새로고침
                 }
             },
@@ -704,17 +667,10 @@ fun HomeScreen(navController: NavController) {
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            Column(
+            Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .then(
-                            if (showEmptyTagGradient) {
-                                Modifier.background(gradientBrush)
-                            } else {
-                                Modifier
-                            },
-                        ).padding(horizontal = 16.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -723,436 +679,318 @@ fun HomeScreen(navController: NavController) {
                             isDeleteMode = false
                         },
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Search Bar with Filter Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ChipSearchBar(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .onSizeChanged { intSize ->
-                                    searchBarWidth = intSize.width
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (showEmptyTagGradient) {
+                                    Modifier.background(gradientBrush)
+                                } else {
+                                    Modifier
                                 },
-                        listState = listState,
-                        isFocused = (focusedElementId != null),
-                        hideCursor = hideCursor,
-                        contentItems = contentItems,
-                        textStates = textStates,
-                        focusRequesters = focusRequesters,
-                        bringIntoViewRequesters = bringIntoViewRequesters,
-                        onSearch = { performSearch() },
-                        onContainerClick = {
-                            val lastTextElement = contentItems.lastOrNull { it is SearchContentElement.Text }
-                            if (lastTextElement != null) {
-                                val currentTfv = textStates[lastTextElement.id]
-                                if (currentTfv != null) {
-                                    val end = currentTfv.text.length
-                                    textStates[lastTextElement.id] = currentTfv.copy(selection = TextRange(end))
-                                }
-                                focusedElementId = lastTextElement.id
-                            }
-                        },
-                        onChipClick = { index ->
-                            val nextTextId = findNextTextElementId(index)
-                            if (nextTextId != null) {
-                                val currentTfv = textStates[nextTextId]
-                                if (currentTfv != null) {
-                                    textStates[nextTextId] = currentTfv.copy(selection = TextRange(1))
-                                }
-                                focusedElementId = nextTextId
-                            }
-                        },
-                        onFocus = { id ->
-                            if (id == null && ignoreFocusLoss) {
-                                return@ChipSearchBar
-                            }
-                            focusedElementId = id
-                        },
-                        onTextChange = { id, newValue ->
-                            scope.launch {
-                                bringIntoViewRequesters[id]?.bringIntoView()
-                            }
+                            ).padding(horizontal = 16.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                focusManager.clearFocus()
+                                isDeleteMode = false
+                            },
+                ) {
+                    Spacer(modifier = Modifier.height(topSpacerHeight))
 
-                            val oldValue = textStates[id] ?: TextFieldValue()
-                            val oldText = oldValue.text
-                            val newText = newValue.text
-
-                            // 한글 등 IME 조합 중인지 확인
-                            val isComposing = newValue.composition != null
-
-                            // 조합 중일 때는 UI 상태만 업데이트
-                            if (isComposing) {
-                                textStates[id] = newValue // UI만 갱신
-                                return@ChipSearchBar
-                            }
-
-                            // ZWSP가 삭제되었는지(커서가 1이었는지) 감지
-                            val didBackspaceAtStart =
-                                oldText.startsWith("\u200B") &&
-                                    !newText.startsWith("\u200B") &&
-                                    oldValue.selection.start == 1
-
-                            if (didBackspaceAtStart) {
-                                val currentIndex = contentItems.indexOfFirst { it.id == id }
-                                val currentItem =
-                                    contentItems[currentIndex] as SearchContentElement.Text
-
-                                if (currentIndex <= 0) {
-                                    textStates[id] = TextFieldValue("\u200B", TextRange(1))
-                                    return@ChipSearchBar
-                                }
-
-                                val prevItem = contentItems[currentIndex - 1]
-
-                                // 1a. 바로 앞이 칩인 경우 (e.g., [TextA] [ChipB] [TextC(현재)])
-                                if (prevItem is SearchContentElement.Chip) {
-                                    val prevPrevIndex = currentIndex - 2
-
-                                    // 1a-1. [TextA] [ChipB] [TextC] -> [TextA + TextC]
-                                    if (prevPrevIndex >= 0 && contentItems[prevPrevIndex] is SearchContentElement.Text) {
-                                        val textA =
-                                            contentItems[prevPrevIndex] as SearchContentElement.Text
-                                        val textC = currentItem
-                                        val mergedText = textA.text + textC.text // A와 C의 텍스트 병합
-
-                                        // ChipB(index-1)와 TextC(index) 제거
-                                        contentItems.removeAt(currentIndex)
-                                        contentItems.removeAt(currentIndex - 1)
-                                        textStates.remove(id)
-                                        focusRequesters.remove(id)
-                                        bringIntoViewRequesters.remove(id)
-
-                                        // TextA(index-2) 업데이트
-                                        contentItems[prevPrevIndex] = textA.copy(text = mergedText)
-                                        val newTfv =
-                                            TextFieldValue(
-                                                "\u200B" + mergedText,
-                                                TextRange(textA.text.length + 1),
-                                            )
-                                        textStates[textA.id] = newTfv
-
-                                        // TextA로 포커스 이동
-                                        requestFocusById(textA.id)
-                                    } else {
-                                        // 1a-2. [ChipA] [ChipB] [TextC] 또는 [Start] [ChipB] [TextC] -> [ChipA] [TextC]
-                                        // ChipB(index-1)만 제거 (TextC는 남김)
-                                        contentItems.removeAt(currentIndex - 1)
-                                        // TextC로 포커스 유지 (ID는 동일)
-                                        requestFocusById(id)
-                                    }
-                                } else if (prevItem is SearchContentElement.Text) {
-                                    // 1b. 바로 앞이 텍스트인 경우 (e.g., [TextA] [TextC(현재)])
-                                    val textA = prevItem
-                                    val textC = currentItem
-                                    val mergedText = textA.text + textC.text
-
-                                    // TextC(index) 제거
-                                    contentItems.removeAt(currentIndex)
-                                    textStates.remove(id)
-                                    focusRequesters.remove(id)
-                                    bringIntoViewRequesters.remove(id)
-
-                                    // TextA(index-1) 업데이트
-                                    contentItems[currentIndex - 1] = textA.copy(text = mergedText)
-                                    val newTfv =
-                                        TextFieldValue(
-                                            "\u200B" + mergedText,
-                                            TextRange(textA.text.length + 1),
-                                        )
-                                    textStates[textA.id] = newTfv
-
-                                    // TextA로 포커스 이동
-                                    requestFocusById(textA.id)
-                                }
-                                return@ChipSearchBar
-                            }
-
-                            // ZWSP 및 커서 위치 강제 로직
-                            val (text, selection) =
-                                if (newText.startsWith("\u200B")) {
-                                    Pair(newText, newValue.selection)
-                                } else {
-                                    Pair("\u200B$newText", TextRange(newValue.selection.start + 1, newValue.selection.end + 1))
-                                }
-                            val finalSelection =
-                                if (selection.start == 0 && selection.end == 0) {
-                                    TextRange(1)
-                                } else {
-                                    selection
-                                }
-                            val finalValue = TextFieldValue(text, finalSelection)
-
-                            // 상태 동기화 로직
-                            textStates[id] = finalValue
-                            val currentItemIndex = contentItems.indexOfFirst { it.id == id }
-                            if (currentItemIndex != -1) {
-                                contentItems[currentItemIndex] =
-                                    (contentItems[currentItemIndex] as SearchContentElement.Text).copy(
-                                        text = text.removePrefix("\u200B"),
-                                    )
-                            }
-                        },
-                    )
-
-                    IconButton(
-                        onClick = {
-                            // TODO: Show filter dialog
-                            Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier =
-                            Modifier
-                                .size(48.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(12.dp),
-                                ),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FilterList,
-                            contentDescription = "Filter",
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    }
-                }
-
-                // 태그 추천 목록 (LazyRow)
-                if (tagSuggestions.isNotEmpty()) {
-                    LazyRow(
+                    // Search Bar with Filter Button
+                    Row(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { },
-                                ),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(tagSuggestions, key = { it.tagId }) { tag ->
-                            SuggestionChip(
-                                tag = tag,
-                                onClick = {
-                                    ignoreFocusLoss = true
-
-                                    if (focusedElementId == null) return@SuggestionChip
-
-                                    val currentId = focusedElementId!!
-                                    val currentIndex = contentItems.indexOfFirst { it.id == currentId }
-                                    val currentInput = textStates[currentId] ?: return@SuggestionChip
-
-                                    val text = currentInput.text
-                                    val cursor = currentInput.selection.start
-                                    val textUpToCursor = text.substring(0, cursor)
-                                    val lastHashIndex = textUpToCursor.lastIndexOf('#')
-
-                                    if (lastHashIndex != -1) {
-                                        // 텍스트 분리
-                                        val precedingText = text.substring(0, lastHashIndex).removePrefix("\u200B")
-                                        val succeedingText = text.substring(cursor)
-
-                                        // 새 칩과 새 텍스트 필드 생성
-                                        val newChipId = UUID.randomUUID().toString()
-                                        val newChip = SearchContentElement.Chip(newChipId, tag)
-
-                                        val newTextId = UUID.randomUUID().toString()
-                                        val newText = SearchContentElement.Text(newTextId, succeedingText)
-
-                                        // 현재 텍스트 필드 업데이트
-                                        contentItems[currentIndex] =
-                                            (contentItems[currentIndex] as SearchContentElement.Text).copy(text = precedingText)
-                                        textStates[currentId] =
-                                            TextFieldValue("\u200B" + precedingText, TextRange(precedingText.length + 1))
-
-                                        // 새 칩과 새 텍스트 필드 삽입
-                                        contentItems.add(currentIndex + 1, newChip)
-                                        contentItems.add(currentIndex + 2, newText)
-
-                                        // 새 텍스트 필드 상태 및 포커스 설정
-                                        textStates[newTextId] = TextFieldValue("\u200B" + succeedingText, TextRange(1))
-                                        focusRequesters[newTextId] = FocusRequester()
-                                        bringIntoViewRequesters[newTextId] = BringIntoViewRequester()
-
-                                        // 포커스 의도만 상태에 반영
-                                        focusedElementId = newTextId
-                                    }
+                                .onGloballyPositioned { layoutCoordinates ->
+                                    searchBarRowHeight = layoutCoordinates.size.height
                                 },
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ChipSearchBar(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .onSizeChanged { intSize ->
+                                        searchBarWidth = intSize.width
+                                    },
+                            listState = listState,
+                            isFocused = (focusedElementId != null),
+                            hideCursor = hideCursor,
+                            contentItems = contentItems,
+                            textStates = textStates,
+                            focusRequesters = focusRequesters,
+                            bringIntoViewRequesters = bringIntoViewRequesters,
+                            onSearch = { performSearch() },
+                            onContainerClick = searchViewModel::onContainerClick,
+                            onChipClick = searchViewModel::onChipClick,
+                            onFocus = searchViewModel::onFocus,
+                            onTextChange = searchViewModel::onTextChange,
+                        )
+
+                        IconButton(
+                            onClick = {
+                                // TODO: Show filter dialog
+                                Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier =
+                                Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(12.dp),
+                                    ),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Filter",
+                                tint = MaterialTheme.colorScheme.onPrimary,
                             )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    // 태그 추천 목록 (LazyRow)
+                    if (tagSuggestions.isNotEmpty()) {
+                        LazyRow(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = { },
+                                    ),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(tagSuggestions, key = { it.tagId }) { tag ->
+                                SuggestionChip(
+                                    tag = tag,
+                                    onClick = { searchViewModel.addTagFromSuggestion(tag) },
+                                )
+                            }
+                        }
+                    }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // "태그 앨범" 뷰일 때만 정렬 버튼 표시
-                    if (!showAllPhotos) {
-                        IconButton(onClick = { scope.launch { sheetState.show() } }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = "Sort Tag Albums",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // "태그 앨범" 뷰일 때만 정렬 버튼 표시
+                        if (!showAllPhotos) {
+                            IconButton(onClick = { scope.launch { sheetState.show() } }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = "Sort Tag Albums",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
+                            Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
+                        }
+                        ViewToggle(
+                            onlyTag = onlyTag,
+                            showAllPhotos = showAllPhotos,
+                            onToggle = { tagOnly, allPhotos ->
+                                onlyTag = tagOnly
+                                homeViewModel.setShowAllPhotos(allPhotos)
+                                if (isSelectionMode) {
+                                    homeViewModel.setSelectionMode(false)
+                                    homeViewModel.resetSelection() // draftRepository 초기화
+                                }
+                            },
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (!hasPermission) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                "To view tags and images,\nplease allow access to your photos.",
+                                textAlign = TextAlign.Center,
                             )
                         }
                     } else {
-                        // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
-                        Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
-                    }
-                    ViewToggle(
-                        onlyTag = onlyTag,
-                        showAllPhotos = showAllPhotos,
-                        onToggle = { tagOnly, allPhotos ->
-                            onlyTag = tagOnly
-                            homeViewModel.setShowAllPhotos(allPhotos)
-                            if (isSelectionMode) {
-                                homeViewModel.setSelectionMode(false)
-                                homeViewModel.resetSelection() // draftRepository 초기화
-                            }
-                        },
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (!hasPermission) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "To view tags and images,\nplease allow access to your photos.",
-                            textAlign = TextAlign.Center,
+                        MainContent(
+                            modifier = Modifier.weight(1f),
+                            onlyTag = onlyTag, // Pass the actual state
+                            showAllPhotos = showAllPhotos, // Pass the actual state
+                            tagItems = allTags, // allTags 전달 (이미 로드됨)
+                            groupedPhotos = groupedPhotos,
+                            navController = navController,
+                            onDeleteClick = { tagId ->
+                                // 삭제 확인 대화상자 띄우기
+                                val tagItem = allTags.find { it.tagId == tagId }
+                                if (tagItem != null) {
+                                    tagToDeleteInfo = Pair(tagItem.tagId, tagItem.tagName)
+                                    showDeleteConfirmationDialog = true
+                                    isDeleteMode = false
+                                }
+                            },
+                            isDeleteMode = isDeleteMode,
+                            onEnterDeleteMode = { isDeleteMode = true },
+                            onExitDeleteMode = { isDeleteMode = false },
+                            isSelectionMode = isSelectionMode,
+                            onEnterSelectionMode = { homeViewModel.setSelectionMode(true) },
+                            selectedItems = selectedPhotos.map { it.photoId }.toSet(),
+                            onItemSelectionToggle = { photoId ->
+                                val photo = allPhotos.find { it.photoId == photoId }
+                                photo?.let { homeViewModel.togglePhoto(it) }
+                            },
+                            homeViewModel = homeViewModel,
+                            allPhotosGridState = allPhotosGridState,
+                            tagAlbumGridState = tagAlbumGridState,
+                            isLoadingPhotos = false,
+                            homeLoadingState = homeLoadingState,
+                            isDataReady = isDataReady,
+                            arePhotosEmpty = arePhotosEmpty,
+                            areTagsEmpty = areTagsEmpty,
                         )
-                    }
-                } else {
-                    MainContent(
-                        modifier = Modifier.weight(1f),
-                        onlyTag = onlyTag, // Pass the actual state
-                        showAllPhotos = showAllPhotos, // Pass the actual state
-                        tagItems = allTags, // allTags 전달 (이미 로드됨)
-                        groupedPhotos = groupedPhotos,
-                        navController = navController,
-                        onDeleteClick = { tagId ->
-                            // 삭제 확인 대화상자 띄우기
-                            val tagItem = allTags.find { it.tagId == tagId }
-                            if (tagItem != null) {
-                                tagToDeleteInfo = Pair(tagItem.tagId, tagItem.tagName)
-                                showDeleteConfirmationDialog = true
-                                isDeleteMode = false
-                            }
-                        },
-                        isDeleteMode = isDeleteMode,
-                        onEnterDeleteMode = { isDeleteMode = true },
-                        onExitDeleteMode = { isDeleteMode = false },
-                        isSelectionMode = isSelectionMode,
-                        onEnterSelectionMode = { homeViewModel.setSelectionMode(true) },
-                        selectedItems = selectedPhotos.map { it.photoId }.toSet(),
-                        onItemSelectionToggle = { photoId ->
-                            val photo = allPhotos.find { it.photoId == photoId }
-                            photo?.let { homeViewModel.togglePhoto(it) }
-                        },
-                        homeViewModel = homeViewModel,
-                        allPhotosGridState = allPhotosGridState,
-                        tagAlbumGridState = tagAlbumGridState,
-                        isLoadingPhotos = false,
-                        homeLoadingState = homeLoadingState,
-                        isDataReady = isDataReady,
-                        arePhotosEmpty = arePhotosEmpty,
-                        areTagsEmpty = areTagsEmpty,
-                    )
 
-                    // 페이지네이션 로직을 MainContent 밖으로 이동
-                    if (showAllPhotos) {
-                        LaunchedEffect(allPhotosGridState, isLoadingMorePhotos) {
-                            // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
-                            if (!isLoadingMorePhotos) {
-                                snapshotFlow {
-                                    allPhotosGridState.layoutInfo.visibleItemsInfo
-                                        .lastOrNull()
-                                        ?.index
-                                }.distinctUntilChanged()
-                                    .debounce(150)
-                                    .collect { lastVisibleIndex ->
-                                        val totalItemCount = allPhotosGridState.layoutInfo.totalItemsCount
-                                        if (lastVisibleIndex != null && totalItemCount > 0) {
-                                            val remainingItems =
-                                                totalItemCount - (lastVisibleIndex + 1)
-                                            // 3열 그리드 기준, 약 11줄(33개) 미만일 때 로드
-                                            if (remainingItems < 33) {
-                                                homeViewModel.loadMorePhotos()
+                        // 페이지네이션 로직을 MainContent 밖으로 이동
+                        if (showAllPhotos) {
+                            LaunchedEffect(allPhotosGridState, isLoadingMorePhotos) {
+                                // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
+                                if (!isLoadingMorePhotos) {
+                                    snapshotFlow {
+                                        allPhotosGridState.layoutInfo.visibleItemsInfo
+                                            .lastOrNull()
+                                            ?.index
+                                    }.distinctUntilChanged()
+                                        .debounce(150)
+                                        .collect { lastVisibleIndex ->
+                                            val totalItemCount = allPhotosGridState.layoutInfo.totalItemsCount
+                                            if (lastVisibleIndex != null && totalItemCount > 0) {
+                                                val remainingItems =
+                                                    totalItemCount - (lastVisibleIndex + 1)
+                                                // 3열 그리드 기준, 약 11줄(33개) 미만일 때 로드
+                                                if (remainingItems < 33) {
+                                                    homeViewModel.loadMorePhotos()
+                                                }
                                             }
                                         }
-                                    }
+                                }
                             }
+                        }
+                    }
+
+                    if (showAllPhotos && isLoadingMorePhotos) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(32.dp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                    AnimatedVisibility(visible = bannerVisible) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            WarningBanner(
+                                title = "Uploading...🚀",
+                                message = "Photos are uploading in the background.",
+                                onActionClick = { },
+                                showActionButton = false,
+                                backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
+                                icon = Icons.Default.Upload,
+                                showDismissButton = true,
+                                onDismiss = {
+                                    isUploadBannerDismissed = true
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                    AnimatedVisibility(visible = showErrorBanner && errorBannerMessage != null) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            WarningBanner(
+                                title = errorBannerTitle,
+                                message = errorBannerMessage!!,
+                                onActionClick = {
+                                    // 재시도 로직
+                                    if (hasPermission) {
+                                        homeViewModel.loadServerTags()
+                                        searchViewModel.loadServerTags()
+                                        homeViewModel.loadAllPhotos()
+                                    }
+                                    showErrorBanner = false
+                                },
+                                onDismiss = { showErrorBanner = false },
+                                showActionButton = true,
+                                showDismissButton = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
                 }
 
-                if (showAllPhotos && isLoadingMorePhotos) {
-                    Box(
+                // search history dropdown
+                AnimatedVisibility(
+                    visible = showSearchHistoryDropdown,
+                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+                    modifier =
+                        Modifier
+                            .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() }) // change to move y-axis
+                            .padding(horizontal = 16.dp)
+                            .zIndex(1f), // z-index for overlay
+                ) {
+                    Surface(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                        contentAlignment = Alignment.Center,
+                                .padding(end = 48.dp + 8.dp),
+                        shape =
+                            RoundedCornerShape(
+//                                topStart = 16.dp,
+//                                topEnd = 16.dp,
+                                bottomStart = 16.dp,
+                                bottomEnd = 16.dp,
+                            ),
+                        //                        shadowElevation = 8.dp,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(32.dp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-                AnimatedVisibility(visible = bannerVisible) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        WarningBanner(
-                            title = "Uploading...🚀",
-                            message = "Photos are uploading in the background.",
-                            onActionClick = { },
-                            showActionButton = false,
-                            backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
-                            icon = Icons.Default.Upload,
-                            showDismissButton = true,
-                            onDismiss = {
-                                isUploadBannerDismissed = true
-                            },
+                        LazyColumn(
                             modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-                AnimatedVisibility(visible = showErrorBanner && errorBannerMessage != null) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        WarningBanner(
-                            title = errorBannerTitle,
-                            message = errorBannerMessage!!,
-                            onActionClick = {
-                                // 재시도 로직
-                                if (hasPermission) {
-                                    homeViewModel.loadServerTags()
-                                    homeViewModel.loadAllPhotos()
-                                }
-                                showErrorBanner = false
-                            },
-                            onDismiss = { showErrorBanner = false },
-                            showActionButton = true,
-                            showDismissButton = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        ) {
+                            items(searchHistory.take(4), key = { it }) { query ->
+                                SearchHistoryItem(
+                                    query = query,
+                                    allTags = allTags,
+                                    onHistoryClick = { clickedQuery ->
+                                        searchViewModel.selectHistoryItem(clickedQuery)
+                                        focusManager.clearFocus()
+                                        performSearch()
+                                    },
+                                    onHistoryDelete = {
+                                        searchViewModel.removeSearchHistory(it)
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
