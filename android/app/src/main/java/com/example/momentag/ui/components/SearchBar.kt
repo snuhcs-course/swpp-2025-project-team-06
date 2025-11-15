@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -62,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.model.TagItem
 import kotlinx.coroutines.launch
+import com.example.momentag.worker.SearchWorker
 
 sealed class SearchContentElement {
     abstract val id: String // each element has unique ID
@@ -372,6 +375,7 @@ fun SuggestionChip(
 @Composable
 fun SearchHistoryItem(
     query: String,
+    allTags: List<TagItem>,
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -391,14 +395,56 @@ fun SearchHistoryItem(
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = query,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+
+        FlowRow(
             modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+            verticalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            val elements = remember(query, allTags) {
+                SearchWorker.parseQueryToElements(query, allTags)
+            }
+
+            elements.forEach { element ->
+                when (element) {
+                    is SearchContentElement.Text -> {
+                        // 텍스트 부분 렌더링
+                        if (element.text.isNotEmpty()) {
+                            Text(
+                                text = element.text,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(vertical = 4.dp) // 칩의 패딩과 높이를 맞추기 위함
+                            )
+                        }
+                    }
+                    is SearchContentElement.Chip -> {
+                        // 칩 부분 렌더링 (SuggestionChip과 유사한 간단한 UI)
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "#${element.tag.tagName}",
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        } // End FlowRow
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // 삭제 버튼
         IconButton(
             onClick = { onHistoryDelete(query) },
             modifier = Modifier.size(24.dp)

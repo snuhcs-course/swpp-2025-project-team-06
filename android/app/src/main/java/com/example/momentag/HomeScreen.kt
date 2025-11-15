@@ -151,7 +151,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.zIndex
 import com.example.momentag.ui.components.SearchHistoryItem
+import com.example.momentag.worker.SearchWorker
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -206,6 +208,7 @@ fun HomeScreen(navController: NavController) {
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
     val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
     var searchBarWidth by remember { mutableStateOf(0) }
+    var searchBarRowHeight by remember { mutableStateOf(0) }
     var ignoreFocusLoss by remember { mutableStateOf(false) }
 
     val currentFocusedElementId = rememberUpdatedState(focusedElementId)
@@ -233,10 +236,18 @@ fun HomeScreen(navController: NavController) {
             initialFirstVisibleItemScrollOffset = tagAlbumInitialOffset,
         )
 
-    val showSearchHistoryDropdown by remember(focusedElementId, textStates[focusedElementId]) {
+    val showSearchHistoryDropdown by remember(focusedElementId, contentItems, textStates[focusedElementId]) {
         derivedStateOf {
-            val currentText = textStates[focusedElementId]?.text ?: ""
-            focusedElementId != null && (currentText.isEmpty() || currentText == "\u200B")
+            val isFocused = focusedElementId != null
+            val isOnlyOneElement = contentItems.size == 1
+            val firstElement = contentItems.firstOrNull()
+
+            if (isFocused && isOnlyOneElement && firstElement is SearchContentElement.Text) {
+                val currentText = textStates[firstElement.id]?.text ?: ""
+                currentText.isEmpty() || currentText == "\u200B"
+            } else {
+                false
+            }
         }
     }
 
@@ -745,168 +756,146 @@ fun HomeScreen(navController: NavController) {
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (showEmptyTagGradient) {
-                                Modifier.background(gradientBrush)
-                            } else {
-                                Modifier
-                            },
-                        ).padding(horizontal = 16.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {
-                            focusManager.clearFocus()
-                            isDeleteMode = false
-                        },
+            Box( // 오버레이를 위해 Box로 감쌈
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        focusManager.clearFocus()
+                        isDeleteMode = false
+                    }
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                        // Search Bar with Filter Button
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            ChipSearchBar(
-                                modifier =
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (showEmptyTagGradient) {
+                                    Modifier.background(gradientBrush)
+                                } else {
                                     Modifier
-                                        .weight(1f)
-                                        .onSizeChanged { intSize ->
-                                            searchBarWidth = intSize.width
-                                        },
-                                listState = listState,
-                                isFocused = (focusedElementId != null),
-                                hideCursor = hideCursor,
-                                contentItems = contentItems,
-                                textStates = textStates,
-                                focusRequesters = focusRequesters,
-                                bringIntoViewRequesters = bringIntoViewRequesters,
-                                onSearch = { performSearch() },
-                                onContainerClick = {
-                                    val lastTextElement =
-                                        contentItems.lastOrNull { it is SearchContentElement.Text }
-                                    if (lastTextElement != null) {
-                                        val currentTfv = textStates[lastTextElement.id]
-                                        if (currentTfv != null) {
-                                            val end = currentTfv.text.length
-                                            textStates[lastTextElement.id] =
-                                                currentTfv.copy(selection = TextRange(end))
-                                        }
-                                        focusedElementId = lastTextElement.id
-                                    }
                                 },
-                                onChipClick = { index ->
-                                    val nextTextId = findNextTextElementId(index)
-                                    if (nextTextId != null) {
-                                        val currentTfv = textStates[nextTextId]
-                                        if (currentTfv != null) {
-                                            textStates[nextTextId] =
-                                                currentTfv.copy(selection = TextRange(1))
-                                        }
-                                        focusedElementId = nextTextId
+                            ).padding(horizontal = 16.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                focusManager.clearFocus()
+                                isDeleteMode = false
+                            },
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Search Bar with Filter Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ChipSearchBar(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .onSizeChanged { intSize ->
+                                        searchBarWidth = intSize.width
+                                    },
+                            listState = listState,
+                            isFocused = (focusedElementId != null),
+                            hideCursor = hideCursor,
+                            contentItems = contentItems,
+                            textStates = textStates,
+                            focusRequesters = focusRequesters,
+                            bringIntoViewRequesters = bringIntoViewRequesters,
+                            onSearch = { performSearch() },
+                            onContainerClick = {
+                                val lastTextElement =
+                                    contentItems.lastOrNull { it is SearchContentElement.Text }
+                                if (lastTextElement != null) {
+                                    val currentTfv = textStates[lastTextElement.id]
+                                    if (currentTfv != null) {
+                                        val end = currentTfv.text.length
+                                        textStates[lastTextElement.id] =
+                                            currentTfv.copy(selection = TextRange(end))
                                     }
-                                },
-                                onFocus = { id ->
-                                    if (id == null && ignoreFocusLoss) {
+                                    focusedElementId = lastTextElement.id
+                                }
+                            },
+                            onChipClick = { index ->
+                                val nextTextId = findNextTextElementId(index)
+                                if (nextTextId != null) {
+                                    val currentTfv = textStates[nextTextId]
+                                    if (currentTfv != null) {
+                                        textStates[nextTextId] =
+                                            currentTfv.copy(selection = TextRange(1))
+                                    }
+                                    focusedElementId = nextTextId
+                                }
+                            },
+                            onFocus = { id ->
+                                if (id == null && ignoreFocusLoss) {
+                                    return@ChipSearchBar
+                                }
+                                focusedElementId = id
+                            },
+                            onTextChange = { id, newValue ->
+                                scope.launch {
+                                    bringIntoViewRequesters[id]?.bringIntoView()
+                                }
+
+                                val oldValue = textStates[id] ?: TextFieldValue()
+                                val oldText = oldValue.text
+                                val newText = newValue.text
+
+                                // 한글 등 IME 조합 중인지 확인
+                                val isComposing = newValue.composition != null
+
+                                // 조합 중일 때는 UI 상태만 업데이트
+                                if (isComposing) {
+                                    textStates[id] = newValue // UI만 갱신
+                                    return@ChipSearchBar
+                                }
+
+                                // ZWSP가 삭제되었는지(커서가 1이었는지) 감지
+                                val didBackspaceAtStart =
+                                    oldText.startsWith("\u200B") &&
+                                            !newText.startsWith("\u200B") &&
+                                            oldValue.selection.start == 1
+
+                                if (didBackspaceAtStart) {
+                                    val currentIndex = contentItems.indexOfFirst { it.id == id }
+                                    val currentItem =
+                                        contentItems[currentIndex] as SearchContentElement.Text
+
+                                    if (currentIndex <= 0) {
+                                        textStates[id] = TextFieldValue("\u200B", TextRange(1))
                                         return@ChipSearchBar
                                     }
-                                    focusedElementId = id
-                                },
-                                onTextChange = { id, newValue ->
-                                    scope.launch {
-                                        bringIntoViewRequesters[id]?.bringIntoView()
-                                    }
 
-                                    val oldValue = textStates[id] ?: TextFieldValue()
-                                    val oldText = oldValue.text
-                                    val newText = newValue.text
+                                    val prevItem = contentItems[currentIndex - 1]
 
-                                    // 한글 등 IME 조합 중인지 확인
-                                    val isComposing = newValue.composition != null
+                                    // 1a. 바로 앞이 칩인 경우 (e.g., [TextA] [ChipB] [TextC(현재)])
+                                    if (prevItem is SearchContentElement.Chip) {
+                                        val prevPrevIndex = currentIndex - 2
 
-                                    // 조합 중일 때는 UI 상태만 업데이트
-                                    if (isComposing) {
-                                        textStates[id] = newValue // UI만 갱신
-                                        return@ChipSearchBar
-                                    }
-
-                                    // ZWSP가 삭제되었는지(커서가 1이었는지) 감지
-                                    val didBackspaceAtStart =
-                                        oldText.startsWith("\u200B") &&
-                                                !newText.startsWith("\u200B") &&
-                                                oldValue.selection.start == 1
-
-                                    if (didBackspaceAtStart) {
-                                        val currentIndex = contentItems.indexOfFirst { it.id == id }
-                                        val currentItem =
-                                            contentItems[currentIndex] as SearchContentElement.Text
-
-                                        if (currentIndex <= 0) {
-                                            textStates[id] = TextFieldValue("\u200B", TextRange(1))
-                                            return@ChipSearchBar
-                                        }
-
-                                        val prevItem = contentItems[currentIndex - 1]
-
-                                        // 1a. 바로 앞이 칩인 경우 (e.g., [TextA] [ChipB] [TextC(현재)])
-                                        if (prevItem is SearchContentElement.Chip) {
-                                            val prevPrevIndex = currentIndex - 2
-
-                                            // 1a-1. [TextA] [ChipB] [TextC] -> [TextA + TextC]
-                                            if (prevPrevIndex >= 0 && contentItems[prevPrevIndex] is SearchContentElement.Text) {
-                                                val textA =
-                                                    contentItems[prevPrevIndex] as SearchContentElement.Text
-                                                val textC = currentItem
-                                                val mergedText =
-                                                    textA.text + textC.text // A와 C의 텍스트 병합
-
-                                                // ChipB(index-1)와 TextC(index) 제거
-                                                contentItems.removeAt(currentIndex)
-                                                contentItems.removeAt(currentIndex - 1)
-                                                textStates.remove(id)
-                                                focusRequesters.remove(id)
-                                                bringIntoViewRequesters.remove(id)
-
-                                                // TextA(index-2) 업데이트
-                                                contentItems[prevPrevIndex] =
-                                                    textA.copy(text = mergedText)
-                                                val newTfv =
-                                                    TextFieldValue(
-                                                        "\u200B" + mergedText,
-                                                        TextRange(textA.text.length + 1),
-                                                    )
-                                                textStates[textA.id] = newTfv
-
-                                                // TextA로 포커스 이동
-                                                requestFocusById(textA.id)
-                                            } else {
-                                                // 1a-2. [ChipA] [ChipB] [TextC] 또는 [Start] [ChipB] [TextC] -> [ChipA] [TextC]
-                                                // ChipB(index-1)만 제거 (TextC는 남김)
-                                                contentItems.removeAt(currentIndex - 1)
-                                                // TextC로 포커스 유지 (ID는 동일)
-                                                requestFocusById(id)
-                                            }
-                                        } else if (prevItem is SearchContentElement.Text) {
-                                            // 1b. 바로 앞이 텍스트인 경우 (e.g., [TextA] [TextC(현재)])
-                                            val textA = prevItem
+                                        // 1a-1. [TextA] [ChipB] [TextC] -> [TextA + TextC]
+                                        if (prevPrevIndex >= 0 && contentItems[prevPrevIndex] is SearchContentElement.Text) {
+                                            val textA =
+                                                contentItems[prevPrevIndex] as SearchContentElement.Text
                                             val textC = currentItem
-                                            val mergedText = textA.text + textC.text
+                                            val mergedText =
+                                                textA.text + textC.text // A와 C의 텍스트 병합
 
-                                            // TextC(index) 제거
+                                            // ChipB(index-1)와 TextC(index) 제거
                                             contentItems.removeAt(currentIndex)
+                                            contentItems.removeAt(currentIndex - 1)
                                             textStates.remove(id)
                                             focusRequesters.remove(id)
                                             bringIntoViewRequesters.remove(id)
 
-                                            // TextA(index-1) 업데이트
-                                            contentItems[currentIndex - 1] =
+                                            // TextA(index-2) 업데이트
+                                            contentItems[prevPrevIndex] =
                                                 textA.copy(text = mergedText)
                                             val newTfv =
                                                 TextFieldValue(
@@ -917,337 +906,397 @@ fun HomeScreen(navController: NavController) {
 
                                             // TextA로 포커스 이동
                                             requestFocusById(textA.id)
-                                        }
-                                        return@ChipSearchBar
-                                    }
-
-                                    // ZWSP 및 커서 위치 강제 로직
-                                    val (text, selection) =
-                                        if (newText.startsWith("\u200B")) {
-                                            Pair(newText, newValue.selection)
                                         } else {
-                                            Pair(
-                                                "\u200B$newText",
-                                                TextRange(
-                                                    newValue.selection.start + 1,
-                                                    newValue.selection.end + 1
-                                                )
-                                            )
+                                            // 1a-2. [ChipA] [ChipB] [TextC] 또는 [Start] [ChipB] [TextC] -> [ChipA] [TextC]
+                                            // ChipB(index-1)만 제거 (TextC는 남김)
+                                            contentItems.removeAt(currentIndex - 1)
+                                            // TextC로 포커스 유지 (ID는 동일)
+                                            requestFocusById(id)
                                         }
-                                    val finalSelection =
-                                        if (selection.start == 0 && selection.end == 0) {
-                                            TextRange(1)
-                                        } else {
-                                            selection
-                                        }
-                                    val finalValue = TextFieldValue(text, finalSelection)
+                                    } else if (prevItem is SearchContentElement.Text) {
+                                        // 1b. 바로 앞이 텍스트인 경우 (e.g., [TextA] [TextC(현재)])
+                                        val textA = prevItem
+                                        val textC = currentItem
+                                        val mergedText = textA.text + textC.text
 
-                                    // 상태 동기화 로직
-                                    textStates[id] = finalValue
-                                    val currentItemIndex = contentItems.indexOfFirst { it.id == id }
-                                    if (currentItemIndex != -1) {
-                                        contentItems[currentItemIndex] =
-                                            (contentItems[currentItemIndex] as SearchContentElement.Text).copy(
-                                                text = text.removePrefix("\u200B"),
+                                        // TextC(index) 제거
+                                        contentItems.removeAt(currentIndex)
+                                        textStates.remove(id)
+                                        focusRequesters.remove(id)
+                                        bringIntoViewRequesters.remove(id)
+
+                                        // TextA(index-1) 업데이트
+                                        contentItems[currentIndex - 1] =
+                                            textA.copy(text = mergedText)
+                                        val newTfv =
+                                            TextFieldValue(
+                                                "\u200B" + mergedText,
+                                                TextRange(textA.text.length + 1),
                                             )
+                                        textStates[textA.id] = newTfv
+
+                                        // TextA로 포커스 이동
+                                        requestFocusById(textA.id)
                                     }
-                                },
+                                    return@ChipSearchBar
+                                }
+
+                                // ZWSP 및 커서 위치 강제 로직
+                                val (text, selection) =
+                                    if (newText.startsWith("\u200B")) {
+                                        Pair(newText, newValue.selection)
+                                    } else {
+                                        Pair(
+                                            "\u200B$newText",
+                                            TextRange(
+                                                newValue.selection.start + 1,
+                                                newValue.selection.end + 1
+                                            )
+                                        )
+                                    }
+                                val finalSelection =
+                                    if (selection.start == 0 && selection.end == 0) {
+                                        TextRange(1)
+                                    } else {
+                                        selection
+                                    }
+                                val finalValue = TextFieldValue(text, finalSelection)
+
+                                // 상태 동기화 로직
+                                textStates[id] = finalValue
+                                val currentItemIndex = contentItems.indexOfFirst { it.id == id }
+                                if (currentItemIndex != -1) {
+                                    contentItems[currentItemIndex] =
+                                        (contentItems[currentItemIndex] as SearchContentElement.Text).copy(
+                                            text = text.removePrefix("\u200B"),
+                                        )
+                                }
+                            },
+                        )
+
+                        IconButton(
+                            onClick = {
+                                // TODO: Show filter dialog
+                                Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier =
+                                Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(12.dp),
+                                    ),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Filter",
+                                tint = MaterialTheme.colorScheme.onPrimary,
                             )
+                        }
+                    }
 
-                            IconButton(
-                                onClick = {
-                                    // TODO: Show filter dialog
-                                    Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
-                                },
-                                modifier =
-                                    Modifier
-                                        .size(48.dp)
-                                        .background(
-                                            color = MaterialTheme.colorScheme.primary,
-                                            shape = RoundedCornerShape(12.dp),
-                                        ),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.FilterList,
-                                    contentDescription = "Filter",
-                                    tint = MaterialTheme.colorScheme.onPrimary,
+                    // 태그 추천 목록 (LazyRow)
+                    if (tagSuggestions.isNotEmpty()) {
+                        LazyRow(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = { },
+                                    ),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(tagSuggestions, key = { it.tagId }) { tag ->
+                                SuggestionChip(
+                                    tag = tag,
+                                    onClick = {
+                                        ignoreFocusLoss = true
+
+                                        if (focusedElementId == null) return@SuggestionChip
+
+                                        val currentId = focusedElementId!!
+                                        val currentIndex = contentItems.indexOfFirst { it.id == currentId }
+                                        val currentInput = textStates[currentId] ?: return@SuggestionChip
+
+                                        val text = currentInput.text
+                                        val cursor = currentInput.selection.start
+                                        val textUpToCursor = text.substring(0, cursor)
+                                        val lastHashIndex = textUpToCursor.lastIndexOf('#')
+
+                                        if (lastHashIndex != -1) {
+                                            // 텍스트 분리
+                                            val precedingText = text.substring(0, lastHashIndex).removePrefix("\u200B")
+                                            val succeedingText = text.substring(cursor)
+
+                                            // 새 칩과 새 텍스트 필드 생성
+                                            val newChipId = UUID.randomUUID().toString()
+                                            val newChip = SearchContentElement.Chip(newChipId, tag)
+
+                                            val newTextId = UUID.randomUUID().toString()
+                                            val newText = SearchContentElement.Text(newTextId, succeedingText)
+
+                                            // 현재 텍스트 필드 업데이트
+                                            contentItems[currentIndex] =
+                                                (contentItems[currentIndex] as SearchContentElement.Text).copy(text = precedingText)
+                                            textStates[currentId] =
+                                                TextFieldValue("\u200B" + precedingText, TextRange(precedingText.length + 1))
+
+                                            // 새 칩과 새 텍스트 필드 삽입
+                                            contentItems.add(currentIndex + 1, newChip)
+                                            contentItems.add(currentIndex + 2, newText)
+
+                                            // 새 텍스트 필드 상태 및 포커스 설정
+                                            textStates[newTextId] = TextFieldValue("\u200B" + succeedingText, TextRange(1))
+                                            focusRequesters[newTextId] = FocusRequester()
+                                            bringIntoViewRequesters[newTextId] = BringIntoViewRequester()
+
+                                            // 포커스 의도만 상태에 반영
+                                            focusedElementId = newTextId
+                                        }
+                                    },
                                 )
                             }
                         }
-
-                        // search history dropdown
-                        AnimatedVisibility(visible = showSearchHistoryDropdown && searchHistory.isNotEmpty()) {
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp)
-                                    .clip(RoundedCornerShape(16.dp)),
-                                shadowElevation = 8.dp,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ) {
-                                Box(modifier = Modifier.heightIn(max = 200.dp)) {
-                                    LazyColumn(
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        items(searchHistory, key = { it }) { query ->
-                                            SearchHistoryItem(
-                                                query = query,
-                                                onHistoryClick = {
-                                                    focusManager.clearFocus()
-                                                    navController.navigate(
-                                                        Screen.SearchResult.createRoute(
-                                                            it
-                                                        )
-                                                    )
-                                                },
-                                                onHistoryDelete = {
-                                                    searchViewModel.removeSearchHistory(it)
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
-                }
 
-                // 태그 추천 목록 (LazyRow)
-                if (tagSuggestions.isNotEmpty()) {
-                    LazyRow(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { },
-                                ),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        items(tagSuggestions, key = { it.tagId }) { tag ->
-                            SuggestionChip(
-                                tag = tag,
-                                onClick = {
-                                    ignoreFocusLoss = true
-
-                                    if (focusedElementId == null) return@SuggestionChip
-
-                                    val currentId = focusedElementId!!
-                                    val currentIndex = contentItems.indexOfFirst { it.id == currentId }
-                                    val currentInput = textStates[currentId] ?: return@SuggestionChip
-
-                                    val text = currentInput.text
-                                    val cursor = currentInput.selection.start
-                                    val textUpToCursor = text.substring(0, cursor)
-                                    val lastHashIndex = textUpToCursor.lastIndexOf('#')
-
-                                    if (lastHashIndex != -1) {
-                                        // 텍스트 분리
-                                        val precedingText = text.substring(0, lastHashIndex).removePrefix("\u200B")
-                                        val succeedingText = text.substring(cursor)
-
-                                        // 새 칩과 새 텍스트 필드 생성
-                                        val newChipId = UUID.randomUUID().toString()
-                                        val newChip = SearchContentElement.Chip(newChipId, tag)
-
-                                        val newTextId = UUID.randomUUID().toString()
-                                        val newText = SearchContentElement.Text(newTextId, succeedingText)
-
-                                        // 현재 텍스트 필드 업데이트
-                                        contentItems[currentIndex] =
-                                            (contentItems[currentIndex] as SearchContentElement.Text).copy(text = precedingText)
-                                        textStates[currentId] =
-                                            TextFieldValue("\u200B" + precedingText, TextRange(precedingText.length + 1))
-
-                                        // 새 칩과 새 텍스트 필드 삽입
-                                        contentItems.add(currentIndex + 1, newChip)
-                                        contentItems.add(currentIndex + 2, newText)
-
-                                        // 새 텍스트 필드 상태 및 포커스 설정
-                                        textStates[newTextId] = TextFieldValue("\u200B" + succeedingText, TextRange(1))
-                                        focusRequesters[newTextId] = FocusRequester()
-                                        bringIntoViewRequesters[newTextId] = BringIntoViewRequester()
-
-                                        // 포커스 의도만 상태에 반영
-                                        focusedElementId = newTextId
-                                    }
-                                },
-                            )
+                        // "태그 앨범" 뷰일 때만 정렬 버튼 표시
+                        if (!showAllPhotos) {
+                            IconButton(onClick = { scope.launch { sheetState.show() } }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = "Sort Tag Albums",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
+                            Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
                         }
+                        ViewToggle(
+                            onlyTag = onlyTag,
+                            showAllPhotos = showAllPhotos,
+                            onToggle = { tagOnly, allPhotos ->
+                                onlyTag = tagOnly
+                                homeViewModel.setShowAllPhotos(allPhotos)
+                                if (isSelectionMode) {
+                                    homeViewModel.setSelectionMode(false)
+                                    homeViewModel.resetSelection() // draftRepository 초기화
+                                }
+                            },
+                        )
                     }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // "태그 앨범" 뷰일 때만 정렬 버튼 표시
-                    if (!showAllPhotos) {
-                        IconButton(onClick = { scope.launch { sheetState.show() } }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = "Sort Tag Albums",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (!hasPermission) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                "To view tags and images,\nplease allow access to your photos.",
+                                textAlign = TextAlign.Center,
                             )
                         }
                     } else {
-                        // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
-                        Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
-                    }
-                    ViewToggle(
-                        onlyTag = onlyTag,
-                        showAllPhotos = showAllPhotos,
-                        onToggle = { tagOnly, allPhotos ->
-                            onlyTag = tagOnly
-                            homeViewModel.setShowAllPhotos(allPhotos)
-                            if (isSelectionMode) {
-                                homeViewModel.setSelectionMode(false)
-                                homeViewModel.resetSelection() // draftRepository 초기화
-                            }
-                        },
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (!hasPermission) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "To view tags and images,\nplease allow access to your photos.",
-                            textAlign = TextAlign.Center,
+                        MainContent(
+                            modifier = Modifier.weight(1f),
+                            onlyTag = onlyTag, // Pass the actual state
+                            showAllPhotos = showAllPhotos, // Pass the actual state
+                            tagItems = allTags, // allTags 전달 (이미 로드됨)
+                            groupedPhotos = groupedPhotos,
+                            navController = navController,
+                            onDeleteClick = { tagId ->
+                                // 삭제 확인 대화상자 띄우기
+                                val tagItem = allTags.find { it.tagId == tagId }
+                                if (tagItem != null) {
+                                    tagToDeleteInfo = Pair(tagItem.tagId, tagItem.tagName)
+                                    showDeleteConfirmationDialog = true
+                                    isDeleteMode = false
+                                }
+                            },
+                            isDeleteMode = isDeleteMode,
+                            onEnterDeleteMode = { isDeleteMode = true },
+                            onExitDeleteMode = { isDeleteMode = false },
+                            isSelectionMode = isSelectionMode,
+                            onEnterSelectionMode = { homeViewModel.setSelectionMode(true) },
+                            selectedItems = selectedPhotos.map { it.photoId }.toSet(),
+                            onItemSelectionToggle = { photoId ->
+                                val photo = allPhotos.find { it.photoId == photoId }
+                                photo?.let { homeViewModel.togglePhoto(it) }
+                            },
+                            homeViewModel = homeViewModel,
+                            allPhotosGridState = allPhotosGridState,
+                            tagAlbumGridState = tagAlbumGridState,
+                            isLoadingPhotos = false,
+                            homeLoadingState = homeLoadingState,
+                            isDataReady = isDataReady,
+                            arePhotosEmpty = arePhotosEmpty,
+                            areTagsEmpty = areTagsEmpty,
                         )
-                    }
-                } else {
-                    MainContent(
-                        modifier = Modifier.weight(1f),
-                        onlyTag = onlyTag, // Pass the actual state
-                        showAllPhotos = showAllPhotos, // Pass the actual state
-                        tagItems = allTags, // allTags 전달 (이미 로드됨)
-                        groupedPhotos = groupedPhotos,
-                        navController = navController,
-                        onDeleteClick = { tagId ->
-                            // 삭제 확인 대화상자 띄우기
-                            val tagItem = allTags.find { it.tagId == tagId }
-                            if (tagItem != null) {
-                                tagToDeleteInfo = Pair(tagItem.tagId, tagItem.tagName)
-                                showDeleteConfirmationDialog = true
-                                isDeleteMode = false
-                            }
-                        },
-                        isDeleteMode = isDeleteMode,
-                        onEnterDeleteMode = { isDeleteMode = true },
-                        onExitDeleteMode = { isDeleteMode = false },
-                        isSelectionMode = isSelectionMode,
-                        onEnterSelectionMode = { homeViewModel.setSelectionMode(true) },
-                        selectedItems = selectedPhotos.map { it.photoId }.toSet(),
-                        onItemSelectionToggle = { photoId ->
-                            val photo = allPhotos.find { it.photoId == photoId }
-                            photo?.let { homeViewModel.togglePhoto(it) }
-                        },
-                        homeViewModel = homeViewModel,
-                        allPhotosGridState = allPhotosGridState,
-                        tagAlbumGridState = tagAlbumGridState,
-                        isLoadingPhotos = false,
-                        homeLoadingState = homeLoadingState,
-                        isDataReady = isDataReady,
-                        arePhotosEmpty = arePhotosEmpty,
-                        areTagsEmpty = areTagsEmpty,
-                    )
 
-                    // 페이지네이션 로직을 MainContent 밖으로 이동
-                    if (showAllPhotos) {
-                        LaunchedEffect(allPhotosGridState, isLoadingMorePhotos) {
-                            // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
-                            if (!isLoadingMorePhotos) {
-                                snapshotFlow {
-                                    allPhotosGridState.layoutInfo.visibleItemsInfo
-                                        .lastOrNull()
-                                        ?.index
-                                }.distinctUntilChanged()
-                                    .debounce(150)
-                                    .collect { lastVisibleIndex ->
-                                        val totalItemCount = allPhotosGridState.layoutInfo.totalItemsCount
-                                        if (lastVisibleIndex != null && totalItemCount > 0) {
-                                            val remainingItems =
-                                                totalItemCount - (lastVisibleIndex + 1)
-                                            // 3열 그리드 기준, 약 11줄(33개) 미만일 때 로드
-                                            if (remainingItems < 33) {
-                                                homeViewModel.loadMorePhotos()
+                        // 페이지네이션 로직을 MainContent 밖으로 이동
+                        if (showAllPhotos) {
+                            LaunchedEffect(allPhotosGridState, isLoadingMorePhotos) {
+                                // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
+                                if (!isLoadingMorePhotos) {
+                                    snapshotFlow {
+                                        allPhotosGridState.layoutInfo.visibleItemsInfo
+                                            .lastOrNull()
+                                            ?.index
+                                    }.distinctUntilChanged()
+                                        .debounce(150)
+                                        .collect { lastVisibleIndex ->
+                                            val totalItemCount = allPhotosGridState.layoutInfo.totalItemsCount
+                                            if (lastVisibleIndex != null && totalItemCount > 0) {
+                                                val remainingItems =
+                                                    totalItemCount - (lastVisibleIndex + 1)
+                                                // 3열 그리드 기준, 약 11줄(33개) 미만일 때 로드
+                                                if (remainingItems < 33) {
+                                                    homeViewModel.loadMorePhotos()
+                                                }
                                             }
                                         }
-                                    }
+                                }
                             }
+                        }
+                    }
+
+                    if (showAllPhotos && isLoadingMorePhotos) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(32.dp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                    AnimatedVisibility(visible = bannerVisible) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            WarningBanner(
+                                title = "Uploading...🚀",
+                                message = "Photos are uploading in the background.",
+                                onActionClick = { },
+                                showActionButton = false,
+                                backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
+                                icon = Icons.Default.Upload,
+                                showDismissButton = true,
+                                onDismiss = {
+                                    isUploadBannerDismissed = true
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                    AnimatedVisibility(visible = showErrorBanner && errorBannerMessage != null) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            WarningBanner(
+                                title = errorBannerTitle,
+                                message = errorBannerMessage!!,
+                                onActionClick = {
+                                    // 재시도 로직
+                                    if (hasPermission) {
+                                        homeViewModel.loadServerTags()
+                                        homeViewModel.loadAllPhotos()
+                                    }
+                                    showErrorBanner = false
+                                },
+                                onDismiss = { showErrorBanner = false },
+                                showActionButton = true,
+                                showDismissButton = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
                 }
 
-                if (showAllPhotos && isLoadingMorePhotos) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        contentAlignment = Alignment.Center,
+                // 검색 기록 드롭다운 (오버레이)
+                AnimatedVisibility(
+                    visible = showSearchHistoryDropdown && searchHistory.isNotEmpty(),
+                    modifier = Modifier
+                        // Row의 높이만큼 아래에 배치
+                        .padding(top = with(LocalDensity.current) { searchBarRowHeight.toDp() })
+                        // Column의 padding(horizontal = 16.dp)와 동일하게 맞춤
+                        .padding(horizontal = 16.dp)
+                        .zIndex(1f) // 다른 UI 요소들 위에 오도록 z-index 설정
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // 필터 버튼(48dp) + 간격(8dp) 만큼 오른쪽 패딩을 줘서 너비 맞춤
+                            .padding(end = 48.dp + 8.dp),
+                        // 검색창과 붙어 보이도록 아래쪽 모서리만 둥글게
+                        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
+                        shadowElevation = 8.dp,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(32.dp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-                AnimatedVisibility(visible = bannerVisible) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        WarningBanner(
-                            title = "Uploading...🚀",
-                            message = "Photos are uploading in the background.",
-                            onActionClick = { },
-                            showActionButton = false,
-                            backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
-                            icon = Icons.Default.Upload,
-                            showDismissButton = true,
-                            onDismiss = {
-                                isUploadBannerDismissed = true
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-                AnimatedVisibility(visible = showErrorBanner && errorBannerMessage != null) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        WarningBanner(
-                            title = errorBannerTitle,
-                            message = errorBannerMessage!!,
-                            onActionClick = {
-                                // 재시도 로직
-                                if (hasPermission) {
-                                    homeViewModel.loadServerTags()
-                                    homeViewModel.loadAllPhotos()
+                        Box(modifier = Modifier.heightIn(max = 200.dp)) {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(searchHistory, key = { it }) { query ->
+                                    SearchHistoryItem(
+                                        query = query,
+                                        allTags = allTags,
+                                        onHistoryClick = { clickedQuery ->
+                                            // (a) 쿼리 문자열을 SearchContentElement 리스트로 파싱
+                                            val newElements = SearchWorker.parseQueryToElements(clickedQuery, allTags)
+
+                                            // (b) ChipSearchBar의 현재 상태 초기화
+                                            contentItems.clear()
+                                            textStates.clear()
+                                            focusRequesters.clear()
+                                            bringIntoViewRequesters.clear()
+
+                                            // (c) 파싱된 Element로 ChipSearchBar 상태 복원
+                                            newElements.forEach { element ->
+                                                contentItems.add(element)
+                                                if (element is SearchContentElement.Text) {
+                                                    val tfv = TextFieldValue("\u200B" + element.text, TextRange(element.text.length + 1))
+                                                    textStates[element.id] = tfv
+                                                    focusRequesters[element.id] = FocusRequester()
+                                                    bringIntoViewRequesters[element.id] = BringIntoViewRequester()
+                                                }
+                                            }
+
+                                            // (d) 포커스 해제
+                                            focusManager.clearFocus()
+
+                                            // (e) ★ 즉시 검색 실행 ★
+                                            performSearch()
+                                        },
+                                        onHistoryDelete = {
+                                            searchViewModel.removeSearchHistory(it)
+                                        }
+                                    )
                                 }
-                                showErrorBanner = false
-                            },
-                            onDismiss = { showErrorBanner = false },
-                            showActionButton = true,
-                            showDismissButton = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
                     }
-                }
-            }
+                } // End AnimatedVisibility
+            } // End Box (Overlay)
         }
     }
 
