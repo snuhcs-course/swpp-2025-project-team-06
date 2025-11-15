@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,6 +64,7 @@ sealed interface TagVariant {
 
 /**
  * 공통 컨테이너 - 배경/모서리/패딩/정렬
+ * 표준 높이: 32dp (상하 패딩 4dp + 텍스트 영역 24dp + 상하 패딩 4dp)
  */
 @Composable
 private fun TagContainer(
@@ -75,7 +77,7 @@ private fun TagContainer(
             modifier
                 .height(32.dp)
                 .background(color = color, shape = RoundedCornerShape(50))
-                .padding(horizontal = 12.dp), // vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -109,7 +111,7 @@ fun TagChip(
                     onClick = variant.onDismiss,
                     modifier = Modifier.size(16.dp),
                 ) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Dismiss Tag")
+                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Dismiss Tag")
                 }
             }
 
@@ -119,7 +121,7 @@ fun TagChip(
                         onClick = variant.onDismiss,
                         modifier = Modifier.size(16.dp),
                     ) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Dismiss Tag")
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Dismiss Tag")
                     }
                 }
             }
@@ -173,6 +175,7 @@ fun tagRecommended(
 
 /**
  * 태그와 개수를 함께 보여주는 컴포넌트 (MyTags 화면용)
+ * 롱프레스 시 개별 수정 모드로 확장되며, 가로 길이 변화를 최소화하고 카운트를 숨김
  */
 @Composable
 fun TagChipWithCount(
@@ -185,16 +188,19 @@ fun TagChipWithCount(
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    showCheckbox: Boolean = false,
+    isChecked: Boolean = false,
 ) {
     Row(
         modifier =
             modifier
-                .height(48.dp)
-                .background(color = color, shape = RoundedCornerShape(24.dp))
+                .height(32.dp)
+                .background(color = color, shape = RoundedCornerShape(16.dp))
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = {
-                            if (!isEditMode) {
+                            // Allow click when in checkbox mode (showCheckbox) or when not in individual edit mode
+                            if (showCheckbox || !isEditMode) {
                                 onClick()
                             }
                         },
@@ -202,49 +208,84 @@ fun TagChipWithCount(
                             onLongClick?.invoke()
                         },
                     )
-                }.padding(horizontal = 20.dp, vertical = 10.dp),
+                }.padding(
+                    horizontal = if (isEditMode) 6.dp else 12.dp,
+                    vertical = 4.dp,
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Edit 모드일 때 연필 아이콘을 가장 앞에 표시
+        // 왼쪽: Edit 모드일 때 연필 아이콘 표시 (수정/확인)
         if (isEditMode && onEdit != null) {
             IconButton(
                 onClick = onEdit,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Edit Tag",
                     tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
         }
 
         Text(
             text = tagName,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onPrimary,
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = count.toString(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-        )
 
-        // Edit 모드일 때 X 아이콘을 뒤에 표시
+        // Edit 모드가 아닐 때만 카운트 표시
+        if (!isEditMode) {
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // showCheckbox가 true면 체크박스, 아니면 카운트
+            if (showCheckbox) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isChecked) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+                                },
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isChecked) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Checked",
+                            tint = color,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                )
+            }
+        }
+
+        // 오른쪽: Edit 모드일 때 휴지통 아이콘 표시 (삭제/취소)
         if (isEditMode && onDelete != null) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Default.Close,
+                    imageVector = Icons.Default.Delete,
                     contentDescription = "Delete Tag",
                     tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -262,35 +303,52 @@ fun StoryTagChip(
     Box(
         modifier =
             modifier
-                .clickable(enabled = enabled) { onClick() }
-                .alpha(if (enabled) 1f else 0.6f),
-        // 전체 칩 클릭 가능하게
-        contentAlignment = Alignment.CenterStart, // 기본 칩은 왼쪽부터 배치되니까 큰 의미는 없음
+                .clickable(enabled = enabled) { onClick() },
+        contentAlignment = Alignment.CenterStart,
     ) {
-        // 1) 원래 tagChip 그대로 그린다 (스타일 건드리지 않음)
-        TagChip(
-            text = text,
-            variant = TagVariant.Plain,
-            modifier = Modifier, // 여기선 아무 커스텀 x
-        )
+        // 1) TagChip with dynamic color based on selection and enabled state
+        val backgroundColor =
+            when {
+                isSelected -> MaterialTheme.colorScheme.primary
+                !enabled -> MaterialTheme.colorScheme.surfaceVariant
+                else -> MaterialTheme.colorScheme.primaryContainer
+            }
+
+        val textColor =
+            when {
+                isSelected -> MaterialTheme.colorScheme.onPrimary
+                !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                else -> MaterialTheme.colorScheme.onSurface
+            }
+
+        TagContainer(
+            modifier = Modifier,
+            color = backgroundColor,
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = textColor,
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        }
 
         // 2) 선택된 경우에만 우상단 체크 뱃지 오버레이
         if (isSelected) {
             Box(
                 modifier =
                     Modifier
-                        .align(Alignment.TopEnd) // tagChip의 영역 기준 우상단
-                        .offset(x = 4.dp, y = (-4).dp) // 살짝 밖으로 튀어나오게 보이게
+                        .align(Alignment.TopEnd)
+                        .offset(x = 4.dp, y = (-4).dp)
                         .size(18.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF4CAF50)),
-                // 초록 동그라미
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = Color.White,
                     modifier = Modifier.size(12.dp),
                 )
             }
@@ -313,16 +371,17 @@ fun CustomTagChip(
         modifier = modifier,
     ) { expanded ->
         if (!expanded) {
-            // Collapsed state: Show only "+"
+            // Collapsed state: Show only "+" - 32dp height
             Box(
                 modifier =
                     Modifier
+                        .height(32.dp)
                         .clip(RoundedCornerShape(50))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable {
                             isExpanded = true
                             onExpanded?.invoke()
-                        }.padding(horizontal = 12.dp, vertical = 8.dp),
+                        }.padding(horizontal = 12.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -332,27 +391,37 @@ fun CustomTagChip(
                 )
             }
         } else {
-            // Expanded state: Show X, TextField, and Checkmark
+            // Expanded state: 왼쪽 확인, 오른쪽 취소 - maintain 32dp height
             Row(
                 modifier =
                     Modifier
+                        .height(32.dp)
                         .clip(RoundedCornerShape(50))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Cancel button (X)
+                // 왼쪽: Confirm button (Checkmark)
                 IconButton(
                     onClick = {
-                        isExpanded = false
-                        tagText = ""
+                        if (tagText.isNotBlank()) {
+                            onTagAdded(tagText.trim())
+                            isExpanded = false
+                            tagText = ""
+                        }
                     },
                     modifier = Modifier.size(24.dp),
+                    enabled = tagText.isNotBlank(),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cancel",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Confirm",
+                        tint =
+                            if (tagText.isNotBlank()) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            },
                         modifier = Modifier.size(16.dp),
                     )
                 }
@@ -387,27 +456,18 @@ fun CustomTagChip(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Confirm button (Checkmark)
+                // 오른쪽: Cancel button (Close icon)
                 IconButton(
                     onClick = {
-                        if (tagText.isNotBlank()) {
-                            onTagAdded(tagText.trim())
-                            isExpanded = false
-                            tagText = ""
-                        }
+                        isExpanded = false
+                        tagText = ""
                     },
                     modifier = Modifier.size(24.dp),
-                    enabled = tagText.isNotBlank(),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Confirm",
-                        tint =
-                            if (tagText.isNotBlank()) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                            },
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cancel",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp),
                     )
                 }
@@ -422,60 +482,8 @@ fun ConfirmableRecommendedTag(
     onConfirm: (String) -> Unit,
     color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-
-    AnimatedContent(
-        targetState = isExpanded,
-        label = "confirmable_recommended_tag",
-    ) { expanded ->
-        if (expanded) {
-            // Expanded state with confirm/dismiss buttons
-            Row(
-                modifier =
-                    Modifier
-                        .height(32.dp)
-                        .background(
-                            color = color,
-                            shape = RoundedCornerShape(50),
-                        ).padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(
-                    onClick = { isExpanded = false },
-                    modifier = Modifier.size(24.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Dismiss Recommended Tag",
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-                Text(
-                    text = tagName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                )
-                IconButton(
-                    onClick = {
-                        onConfirm(tagName)
-                        isExpanded = false
-                    },
-                    modifier = Modifier.size(24.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Confirm Recommended Tag",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
-        } else {
-            // Collapsed state, looks like a normal recommended tag but is clickable
-            Box(modifier = Modifier.clickable { isExpanded = true }) {
-                tagRecommended(text = tagName, color = color)
-            }
-        }
+    // 클릭 시 즉시 추가 (confirm 단계 제거)
+    Box(modifier = Modifier.clickable { onConfirm(tagName) }) {
+        tagRecommended(text = tagName, color = color)
     }
 }

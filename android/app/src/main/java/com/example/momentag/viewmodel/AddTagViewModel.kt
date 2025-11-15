@@ -89,7 +89,7 @@ class AddTagViewModel(
         }
 
         if (tagName.value.isBlank() || selectedPhotos.value.isEmpty()) {
-            _saveState.value = SaveState.Error("Tag cannot be empty and photos must be selected")
+            _saveState.value = SaveState.Error("Please enter a tag name and select at least one photo")
             return
         }
 
@@ -104,7 +104,7 @@ class AddTagViewModel(
                     tagId = tagResult.data.id
                 }
                 else -> {
-                    _saveState.value = SaveState.Error("Error creating tag")
+                    _saveState.value = SaveState.Error("Couldn't create tag. Please try again")
                     return@launch
                 }
             }
@@ -142,11 +142,11 @@ class AddTagViewModel(
 
     private fun getErrorMessage(result: RemoteRepository.Result<*>): String =
         when (result) {
-            is RemoteRepository.Result.BadRequest -> "Bad Request: ${result.message}"
-            is RemoteRepository.Result.Unauthorized -> "Login error: ${result.message}"
-            is RemoteRepository.Result.Error -> "Server Error (${result.code}): ${result.message}"
-            is RemoteRepository.Result.Exception -> "Network Error: ${result.e.message}"
-            is RemoteRepository.Result.Success -> "An unknown error occurred (Success was passed to error handler)"
-            is RemoteRepository.Result.NetworkError -> "Network Error: ${result.message}"
+            is RemoteRepository.Result.BadRequest -> "Something went wrong. Please try again"
+            is RemoteRepository.Result.Unauthorized -> "Your session expired. Please sign in again"
+            is RemoteRepository.Result.Error -> "Something went wrong. Please try again"
+            is RemoteRepository.Result.Exception -> "Connection lost. Check your internet and try again"
+            is RemoteRepository.Result.Success -> "Something went wrong. Please try again"
+            is RemoteRepository.Result.NetworkError -> "Connection lost. Check your internet and try again"
         }
 }

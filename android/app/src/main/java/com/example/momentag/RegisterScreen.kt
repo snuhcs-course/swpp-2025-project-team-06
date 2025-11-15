@@ -1,5 +1,6 @@
 package com.example.momentag
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -80,6 +81,12 @@ fun RegisterScreen(navController: NavController) {
     var passwordCheckTouched by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var showErrorBanner by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = true) {
+        navController.navigate(Screen.Login.route) {
+            popUpTo(Screen.Register.route) { inclusive = true }
+        }
+    }
 
     // Email validation helper
     fun isValidEmail(email: String): Boolean =

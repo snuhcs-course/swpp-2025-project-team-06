@@ -38,6 +38,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,6 +93,8 @@ fun SearchResultScreen(
 
     val focusManager = LocalFocusManager.current
 
+    var hasPerformedInitialSearch by rememberSaveable { mutableStateOf(false) }
+
     BackHandler(enabled = isSelectionMode) {
         searchViewModel.setSelectionMode(false)
         searchViewModel.resetSelection()
@@ -117,10 +120,11 @@ fun SearchResultScreen(
     }
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
-    LaunchedEffect(initialQuery) {
-        if (initialQuery.isNotEmpty()) {
+    LaunchedEffect(initialQuery, hasPerformedInitialSearch) {
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
             searchViewModel.onSearchTextChanged(initialQuery)
             searchViewModel.search(initialQuery)
+            hasPerformedInitialSearch = true
         }
     }
 
@@ -258,18 +262,23 @@ fun SearchResultScreen(
             when (tab) {
                 BottomTab.HomeScreen -> {
                     searchViewModel.resetSelection()
-                    navController.navigate(Screen.Home.route)
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
                 BottomTab.SearchResultScreen -> {
-                    // 이미 Search 화면
                 }
                 BottomTab.MyTagsScreen -> {
                     searchViewModel.resetSelection()
-                    navController.navigate(Screen.MyTags.route)
+                    navController.navigate(Screen.MyTags.route) {
+                        popUpTo(Screen.Home.route)
+                    }
                 }
                 BottomTab.StoryScreen -> {
                     searchViewModel.resetSelection()
-                    navController.navigate(Screen.Story.route)
+                    navController.navigate(Screen.Story.route) {
+                        popUpTo(Screen.Home.route)
+                    }
                 }
             }
         },
@@ -486,21 +495,19 @@ private fun SearchResultContent(
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 16.dp),
             ) {
-                CreateTagButton(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(start = 16.dp),
-                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Add Tag with ${selectedPhotos.size}" else "Create Tag",
-                    enabled = !isSelectionMode || selectedPhotos.isNotEmpty(),
-                    onClick = {
-                        if (!isSelectionMode) {
-                            onToggleSelectionMode()
-                        } else if (selectedPhotos.isNotEmpty()) {
+                // Only show CreateTagButton when in selection mode and photos are selected
+                if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                    CreateTagButton(
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(start = 16.dp),
+                        text = "Add Tag (${selectedPhotos.size})",
+                        onClick = {
                             onCreateTagClick()
-                        }
-                    },
-                )
+                        },
+                    )
+                }
 
                 Text(
                     text = "${uiState.results.size} photos total",
