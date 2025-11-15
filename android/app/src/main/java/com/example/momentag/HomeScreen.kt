@@ -671,12 +671,6 @@ fun HomeScreen(navController: NavController) {
                     when (tab) {
                         BottomTab.HomeScreen -> {
                         }
-                        BottomTab.SearchResultScreen -> {
-                            homeViewModel.resetSelection()
-                            navController.navigate(Screen.SearchResult.initialRoute()) {
-                                popUpTo(Screen.Home.route)
-                            }
-                        }
                         BottomTab.MyTagsScreen -> {
                             homeViewModel.resetSelection()
                             navController.navigate(Screen.MyTags.route) {

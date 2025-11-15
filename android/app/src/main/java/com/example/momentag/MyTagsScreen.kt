@@ -343,13 +343,6 @@ fun MyTagsScreen(navController: NavController) {
                                     }
                                 }
 
-                                BottomTab.SearchResultScreen -> {
-                                    myTagsViewModel.clearDraft()
-                                    navController.navigate(Screen.SearchResult.initialRoute()) {
-                                        popUpTo(Screen.Home.route)
-                                    }
-                                }
-
                                 BottomTab.MyTagsScreen -> {
                                 }
 

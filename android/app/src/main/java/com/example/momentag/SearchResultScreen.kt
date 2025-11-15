@@ -89,7 +89,6 @@ fun SearchResultScreen(
     val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
 
     // var isSelectionMode by remember { mutableStateOf(false) }
-    var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
     var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
@@ -273,32 +272,6 @@ fun SearchResultScreen(
             showErrorBanner = false
         },
         navController = navController,
-        currentTab = currentTab,
-        onTabSelected = { tab ->
-            currentTab = tab
-            when (tab) {
-                BottomTab.HomeScreen -> {
-                    searchViewModel.resetSelection()
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-                BottomTab.SearchResultScreen -> {
-                }
-                BottomTab.MyTagsScreen -> {
-                    searchViewModel.resetSelection()
-                    navController.navigate(Screen.MyTags.route) {
-                        popUpTo(Screen.Home.route)
-                    }
-                }
-                BottomTab.StoryScreen -> {
-                    searchViewModel.resetSelection()
-                    navController.navigate(Screen.Story.route) {
-                        popUpTo(Screen.Home.route)
-                    }
-                }
-            }
-        },
         topBarActions =
             if (uiState is SearchUiState.Success) {
                 topBarActions
@@ -339,8 +312,6 @@ fun SearchResultScreenUi(
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
-    currentTab: BottomTab,
-    onTabSelected: (BottomTab) -> Unit,
     topBarActions: @Composable () -> Unit = {},
     searchHistory: List<String>,
     onHistoryClick: (String) -> Unit,
@@ -358,20 +329,6 @@ fun SearchResultScreenUi(
                 showBackButton = true,
                 onBackClick = onBackClick,
                 actions = topBarActions,
-            )
-        },
-        bottomBar = {
-            BottomNavBar(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            WindowInsets.navigationBars
-                                .only(WindowInsetsSides.Bottom)
-                                .asPaddingValues(),
-                        ),
-                currentTab = currentTab,
-                onTabSelected = onTabSelected,
             )
         },
     ) { paddingValues ->
