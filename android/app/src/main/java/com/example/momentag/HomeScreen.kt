@@ -89,9 +89,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -114,9 +112,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -131,7 +127,6 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
-import com.example.momentag.ui.components.SearchContentElement
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
@@ -148,10 +143,8 @@ import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -202,14 +195,14 @@ fun HomeScreen(navController: NavController) {
 
     val topSpacerHeight = 8.dp
 
-    val textStates = searchViewModel.textStates // remember { mutableStateMapOf<String, TextFieldValue>() }
-    val contentItems = searchViewModel.contentItems // remember { mutableStateListOf<SearchContentElement>() }
-    val focusedElementId by searchViewModel.focusedElementId //by remember { mutableStateOf<String?>(null) }
+    val textStates = searchViewModel.textStates
+    val contentItems = searchViewModel.contentItems
+    val focusedElementId by searchViewModel.focusedElementId
     val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
     val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
-    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss // by remember { mutableStateOf(false) }
+    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
 
     val currentFocusedElementId = rememberUpdatedState(focusedElementId)
     val currentFocusManager = rememberUpdatedState(focusManager)
@@ -237,21 +230,6 @@ fun HomeScreen(navController: NavController) {
             initialFirstVisibleItemScrollOffset = tagAlbumInitialOffset,
         )
 
-//    val showSearchHistoryDropdown by remember(focusedElementId, contentItems, textStates[focusedElementId]) {
-//        derivedStateOf {
-//            val isFocused = focusedElementId != null
-//            val isOnlyOneElement = contentItems.size == 1
-//            val firstElement = contentItems.firstOrNull()
-//
-//            if (isFocused && isOnlyOneElement && firstElement is SearchContentElement.Text) {
-//                val currentText = textStates[firstElement.id]?.text ?: ""
-//                currentText.isEmpty() || currentText == "\u200B"
-//            } else {
-//                false
-//            }
-//        }
-//    }
-
     val showSearchHistoryDropdown by searchViewModel.showSearchHistoryDropdown.collectAsState()
 
     LaunchedEffect(allPhotosGridState) {
@@ -278,54 +256,22 @@ fun HomeScreen(navController: NavController) {
             }
     }
 
-//    fun requestFocusById(id: String) {
-//        scope.launch {
-//            focusRequesters[id]?.requestFocus()
-//        }
-//    }
-
-//    fun findNextTextElementId(startIndex: Int): String? {
-//        if (startIndex >= contentItems.size - 1) return null
-//        for (i in (startIndex + 1) until contentItems.size) {
-//            val item = contentItems.getOrNull(i)
-//            if (item is SearchContentElement.Text) {
-//                return item.id
-//            }
-//        }
-//        return null
-//    }
-
-//    // ViewModel의 'requestFocus' 신호를 구독합니다.
-//    LaunchedEffect(searchViewModel.requestFocus) {
-//        searchViewModel.requestFocus.collect { id ->
-//            focusRequesters[id]?.requestFocus()
-//        }
-//    }
-
-
     LaunchedEffect(searchViewModel.requestFocus) {
         searchViewModel.requestFocus.collect { id ->
-            // 1. 커서를 즉시 숨깁니다
             hideCursor = true
 
-            // 2. ✨ 레이스 컨디션 해결:
-            //    'focusRequesters[id]' (값) 대신
-            //    'focusRequesters.containsKey(id)' (키의 존재)를 감시합니다.
             try {
                 snapshotFlow { focusRequesters.containsKey(id) }
-                    .filter { it == true } // 맵에 해당 id가 "추가"될 때까지 기다림
+                    .filter { it == true }
                     .first()
             } catch (e: Exception) {
-                // (예외 처리)
                 hideCursor = false
                 searchViewModel.resetIgnoreFocusLossFlag()
                 return@collect
             }
 
-            // 3. UI에 연결될 시간을 한 프레임 줍니다.
             awaitFrame()
 
-            // 4. 스크롤 로직
             val index = contentItems.indexOfFirst { it.id == id }
             if (index != -1) {
                 val visibleItemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
@@ -345,16 +291,13 @@ fun HomeScreen(navController: NavController) {
                 }
             }
 
-            // 5. 실제 포커스 요청 (100% 성공)
             focusRequesters[id]?.requestFocus()
 
-            // 6. 커서를 다시 보여줍니다.
             hideCursor = false
             searchViewModel.resetIgnoreFocusLossFlag()
         }
     }
 
-    // ViewModel의 'bringIntoView' 신호를 구독합니다.
     LaunchedEffect(searchViewModel.bringIntoView) {
         searchViewModel.bringIntoView.collect { id ->
             bringIntoViewRequesters[id]?.bringIntoView()
@@ -372,21 +315,7 @@ fun HomeScreen(navController: NavController) {
         }
 
         previousImeBottom = imeBottom
-
-        // ❗️이전 코드에 있던 `if (imeBottom == previousImeBottom)` 블록을
-        // 완전히 제거해야 합니다.
-        // 이 블록이 `ignoreFocusLoss` 플래그를 너무 일찍 리셋시켜
-        // 포커스 상실(clearFocus())을 유발했습니다.
     }
-//    LaunchedEffect(Unit) {
-//        if (contentItems.isEmpty()) {
-//            val initialId = UUID.randomUUID().toString()
-//            contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
-//            textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
-//            focusRequesters[initialId] = FocusRequester()
-//            bringIntoViewRequesters[initialId] = BringIntoViewRequester()
-//        }
-//    }
 
     LaunchedEffect(contentItems.size) {
         val currentIds = contentItems.map { it.id }.toSet()
@@ -408,108 +337,7 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    // TODO : prevent text after a tag chip from shifting left.
-//    LaunchedEffect(focusedElementId) {
-//        hideCursor = true
-//        val id =
-//            focusedElementId ?: run {
-//                searchViewModel.resetIgnoreFocusLossFlag()
-//                return@LaunchedEffect
-//            }
-//
-//        snapshotFlow { focusRequesters[id] }
-//            .filterNotNull()
-//            .first()
-//
-//        awaitFrame()
-//
-//        val index = contentItems.indexOfFirst { it.id == id }
-//
-//        if (index == -1) {
-//            hideCursor = false
-//            return@LaunchedEffect
-//        }
-//
-//        val visibleItemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
-//
-//        val isFullyVisible =
-//            if (visibleItemInfo != null) {
-//                val viewportEnd = listState.layoutInfo.viewportEndOffset
-//                val itemEnd = visibleItemInfo.offset + visibleItemInfo.size
-//                itemEnd <= viewportEnd + 1
-//            } else {
-//                false
-//            }
-//
-//        if (!isFullyVisible) {
-//            listState.scrollToItem(index, searchBarWidth - 10) // TODO : modify this
-//        } else {
-//            bringIntoViewRequesters[id]?.bringIntoView()
-//        }
-//
-////        focusRequesters[id]?.requestFocus() //
-//
-//        hideCursor = false
-//        searchViewModel.resetIgnoreFocusLossFlag()
-//    }
-
-//    val (isTagSearch, tagQuery) =
-//        remember(focusedElementId, textStates[focusedElementId]) {
-//            val currentInput = textStates[focusedElementId] ?: TextFieldValue()
-//
-//            val cursorPosition = currentInput.selection.start
-//            if (cursorPosition == 0) {
-//                Pair(false, "")
-//            } else {
-//                val textUpToCursor = currentInput.text.substring(0, cursorPosition)
-//                val lastHashIndex = textUpToCursor.lastIndexOf('#')
-//
-//                if (lastHashIndex == -1) {
-//                    Pair(false, "") // '#' 없음
-//                } else {
-//                    // '#' 뒤에 띄어쓰기가 있는지 확인
-//                    val potentialTag = textUpToCursor.substring(lastHashIndex)
-//                    if (" " in potentialTag) {
-//                        Pair(false, "") // '#' 뒤에 띄어쓰기 있음
-//                    } else {
-//                        Pair(true, potentialTag.substring(1)) // '#abc' -> "abc"
-//                    }
-//                }
-//            }
-//        }
-//
-//    val tagSuggestions by remember(isTagSearch, tagQuery, allTags) {
-//        derivedStateOf {
-//            if (isTagSearch) {
-//                allTags.filter {
-//                    it.tagName.contains(tagQuery, ignoreCase = true)
-//                }
-//            } else {
-//                emptyList()
-//            }
-//        }
-//    }
-
     val tagSuggestions by searchViewModel.tagSuggestions.collectAsState()
-
-//    val performSearch = {
-//        focusManager.clearFocus()
-//        val finalQuery =
-//            contentItems
-//                .joinToString(separator = "") {
-//                    when (it) {
-//                        is SearchContentElement.Text -> it.text
-//                        is SearchContentElement.Chip -> "{${it.tag.tagName}}"
-//                    }
-//                }.trim()
-//                .replace(Regex("\\s+"), " ")
-//
-//        if (finalQuery.isNotEmpty()) {
-//            searchViewModel.onSearchTextChanged(finalQuery)
-//            searchViewModel.search(finalQuery)
-//            navController.navigate(Screen.SearchResult.createRoute(finalQuery))
-//        }
-//    }
 
     val performSearch = {
         focusManager.clearFocus()
@@ -1179,28 +1007,6 @@ fun HomeScreen(navController: NavController) {
                                         focusManager.clearFocus()
                                         performSearch()
                                     },
-//                                    onHistoryClick = { clickedQuery ->
-//                                        val newElements = searchViewModel.parseQueryToElements(clickedQuery, allTags)
-//
-//                                        contentItems.clear()
-//                                        textStates.clear()
-//                                        focusRequesters.clear()
-//                                        bringIntoViewRequesters.clear()
-//
-//                                        newElements.forEach { element ->
-//                                            contentItems.add(element)
-//                                            if (element is SearchContentElement.Text) {
-//                                                val tfv = TextFieldValue("\u200B" + element.text, TextRange(element.text.length + 1))
-//                                                textStates[element.id] = tfv
-//                                                focusRequesters[element.id] = FocusRequester()
-//                                                bringIntoViewRequesters[element.id] = BringIntoViewRequester()
-//                                            }
-//                                        }
-//
-//                                        focusManager.clearFocus()
-//
-//                                        performSearch()
-//                                    },
                                     onHistoryDelete = {
                                         searchViewModel.removeSearchHistory(it)
                                     },

@@ -1,14 +1,9 @@
 package com.example.momentag.viewmodel
 
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
@@ -25,7 +20,6 @@ import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.repository.SearchRepository
 import com.example.momentag.repository.TokenRepository
 import com.example.momentag.ui.components.SearchContentElement
-import com.example.momentag.viewmodel.HomeViewModel.HomeLoadingState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -70,7 +64,6 @@ class SearchViewModel(
     private val _isSelectionMode = MutableStateFlow(false)
     val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
 
-    // TokenRepository의 로그인 상태 Flow 구독
     private val isLoggedInFlow = tokenRepository.isLoggedIn
 
     init {
@@ -298,11 +291,9 @@ class SearchViewModel(
     private val _ignoreFocusLoss = mutableStateOf(false)
     val ignoreFocusLoss: androidx.compose.runtime.State<Boolean> = _ignoreFocusLoss
 
-    // "이 ID로 포커스를 요청하라"는 신호
     private val _requestFocus = MutableSharedFlow<String>()
     val requestFocus = _requestFocus.asSharedFlow()
 
-    // "이 ID를 화면에 보이게 하라"는 신호
     private val _bringIntoView = MutableSharedFlow<String>()
     val bringIntoView = _bringIntoView.asSharedFlow()
 
@@ -317,7 +308,7 @@ class SearchViewModel(
     private val currentTagQuery = snapshotFlow {
         val id = focusedElementId.value
         if (id == null) {
-            Pair(false, "") // 포커스가 없으면 태그 검색 아님
+            Pair(false, "")
         } else {
             val currentInput = textStates[id] ?: TextFieldValue()
             val cursorPosition = currentInput.selection.start
@@ -341,7 +332,7 @@ class SearchViewModel(
         }
     }
 
-    // 2. Composable에 노출할 최종 'tagSuggestions' StateFlow
+    // Composable에 노출할 최종 'tagSuggestions' StateFlow
     val tagSuggestions: StateFlow<List<TagItem>> = currentTagQuery
         .combine(_tagLoadingState) { (isTagSearch, tagQuery), tagState ->
 
@@ -351,7 +342,6 @@ class SearchViewModel(
                 emptyList()
             }
 
-            // 3. 기존 로직은 동일합니다.
             if (isTagSearch) {
                 allTags.filter {
                     it.tagName.contains(tagQuery, ignoreCase = true)
@@ -419,8 +409,6 @@ class SearchViewModel(
     }
 
     fun onTextChange(id: String, newValue: TextFieldValue) {
-        // 1. scope.launch { bringIntoView... } -> '신호'로 변경
-        //    (Composable이 이 신호를 받고 bringIntoView를 실행할 거예요)
         viewModelScope.launch {
             _bringIntoView.emit(id)
         }
@@ -448,7 +436,6 @@ class SearchViewModel(
             val currentIndex = contentItems.indexOfFirst { it.id == id }
 
             if (currentIndex == -1) {
-                // 이미 삭제된 아이템에 대한 onTextChange 이벤트(재진입 호출)이므로 무시합니다.
                 return
             }
 
@@ -485,13 +472,12 @@ class SearchViewModel(
                         )
                     textStates[textA.id] = newTfv
 
-                    // 2. requestFocusById(textA.id) -> '신호'로 변경
                     viewModelScope.launch {
                         _requestFocus.emit(textA.id)
                     }
                 } else { // 1a-2. [ChipA] [ChipB] [TextC] 또는 [Start] [ChipB] [TextC] -> [ChipA] [TextC]
                     contentItems.removeAt(currentIndex - 1)
-                    // 3. requestFocusById(id) -> '신호'로 변경
+
                     viewModelScope.launch {
                         _requestFocus.emit(id)
                     }
@@ -512,7 +498,6 @@ class SearchViewModel(
                     )
                 textStates[textA.id] = newTfv
 
-                // 4. requestFocusById(textA.id) -> '신호'로 변경
                 viewModelScope.launch {
                     _requestFocus.emit(textA.id)
                 }
@@ -533,6 +518,7 @@ class SearchViewModel(
                     ),
                 )
             }
+
         val finalSelection =
             if (selection.start == 0 && selection.end == 0) {
                 TextRange(1)
@@ -552,12 +538,10 @@ class SearchViewModel(
     }
 
     fun addTagFromSuggestion(tag: TagItem) {
-        // 1. ignoreFocusLoss를 ViewModel에서 관리
         _ignoreFocusLoss.value = true
 
         if (focusedElementId == null) return
 
-//        val currentId = focusedElementId!!
         val currentId = focusedElementId.value ?: return
 
         val currentIndex = contentItems.indexOfFirst { it.id == currentId }
@@ -592,10 +576,6 @@ class SearchViewModel(
 
             // 새 텍스트 필드 상태 설정 (커서는 1)
             textStates[newTextId] = TextFieldValue("\u200B" + succeedingText, TextRange(1))
-
-            // 2. UI 객체 생성 코드는 모두 삭제 (LaunchedEffect(contentItems.size)가 처리)
-            // focusRequesters[newTextId] = FocusRequester() <-- 삭제
-            // bringIntoViewRequesters[newTextId] = BringIntoViewRequester() <-- 삭제
 
             // 3. 포커스 상태 변경
             _focusedElementId.value = newTextId
@@ -663,21 +643,21 @@ class SearchViewModel(
         )
 
     fun selectHistoryItem(query: String) {
-        // 1. 현재 로드된 태그 목록을 가져옵니다 (tagSuggestions에서 썼던 방식)
+        // 현재 로드된 태그 목록을 가져옵니다 (tagSuggestions에서 썼던 방식)
         val allTags = if (_tagLoadingState.value is TagLoadingState.Success) {
             (_tagLoadingState.value as TagLoadingState.Success).tags
         } else {
             emptyList()
         }
 
-        // 2. ViewModel에 있는 parseQueryToElements 함수를 사용합니다.
+        // ViewModel에 있는 parseQueryToElements 함수를 사용합니다.
         val newElements = parseQueryToElements(query, allTags)
 
-        // 3. 기존 검색창 상태를 모두 비웁니다.
+        // 기존 검색창 상태를 모두 비웁니다.
         contentItems.clear()
         textStates.clear()
 
-        // 4. 새 쿼리 아이템들로 검색창 상태를 채웁니다.
+        // 새 쿼리 아이템들로 검색창 상태를 채웁니다.
         newElements.forEach { element ->
             contentItems.add(element)
             if (element is SearchContentElement.Text) {
