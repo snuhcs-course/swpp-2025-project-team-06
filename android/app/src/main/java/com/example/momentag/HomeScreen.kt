@@ -135,27 +135,23 @@ import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.android.awaitFrame
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.worker.SearchWorker
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -203,6 +199,8 @@ fun HomeScreen(navController: NavController) {
     val listState = rememberLazyListState()
 
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
+
+    val topSpacerHeight = 8.dp
 
     val textStates = remember { mutableStateMapOf<String, TextFieldValue>() }
     val contentItems = remember { mutableStateListOf<SearchContentElement>() }
@@ -416,6 +414,8 @@ fun HomeScreen(navController: NavController) {
                 .replace(Regex("\\s+"), " ")
 
         if (finalQuery.isNotEmpty()) {
+            searchViewModel.onSearchTextChanged(finalQuery)
+            searchViewModel.search(finalQuery)
             navController.navigate(Screen.SearchResult.createRoute(finalQuery))
         }
     }
@@ -788,7 +788,7 @@ fun HomeScreen(navController: NavController) {
                                 isDeleteMode = false
                             },
                 ) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(topSpacerHeight))
 
                     // Search Bar with Filter Button
                     Row(
@@ -1242,6 +1242,8 @@ fun HomeScreen(navController: NavController) {
                 // 검색 기록 드롭다운 (오버레이)
                 AnimatedVisibility(
                     visible = showSearchHistoryDropdown && searchHistory.isNotEmpty(),
+                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
                     modifier = Modifier
                         // Row의 높이(searchBarRowHeight)만큼 Y축으로 '이동'시킵니다.
                         .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() })
@@ -1256,54 +1258,52 @@ fun HomeScreen(navController: NavController) {
                             .padding(end = 48.dp + 8.dp),
                         // 검색창과 붙어 보이도록 아래쪽 모서리만 둥글게
                         shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-                        shadowElevation = 8.dp,
+//                        shadowElevation = 8.dp,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
-                        Box(modifier = Modifier.heightIn(max = 200.dp)) {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                items(searchHistory, key = { it }) { query ->
-                                    SearchHistoryItem(
-                                        query = query,
-                                        allTags = allTags,
-                                        onHistoryClick = { clickedQuery ->
-                                            // (a) 쿼리 문자열을 SearchContentElement 리스트로 파싱
-                                            val newElements = SearchWorker.parseQueryToElements(clickedQuery, allTags)
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(searchHistory.take(4), key = { it }) { query ->
+                                SearchHistoryItem(
+                                    query = query,
+                                    allTags = allTags,
+                                    onHistoryClick = { clickedQuery ->
+                                        // (a) 쿼리 문자열을 SearchContentElement 리스트로 파싱
+                                        val newElements = SearchWorker.parseQueryToElements(clickedQuery, allTags)
 
-                                            // (b) ChipSearchBar의 현재 상태 초기화
-                                            contentItems.clear()
-                                            textStates.clear()
-                                            focusRequesters.clear()
-                                            bringIntoViewRequesters.clear()
+                                        // (b) ChipSearchBar의 현재 상태 초기화
+                                        contentItems.clear()
+                                        textStates.clear()
+                                        focusRequesters.clear()
+                                        bringIntoViewRequesters.clear()
 
-                                            // (c) 파싱된 Element로 ChipSearchBar 상태 복원
-                                            newElements.forEach { element ->
-                                                contentItems.add(element)
-                                                if (element is SearchContentElement.Text) {
-                                                    val tfv = TextFieldValue("\u200B" + element.text, TextRange(element.text.length + 1))
-                                                    textStates[element.id] = tfv
-                                                    focusRequesters[element.id] = FocusRequester()
-                                                    bringIntoViewRequesters[element.id] = BringIntoViewRequester()
-                                                }
+                                        // (c) 파싱된 Element로 ChipSearchBar 상태 복원
+                                        newElements.forEach { element ->
+                                            contentItems.add(element)
+                                            if (element is SearchContentElement.Text) {
+                                                val tfv = TextFieldValue("\u200B" + element.text, TextRange(element.text.length + 1))
+                                                textStates[element.id] = tfv
+                                                focusRequesters[element.id] = FocusRequester()
+                                                bringIntoViewRequesters[element.id] = BringIntoViewRequester()
                                             }
-
-                                            // (d) 포커스 해제
-                                            focusManager.clearFocus()
-
-                                            // (e) ★ 즉시 검색 실행 ★
-                                            performSearch()
-                                        },
-                                        onHistoryDelete = {
-                                            searchViewModel.removeSearchHistory(it)
                                         }
-                                    )
-                                }
+
+                                        // (d) 포커스 해제
+                                        focusManager.clearFocus()
+
+                                        // (e) ★ 즉시 검색 실행 ★
+                                        performSearch()
+                                    },
+                                    onHistoryDelete = {
+                                        searchViewModel.removeSearchHistory(it)
+                                    }
+                                )
                             }
                         }
                     }
-                } // End AnimatedVisibility
-            } // End Box (Overlay)
+                }
+            }
         }
     }
 
