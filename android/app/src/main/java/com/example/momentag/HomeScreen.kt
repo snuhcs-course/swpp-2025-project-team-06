@@ -152,6 +152,8 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.layout.onGloballyPositioned
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.worker.SearchWorker
 
@@ -790,7 +792,12 @@ fun HomeScreen(navController: NavController) {
 
                     // Search Bar with Filter Button
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { layoutCoordinates ->
+                                // Row의 실제 픽셀 높이를 저장
+                                searchBarRowHeight = layoutCoordinates.size.height
+                            },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -1236,8 +1243,8 @@ fun HomeScreen(navController: NavController) {
                 AnimatedVisibility(
                     visible = showSearchHistoryDropdown && searchHistory.isNotEmpty(),
                     modifier = Modifier
-                        // Row의 높이만큼 아래에 배치
-                        .padding(top = with(LocalDensity.current) { searchBarRowHeight.toDp() })
+                        // Row의 높이(searchBarRowHeight)만큼 Y축으로 '이동'시킵니다.
+                        .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() })
                         // Column의 padding(horizontal = 16.dp)와 동일하게 맞춤
                         .padding(horizontal = 16.dp)
                         .zIndex(1f) // 다른 UI 요소들 위에 오도록 z-index 설정
