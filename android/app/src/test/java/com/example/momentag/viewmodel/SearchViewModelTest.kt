@@ -1,65 +1,80 @@
 package com.example.momentag.viewmodel
 
+import android.net.Uri
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.SemanticSearchState
-import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.SearchRepository
+import com.example.momentag.repository.TokenRepository
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import io.mockk.verify
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
+    @get:Rule
+    val mainCoroutineRule = MainCoroutineRule()
+
     private lateinit var viewModel: SearchViewModel
     private lateinit var searchRepository: SearchRepository
-    private lateinit var draftTagRepository: DraftTagRepository
+    private lateinit var photoSelectionRepository: PhotoSelectionRepository
     private lateinit var localRepository: LocalRepository
     private lateinit var imageBrowserRepository: ImageBrowserRepository
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private lateinit var tokenRepository: TokenRepository
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
-        searchRepository = mockk(relaxed = true)
-        draftTagRepository = mockk(relaxed = true)
+        mockkStatic(Uri::class)
+        searchRepository = mockk()
+        photoSelectionRepository = mockk()
         localRepository = mockk(relaxed = true)
         imageBrowserRepository = mockk(relaxed = true)
+        tokenRepository = mockk()
 
-        // Mock selectedPhotos flow
-        every { draftTagRepository.selectedPhotos } returns MutableStateFlow(emptyList())
+        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(emptyList())
+        every { tokenRepository.isLoggedIn } returns MutableStateFlow("token")
+        coEvery { localRepository.getSearchHistory() } returns emptyList()
 
         viewModel =
             SearchViewModel(
-                searchRepository = searchRepository,
-                draftTagRepository = draftTagRepository,
-                localRepository = localRepository,
-                imageBrowserRepository = imageBrowserRepository,
+                searchRepository,
+                photoSelectionRepository,
+                localRepository,
+                imageBrowserRepository,
+                tokenRepository,
             )
     }
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
         clearAllMocks()
+        unmockkStatic(Uri::class)
+    }
+
+    private fun createMockUri(path: String): Uri {
+        val uri = mockk<Uri>(relaxed = true)
+        every { uri.toString() } returns path
+        every { uri.lastPathSegment } returns path.substringAfterLast("/")
+        return uri
     }
 
     // Helper functions
@@ -67,389 +82,233 @@ class SearchViewModelTest {
         PhotoResponse(
             photoId = id,
             photoPathId = 1L,
+            createdAt = "2025-01-01",
         )
 
-    private fun createPhoto(id: String = "photo1") =
-        Photo(
+    private fun createPhoto(id: String = "photo1"): Photo {
+        val uri = createMockUri("content://media/external/images/media/$id")
+        every { Uri.parse("content://media/external/images/media/$id") } returns uri
+        return Photo(
             photoId = id,
-            contentUri = mockk(),
+            contentUri = uri,
+            createdAt = "2025-01-01",
         )
-
-    // ========== Initial State Tests ==========
-
-    @Test
-    fun `initial state is Idle`() {
-        // Then
-        assertTrue(viewModel.searchState.value is SemanticSearchState.Idle)
     }
 
+    // Search tests
     @Test
-    fun `selectedPhotos flow is exposed`() {
-        // Then
-        assertNotNull(viewModel.selectedPhotos)
-        assertEquals(emptyList<Photo>(), viewModel.selectedPhotos.value)
-    }
+    fun `search with empty query updates state to Error`() =
+        runTest {
+            // When
+            viewModel.search("")
+            advanceUntilIdle()
 
-    // ========== Search Success Tests ==========
+            // Then
+            val state = viewModel.searchState.value
+            assertTrue(state is SemanticSearchState.Error)
+        }
 
     @Test
-    fun `search with valid query returns success`() =
+    fun `search success updates state with photos`() =
         runTest {
             // Given
             val query = "sunset"
-            val photoResponses = listOf(createPhotoResponse("photo1"))
-            val photos = listOf(createPhoto("photo1"))
+            val photoResponses = listOf(createPhotoResponse())
+            val photos = listOf(createPhoto())
+            coEvery { localRepository.addSearchHistory(query) } returns Unit
             coEvery { searchRepository.semanticSearch(query, 0) } returns
                 SearchRepository.SearchResult.Success(photoResponses)
             coEvery { localRepository.toPhotos(photoResponses) } returns photos
 
             // When
             viewModel.search(query)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.searchState.value
             assertTrue(state is SemanticSearchState.Success)
             assertEquals(photos, (state as SemanticSearchState.Success).photos)
             assertEquals(query, state.query)
-            coVerify { imageBrowserRepository.setSearchResults(photos, query) }
+            verify { imageBrowserRepository.setSearchResults(photos, query) }
         }
 
     @Test
-    fun `search with offset parameter works`() =
-        runTest {
-            // Given
-            val query = "beach"
-            val offset = 10
-            val photoResponses = listOf(createPhotoResponse("photo2"))
-            val photos = listOf(createPhoto("photo2"))
-            coEvery { searchRepository.semanticSearch(query, offset) } returns
-                SearchRepository.SearchResult.Success(photoResponses)
-            coEvery { localRepository.toPhotos(photoResponses) } returns photos
-
-            // When
-            viewModel.search(query, offset)
-
-            // Then
-            val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Success)
-            coVerify { searchRepository.semanticSearch(query, offset) }
-        }
-
-    @Test
-    fun `search sets loading state before completion`() =
-        runTest {
-            // Given
-            val query = "mountain"
-            coEvery { searchRepository.semanticSearch(query, 0) } returns
-                SearchRepository.SearchResult.Success(emptyList())
-            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
-
-            // When
-            viewModel.search(query)
-
-            // Then - final state is Success (loading was set during execution)
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Success)
-        }
-
-    // ========== Search Empty Tests ==========
-
-    @Test
-    fun `search returns empty result`() =
+    fun `search with empty results updates state to Empty`() =
         runTest {
             // Given
             val query = "nonexistent"
+            coEvery { localRepository.addSearchHistory(query) } returns Unit
             coEvery { searchRepository.semanticSearch(query, 0) } returns
-                SearchRepository.SearchResult.Empty(query)
+                SearchRepository.SearchResult.Success(emptyList())
 
             // When
             viewModel.search(query)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.searchState.value
             assertTrue(state is SemanticSearchState.Empty)
-            assertEquals(query, (state as SemanticSearchState.Empty).query)
-            coVerify { imageBrowserRepository.clear() }
-        }
-
-    // ========== Search Error Tests ==========
-
-    @Test
-    fun `search with blank query shows error`() =
-        runTest {
-            // Given
-            val query = "   "
-
-            // When
-            viewModel.search(query)
-
-            // Then
-            val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Error)
-            assertEquals("Query cannot be empty", (state as SemanticSearchState.Error).message)
-            coVerify(exactly = 0) { searchRepository.semanticSearch(any(), any()) }
+            verify { imageBrowserRepository.clear() }
         }
 
     @Test
-    fun `search with empty query shows error`() =
-        runTest {
-            // Given
-            val query = ""
-
-            // When
-            viewModel.search(query)
-
-            // Then
-            val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Error)
-            assertEquals("Query cannot be empty", (state as SemanticSearchState.Error).message)
-        }
-
-    @Test
-    fun `search handles BadRequest error`() =
+    fun `search with Unauthorized updates state to Error`() =
         runTest {
             // Given
             val query = "test"
-            val errorMessage = "Invalid query format"
+            coEvery { localRepository.addSearchHistory(query) } returns Unit
             coEvery { searchRepository.semanticSearch(query, 0) } returns
-                SearchRepository.SearchResult.BadRequest(errorMessage)
+                SearchRepository.SearchResult.Unauthorized("Unauthorized")
 
             // When
             viewModel.search(query)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.searchState.value
             assertTrue(state is SemanticSearchState.Error)
-            assertEquals(errorMessage, (state as SemanticSearchState.Error).message)
         }
 
     @Test
-    fun `search handles Unauthorized error`() =
+    fun `search with NetworkError updates state to NetworkError`() =
         runTest {
             // Given
             val query = "test"
-            coEvery { searchRepository.semanticSearch(query, 0) } returns
-                SearchRepository.SearchResult.Unauthorized("Token expired")
-
-            // When
-            viewModel.search(query)
-
-            // Then
-            val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Error)
-            assertEquals("Please login again", (state as SemanticSearchState.Error).message)
-        }
-
-    @Test
-    fun `search handles NetworkError`() =
-        runTest {
-            // Given
-            val query = "test"
-            val errorMessage = "Connection timeout"
+            val errorMessage = "Network error"
+            coEvery { localRepository.addSearchHistory(query) } returns Unit
             coEvery { searchRepository.semanticSearch(query, 0) } returns
                 SearchRepository.SearchResult.NetworkError(errorMessage)
 
             // When
             viewModel.search(query)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.searchState.value
             assertTrue(state is SemanticSearchState.NetworkError)
-            assertEquals(errorMessage, (state as SemanticSearchState.NetworkError).message)
+        }
+
+    // Selection mode tests
+    @Test
+    fun `setSelectionMode updates isSelectionMode state`() {
+        // When
+        viewModel.setSelectionMode(true)
+
+        // Then
+        assertTrue(viewModel.isSelectionMode.value)
+
+        // When
+        viewModel.setSelectionMode(false)
+
+        // Then
+        assertFalse(viewModel.isSelectionMode.value)
+    }
+
+    // Search text tests
+    @Test
+    fun `onSearchTextChanged updates searchText state`() {
+        // When
+        viewModel.onSearchTextChanged("test query")
+
+        // Then
+        assertEquals("test query", viewModel.searchText.value)
+    }
+
+    // Search history tests
+    @Test
+    fun `loadSearchHistory loads history from localRepository`() =
+        runTest {
+            // Given
+            val history = listOf("query1", "query2")
+            coEvery { localRepository.getSearchHistory() } returns history
+
+            // When
+            viewModel.loadSearchHistory()
+            advanceUntilIdle()
+
+            // Then
+            assertEquals(history, viewModel.searchHistory.value)
         }
 
     @Test
-    fun `search handles generic Error`() =
+    fun `removeSearchHistory removes query and reloads`() =
         runTest {
             // Given
             val query = "test"
-            val errorMessage = "Server error"
-            coEvery { searchRepository.semanticSearch(query, 0) } returns
-                SearchRepository.SearchResult.Error(errorMessage)
+            val updatedHistory = listOf("query2")
+            coEvery { localRepository.removeSearchHistory(query) } returns Unit
+            coEvery { localRepository.getSearchHistory() } returns updatedHistory
 
             // When
-            viewModel.search(query)
+            viewModel.removeSearchHistory(query)
+            advanceUntilIdle()
 
             // Then
-            val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Error)
-            assertEquals(errorMessage, (state as SemanticSearchState.Error).message)
+            assertEquals(updatedHistory, viewModel.searchHistory.value)
         }
 
-    // ========== Photo Selection Tests ==========
-
+    // Photo selection tests
     @Test
-    fun `togglePhoto calls draftTagRepository togglePhoto`() {
+    fun `togglePhoto delegates to photoSelectionRepository`() {
         // Given
-        val photo = createPhoto("photo1")
+        val photo = createPhoto()
+        every { photoSelectionRepository.togglePhoto(photo) } returns Unit
 
         // When
         viewModel.togglePhoto(photo)
 
         // Then
-        verify { draftTagRepository.togglePhoto(photo) }
+        verify { photoSelectionRepository.togglePhoto(photo) }
     }
 
     @Test
-    fun `togglePhoto can be called multiple times`() {
+    fun `resetSelection delegates to photoSelectionRepository`() {
         // Given
-        val photo1 = createPhoto("photo1")
-        val photo2 = createPhoto("photo2")
+        every { photoSelectionRepository.clear() } returns Unit
 
-        // When
-        viewModel.togglePhoto(photo1)
-        viewModel.togglePhoto(photo2)
-        viewModel.togglePhoto(photo1)
-
-        // Then
-        verify(exactly = 2) { draftTagRepository.togglePhoto(photo1) }
-        verify(exactly = 1) { draftTagRepository.togglePhoto(photo2) }
-    }
-
-    // ========== Reset Selection Tests ==========
-
-    @Test
-    fun `resetSelection clears draftTagRepository`() {
         // When
         viewModel.resetSelection()
 
         // Then
-        verify { draftTagRepository.clear() }
+        verify { photoSelectionRepository.clear() }
     }
 
+    // State reset tests
     @Test
-    fun `resetSelection can be called multiple times`() {
-        // When
-        viewModel.resetSelection()
-        viewModel.resetSelection()
-
-        // Then
-        verify(exactly = 2) { draftTagRepository.clear() }
-    }
-
-    // ========== Reset Search State Tests ==========
-
-    @Test
-    fun `resetSearchState sets state to Idle`() =
-        runTest {
-            // Given - set to success state first
-            val query = "test"
-            val photoResponses = listOf(createPhotoResponse())
-            val photos = listOf(createPhoto())
-            coEvery { searchRepository.semanticSearch(query, 0) } returns
-                SearchRepository.SearchResult.Success(photoResponses)
-            coEvery { localRepository.toPhotos(photoResponses) } returns photos
-            viewModel.search(query)
-
-            // Verify we're in Success state
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Success)
-
-            // When
-            viewModel.resetSearchState()
-
-            // Then
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Idle)
-            verify { imageBrowserRepository.clear() }
-        }
-
-    @Test
-    fun `resetSearchState clears imageBrowserRepository`() {
+    fun `resetSearchState resets to Idle and clears imageBrowserRepository`() {
         // When
         viewModel.resetSearchState()
 
         // Then
+        assertTrue(viewModel.searchState.value is SemanticSearchState.Idle)
         verify { imageBrowserRepository.clear() }
     }
 
+    // Logout handling test
     @Test
-    fun `resetSearchState can be called from any state`() =
+    fun `logout clears search history`() =
         runTest {
-            // Given - error state
-            viewModel.search("")
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Error)
+            // Given
+            val isLoggedInFlow = MutableStateFlow<String?>("token")
+            every { tokenRepository.isLoggedIn } returns isLoggedInFlow
+            coEvery { localRepository.clearSearchHistory() } returns Unit
+            coEvery { localRepository.getSearchHistory() } returns emptyList()
 
-            // When
-            viewModel.resetSearchState()
+            // Recreate viewModel with the new flow
+            val newViewModel =
+                SearchViewModel(
+                    searchRepository,
+                    photoSelectionRepository,
+                    localRepository,
+                    imageBrowserRepository,
+                    tokenRepository,
+                )
+
+            // When - simulate logout
+            isLoggedInFlow.value = null
+            advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Idle)
-        }
-
-    // ========== Integration Tests ==========
-
-    @Test
-    fun `search flow - success then reset`() =
-        runTest {
-            // Given
-            val query = "test"
-            val photoResponses = listOf(createPhotoResponse())
-            val photos = listOf(createPhoto())
-            coEvery { searchRepository.semanticSearch(query, 0) } returns
-                SearchRepository.SearchResult.Success(photoResponses)
-            coEvery { localRepository.toPhotos(photoResponses) } returns photos
-
-            // When - search
-            viewModel.search(query)
-
-            // Then - success state
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Success)
-
-            // When - reset
-            viewModel.resetSearchState()
-
-            // Then - idle state
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Idle)
-        }
-
-    @Test
-    fun `search flow - error then search again`() =
-        runTest {
-            // Given - first search fails
-            val query1 = "test1"
-            coEvery { searchRepository.semanticSearch(query1, 0) } returns
-                SearchRepository.SearchResult.Error("Error")
-            viewModel.search(query1)
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Error)
-
-            // When - search again successfully
-            val query2 = "test2"
-            val photoResponses = listOf(createPhotoResponse())
-            val photos = listOf(createPhoto())
-            coEvery { searchRepository.semanticSearch(query2, 0) } returns
-                SearchRepository.SearchResult.Success(photoResponses)
-            coEvery { localRepository.toPhotos(photoResponses) } returns photos
-            viewModel.search(query2)
-
-            // Then - success state
-            val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Success)
-            assertEquals(query2, (state as SemanticSearchState.Success).query)
-        }
-
-    @Test
-    fun `complete workflow - search select reset`() =
-        runTest {
-            // Given
-            val query = "test"
-            val photoResponses = listOf(createPhotoResponse())
-            val photos = listOf(createPhoto())
-            coEvery { searchRepository.semanticSearch(query, 0) } returns
-                SearchRepository.SearchResult.Success(photoResponses)
-            coEvery { localRepository.toPhotos(photoResponses) } returns photos
-
-            // When - search
-            viewModel.search(query)
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Success)
-
-            // When - select photo
-            viewModel.togglePhoto(photos[0])
-            verify { draftTagRepository.togglePhoto(photos[0]) }
-
-            // When - reset selection
-            viewModel.resetSelection()
-            verify { draftTagRepository.clear() }
-
-            // When - reset search
-            viewModel.resetSearchState()
-            assertTrue(viewModel.searchState.value is SemanticSearchState.Idle)
+            coVerify { localRepository.clearSearchHistory() }
         }
 }

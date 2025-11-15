@@ -21,9 +21,9 @@ class ImageBrowserRepositoryTest {
 
     private val testPhotos =
         listOf(
-            Photo(photoId = "photo1", contentUri = Uri.parse("content://media/1")),
-            Photo(photoId = "photo2", contentUri = Uri.parse("content://media/2")),
-            Photo(photoId = "photo3", contentUri = Uri.parse("content://media/3")),
+            Photo(photoId = "photo1", contentUri = Uri.parse("content://media/1"), createdAt = "2024-01-01T00:00:00Z"),
+            Photo(photoId = "photo2", contentUri = Uri.parse("content://media/2"), createdAt = "2024-01-01T00:00:00Z"),
+            Photo(photoId = "photo3", contentUri = Uri.parse("content://media/3"), createdAt = "2024-01-01T00:00:00Z"),
         )
 
     @Before
@@ -101,7 +101,7 @@ class ImageBrowserRepositoryTest {
     fun `setSearchResults replaces previous session`() {
         // Given
         repository.setTagAlbum(testPhotos, "OldTag")
-        val newPhotos = listOf(Photo(photoId = "newPhoto", contentUri = Uri.parse("content://media/99")))
+        val newPhotos = listOf(Photo(photoId = "newPhoto", contentUri = Uri.parse("content://media/99"), createdAt = "2024-01-01T00:00:00Z"))
 
         // When
         repository.setSearchResults(newPhotos, "newQuery")
@@ -134,7 +134,7 @@ class ImageBrowserRepositoryTest {
     @Test
     fun `setTagAlbum with single photo stores correctly`() {
         // Given
-        val singlePhoto = listOf(Photo(photoId = "single", contentUri = Uri.parse("content://media/1")))
+        val singlePhoto = listOf(Photo(photoId = "single", contentUri = Uri.parse("content://media/1"), createdAt = "2024-01-01T00:00:00Z"))
 
         // When
         repository.setTagAlbum(singlePhoto, "SingleTag")
@@ -198,7 +198,7 @@ class ImageBrowserRepositoryTest {
         // Given
         val largePhotoList =
             (1..100).map { i ->
-                Photo(photoId = "photo$i", contentUri = Uri.parse("content://media/$i"))
+                Photo(photoId = "photo$i", contentUri = Uri.parse("content://media/$i"), createdAt = "2024-01-01T00:00:00Z")
             }
 
         // When
@@ -472,9 +472,9 @@ class ImageBrowserRepositoryTest {
         // Given - photos in specific order
         val orderedPhotos =
             listOf(
-                Photo(photoId = "z", contentUri = Uri.parse("content://z")),
-                Photo(photoId = "a", contentUri = Uri.parse("content://a")),
-                Photo(photoId = "m", contentUri = Uri.parse("content://m")),
+                Photo(photoId = "z", contentUri = Uri.parse("content://z"), createdAt = "2024-01-01T00:00:00Z"),
+                Photo(photoId = "a", contentUri = Uri.parse("content://a"), createdAt = "2024-01-01T00:00:00Z"),
+                Photo(photoId = "m", contentUri = Uri.parse("content://m"), createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When

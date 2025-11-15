@@ -95,7 +95,7 @@ class BottomNavBarComposableTest {
         // Given
         composeTestRule.setContent {
             BottomNavBar(
-                currentTab = BottomTab.AddTagScreen,
+                currentTab = BottomTab.MyTagsScreen,
                 onTabSelected = {},
             )
         }
@@ -171,7 +171,7 @@ class BottomNavBarComposableTest {
         composeTestRule.onNodeWithText("Tag").performClick()
 
         // Then
-        assertEquals(BottomTab.AddTagScreen, clickedTab)
+        assertEquals(BottomTab.MyTagsScreen, clickedTab)
     }
 
     @Test
@@ -214,7 +214,7 @@ class BottomNavBarComposableTest {
         composeTestRule.onNodeWithText("Tag").performClick()
 
         // Then
-        assertTrue(clickedTabs.contains(BottomTab.AddTagScreen))
+        assertTrue(clickedTabs.contains(BottomTab.MyTagsScreen))
     }
 
     @Test
@@ -238,7 +238,7 @@ class BottomNavBarComposableTest {
         assertEquals(4, clickedTabs.size)
         assertTrue(clickedTabs.contains(BottomTab.HomeScreen))
         assertTrue(clickedTabs.contains(BottomTab.SearchResultScreen))
-        assertTrue(clickedTabs.contains(BottomTab.AddTagScreen))
+        assertTrue(clickedTabs.contains(BottomTab.MyTagsScreen))
         assertTrue(clickedTabs.contains(BottomTab.StoryScreen))
     }
 }

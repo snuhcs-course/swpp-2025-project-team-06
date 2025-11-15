@@ -4,7 +4,8 @@ import com.example.momentag.model.PhotoDetailResponse
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.model.Tag
-import com.example.momentag.model.TagCreateResponse
+import com.example.momentag.model.TagId
+import com.example.momentag.model.TagResponse
 import com.example.momentag.network.ApiService
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
@@ -47,15 +48,33 @@ class RemoteRepositoryTest {
         tagName = name,
     )
 
+    private fun createTagResponse(
+        id: String = "tag1",
+        name: String = "TestTag",
+        thumbnailPhotoPathId: Long? = null,
+        createdAt: String? = "2024-01-01T00:00:00Z",
+        updatedAt: String? = "2024-01-01T00:00:00Z",
+        photoCount: Int = 0,
+    ) = TagResponse(
+        tagId = id,
+        tagName = name,
+        thumbnailPhotoPathId = thumbnailPhotoPathId,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        photoCount = photoCount,
+    )
+
     private fun createPhotoResponse(id: String = "photo1") =
         PhotoResponse(
             photoId = id,
             photoPathId = 1L,
+            createdAt = "2024-01-01T00:00:00Z",
         )
 
     private fun createPhotoDetailResponse() =
         PhotoDetailResponse(
             photoPathId = 1L,
+            address = null,
             tags = listOf(createTag()),
         )
 
@@ -65,7 +84,7 @@ class RemoteRepositoryTest {
     fun `getAllTags returns Success with tags`() =
         runTest {
             // Given
-            val tags = listOf(createTag("tag1"), createTag("tag2"))
+            val tags = listOf(createTagResponse("tag1"), createTagResponse("tag2"))
             coEvery { apiService.getAllTags() } returns Response.success(tags)
 
             // When
@@ -362,7 +381,7 @@ class RemoteRepositoryTest {
     fun `postTags returns Success with tag response`() =
         runTest {
             // Given
-            val tagResponse = TagCreateResponse(tagId = "tag1")
+            val tagResponse = TagId(id = "tag1")
             coEvery { apiService.postTags(any()) } returns Response.success(tagResponse)
 
             // When
@@ -641,7 +660,7 @@ class RemoteRepositoryTest {
                 apiService.postTagsToPhoto(
                     "photo1",
                     match {
-                        it.size == 1 && it[0].tagId == "tag1"
+                        it.size == 1 && it[0].id == "tag1"
                     },
                 )
             }
@@ -772,19 +791,147 @@ class RemoteRepositoryTest {
             assertTrue(result is RemoteRepository.Result.Exception)
         }
 
+    // ========== renameTag Tests ==========
+
+    @Test
+    fun `renameTag returns Success on successful rename`() =
+        runTest {
+            // Given
+            val newTagId = TagId(id = "tag1")
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.success(newTagId)
+
+            // When
+            val result = repository.renameTag("tag1", "NewTagName")
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Success)
+            assertEquals(newTagId, (result as RemoteRepository.Result.Success).data)
+            coVerify { apiService.renameTag("tag1", match { it.name == "NewTagName" }) }
+        }
+
+    @Test
+    fun `renameTag returns Error when body is null`() =
+        runTest {
+            // Given
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.success(null)
+
+            // When
+            val result = repository.renameTag("tag1", "NewName")
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Error)
+            assertEquals("Response body is null", (result as RemoteRepository.Result.Error).message)
+        }
+
+    @Test
+    fun `renameTag returns Unauthorized on 401`() =
+        runTest {
+            // Given
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(401, mockk(relaxed = true))
+
+            // When
+            val result = repository.renameTag("tag1", "NewName")
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Unauthorized)
+        }
+
+    @Test
+    fun `renameTag returns BadRequest on 400`() =
+        runTest {
+            // Given
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(400, mockk(relaxed = true))
+
+            // When
+            val result = repository.renameTag("tag1", "NewName")
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.BadRequest)
+        }
+
+    @Test
+    fun `renameTag returns Error on 403 (forbidden)`() =
+        runTest {
+            // Given
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(403, mockk(relaxed = true))
+
+            // When
+            val result = repository.renameTag("tag1", "NewName")
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Error)
+            assertEquals(403, (result as RemoteRepository.Result.Error).code)
+            assertTrue(result.message.contains("forbidden"))
+        }
+
+    @Test
+    fun `renameTag returns Error on 404 (not found)`() =
+        runTest {
+            // Given
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(404, mockk(relaxed = true))
+
+            // When
+            val result = repository.renameTag("tag1", "NewName")
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Error)
+            assertEquals(404, (result as RemoteRepository.Result.Error).code)
+            assertTrue(result.message.contains("not found"))
+        }
+
+    @Test
+    fun `renameTag returns Error on 500`() =
+        runTest {
+            // Given
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(500, mockk(relaxed = true))
+
+            // When
+            val result = repository.renameTag("tag1", "NewName")
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Error)
+            assertEquals(500, (result as RemoteRepository.Result.Error).code)
+        }
+
+    @Test
+    fun `renameTag returns Exception on IOException`() =
+        runTest {
+            // Given
+            coEvery { apiService.renameTag("tag1", any()) } throws IOException("Network error")
+
+            // When
+            val result = repository.renameTag("tag1", "NewName")
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Exception)
+        }
+
+    @Test
+    fun `renameTag returns Exception on generic Exception`() =
+        runTest {
+            // Given
+            coEvery { apiService.renameTag("tag1", any()) } throws Exception("Unknown error")
+
+            // When
+            val result = repository.renameTag("tag1", "NewName")
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Exception)
+        }
+
     // ========== Integration Tests ==========
 
     @Test
     fun `workflow - create tag then add photos`() =
         runTest {
             // Given - create tag
-            val tagResponse = TagCreateResponse(tagId = "newTag")
+            val tagResponse = TagId(id = "newTag")
             coEvery { apiService.postTags(any()) } returns Response.success(tagResponse)
 
             // When - create tag
             val createResult = repository.postTags("MyTag")
             assertTrue(createResult is RemoteRepository.Result.Success)
-            val tagId = (createResult as RemoteRepository.Result.Success).data.tagId
+            val tagId = (createResult as RemoteRepository.Result.Success).data.id
 
             // Given - add tag to photo
             coEvery { apiService.postTagsToPhoto("photo1", any()) } returns Response.success(Unit)
@@ -823,7 +970,7 @@ class RemoteRepositoryTest {
     fun `multiple operations handle different error types`() =
         runTest {
             // Setup - success, error, exception
-            coEvery { apiService.getAllTags() } returns Response.success(listOf(createTag()))
+            coEvery { apiService.getAllTags() } returns Response.success(listOf(createTagResponse()))
             coEvery { apiService.getAllPhotos() } returns Response.error(401, mockk(relaxed = true))
             coEvery { apiService.getPhotoDetail(any()) } throws IOException("Network error")
 

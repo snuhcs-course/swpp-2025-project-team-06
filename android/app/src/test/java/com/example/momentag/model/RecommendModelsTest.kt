@@ -17,10 +17,7 @@ class RecommendModelsTest {
     ): Photo {
         val mockUri = mockk<Uri>()
         every { mockUri.toString() } returns uriString
-        return Photo(
-            photoId = id,
-            contentUri = mockUri,
-        )
+        return Photo(photoId = id, contentUri = mockUri, createdAt = "2024-01-01T00:00:00Z",)
     }
 
     // ========== TagAlbum Tests ==========
