@@ -1,13 +1,15 @@
 package com.example.momentag.ui.components
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performImeAction
-import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.text.input.TextFieldValue
+import com.example.momentag.model.TagItem
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,7 +17,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * SearchBar 및 SearchBarControlledCustom Composable 함수에 대한 UI 테스트
+ * ChipSearchBar Composable 함수에 대한 UI 테스트
  * Robolectric을 사용하여 Unit Test에서 Composable의 Line Coverage를 포함시킴
  */
 @RunWith(RobolectricTestRunner::class)
@@ -24,24 +26,76 @@ class SearchBarComposableTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    // region SearchBar (Internal State) Tests
+    // region ChipSearchBar Tests
     @Test
-    fun searchBar_displaysDefaultPlaceholder() {
+    fun chipSearchBar_displaysDefaultPlaceholder() {
         // Given
         composeTestRule.setContent {
-            SearchBar(onSearch = {})
+            val listState = rememberLazyListState()
+            val contentItems =
+                listOf(
+                    SearchContentElement.Text(id = "text-0", text = "\u200B"),
+                )
+            val textStates = mapOf("text-0" to TextFieldValue("\u200B"))
+            val focusRequesters = mapOf("text-0" to FocusRequester())
+            val bringIntoViewRequesters =
+                mapOf(
+                    "text-0" to
+                        androidx.compose.foundation.relocation
+                            .BringIntoViewRequester(),
+                )
+
+            ChipSearchBar(
+                listState = listState,
+                isFocused = false,
+                hideCursor = false,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onContainerClick = {},
+                onChipClick = {},
+                onTextChange = { _, _ -> },
+                onFocus = {},
+                onSearch = {},
+            )
         }
 
         // Then
-        composeTestRule.onNodeWithText("Search Photos").assertIsDisplayed()
+        composeTestRule.onNodeWithText("검색 또는 #태그 입력").assertIsDisplayed()
     }
 
     @Test
-    fun searchBar_displaysCustomPlaceholder() {
+    fun chipSearchBar_displaysCustomPlaceholder() {
         // Given
         val customPlaceholder = "Search for tags..."
         composeTestRule.setContent {
-            SearchBar(
+            val listState = rememberLazyListState()
+            val contentItems =
+                listOf(
+                    SearchContentElement.Text(id = "text-0", text = "\u200B"),
+                )
+            val textStates = mapOf("text-0" to TextFieldValue("\u200B"))
+            val focusRequesters = mapOf("text-0" to FocusRequester())
+            val bringIntoViewRequesters =
+                mapOf(
+                    "text-0" to
+                        androidx.compose.foundation.relocation
+                            .BringIntoViewRequester(),
+                )
+
+            ChipSearchBar(
+                listState = listState,
+                isFocused = false,
+                hideCursor = false,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onContainerClick = {},
+                onChipClick = {},
+                onTextChange = { _, _ -> },
+                onFocus = {},
                 onSearch = {},
                 placeholder = customPlaceholder,
             )
@@ -52,10 +106,37 @@ class SearchBarComposableTest {
     }
 
     @Test
-    fun searchBar_displaysSearchIcon() {
+    fun chipSearchBar_displaysSearchIcon() {
         // Given
         composeTestRule.setContent {
-            SearchBar(onSearch = {})
+            val listState = rememberLazyListState()
+            val contentItems =
+                listOf(
+                    SearchContentElement.Text(id = "text-0", text = "\u200B"),
+                )
+            val textStates = mapOf("text-0" to TextFieldValue("\u200B"))
+            val focusRequesters = mapOf("text-0" to FocusRequester())
+            val bringIntoViewRequesters =
+                mapOf(
+                    "text-0" to
+                        androidx.compose.foundation.relocation
+                            .BringIntoViewRequester(),
+                )
+
+            ChipSearchBar(
+                listState = listState,
+                isFocused = false,
+                hideCursor = false,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onContainerClick = {},
+                onChipClick = {},
+                onTextChange = { _, _ -> },
+                onFocus = {},
+                onSearch = {},
+            )
         }
 
         // Then
@@ -63,420 +144,365 @@ class SearchBarComposableTest {
     }
 
     @Test
-    fun searchBar_canInputText() {
+    fun chipSearchBar_displaysTextContent() {
         // Given
+        val testText = "test query"
         composeTestRule.setContent {
-            SearchBar(onSearch = {})
+            val listState = rememberLazyListState()
+            val contentItems =
+                listOf(
+                    SearchContentElement.Text(id = "text-0", text = testText),
+                )
+            val textStates = mapOf("text-0" to TextFieldValue(testText))
+            val focusRequesters = mapOf("text-0" to FocusRequester())
+            val bringIntoViewRequesters =
+                mapOf(
+                    "text-0" to
+                        androidx.compose.foundation.relocation
+                            .BringIntoViewRequester(),
+                )
+
+            ChipSearchBar(
+                listState = listState,
+                isFocused = true,
+                hideCursor = false,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onContainerClick = {},
+                onChipClick = {},
+                onTextChange = { _, _ -> },
+                onFocus = {},
+                onSearch = {},
+            )
+        }
+
+        // Then
+        composeTestRule.onNodeWithText(testText).assertIsDisplayed()
+    }
+
+    @Test
+    fun chipSearchBar_displaysChip() {
+        // Given
+        val tag =
+            TagItem(
+                tagName = "test",
+                coverImageId = null,
+                tagId = "1",
+                createdAt = null,
+                updatedAt = null,
+                photoCount = 5,
+            )
+        composeTestRule.setContent {
+            val listState = rememberLazyListState()
+            val contentItems =
+                listOf(
+                    SearchContentElement.Chip(id = "chip-0", tag = tag),
+                    SearchContentElement.Text(id = "text-0", text = "\u200B"),
+                )
+            val textStates = mapOf("text-0" to TextFieldValue("\u200B"))
+            val focusRequesters = mapOf("text-0" to FocusRequester())
+            val bringIntoViewRequesters =
+                mapOf(
+                    "text-0" to
+                        androidx.compose.foundation.relocation
+                            .BringIntoViewRequester(),
+                )
+
+            ChipSearchBar(
+                listState = listState,
+                isFocused = true,
+                hideCursor = false,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onContainerClick = {},
+                onChipClick = {},
+                onTextChange = { _, _ -> },
+                onFocus = {},
+                onSearch = {},
+            )
+        }
+
+        // Then
+        composeTestRule.onNodeWithText("#test").assertIsDisplayed()
+    }
+
+    @Test
+    fun chipSearchBar_displaysMultipleElements() {
+        // Given
+        val tag1 =
+            TagItem(
+                tagName = "tag1",
+                coverImageId = null,
+                tagId = "1",
+                createdAt = null,
+                updatedAt = null,
+                photoCount = 5,
+            )
+        val tag2 =
+            TagItem(
+                tagName = "tag2",
+                coverImageId = null,
+                tagId = "2",
+                createdAt = null,
+                updatedAt = null,
+                photoCount = 3,
+            )
+        composeTestRule.setContent {
+            val listState = rememberLazyListState()
+            val contentItems =
+                listOf(
+                    SearchContentElement.Chip(id = "chip-0", tag = tag1),
+                    SearchContentElement.Text(id = "text-0", text = "some text"),
+                    SearchContentElement.Chip(id = "chip-1", tag = tag2),
+                    SearchContentElement.Text(id = "text-1", text = "\u200B"),
+                )
+            val textStates =
+                mapOf(
+                    "text-0" to TextFieldValue("some text"),
+                    "text-1" to TextFieldValue("\u200B"),
+                )
+            val focusRequesters =
+                mapOf(
+                    "text-0" to FocusRequester(),
+                    "text-1" to FocusRequester(),
+                )
+            val bringIntoViewRequesters =
+                mapOf(
+                    "text-0" to
+                        androidx.compose.foundation.relocation
+                            .BringIntoViewRequester(),
+                    "text-1" to
+                        androidx.compose.foundation.relocation
+                            .BringIntoViewRequester(),
+                )
+
+            ChipSearchBar(
+                listState = listState,
+                isFocused = true,
+                hideCursor = false,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onContainerClick = {},
+                onChipClick = {},
+                onTextChange = { _, _ -> },
+                onFocus = {},
+                onSearch = {},
+            )
+        }
+
+        // Then
+        composeTestRule.onNodeWithText("#tag1").assertIsDisplayed()
+        composeTestRule.onNodeWithText("some text").assertIsDisplayed()
+        composeTestRule.onNodeWithText("#tag2").assertIsDisplayed()
+    }
+
+    @Test
+    fun chipSearchBar_onContainerClick_triggersCallback() {
+        // Given
+        var containerClicked = false
+        composeTestRule.setContent {
+            val listState = rememberLazyListState()
+            val contentItems =
+                listOf(
+                    SearchContentElement.Text(id = "text-0", text = "\u200B"),
+                )
+            val textStates = mapOf("text-0" to TextFieldValue("\u200B"))
+            val focusRequesters = mapOf("text-0" to FocusRequester())
+            val bringIntoViewRequesters =
+                mapOf(
+                    "text-0" to
+                        androidx.compose.foundation.relocation
+                            .BringIntoViewRequester(),
+                )
+
+            ChipSearchBar(
+                listState = listState,
+                isFocused = false,
+                hideCursor = false,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onContainerClick = { containerClicked = true },
+                onChipClick = {},
+                onTextChange = { _, _ -> },
+                onFocus = {},
+                onSearch = {},
+            )
         }
 
         // When
-        composeTestRule.onNodeWithText("Search Photos").performTextInput("test query")
+        composeTestRule.onNodeWithContentDescription("Search").performClick()
 
         // Then
-        composeTestRule.onNodeWithText("test query").assertIsDisplayed()
-    }
-
-    @Test
-    fun searchBar_searchIcon_triggersCallback() {
-        // Given
-        var searchQuery = ""
-        composeTestRule.setContent {
-            SearchBar(onSearch = { searchQuery = it })
-        }
-
-        // When - 텍스트 입력 후 IME 액션 (검색 아이콘은 더 이상 클릭 가능하지 않음)
-        composeTestRule.onNodeWithText("Search Photos").performTextInput("my search")
-        composeTestRule.onNodeWithText("my search").performImeAction()
-
-        // Then
-        assertEquals("my search", searchQuery)
-    }
-
-    @Test
-    fun searchBar_imeAction_triggersCallback() {
-        // Given
-        var searchQuery = ""
-        composeTestRule.setContent {
-            SearchBar(onSearch = { searchQuery = it })
-        }
-
-        // When - 텍스트 입력 후 IME 액션 (키보드 검색 버튼)
-        composeTestRule.onNodeWithText("Search Photos").performTextInput("keyboard search")
-        composeTestRule.onNodeWithText("keyboard search").performImeAction()
-
-        // Then
-        assertEquals("keyboard search", searchQuery)
-    }
-
-    @Test
-    fun searchBar_emptySearch_sendsEmptyString() {
-        // Given
-        var searchQuery = "not empty"
-        composeTestRule.setContent {
-            SearchBar(onSearch = { searchQuery = it })
-        }
-
-        // When - 아무것도 입력하지 않고 검색 (IME 액션 사용)
-        composeTestRule.onNodeWithText("Search Photos").performImeAction()
-
-        // Then
-        assertEquals("", searchQuery)
-    }
-
-    @Test
-    fun searchBar_multipleSearches_updatesQuery() {
-        // Given
-        val searchQueries = mutableListOf<String>()
-        composeTestRule.setContent {
-            SearchBar(onSearch = { searchQueries.add(it) })
-        }
-
-        // When - 여러 번 검색
-        composeTestRule.onNodeWithText("Search Photos").performTextInput("first")
-        composeTestRule.onNodeWithText("first").performImeAction()
-
-        composeTestRule.onNodeWithText("first").performTextInput(" second")
-        composeTestRule.onNodeWithText("first second").performImeAction()
-
-        // Then
-        assertEquals(2, searchQueries.size)
-        assertEquals("first", searchQueries[0])
-        assertEquals("first second", searchQueries[1])
-    }
-
-    @Test
-    fun searchBar_longText_canBeEntered() {
-        // Given
-        val longText = "This is a very long search query with many words"
-        var searchQuery = ""
-        composeTestRule.setContent {
-            SearchBar(onSearch = { searchQuery = it })
-        }
-
-        // When
-        composeTestRule.onNodeWithText("Search Photos").performTextInput(longText)
-        composeTestRule.onNodeWithText(longText).performImeAction()
-
-        // Then
-        assertEquals(longText, searchQuery)
-    }
-
-    @Test
-    fun searchBar_specialCharacters_canBeEntered() {
-        // Given
-        val specialText = "test@#$%^&*()"
-        var searchQuery = ""
-        composeTestRule.setContent {
-            SearchBar(onSearch = { searchQuery = it })
-        }
-
-        // When
-        composeTestRule.onNodeWithText("Search Photos").performTextInput(specialText)
-        composeTestRule.onNodeWithText(specialText).performImeAction()
-
-        // Then
-        assertEquals(specialText, searchQuery)
-    }
-
-    @Test
-    fun searchBar_koreanText_canBeEntered() {
-        // Given
-        val koreanText = "한글 검색"
-        var searchQuery = ""
-        composeTestRule.setContent {
-            SearchBar(onSearch = { searchQuery = it })
-        }
-
-        // When
-        composeTestRule.onNodeWithText("Search Photos").performTextInput(koreanText)
-        composeTestRule.onNodeWithText(koreanText).performImeAction()
-
-        // Then
-        assertEquals(koreanText, searchQuery)
+        assertEquals(true, containerClicked)
     }
     // endregion
 
-    // region SearchBarControlledCustom (External State) Tests
+    // region SearchHistoryItem Tests
     @Test
-    fun searchBarControlled_displaysDefaultPlaceholder() {
+    fun searchHistoryItem_displaysTextQuery() {
         // Given
+        val query = "test search"
+        val parser: (String, List<TagItem>) -> List<SearchContentElement> = { q, _ ->
+            listOf(SearchContentElement.Text(id = "text-0", text = q))
+        }
+
         composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = "",
-                onValueChange = {},
-                onSearch = {},
+            SearchHistoryItem(
+                query = query,
+                allTags = emptyList(),
+                parser = parser,
+                onHistoryClick = {},
+                onHistoryDelete = {},
             )
         }
 
         // Then
-        composeTestRule.onNodeWithText("Search Anything...").assertIsDisplayed()
+        composeTestRule.onNodeWithText(query).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("History").assertIsDisplayed()
     }
 
     @Test
-    fun searchBarControlled_displaysCustomPlaceholder() {
+    fun searchHistoryItem_displaysChipQuery() {
         // Given
-        val customPlaceholder = "Type to search..."
+        val tag =
+            TagItem(
+                tagName = "vacation",
+                coverImageId = null,
+                tagId = "1",
+                createdAt = null,
+                updatedAt = null,
+                photoCount = 10,
+            )
+        val query = "#vacation"
+        val parser: (String, List<TagItem>) -> List<SearchContentElement> = { _, _ ->
+            listOf(SearchContentElement.Chip(id = "chip-0", tag = tag))
+        }
+
         composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = "",
-                onValueChange = {},
-                onSearch = {},
-                placeholder = customPlaceholder,
+            SearchHistoryItem(
+                query = query,
+                allTags = listOf(tag),
+                parser = parser,
+                onHistoryClick = {},
+                onHistoryDelete = {},
             )
         }
 
         // Then
-        composeTestRule.onNodeWithText(customPlaceholder).assertIsDisplayed()
+        composeTestRule.onNodeWithText("#vacation").assertIsDisplayed()
     }
 
     @Test
-    fun searchBarControlled_displaysSearchIcon() {
+    fun searchHistoryItem_displaysDeleteButton() {
         // Given
+        val query = "test"
+        val parser: (String, List<TagItem>) -> List<SearchContentElement> = { q, _ ->
+            listOf(SearchContentElement.Text(id = "text-0", text = q))
+        }
+
         composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = "",
-                onValueChange = {},
-                onSearch = {},
+            SearchHistoryItem(
+                query = query,
+                allTags = emptyList(),
+                parser = parser,
+                onHistoryClick = {},
+                onHistoryDelete = {},
             )
         }
 
         // Then
-        composeTestRule.onNodeWithContentDescription("Search").assertIsDisplayed()
-    }
-
-    @Test
-    fun searchBarControlled_displaysProvidedValue() {
-        // Given
-        val initialValue = "existing text"
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = initialValue,
-                onValueChange = {},
-                onSearch = {},
-            )
-        }
-
-        // Then
-        composeTestRule.onNodeWithText(initialValue).assertIsDisplayed()
-    }
-
-    @Test
-    fun searchBarControlled_textChange_triggersCallback() {
-        // Given
-        var currentValue = ""
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = currentValue,
-                onValueChange = { currentValue = it },
-                onSearch = {},
-            )
-        }
-
-        // When
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput("new text")
-
-        // Then
-        assertEquals("new text", currentValue)
-    }
-
-    @Test
-    fun searchBarControlled_searchIcon_triggersCallback() {
-        // Given
-        var searchCalled = false
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = "test query",
-                onValueChange = {},
-                onSearch = { searchCalled = true },
-            )
-        }
-
-        // When - 검색 아이콘 대신 IME 액션 사용
-        composeTestRule.onNodeWithText("test query").performImeAction()
-
-        // Then
-        assertTrue(searchCalled)
-    }
-
-    @Test
-    fun searchBarControlled_imeAction_triggersCallback() {
-        // Given
-        var searchCalled = false
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = "test",
-                onValueChange = {},
-                onSearch = { searchCalled = true },
-            )
-        }
-
-        // When
-        composeTestRule.onNodeWithText("test").performImeAction()
-
-        // Then
-        assertTrue(searchCalled)
-    }
-
-    @Test
-    fun searchBarControlled_emptyValue_displaysPlaceholder() {
-        // Given
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = "",
-                onValueChange = {},
-                onSearch = {},
-            )
-        }
-
-        // Then
-        composeTestRule.onNodeWithText("Search Anything...").assertIsDisplayed()
-    }
-
-    @Test
-    fun searchBarControlled_multipleSearches_callsOnSearch() {
-        // Given
-        var searchCount = 0
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = "query",
-                onValueChange = {},
-                onSearch = { searchCount++ },
-            )
-        }
-
-        // When - 여러 번 검색 (IME 액션 사용)
-        repeat(3) {
-            composeTestRule.onNodeWithText("query").performImeAction()
-        }
-
-        // Then
-        assertEquals(3, searchCount)
-    }
-
-    @Test
-    fun searchBarControlled_onValueChange_callsCallback() {
-        // Given
-        var callbackCalled = false
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = "",
-                onValueChange = { callbackCalled = true },
-                onSearch = {},
-            )
-        }
-
-        // When - 텍스트 입력
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput("test")
-
-        // Then - onValueChange 콜백이 호출됨
-        assertTrue(callbackCalled)
-    }
-
-    @Test
-    fun searchBarControlled_longText_canBeDisplayed() {
-        // Given
-        val longText = "This is a very long text value that should be displayed"
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = longText,
-                onValueChange = {},
-                onSearch = {},
-            )
-        }
-
-        // Then
-        composeTestRule.onNodeWithText(longText).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Delete history item").assertIsDisplayed()
     }
     // endregion
 
-    // region Comparison Tests
+    // region SuggestionChip Tests
     @Test
-    fun bothSearchBars_displaySearchIcon() {
-        // SearchBar
+    fun suggestionChip_displaysTagName() {
+        // Given
+        val tag =
+            TagItem(
+                tagName = "summer",
+                coverImageId = null,
+                tagId = "1",
+                createdAt = null,
+                updatedAt = null,
+                photoCount = 5,
+            )
         composeTestRule.setContent {
-            SearchBar(onSearch = {})
+            SuggestionChip(
+                tag = tag,
+                onClick = {},
+            )
         }
-        composeTestRule.onNodeWithContentDescription("Search").assertIsDisplayed()
+
+        // Then
+        composeTestRule.onNodeWithText("#summer").assertIsDisplayed()
     }
 
     @Test
-    fun bothSearchBars_controlled_displaySearchIcon() {
-        // SearchBarControlledCustom
+    fun suggestionChip_triggersOnClick() {
+        // Given
+        var clicked = false
+        val tag =
+            TagItem(
+                tagName = "test",
+                coverImageId = null,
+                tagId = "1",
+                createdAt = null,
+                updatedAt = null,
+                photoCount = 1,
+            )
         composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = "",
-                onValueChange = {},
-                onSearch = {},
+            SuggestionChip(
+                tag = tag,
+                onClick = { clicked = true },
             )
         }
-        composeTestRule.onNodeWithContentDescription("Search").assertIsDisplayed()
+
+        // When
+        composeTestRule.onNodeWithText("#test").performClick()
+
+        // Then
+        assertEquals(true, clicked)
     }
     // endregion
 
-    // region Edge Cases
+    // region SearchContentElement Tests
     @Test
-    fun searchBar_whitespacesOnly_canBeSearched() {
+    fun searchContentElement_text_hasCorrectProperties() {
         // Given
-        var searchQuery = ""
-        composeTestRule.setContent {
-            SearchBar(onSearch = { searchQuery = it })
-        }
-
-        // When
-        composeTestRule.onNodeWithText("Search Photos").performTextInput("   ")
-        composeTestRule.onNodeWithText("   ").performImeAction()
+        val element = SearchContentElement.Text(id = "text-1", text = "sample")
 
         // Then
-        assertEquals("   ", searchQuery)
+        assertEquals("text-1", element.id)
+        assertEquals("sample", element.text)
     }
 
     @Test
-    fun searchBarControlled_whitespacesOnly_displayedCorrectly() {
+    fun searchContentElement_chip_hasCorrectProperties() {
         // Given
-        val whitespaceValue = "   "
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = whitespaceValue,
-                onValueChange = {},
-                onSearch = {},
+        val tag =
+            TagItem(
+                tagName = "test",
+                coverImageId = null,
+                tagId = "1",
+                createdAt = null,
+                updatedAt = null,
+                photoCount = 5,
             )
-        }
-
-        // Then - 공백도 올바르게 표시됨
-        composeTestRule.onNodeWithText(whitespaceValue).assertIsDisplayed()
-    }
-
-    @Test
-    fun searchBar_numbersAndSymbols_canBeEntered() {
-        // Given
-        val mixedText = "123!@# ABC xyz"
-        var searchQuery = ""
-        composeTestRule.setContent {
-            SearchBar(onSearch = { searchQuery = it })
-        }
-
-        // When
-        composeTestRule.onNodeWithText("Search Photos").performTextInput(mixedText)
-        composeTestRule.onNodeWithText(mixedText).performImeAction()
+        val element = SearchContentElement.Chip(id = "chip-1", tag = tag)
 
         // Then
-        assertEquals(mixedText, searchQuery)
-    }
-
-    @Test
-    fun searchBarControlled_numbersAndSymbols_displayed() {
-        // Given
-        val mixedText = "456$%^ DEF"
-        composeTestRule.setContent {
-            SearchBarControlledCustom(
-                value = mixedText,
-                onValueChange = {},
-                onSearch = {},
-            )
-        }
-
-        // Then
-        composeTestRule.onNodeWithText(mixedText).assertIsDisplayed()
+        assertEquals("chip-1", element.id)
+        assertEquals(tag, element.tag)
     }
     // endregion
 }
