@@ -305,59 +305,61 @@ class SearchViewModel(
         }
     }
 
-    private val currentTagQuery = snapshotFlow {
-        val id = focusedElementId.value
-        if (id == null) {
-            Pair(false, "")
-        } else {
-            val currentInput = textStates[id] ?: TextFieldValue()
-            val cursorPosition = currentInput.selection.start
-            if (cursorPosition == 0) {
+    private val currentTagQuery =
+        snapshotFlow {
+            val id = focusedElementId.value
+            if (id == null) {
                 Pair(false, "")
             } else {
-                val textUpToCursor = currentInput.text.substring(0, cursorPosition)
-                val lastHashIndex = textUpToCursor.lastIndexOf('#')
-
-                if (lastHashIndex == -1) {
-                    Pair(false, "") // '#' 없음
+                val currentInput = textStates[id] ?: TextFieldValue()
+                val cursorPosition = currentInput.selection.start
+                if (cursorPosition == 0) {
+                    Pair(false, "")
                 } else {
-                    val potentialTag = textUpToCursor.substring(lastHashIndex)
-                    if (" " in potentialTag) {
-                        Pair(false, "") // '#' 뒤에 띄어쓰기 있음
+                    val textUpToCursor = currentInput.text.substring(0, cursorPosition)
+                    val lastHashIndex = textUpToCursor.lastIndexOf('#')
+
+                    if (lastHashIndex == -1) {
+                        Pair(false, "") // '#' 없음
                     } else {
-                        Pair(true, potentialTag.substring(1)) // '#abc' -> "abc"
+                        val potentialTag = textUpToCursor.substring(lastHashIndex)
+                        if (" " in potentialTag) {
+                            Pair(false, "") // '#' 뒤에 띄어쓰기 있음
+                        } else {
+                            Pair(true, potentialTag.substring(1)) // '#abc' -> "abc"
+                        }
                     }
                 }
             }
         }
-    }
 
     // Composable에 노출할 최종 'tagSuggestions' StateFlow
-    val tagSuggestions: StateFlow<List<TagItem>> = currentTagQuery
-        .combine(_tagLoadingState) { (isTagSearch, tagQuery), tagState ->
+    val tagSuggestions: StateFlow<List<TagItem>> =
+        currentTagQuery
+            .combine(_tagLoadingState) { (isTagSearch, tagQuery), tagState ->
 
-            val allTags = if (tagState is TagLoadingState.Success) {
-                tagState.tags
-            } else {
-                emptyList()
-            }
+                val allTags =
+                    if (tagState is TagLoadingState.Success) {
+                        tagState.tags
+                    } else {
+                        emptyList()
+                    }
 
-            if (isTagSearch) {
-                allTags.filter {
-                    it.tagName.contains(tagQuery, ignoreCase = true)
+                if (isTagSearch) {
+                    allTags.filter {
+                        it.tagName.contains(tagQuery, ignoreCase = true)
+                    }
+                } else {
+                    emptyList()
                 }
-            } else {
-                emptyList()
-            }
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList(),
+            )
 
     fun onFocus(id: String?) {
-        if (id == null &&_ignoreFocusLoss.value) {
+        if (id == null && _ignoreFocusLoss.value) {
             return
         }
         _focusedElementId.value = id
@@ -408,7 +410,10 @@ class SearchViewModel(
         }
     }
 
-    fun onTextChange(id: String, newValue: TextFieldValue) {
+    fun onTextChange(
+        id: String,
+        newValue: TextFieldValue,
+    ) {
         viewModelScope.launch {
             _bringIntoView.emit(id)
         }
@@ -428,8 +433,8 @@ class SearchViewModel(
         // ZWSP가 삭제되었는지(커서가 1이었는지) 감지
         val didBackspaceAtStart =
             oldText.startsWith("\u200B") &&
-                    !newText.startsWith("\u200B") &&
-                    oldValue.selection.start == 1
+                !newText.startsWith("\u200B") &&
+                oldValue.selection.start == 1
 
         if (didBackspaceAtStart) {
             _ignoreFocusLoss.value = true
@@ -587,8 +592,8 @@ class SearchViewModel(
         }
     }
 
-    private fun buildSearchQuery(): String {
-        return contentItems
+    private fun buildSearchQuery(): String =
+        contentItems
             .joinToString(separator = "") {
                 when (it) {
                     is SearchContentElement.Text -> it.text
@@ -596,7 +601,6 @@ class SearchViewModel(
                 }
             }.trim()
             .replace(Regex("\\s+"), " ")
-    }
 
     /**
      * ChipSearchBar의 contentItems을 기반으로 검색을 수행합니다.
@@ -615,40 +619,42 @@ class SearchViewModel(
         }
     }
 
-    private val showSearchHistoryFlow = snapshotFlow {
-        val isFocused = focusedElementId.value != null
-        val isOnlyOneElement = contentItems.size == 1
-        val firstElement = contentItems.firstOrNull()
+    private val showSearchHistoryFlow =
+        snapshotFlow {
+            val isFocused = focusedElementId.value != null
+            val isOnlyOneElement = contentItems.size == 1
+            val firstElement = contentItems.firstOrNull()
 
-        if (isFocused && isOnlyOneElement && firstElement is SearchContentElement.Text) {
-            if (focusedElementId.value == firstElement.id) {
-                val currentText = textStates[firstElement.id]?.text ?: ""
-                currentText.isEmpty() || currentText == "\u200B"
+            if (isFocused && isOnlyOneElement && firstElement is SearchContentElement.Text) {
+                if (focusedElementId.value == firstElement.id) {
+                    val currentText = textStates[firstElement.id]?.text ?: ""
+                    currentText.isEmpty() || currentText == "\u200B"
+                } else {
+                    false
+                }
             } else {
                 false
             }
-        } else {
-            false
         }
-    }
 
-    val showSearchHistoryDropdown: StateFlow<Boolean> = showSearchHistoryFlow
-        .combine(_searchHistory) { shouldShowBasedOnFocus, historyList ->
-            shouldShowBasedOnFocus && historyList.isNotEmpty()
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
-        )
+    val showSearchHistoryDropdown: StateFlow<Boolean> =
+        showSearchHistoryFlow
+            .combine(_searchHistory) { shouldShowBasedOnFocus, historyList ->
+                shouldShowBasedOnFocus && historyList.isNotEmpty()
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = false,
+            )
 
     fun selectHistoryItem(query: String) {
         // 현재 로드된 태그 목록을 가져옵니다 (tagSuggestions에서 썼던 방식)
-        val allTags = if (_tagLoadingState.value is TagLoadingState.Success) {
-            (_tagLoadingState.value as TagLoadingState.Success).tags
-        } else {
-            emptyList()
-        }
+        val allTags =
+            if (_tagLoadingState.value is TagLoadingState.Success) {
+                (_tagLoadingState.value as TagLoadingState.Success).tags
+            } else {
+                emptyList()
+            }
 
         // ViewModel에 있는 parseQueryToElements 함수를 사용합니다.
         val newElements = parseQueryToElements(query, allTags)
@@ -662,10 +668,11 @@ class SearchViewModel(
             contentItems.add(element)
             if (element is SearchContentElement.Text) {
                 // 텍스트 아이템에 대한 TextFieldValue도 생성합니다.
-                val tfv = TextFieldValue(
-                    "\u200B" + element.text,
-                    TextRange(element.text.length + 1)
-                )
+                val tfv =
+                    TextFieldValue(
+                        "\u200B" + element.text,
+                        TextRange(element.text.length + 1),
+                    )
                 textStates[element.id] = tfv
             }
         }

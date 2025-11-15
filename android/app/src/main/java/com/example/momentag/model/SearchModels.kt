@@ -55,3 +55,20 @@ sealed class SemanticSearchState {
         val message: String,
     ) : SemanticSearchState()
 }
+
+/**
+ * Tag loading state for tag suggestions
+ */
+sealed class TagLoadingState {
+    object Idle : TagLoadingState()
+
+    object Loading : TagLoadingState()
+
+    data class Success(
+        val tags: List<TagItem>,
+    ) : TagLoadingState()
+
+    data class Error(
+        val message: String,
+    ) : TagLoadingState()
+}
