@@ -1247,7 +1247,7 @@ fun HomeScreen(navController: NavController) {
                     exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
                     modifier =
                         Modifier
-                            .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() + 16.dp}) // change to move y-axis
+                            .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() + 16.dp }) // change to move y-axis
                             .padding(horizontal = 16.dp)
                             .zIndex(1f), // z-index for overlay
                 ) {
@@ -1263,7 +1263,7 @@ fun HomeScreen(navController: NavController) {
                                 bottomStart = 16.dp,
                                 bottomEnd = 16.dp,
                             ),
-                            shadowElevation = 8.dp,
+                        shadowElevation = 8.dp,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         LazyColumn(
