@@ -3,7 +3,6 @@ package com.example.momentag.ui.components
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -36,11 +35,11 @@ class BottomNavBarComposableTest {
             )
         }
 
-        // Then - 모든 탭이 표시되는지 확인
-        composeTestRule.onNodeWithText("Home").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Search").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Tag").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Story").assertIsDisplayed()
+        // Then - 모든 아이콘이 content description으로 표시되는지 확인
+        composeTestRule.onNodeWithContentDescription("Home").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Search").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Tag").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Story").assertIsDisplayed()
     }
 
     @Test
@@ -71,7 +70,6 @@ class BottomNavBarComposableTest {
         }
 
         // Then - Home 탭이 표시됨
-        composeTestRule.onNodeWithText("Home").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Home").assertIsDisplayed()
     }
 
@@ -86,7 +84,6 @@ class BottomNavBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("Search").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Search").assertIsDisplayed()
     }
 
@@ -101,7 +98,6 @@ class BottomNavBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("Tag").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Tag").assertIsDisplayed()
     }
 
@@ -116,7 +112,6 @@ class BottomNavBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("Story").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Story").assertIsDisplayed()
     }
 
@@ -132,7 +127,7 @@ class BottomNavBarComposableTest {
         }
 
         // When - Home 탭 클릭
-        composeTestRule.onNodeWithText("Home").performClick()
+        composeTestRule.onNodeWithContentDescription("Home").performClick()
 
         // Then
         assertEquals(BottomTab.HomeScreen, clickedTab)
@@ -150,7 +145,7 @@ class BottomNavBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Search").performClick()
+        composeTestRule.onNodeWithContentDescription("Search").performClick()
 
         // Then
         assertEquals(BottomTab.SearchResultScreen, clickedTab)
@@ -168,7 +163,7 @@ class BottomNavBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Tag").performClick()
+        composeTestRule.onNodeWithContentDescription("Tag").performClick()
 
         // Then
         assertEquals(BottomTab.MyTagsScreen, clickedTab)
@@ -186,7 +181,7 @@ class BottomNavBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Story").performClick()
+        composeTestRule.onNodeWithContentDescription("Story").performClick()
 
         // Then
         assertEquals(BottomTab.StoryScreen, clickedTab)
@@ -205,13 +200,13 @@ class BottomNavBarComposableTest {
         }
 
         // When - Search 탭 클릭
-        composeTestRule.onNodeWithText("Search").performClick()
+        composeTestRule.onNodeWithContentDescription("Search").performClick()
 
         // Then
         assertTrue(clickedTabs.contains(BottomTab.SearchResultScreen))
 
         // When - Tag 탭 클릭
-        composeTestRule.onNodeWithText("Tag").performClick()
+        composeTestRule.onNodeWithContentDescription("Tag").performClick()
 
         // Then
         assertTrue(clickedTabs.contains(BottomTab.MyTagsScreen))
@@ -229,10 +224,10 @@ class BottomNavBarComposableTest {
         }
 
         // When - 모든 탭 클릭
-        composeTestRule.onNodeWithText("Home").performClick()
-        composeTestRule.onNodeWithText("Search").performClick()
-        composeTestRule.onNodeWithText("Tag").performClick()
-        composeTestRule.onNodeWithText("Story").performClick()
+        composeTestRule.onNodeWithContentDescription("Home").performClick()
+        composeTestRule.onNodeWithContentDescription("Search").performClick()
+        composeTestRule.onNodeWithContentDescription("Tag").performClick()
+        composeTestRule.onNodeWithContentDescription("Story").performClick()
 
         // Then
         assertEquals(4, clickedTabs.size)

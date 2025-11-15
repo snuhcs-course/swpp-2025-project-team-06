@@ -20,8 +20,7 @@ class PhotoSelectionRepositoryTest {
     }
 
     // Helper function
-    private fun createPhoto(id: String = "photo1") =
-        Photo(photoId = id, contentUri = mockk(), createdAt = "2024-01-01T00:00:00Z")
+    private fun createPhoto(id: String = "photo1") = Photo(photoId = id, contentUri = mockk(), createdAt = "2024-01-01T00:00:00Z")
 
     // ========== Initial State Tests ==========
 

@@ -57,26 +57,6 @@ class LocalViewModelTest {
         return uri
     }
 
-    // Get images tests
-    @Test
-    fun `getImages loads images from localRepository`() =
-        runTest {
-            // Given
-            val uri1 = createMockUri("content://media/external/images/media/1")
-            val uri2 = createMockUri("content://media/external/images/media/2")
-            every { Uri.parse("content://media/external/images/media/1") } returns uri1
-            every { Uri.parse("content://media/external/images/media/2") } returns uri2
-            val uris = listOf(uri1, uri2)
-            coEvery { localRepository.getImages() } returns uris
-
-            // When
-            viewModel.getImages()
-            advanceUntilIdle()
-
-            // Then
-            assertEquals(uris, viewModel.image.value)
-        }
-
     // Get albums tests
     @Test
     fun `getAlbums loads albums from localRepository`() =

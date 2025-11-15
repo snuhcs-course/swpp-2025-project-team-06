@@ -172,10 +172,18 @@ class StoryViewModelTest {
         runTest {
             // Given
             val storyResponses = listOf(createStoryResponse(), createStoryResponse("photo2", 2L))
-            val photos = listOf(createPhoto("photo1"), createPhoto("photo2"))
+            val photo1 = createPhoto("photo1")
+            val photo2 = createPhoto("photo2")
+            val photos = listOf(photo1, photo2)
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery {
+                localRepository.toPhotos(
+                    match<List<com.example.momentag.model.PhotoResponse>> {
+                        it.size == 2 && it[0].photoId == "photo1" && it[1].photoId == "photo2"
+                    },
+                )
+            } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
@@ -211,8 +219,10 @@ class StoryViewModelTest {
             // Given
             val storyId = "story1"
             val photoId = "photo1"
-            val tags = listOf(Tag("tag1", "Tag 1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
+            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
+            val photoDetail =
+                com.example.momentag.model
+                    .PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
             coEvery { remoteRepository.getPhotoDetail(photoId) } returns
                 RemoteRepository.Result.Success(photoDetail)
 
@@ -231,8 +241,10 @@ class StoryViewModelTest {
             // Given
             val storyId = "story1"
             val photoId = "photo1"
-            val tags = listOf(Tag("tag1", "Tag 1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
+            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
+            val photoDetail =
+                com.example.momentag.model
+                    .PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
             coEvery { remoteRepository.getPhotoDetail(photoId) } returns
                 RemoteRepository.Result.Success(photoDetail)
             viewModel.enterEditMode(storyId, photoId)
@@ -257,8 +269,10 @@ class StoryViewModelTest {
             // Given
             val storyId = "story1"
             val photoId = "photo1"
-            val tags = listOf(Tag("tag1", "Tag 1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
+            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
+            val photoDetail =
+                com.example.momentag.model
+                    .PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
             coEvery { remoteRepository.getPhotoDetail(photoId) } returns
                 RemoteRepository.Result.Success(photoDetail)
             viewModel.enterEditMode(storyId, photoId)

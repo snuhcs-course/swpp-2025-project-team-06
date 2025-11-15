@@ -139,7 +139,7 @@ class SearchViewModelTest {
             val query = "nonexistent"
             coEvery { localRepository.addSearchHistory(query) } returns Unit
             coEvery { searchRepository.semanticSearch(query, 0) } returns
-                SearchRepository.SearchResult.Success(emptyList())
+                SearchRepository.SearchResult.Empty(query)
 
             // When
             viewModel.search(query)

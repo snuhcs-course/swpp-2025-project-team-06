@@ -36,7 +36,7 @@ class StoryScreenComposableTest {
         }
 
         // Then - 아이콘은 contentDescription이 null이므로 텍스트로 확인
-        composeTestRule.onNodeWithText("스크롤하여 다음 추억").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Scroll for next moments").assertIsDisplayed()
     }
 
     @Test
@@ -47,7 +47,7 @@ class StoryScreenComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("스크롤하여 다음 추억").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Scroll for next moments").assertIsDisplayed()
     }
 
     @Test
@@ -58,7 +58,7 @@ class StoryScreenComposableTest {
         }
 
         // Then
-        val expectedText = "스크롤하여 다음 추억"
+        val expectedText = "Scroll for next moments"
         composeTestRule.onNodeWithText(expectedText).assertIsDisplayed()
     }
     // endregion
@@ -84,7 +84,7 @@ class StoryScreenComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("이 추억을 어떻게 기억하고 싶나요?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("How do you want to remember this?").assertIsDisplayed()
     }
 
     @Test
@@ -350,7 +350,7 @@ class StoryScreenComposableTest {
         // Given
         composeTestRule.setContent {
             TagSelectionCard(
-                tags = listOf("#카페", "+"),
+                tags = listOf("#카페", "＋"),
                 selectedTags = emptySet(),
                 storyTagSubmissionState = StoryTagSubmissionState.Idle,
                 isViewed = false,
@@ -663,7 +663,7 @@ class StoryScreenComposableTest {
         }
 
         // Step 1: 제목 확인
-        composeTestRule.onNodeWithText("이 추억을 어떻게 기억하고 싶나요?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("How do you want to remember this?").assertIsDisplayed()
 
         // Step 2: Done 버튼 비활성화 확인
         composeTestRule.onNodeWithText("Done").assertIsNotEnabled()
@@ -707,7 +707,7 @@ class StoryScreenComposableTest {
         // Given
         composeTestRule.setContent {
             TagSelectionCard(
-                tags = listOf("#카페", "#친구", "+"),
+                tags = listOf("#카페", "#친구", "＋"),
                 selectedTags = setOf("#카페"),
                 storyTagSubmissionState = StoryTagSubmissionState.Idle,
                 isViewed = false,
@@ -722,7 +722,7 @@ class StoryScreenComposableTest {
         }
 
         // Then - 모든 요소가 표시됨
-        composeTestRule.onNodeWithText("이 추억을 어떻게 기억하고 싶나요?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("How do you want to remember this?").assertIsDisplayed()
         composeTestRule.onNodeWithText("#카페").assertIsDisplayed()
         composeTestRule.onNodeWithText("#친구").assertIsDisplayed()
         composeTestRule.onNodeWithText("+").assertIsDisplayed()
@@ -751,7 +751,7 @@ class StoryScreenComposableTest {
         }
 
         // Then - 제목과 Done 버튼만 표시
-        composeTestRule.onNodeWithText("이 추억을 어떻게 기억하고 싶나요?").assertIsDisplayed()
+        composeTestRule.onNodeWithText("How do you want to remember this?").assertIsDisplayed()
         composeTestRule.onNodeWithText("Done").assertIsDisplayed()
     }
 
@@ -908,9 +908,9 @@ class StoryScreenComposableTest {
             )
         }
 
-        // Then
-        val koreanTitle = "이 추억을 어떻게 기억하고 싶나요?"
-        composeTestRule.onNodeWithText(koreanTitle).assertIsDisplayed()
+        // Then - Updated to match current English text
+        val title = "How do you want to remember this?"
+        composeTestRule.onNodeWithText(title).assertIsDisplayed()
     }
 
     @Test
@@ -947,7 +947,7 @@ class StoryScreenComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("스크롤하여 다음 추억").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Scroll for next moments").assertIsDisplayed()
     }
     // endregion
 

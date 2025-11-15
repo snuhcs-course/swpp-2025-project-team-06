@@ -59,11 +59,13 @@ class ImageDetailViewModelTest {
         return uri
     }
 
-    private fun createTag(id: String = "tag1", name: String = "Test Tag") =
-        Tag(
-            tagId = id,
-            tagName = name,
-        )
+    private fun createTag(
+        id: String = "tag1",
+        name: String = "Test Tag",
+    ) = Tag(
+        tagId = id,
+        tagName = name,
+    )
 
     // Load image context tests
     @Test

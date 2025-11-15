@@ -16,7 +16,6 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -98,12 +97,13 @@ class AlbumViewModelTest {
             val tagName = "Test Tag"
             val photoResponses = listOf(createPhotoResponse())
             val photos = listOf(createPhoto())
+            val recommendPhotoResponses = listOf(createPhotoResponse("photo2"))
             coEvery { remoteRepository.getPhotosByTag(tagId) } returns
                 RemoteRepository.Result.Success(photoResponses)
             coEvery { localRepository.toPhotos(photoResponses) } returns photos
             coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList())
-            every { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns emptyList()
+                RecommendRepository.RecommendResult.Success(recommendPhotoResponses)
+            coEvery { localRepository.toPhotos(recommendPhotoResponses) } returns emptyList()
 
             // When
             viewModel.loadAlbum(tagId, tagName)
@@ -258,5 +258,88 @@ class AlbumViewModelTest {
                 existingTagId = tagId,
             )
         }
+    }
+
+    @Test
+    fun `loadRecommendations error updates state with error message`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val errorMessage = "Network error"
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Error(errorMessage)
+
+            // When
+            viewModel.loadRecommendations(tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.recommendLoadingState.value
+            assertTrue(state is AlbumViewModel.RecommendLoadingState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.RecommendLoadingState.Error).message)
+        }
+
+    @Test
+    fun `resetTagAlbumPhotoSelection clears selection`() {
+        // Given
+        viewModel.toggleTagAlbumPhoto(createPhoto())
+
+        // When
+        viewModel.resetTagAlbumPhotoSelection()
+
+        // Then
+        assertTrue(viewModel.selectedTagAlbumPhotos.value.isEmpty())
+    }
+
+    @Test
+    fun `deleteTagFromPhotos success updates state to Success`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            coEvery { remoteRepository.removeTagFromPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.Success(Unit)
+
+            // When
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.tagDeleteState.value is AlbumViewModel.TagDeleteState.Success)
+        }
+
+    @Test
+    fun `deleteTagFromPhotos error updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val errorMessage = "Error deleting tag"
+            coEvery { remoteRepository.removeTagFromPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.Error(500, errorMessage)
+
+            // When
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagDeleteState.value
+            assertTrue(state is AlbumViewModel.TagDeleteState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagDeleteState.Error).message)
+        }
+
+    @Test
+    fun `getPhotosToShare returns selected photos`() {
+        // Given
+        val photo1 = createPhoto("photo1")
+        val photo2 = createPhoto("photo2")
+        viewModel.toggleTagAlbumPhoto(photo1)
+        viewModel.toggleTagAlbumPhoto(photo2)
+
+        // When
+        val photosToShare = viewModel.getPhotosToShare()
+
+        // Then
+        assertEquals(listOf(photo1, photo2), photosToShare)
     }
 }

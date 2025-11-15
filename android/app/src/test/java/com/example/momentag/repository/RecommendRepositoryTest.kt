@@ -611,7 +611,10 @@ class RecommendRepositoryTest {
 
             // Then
             assertTrue(result is RecommendRepository.StoryResult.NotReady)
-            assertEquals("We're working on your stories! Please wait a moment.", (result as RecommendRepository.StoryResult.NotReady).message)
+            assertEquals(
+                "We're working on your stories! Please wait a moment.",
+                (result as RecommendRepository.StoryResult.NotReady).message,
+            )
             verify(apiService).getStories()
         }
 

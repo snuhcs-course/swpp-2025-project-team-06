@@ -2,7 +2,6 @@ package com.example.momentag.viewmodel
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -22,7 +21,3 @@ class MainCoroutineRule(
         Dispatchers.resetMain()
     }
 }
-
-// Note: Tests using viewModelScope.launch with withContext(Dispatchers.IO) may need special handling
-// because IO dispatcher is not replaced by this rule. Consider removing withContext(Dispatchers.IO)
-// or making dispatchers injectable for better testability.

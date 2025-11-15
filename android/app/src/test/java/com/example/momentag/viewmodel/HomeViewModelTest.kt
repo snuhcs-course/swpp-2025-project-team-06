@@ -3,7 +3,6 @@ package com.example.momentag.viewmodel
 import android.net.Uri
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoResponse
-import com.example.momentag.model.TagItem
 import com.example.momentag.model.TagResponse
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
@@ -67,6 +66,8 @@ class HomeViewModelTest {
     fun tearDown() {
         clearAllMocks()
         unmockkStatic(Uri::class)
+        // Reset the static flag using the dedicated method
+        HomeViewModel.resetStoriesGeneratedFlag()
     }
 
     private fun createMockUri(path: String): Uri {
@@ -90,17 +91,14 @@ class HomeViewModelTest {
         updatedAt = "2025-01-01T00:00:00Z",
     )
 
-    private fun createPhotoResponse(
-        id: String = "photo1",
-    ) = PhotoResponse(
-        photoId = id,
-        photoPathId = 1L,
-        createdAt = "2025-01-01T00:00:00.000000Z",
-    )
+    private fun createPhotoResponse(id: String = "photo1") =
+        PhotoResponse(
+            photoId = id,
+            photoPathId = 1L,
+            createdAt = "2025-01-01T00:00:00.000000Z",
+        )
 
-    private fun createPhoto(
-        id: String = "photo1",
-    ): Photo {
+    private fun createPhoto(id: String = "photo1"): Photo {
         val uri = createMockUri("content://media/external/images/media/$id")
         every { Uri.parse("content://media/external/images/media/$id") } returns uri
         return Photo(
@@ -390,9 +388,9 @@ class HomeViewModelTest {
     @Test
     fun `loadMorePhotos loads additional photos`() =
         runTest {
-            // Given - initial load
-            val initialPhotos = listOf(createPhotoResponse("photo1"))
-            val mappedInitialPhotos = listOf(createPhoto("photo1"))
+            // Given - initial load with exactly 66 photos to enable "hasMorePhotos"
+            val initialPhotos = (1..66).map { createPhotoResponse("photo$it") }
+            val mappedInitialPhotos = (1..66).map { createPhoto("photo$it") }
             coEvery { remoteRepository.getAllPhotos(66, 0) } returns
                 RemoteRepository.Result.Success(initialPhotos)
             coEvery { localRepository.toPhotos(initialPhotos) } returns mappedInitialPhotos
@@ -400,8 +398,8 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             // When - load more
-            val morePhotos = listOf(createPhotoResponse("photo2"))
-            val mappedMorePhotos = listOf(createPhoto("photo2"))
+            val morePhotos = listOf(createPhotoResponse("photo67"))
+            val mappedMorePhotos = listOf(createPhoto("photo67"))
             coEvery { remoteRepository.getAllPhotos(66, 66) } returns
                 RemoteRepository.Result.Success(morePhotos)
             coEvery { localRepository.toPhotos(morePhotos) } returns mappedMorePhotos
@@ -409,7 +407,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals(2, viewModel.allPhotos.value.size)
+            assertEquals(67, viewModel.allPhotos.value.size)
             assertFalse(viewModel.isLoadingMorePhotos.value)
         }
 

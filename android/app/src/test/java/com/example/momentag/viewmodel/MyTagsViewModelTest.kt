@@ -1,8 +1,6 @@
 package com.example.momentag.viewmodel
 
 import com.example.momentag.model.MyTagsUiState
-import com.example.momentag.model.Photo
-import com.example.momentag.model.TagCntData
 import com.example.momentag.model.TagResponse
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RemoteRepository
@@ -31,13 +29,15 @@ class MyTagsViewModelTest {
     private lateinit var viewModel: MyTagsViewModel
     private lateinit var remoteRepository: RemoteRepository
     private lateinit var photoSelectionRepository: PhotoSelectionRepository
+    private lateinit var selectedPhotosFlow: MutableStateFlow<List<com.example.momentag.model.Photo>>
 
     @Before
     fun setUp() {
         remoteRepository = mockk()
         photoSelectionRepository = mockk()
 
-        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(emptyList())
+        selectedPhotosFlow = MutableStateFlow(emptyList())
+        every { photoSelectionRepository.selectedPhotos } returns selectedPhotosFlow
 
         // Mock initial loadTags call in init block
         coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
@@ -237,7 +237,10 @@ class MyTagsViewModelTest {
             val tagId = "tag1"
             val newName = "New Tag Name"
             coEvery { remoteRepository.renameTag(tagId, newName) } returns
-                RemoteRepository.Result.Success(com.example.momentag.model.TagId(tagId))
+                RemoteRepository.Result.Success(
+                    com.example.momentag.model
+                        .TagId(tagId),
+                )
             coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
 
             // When
@@ -279,4 +282,72 @@ class MyTagsViewModelTest {
             // Then
             assertTrue(viewModel.tagActionState.value is TagActionState.Idle)
         }
+
+    @Test
+    fun `renameTag error updates state with error message`() = runTest {
+        // Given
+        val tagId = "tag1"
+        val newName = "New Name"
+        val errorMessage = "Failed to rename"
+        coEvery { remoteRepository.renameTag(tagId, newName) } returns RemoteRepository.Result.Error(500, errorMessage)
+
+        // When
+        viewModel.renameTag(tagId, newName)
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.tagActionState.value
+        assertTrue(state is TagActionState.Error)
+        assertEquals(errorMessage, (state as TagActionState.Error).message)
+    }
+
+    @Test
+    fun `savePhotosToExistingTag success updates state to Success`() = runTest {
+        // Given
+        val tagId = "tag1"
+        val photo = mockk<com.example.momentag.model.Photo>()
+        every { photo.photoId } returns "photo1"
+        selectedPhotosFlow.value = listOf(photo)
+        coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns RemoteRepository.Result.Success(Unit)
+
+        // When
+        viewModel.savePhotosToExistingTag(tagId)
+        advanceUntilIdle()
+
+        // Then
+        assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Success)
+    }
+
+    @Test
+    fun `savePhotosToExistingTag error updates state to Error`() = runTest {
+        // Given
+        val tagId = "tag1"
+        val photo = mockk<com.example.momentag.model.Photo>()
+        every { photo.photoId } returns "photo1"
+        selectedPhotosFlow.value = listOf(photo)
+        coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns RemoteRepository.Result.Error(500, "Error")
+
+        // When
+        viewModel.savePhotosToExistingTag(tagId)
+        advanceUntilIdle()
+
+        // Then
+        assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Error)
+    }
+
+    @Test
+    fun `savePhotosToExistingTag with empty selection returns error`() = runTest {
+        // Given
+        val tagId = "tag1"
+        selectedPhotosFlow.value = emptyList()
+
+        // When
+        viewModel.savePhotosToExistingTag(tagId)
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.saveState.value
+        assertTrue(state is MyTagsViewModel.SaveState.Error)
+        assertEquals("Tag cannot be empty and photos must be selected", (state as MyTagsViewModel.SaveState.Error).message)
+    }
 }

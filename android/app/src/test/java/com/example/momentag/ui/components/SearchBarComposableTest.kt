@@ -4,7 +4,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import org.junit.Assert.assertEquals
@@ -34,7 +33,7 @@ class SearchBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("Search Anything...").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Search Photos").assertIsDisplayed()
     }
 
     @Test
@@ -60,7 +59,7 @@ class SearchBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithContentDescription("검색 실행").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Search").assertIsDisplayed()
     }
 
     @Test
@@ -71,7 +70,7 @@ class SearchBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput("test query")
+        composeTestRule.onNodeWithText("Search Photos").performTextInput("test query")
 
         // Then
         composeTestRule.onNodeWithText("test query").assertIsDisplayed()
@@ -85,9 +84,9 @@ class SearchBarComposableTest {
             SearchBar(onSearch = { searchQuery = it })
         }
 
-        // When - 텍스트 입력 후 검색 아이콘 클릭
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput("my search")
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        // When - 텍스트 입력 후 IME 액션 (검색 아이콘은 더 이상 클릭 가능하지 않음)
+        composeTestRule.onNodeWithText("Search Photos").performTextInput("my search")
+        composeTestRule.onNodeWithText("my search").performImeAction()
 
         // Then
         assertEquals("my search", searchQuery)
@@ -102,7 +101,7 @@ class SearchBarComposableTest {
         }
 
         // When - 텍스트 입력 후 IME 액션 (키보드 검색 버튼)
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput("keyboard search")
+        composeTestRule.onNodeWithText("Search Photos").performTextInput("keyboard search")
         composeTestRule.onNodeWithText("keyboard search").performImeAction()
 
         // Then
@@ -117,8 +116,8 @@ class SearchBarComposableTest {
             SearchBar(onSearch = { searchQuery = it })
         }
 
-        // When - 아무것도 입력하지 않고 검색
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        // When - 아무것도 입력하지 않고 검색 (IME 액션 사용)
+        composeTestRule.onNodeWithText("Search Photos").performImeAction()
 
         // Then
         assertEquals("", searchQuery)
@@ -133,11 +132,11 @@ class SearchBarComposableTest {
         }
 
         // When - 여러 번 검색
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput("first")
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        composeTestRule.onNodeWithText("Search Photos").performTextInput("first")
+        composeTestRule.onNodeWithText("first").performImeAction()
 
         composeTestRule.onNodeWithText("first").performTextInput(" second")
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        composeTestRule.onNodeWithText("first second").performImeAction()
 
         // Then
         assertEquals(2, searchQueries.size)
@@ -155,8 +154,8 @@ class SearchBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput(longText)
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        composeTestRule.onNodeWithText("Search Photos").performTextInput(longText)
+        composeTestRule.onNodeWithText(longText).performImeAction()
 
         // Then
         assertEquals(longText, searchQuery)
@@ -172,8 +171,8 @@ class SearchBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput(specialText)
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        composeTestRule.onNodeWithText("Search Photos").performTextInput(specialText)
+        composeTestRule.onNodeWithText(specialText).performImeAction()
 
         // Then
         assertEquals(specialText, searchQuery)
@@ -189,8 +188,8 @@ class SearchBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput(koreanText)
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        composeTestRule.onNodeWithText("Search Photos").performTextInput(koreanText)
+        composeTestRule.onNodeWithText(koreanText).performImeAction()
 
         // Then
         assertEquals(koreanText, searchQuery)
@@ -242,7 +241,7 @@ class SearchBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithContentDescription("검색 실행").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Search").assertIsDisplayed()
     }
 
     @Test
@@ -292,8 +291,8 @@ class SearchBarComposableTest {
             )
         }
 
-        // When
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        // When - 검색 아이콘 대신 IME 액션 사용
+        composeTestRule.onNodeWithText("test query").performImeAction()
 
         // Then
         assertTrue(searchCalled)
@@ -345,9 +344,9 @@ class SearchBarComposableTest {
             )
         }
 
-        // When - 여러 번 검색
+        // When - 여러 번 검색 (IME 액션 사용)
         repeat(3) {
-            composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+            composeTestRule.onNodeWithText("query").performImeAction()
         }
 
         // Then
@@ -397,7 +396,7 @@ class SearchBarComposableTest {
         composeTestRule.setContent {
             SearchBar(onSearch = {})
         }
-        composeTestRule.onNodeWithContentDescription("검색 실행").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Search").assertIsDisplayed()
     }
 
     @Test
@@ -410,7 +409,7 @@ class SearchBarComposableTest {
                 onSearch = {},
             )
         }
-        composeTestRule.onNodeWithContentDescription("검색 실행").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Search").assertIsDisplayed()
     }
     // endregion
 
@@ -424,8 +423,8 @@ class SearchBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput("   ")
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        composeTestRule.onNodeWithText("Search Photos").performTextInput("   ")
+        composeTestRule.onNodeWithText("   ").performImeAction()
 
         // Then
         assertEquals("   ", searchQuery)
@@ -457,8 +456,8 @@ class SearchBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Search Anything...").performTextInput(mixedText)
-        composeTestRule.onNodeWithContentDescription("검색 실행").performClick()
+        composeTestRule.onNodeWithText("Search Photos").performTextInput(mixedText)
+        composeTestRule.onNodeWithText(mixedText).performImeAction()
 
         // Then
         assertEquals(mixedText, searchQuery)

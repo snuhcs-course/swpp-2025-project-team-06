@@ -16,14 +16,10 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import io.mockk.verify
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -141,7 +137,7 @@ class SelectImageViewModelTest {
             val photoResponses = listOf(createPhotoResponse())
             val photos = listOf(createPhoto())
             every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(photos)
-            coEvery { recommendRepository.recommendPhotosFromPhotos(any()) } returns
+            coEvery { recommendRepository.recommendPhotosFromPhotos(listOf("photo1")) } returns
                 RecommendRepository.RecommendResult.Success(photoResponses)
             coEvery { localRepository.toPhotos(photoResponses) } returns photos
 
@@ -161,6 +157,7 @@ class SelectImageViewModelTest {
             // Then
             val state = newViewModel.recommendState.value
             assertTrue(state is RecommendState.Success)
+            assertEquals(photos, (state as RecommendState.Success).photos)
         }
 
     // Photo selection tests

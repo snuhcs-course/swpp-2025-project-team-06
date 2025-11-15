@@ -101,7 +101,8 @@ class ImageBrowserRepositoryTest {
     fun `setSearchResults replaces previous session`() {
         // Given
         repository.setTagAlbum(testPhotos, "OldTag")
-        val newPhotos = listOf(Photo(photoId = "newPhoto", contentUri = Uri.parse("content://media/99"), createdAt = "2024-01-01T00:00:00Z"))
+        val newPhotos =
+            listOf(Photo(photoId = "newPhoto", contentUri = Uri.parse("content://media/99"), createdAt = "2024-01-01T00:00:00Z"))
 
         // When
         repository.setSearchResults(newPhotos, "newQuery")
