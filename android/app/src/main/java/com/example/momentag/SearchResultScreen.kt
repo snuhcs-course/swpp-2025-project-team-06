@@ -62,6 +62,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -161,12 +162,13 @@ fun SearchResultScreen(
     }
 
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                searchViewModel.loadServerTags()
-                hideCursor = false
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    searchViewModel.loadServerTags()
+                    hideCursor = false
+                }
             }
-        }
 
         lifecycleOwner.lifecycle.addObserver(observer)
 
@@ -403,7 +405,6 @@ fun SearchResultScreen(
         topSpacerHeight = topSpacerHeight,
         searchBarWidth = searchBarWidth,
         onSearchBarWidthChange = { searchBarWidth = it },
-
         uiState = uiState,
         isSelectionMode = isSelectionMode,
         selectedPhotos = selectedPhotos,
@@ -659,18 +660,20 @@ private fun SearchResultContent(
     val context = LocalContext.current
     Box(modifier = modifier) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Input
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onGloballyPositioned { onSearchBarRowHeightChange(it.size.height) },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { onSearchBarRowHeightChange(it.size.height) },
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

@@ -253,8 +253,8 @@ class SearchViewModel(
                 elements.add(
                     SearchContentElement.Text(
                         id = UUID.randomUUID().toString(),
-                        text = ""
-                    )
+                        text = "",
+                    ),
                 )
             }
 

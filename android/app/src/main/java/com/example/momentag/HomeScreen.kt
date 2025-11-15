@@ -970,7 +970,7 @@ fun HomeScreen(navController: NavController) {
                                 bottomStart = 16.dp,
                                 bottomEnd = 16.dp,
                             ),
-                            shadowElevation = 8.dp,
+                        shadowElevation = 8.dp,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         LazyColumn(
