@@ -42,6 +42,10 @@ class HomeViewModel(
         // Flag to track if stories have been generated in this app session
         @Volatile
         private var storiesGeneratedThisSession = false
+
+        fun resetStoriesGeneratedFlag() {
+            storiesGeneratedThisSession = false
+        }
     }
 
     sealed class HomeLoadingState {

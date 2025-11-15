@@ -7,13 +7,11 @@ import com.example.momentag.model.Album
 import com.example.momentag.model.Photo
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class LocalViewModel(
     private val localRepository: LocalRepository,
@@ -28,10 +26,7 @@ class LocalViewModel(
 
     fun getAlbums() {
         viewModelScope.launch {
-            _albums.value =
-                withContext(Dispatchers.IO) {
-                    localRepository.getAlbums()
-                }
+            _albums.value = localRepository.getAlbums()
         }
     }
 
@@ -58,10 +53,7 @@ class LocalViewModel(
     fun getImagesForAlbum(albumId: Long) {
         viewModelScope.launch {
             clearPhotoSelection()
-            _imagesInAlbum.value =
-                withContext(Dispatchers.IO) {
-                    localRepository.getImagesForAlbum(albumId)
-                }
+            _imagesInAlbum.value = localRepository.getImagesForAlbum(albumId)
         }
     }
 
