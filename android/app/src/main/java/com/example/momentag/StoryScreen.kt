@@ -140,16 +140,21 @@ fun StoryTagSelectionScreen(
                     currentTab = tab
                     when (tab) {
                         BottomTab.HomeScreen -> {
-                            navController.navigate(Screen.Home.route)
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
                         }
                         BottomTab.SearchResultScreen -> {
-                            navController.navigate(Screen.SearchResult.initialRoute())
+                            navController.navigate(Screen.SearchResult.initialRoute()) {
+                                popUpTo(Screen.Home.route)
+                            }
                         }
                         BottomTab.MyTagsScreen -> {
-                            navController.navigate(Screen.MyTags.route)
+                            navController.navigate(Screen.MyTags.route) {
+                                popUpTo(Screen.Home.route)
+                            }
                         }
                         BottomTab.StoryScreen -> {
-                            // 이미 Story 화면
                         }
                     }
                 },

@@ -158,11 +158,25 @@ fun AddTagScreen(navController: NavController) {
                         ),
                 currentTab = BottomTab.MyTagsScreen,
                 onTabSelected = { tab ->
+                    addTagViewModel.clearDraft()
+
                     when (tab) {
-                        BottomTab.HomeScreen -> navController.navigate(Screen.Home.route)
-                        BottomTab.SearchResultScreen -> navController.navigate(Screen.SearchResult.createRoute(""))
-                        BottomTab.MyTagsScreen -> navController.navigate(Screen.MyTags.route)
-                        BottomTab.StoryScreen -> navController.navigate(Screen.Story.route)
+                        BottomTab.HomeScreen ->
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        BottomTab.SearchResultScreen ->
+                            navController.navigate(Screen.SearchResult.initialRoute()) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        BottomTab.MyTagsScreen ->
+                            navController.navigate(Screen.MyTags.route) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        BottomTab.StoryScreen ->
+                            navController.navigate(Screen.Story.route) {
+                                popUpTo(Screen.Home.route)
+                            }
                     }
                 },
             )

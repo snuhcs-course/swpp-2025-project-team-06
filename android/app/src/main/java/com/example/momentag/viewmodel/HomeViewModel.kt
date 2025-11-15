@@ -116,6 +116,34 @@ class HomeViewModel(
         _shouldReturnToAllPhotos.value = value
     }
 
+    private val _allPhotosScrollIndex = MutableStateFlow(0)
+    val allPhotosScrollIndex: StateFlow<Int> = _allPhotosScrollIndex.asStateFlow()
+
+    private val _allPhotosScrollOffset = MutableStateFlow(0)
+    val allPhotosScrollOffset: StateFlow<Int> = _allPhotosScrollOffset.asStateFlow()
+
+    fun setAllPhotosScrollPosition(
+        index: Int,
+        offset: Int,
+    ) {
+        _allPhotosScrollIndex.value = index
+        _allPhotosScrollOffset.value = offset
+    }
+
+    private val _tagAlbumScrollIndex = MutableStateFlow(0)
+    val tagAlbumScrollIndex: StateFlow<Int> = _tagAlbumScrollIndex.asStateFlow()
+
+    private val _tagAlbumScrollOffset = MutableStateFlow(0)
+    val tagAlbumScrollOffset: StateFlow<Int> = _tagAlbumScrollOffset.asStateFlow()
+
+    fun setTagAlbumScrollPosition(
+        index: Int,
+        offset: Int,
+    ) {
+        _tagAlbumScrollIndex.value = index
+        _tagAlbumScrollOffset.value = offset
+    }
+
     private var currentOffset = 0
     private val pageSize = 66
     private var hasMorePhotos = true
