@@ -39,7 +39,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
@@ -118,6 +117,7 @@ fun SelectImageScreen(navController: NavController) {
     val addPhotosState by selectImageViewModel.addPhotosState.collectAsState()
 
     var isSelectionModeDelay by remember { mutableStateOf(true) }
+    var showMenu by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.MyTagsScreen) }
 
     val permission =
@@ -242,21 +242,7 @@ fun SelectImageScreen(navController: NavController) {
                     navController.popBackStack()
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-                actions = {
-                    if (isSelectionModeDelay) {
-                        IconButton(
-                            onClick = {
-                                isSelectionModeDelay = false
-                                selectImageViewModel.setSelectionMode(false)
-                            },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cancel selection",
-                            )
-                        }
-                    }
-                },
+                actions = {},
             )
         },
         bottomBar = {

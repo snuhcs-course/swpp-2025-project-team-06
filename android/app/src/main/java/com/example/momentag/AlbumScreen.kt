@@ -40,14 +40,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -70,6 +69,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -126,7 +126,6 @@ fun AlbumScreen(
     var isTagAlbumPhotoSelectionMode by remember { mutableStateOf(false) }
     var isTagAlbumPhotoSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
-    var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
     // === Edge-to-edge Overlay 상태를 상위로 끌어올림 ===
@@ -140,12 +139,21 @@ fun AlbumScreen(
     var showErrorBanner by remember { mutableStateOf(false) }
     var errorBannerTitle by remember { mutableStateOf("Error") }
     var errorBannerMessage by remember { mutableStateOf("An error occurred") }
-    var showSelectPhotosBanner by remember { mutableStateOf(false) }
+    var showSelectPhotosBannerShare by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showSelectPhotosBanner) {
-        if (showSelectPhotosBanner) {
+    LaunchedEffect(showSelectPhotosBannerShare) {
+        if (showSelectPhotosBannerShare) {
             kotlinx.coroutines.delay(2000)
-            showSelectPhotosBanner = false
+            showSelectPhotosBannerShare = false
+        }
+    }
+
+    var showSelectPhotosBannerUntag by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showSelectPhotosBannerUntag) {
+        if (showSelectPhotosBannerUntag) {
+            kotlinx.coroutines.delay(2000)
+            showSelectPhotosBannerUntag = false
         }
     }
 
@@ -301,7 +309,6 @@ fun AlbumScreen(
 
                         showDeleteConfirmationDialog = false
                         isTagAlbumPhotoSelectionMode = false
-                        showMenu = false
                         albumViewModel.resetTagAlbumPhotoSelection()
                     },
                 ) {
@@ -331,62 +338,69 @@ fun AlbumScreen(
                     }
                 },
                 actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options",
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                        ) {
-                            if (isTagAlbumPhotoSelectionModeDelay) {
-                                DropdownMenuItem(
-                                    text = { Text("Share") },
-                                    onClick = {
-                                        val photos = albumViewModel.getPhotosToShare()
-                                        ShareUtils.sharePhotos(context, photos)
+                    if (isTagAlbumPhotoSelectionMode && selectedTagAlbumPhotos.isNotEmpty()) {
+                        Row {
+                            IconButton(
+                                onClick = {
+                                    val photos = albumViewModel.getPhotosToShare()
+                                    ShareUtils.sharePhotos(context, photos)
 
+                                    if (selectedTagAlbumPhotos.isNotEmpty()) {
                                         Toast // 성공: Toast
                                             .makeText(
                                                 context,
                                                 "Share ${photos.size} photo(s)",
                                                 Toast.LENGTH_SHORT,
                                             ).show()
-
-                                        showMenu = false
-                                        isTagAlbumPhotoSelectionMode = false
-                                        albumViewModel.resetTagAlbumPhotoSelection()
-                                    },
+                                    } else {
+                                        showSelectPhotosBannerShare = true
+                                    }
+                                },
+                                modifier = Modifier.width(32.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Share",
                                 )
-                                DropdownMenuItem(
-                                    text = { Text("Delete") },
-                                    onClick = {
-                                        if (selectedTagAlbumPhotos.isNotEmpty()) {
-                                            showDeleteConfirmationDialog = true
-                                        } else {
-                                            showSelectPhotosBanner = true
-                                        }
-                                        showMenu = false
-                                    },
+                            }
+                            IconButton(
+                                onClick = {
+                                    if (selectedTagAlbumPhotos.isNotEmpty()) {
+                                        showDeleteConfirmationDialog = true
+                                    } else {
+                                        showSelectPhotosBannerUntag = true
+                                    }
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    contentDescription = "Untag",
                                 )
-                                DropdownMenuItem(
-                                    text = { Text("Cancel") },
-                                    onClick = {
-                                        albumViewModel.resetTagAlbumPhotoSelection()
-                                        isTagAlbumPhotoSelectionMode = false
-                                        showMenu = false
-                                    },
+                            }
+                        }
+                    }
+                    if (isTagAlbumPhotoSelectionMode && !selectedTagAlbumPhotos.isNotEmpty()) {
+                        Row {
+                            IconButton(
+                                onClick = {},
+                                enabled = false,
+                                modifier = Modifier.width(32.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    tint = Color.LightGray,
+                                    contentDescription = "Share",
                                 )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text("Select") },
-                                    onClick = {
-                                        isTagAlbumPhotoSelectionMode = true
-                                        showMenu = false
-                                    },
+                            }
+                            IconButton(
+                                onClick = {},
+                                enabled = false,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    tint = Color.LightGray,
+                                    contentDescription = "Untag",
                                 )
                             }
                         }
@@ -480,15 +494,27 @@ fun AlbumScreen(
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
 
-                    AnimatedVisibility(visible = showSelectPhotosBanner) {
+                    AnimatedVisibility(visible = showSelectPhotosBannerShare) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             title = "No Photos Selected",
-                            message = "Please select photos to delete.",
-                            onActionClick = { showSelectPhotosBanner = false },
+                            message = "Please select photos to share.",
+                            onActionClick = { showSelectPhotosBannerShare = false },
                             showActionButton = false,
                             showDismissButton = true,
-                            onDismiss = { showSelectPhotosBanner = false },
+                            onDismiss = { showSelectPhotosBannerShare = false },
+                        )
+                    }
+
+                    AnimatedVisibility(visible = showSelectPhotosBannerUntag) {
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            title = "No Photos Selected",
+                            message = "Please select photos to untag.",
+                            onActionClick = { showSelectPhotosBannerUntag = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { showSelectPhotosBannerUntag = false },
                         )
                     }
 
