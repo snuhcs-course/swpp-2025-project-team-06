@@ -409,7 +409,7 @@ class ResPhotoTagListSerializerTest(TestCase):
 
     def test_res_photo_tag_list_serializer_with_tags(self):
         """태그가 있는 사진에 대한 ResPhotoTagListSerializer 테스트"""
-        data = {"photo_path_id": 12345, "tags": [self.tag1, self.tag2]}
+        data = {"photo_path_id": 12345, "address": "서울시 관악구", "tags": [self.tag1, self.tag2]}
 
         serializer = ResPhotoTagListSerializer(data)
         serialized_data = serializer.data
@@ -423,7 +423,7 @@ class ResPhotoTagListSerializerTest(TestCase):
 
     def test_res_photo_tag_list_serializer_no_tags(self):
         """태그가 없는 사진에 대한 ResPhotoTagListSerializer 테스트"""
-        data = {"photo_path_id": 67890, "tags": []}
+        data = {"photo_path_id": 67890, "address": "서울시 관악구",  "tags": []}
 
         serializer = ResPhotoTagListSerializer(data)
         serialized_data = serializer.data

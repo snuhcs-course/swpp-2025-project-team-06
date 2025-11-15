@@ -1,967 +1,747 @@
-import uuid
+"""
+Tests for gallery/tasks.py
 
-import numpy as np
-from unittest.mock import patch, MagicMock
+All external dependencies (Qdrant, Redis, Celery) are mocked.
+"""
+
+import uuid
+import json
+from datetime import datetime
+from unittest.mock import MagicMock, patch, call
 from django.test import TestCase
 from django.contrib.auth.models import User
-from qdrant_client.http import models
-import networkx as nx
+from django.utils import timezone
+import numpy as np
 
-from gallery.models import Tag, Photo, Photo_Tag, Caption, Photo_Caption
-from gallery.tasks import (
-    retrieve_all_rep_vectors_of_tag,
+from ..models import Tag, Photo, Photo_Tag, Photo_Caption, Caption
+from ..tasks import (
     recommend_photo_from_tag,
-    tag_recommendation,
-    retrieve_photo_caption_graph,
     recommend_photo_from_photo,
+    tag_recommendation,
+    tag_recommendation_batch,
+    retrieve_all_rep_vectors_of_tag,
+    retrieve_photo_caption_graph,
+    execute_hybrid_search,
+    is_valid_uuid,
+    generate_stories_task,
+    compute_and_store_rep_vectors,
 )
 
 
-# Create your tests here.
-class TaskFunctionsTest(TestCase):
+class RecommendPhotoFromTagTest(TestCase):
+    """recommend_photo_from_tag 함수 테스트"""
+
     def setUp(self):
         self.user = User.objects.create_user(
-            username="testuser", password="password123"
+            username="testuser", email="test@example.com", password="testpass123"
         )
-        self.user_id = self.user.id
-        self.photo_id = uuid.uuid4()
-        self.tag_id = uuid.uuid4()
-        self.tag = Tag.objects.create(tag_id=self.tag_id, user=self.user, tag="test")
-
-        # Create photo first
-        self.photo = Photo.objects.create(
-            photo_id=self.photo_id,
+        self.tag = Tag.objects.create(tag="테스트태그", user=self.user)
+        self.photo1 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
             user=self.user,
-            photo_path_id=123,
-            filename="test.jpg",
+            photo_path_id=101,
+            created_at=timezone.now(),
         )
-
-        # Create photo_tag relationship with photo instance
-        self.photo_tag = Photo_Tag.objects.create(
-            user=self.user, tag=self.tag, photo=self.photo
+        self.photo2 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=102,
+            created_at=timezone.now(),
         )
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_retrieve_all_rep_vectors_of_tag_success(self, mock_get_client):
+    @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
+    def test_recommend_photo_from_tag_with_results(
+        self, mock_retrieve_rep, mock_get_client
+    ):
+        """태그 기반 사진 추천 - 정상 결과"""
+        # Mock rep vectors
+        mock_retrieve_rep.return_value = [[0.1, 0.2, 0.3]]
+
+        # Mock Qdrant client
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        # Mock recommend results
         mock_point1 = MagicMock()
-        mock_point1.vector = [0.1] * 512
-
+        mock_point1.id = str(self.photo1.photo_id)
         mock_point2 = MagicMock()
-        mock_point2.vector = [0.2] * 512
+        mock_point2.id = str(self.photo2.photo_id)
 
-        mock_get_client.return_value.scroll.return_value = (
-            [mock_point1, mock_point2],
-            None,
-        )
-
-        expected = [
-            [0.1] * 512,
-            [0.2] * 512,
-        ]
-
-        results = retrieve_all_rep_vectors_of_tag(self.user, self.tag_id)
-
-        self.assertEqual(results, expected)
-
-    @patch(
-        "gallery.tasks.get_qdrant_client"
-    )  # adjust patch path to where client is imported
-    @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_basic(self, mock_retrieve, mock_get_client):
-        """Test basic recommendation flow with single representative vector"""
-        # Setup
-        rep_vector = [0.1] * 512
-        mock_retrieve.return_value = [rep_vector]
-
-        first_uuid = uuid.uuid4()
-
-        mock_points = [
-            MagicMock(id=str(first_uuid), payload={"photo_path_id": 1}),
-            MagicMock(id=str(uuid.uuid4()), payload={"photo_path_id": 2}),
-            MagicMock(id=str(uuid.uuid4()), payload={"photo_path_id": 3}),
-        ]
-        mock_get_client.return_value.search.return_value = mock_points
+        mock_client.recommend.return_value = [mock_point1, mock_point2]
 
         # Execute
-        result = recommend_photo_from_tag(self.user, self.tag_id)
+        results = recommend_photo_from_tag(self.user, self.tag.tag_id)
 
-        # Assert
-        self.assertEqual(len(result), 3)
-        self.assertEqual(result[0]["photo_id"], str(first_uuid))
-        self.assertEqual(result[0]["photo_path_id"], 1)
-        mock_retrieve.assert_called_once_with(self.user, self.tag_id)
+        # Verify
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]["photo_id"], str(self.photo1.photo_id))
+        self.assertEqual(results[0]["photo_path_id"], 101)
+        mock_client.recommend.assert_called_once()
+
+    @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
+    def test_recommend_photo_from_tag_no_rep_vectors(self, mock_retrieve_rep):
+        """태그에 rep vector가 없는 경우"""
+        mock_retrieve_rep.return_value = []
+
+        results = recommend_photo_from_tag(self.user, self.tag.tag_id)
+
+        self.assertEqual(results, [])
+        mock_retrieve_rep.assert_called_once_with(self.user, self.tag.tag_id)
 
     @patch("gallery.tasks.get_qdrant_client")
     @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_filters_tagged_photos(
-        self, mock_retrieve, mock_get_client
+    def test_recommend_photo_from_tag_excludes_tagged_photos(
+        self, mock_retrieve_rep, mock_get_client
     ):
-        """Test that already tagged photos are filtered out"""
-        # Setup
-        rep_vector = [0.1] * 512
-        mock_retrieve.return_value = [rep_vector]
+        """이미 태그된 사진은 제외"""
+        # Tag photo1
+        Photo_Tag.objects.create(user=self.user, photo=self.photo1, tag=self.tag)
 
-        first_uuid = uuid.uuid4()
-        third_uuid = uuid.uuid4()
+        mock_retrieve_rep.return_value = [[0.1, 0.2, 0.3]]
 
-        mock_points = [
-            MagicMock(id=str(first_uuid), payload={"photo_path_id": 1}),
-            MagicMock(id=str(self.photo_id), payload={"photo_path_id": 2}),
-            MagicMock(id=str(third_uuid), payload={"photo_path_id": 3}),
-        ]
-        mock_get_client.return_value.search.return_value = mock_points
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
 
-        # Execute
-        result = recommend_photo_from_tag(self.user, self.tag_id)
+        mock_point1 = MagicMock()
+        mock_point1.id = str(self.photo1.photo_id)
+        mock_point2 = MagicMock()
+        mock_point2.id = str(self.photo2.photo_id)
 
-        # Assert
-        self.assertEqual(len(result), 2)
-        photo_ids = [r["photo_id"] for r in result]
-        self.assertIn(str(first_uuid), photo_ids)
-        self.assertIn(str(third_uuid), photo_ids)
-        self.assertNotIn(str(self.photo_id), photo_ids)
+        mock_client.recommend.return_value = [mock_point1, mock_point2]
 
-    @patch("gallery.tasks.get_qdrant_client")
-    @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_rrf_with_multiple_vectors(
-        self, mock_retrieve, mock_get_client
-    ):
-        """Test RRF scoring with multiple representative vectors"""
-        # Setup
-        rep_vectors = [[0.1] * 512, [0.2] * 512]
-        mock_retrieve.return_value = rep_vectors
+        results = recommend_photo_from_tag(self.user, self.tag.tag_id)
 
-        uuids = [uuid.uuid4() for _ in range(4)]
-
-        # First query returns photo1, photo2, photo3
-        mock_points_1 = [
-            MagicMock(id=str(uuids[0]), payload={"photo_path_id": 1}),
-            MagicMock(id=str(uuids[1]), payload={"photo_path_id": 2}),
-            MagicMock(id=str(uuids[2]), payload={"photo_path_id": 3}),
-        ]
-
-        # Second query returns photo2, photo1, photo4
-        mock_points_2 = [
-            MagicMock(id=str(uuids[1]), payload={"photo_path_id": 2}),
-            MagicMock(id=str(uuids[3]), payload={"photo_path_id": 4}),
-            MagicMock(id=str(uuids[0]), payload={"photo_path_id": 1}),
-        ]
-
-        mock_get_client.return_value.search.side_effect = [
-            mock_points_1,
-            mock_points_2,
-        ]
-
-        # Execute
-        result = recommend_photo_from_tag(self.user, self.tag_id)
-
-        # Assert
-        # photo2 should rank highest (appears 2nd and 1st in each query)
-        # photo1 should rank second (appears 1st and 3rd)
-        self.assertEqual(result[0]["photo_id"], str(uuids[1]))
-        self.assertEqual(result[1]["photo_id"], str(uuids[0]))
-
-    @patch("gallery.tasks.get_qdrant_client")
-    @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_empty_rep_vectors(self, mock_retrieve, mock_get_client):
-        """Test behavior when no representative vectors exist"""
-        # Setup
-        mock_retrieve.return_value = []
-
-        # Execute
-        result = recommend_photo_from_tag(self.user, self.tag_id)
-
-        # Assert
-        self.assertEqual(len(result), 0)
-        mock_get_client.return_value.search.assert_not_called()
-
-    @patch("gallery.tasks.Tag.objects.get")
-    @patch("gallery.tasks.get_qdrant_client")
-    def test_tag_recommendation_success(self, mock_get_client, mock_tag_get):
-        mock_retrieve_point = models.Record(
-            id=str(self.photo_id), payload={}, vector=[0.1] * 768
-        )
-        mock_get_client.return_value.retrieve.return_value = [mock_retrieve_point]
-
-        mock_search_result_point = models.ScoredPoint(
-            id=str(uuid.uuid4()),
-            version=1,
-            score=0.95,
-            payload={"user_id": self.user_id, "tag_id": str(self.tag.tag_id)},
-            vector=None,
-        )
-        mock_get_client.return_value.search.return_value = [mock_search_result_point]
-
-        mock_tag_get.return_value = self.tag
-
-        recommendations = tag_recommendation(self.user, self.photo_id)
-
-        self.assertIsInstance(recommendations, list)
-        self.assertEqual(len(recommendations), 1)
-        self.assertEqual(recommendations[0], self.tag)
-        self.assertEqual(recommendations[0].tag, "test")
-        self.assertEqual(recommendations[0].tag_id, self.tag.tag_id)
-
-        mock_get_client.return_value.retrieve.assert_called_once_with(
-            collection_name="my_image_collection",
-            ids=[str(self.photo_id)],
-            with_vectors=True,
-        )
-
-        mock_get_client.return_value.search.assert_called_once()
-        call_args, call_kwargs = mock_get_client.return_value.search.call_args
-        self.assertEqual(call_kwargs["collection_name"], "my_repvec_collection")
-        self.assertEqual(call_kwargs["limit"], 10)
-        np.testing.assert_array_equal(
-            call_kwargs["query_vector"], mock_retrieve_point.vector
-        )
-
-        mock_tag_get.assert_called_once_with(tag_id=str(self.tag.tag_id))
-
-    @patch("gallery.tasks.get_qdrant_client")
-    def test_tag_recommendation_no_similar_tag_found(self, mock_get_client):
-        mock_retrieve_point = models.Record(
-            id=str(self.photo_id), payload={}, vector=[0.1] * 768
-        )
-        mock_get_client.return_value.retrieve.return_value = [mock_retrieve_point]
-        mock_get_client.return_value.search.return_value = []
-
-        recommendations = tag_recommendation(self.user, self.photo_id)
-
-        self.assertIsInstance(recommendations, list)
-        self.assertEqual(len(recommendations), 0)
-
-
-class RetrievePhotoCaptionGraphTest(TestCase):
-    def setUp(self):
-        self.user1 = User.objects.create_user(
-            username="testuser1", password="password123"
-        )
-        self.user2 = User.objects.create_user(
-            username="testuser2", password="password123"
-        )
-
-    def test_empty_graph_no_photo_captions(self):
-        """Test that empty graph is returned when user has no photo captions"""
-        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
-
-        self.assertEqual(len(photo_set), 0)
-        self.assertEqual(len(caption_set), 0)
-        self.assertEqual(graph.number_of_nodes(), 0)
-        self.assertEqual(graph.number_of_edges(), 0)
-
-    def test_single_photo_single_caption(self):
-        """Test graph with one photo and one caption"""
-        photo_id = uuid.uuid4()
-        caption = Caption.objects.create(user=self.user1, caption="beach")
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id, caption=caption, weight=5
-        )
-
-        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
-
-        # Verify sets
-        self.assertEqual(len(photo_set), 1)
-        self.assertEqual(len(caption_set), 1)
-        self.assertIn(photo_id, photo_set)
-        self.assertIn(caption.caption_id, caption_set)
-
-        # Verify graph structure
-        self.assertEqual(graph.number_of_nodes(), 2)
-        self.assertEqual(graph.number_of_edges(), 1)
-
-        # Verify bipartite attributes
-        self.assertEqual(graph.nodes[photo_id]["bipartite"], 0)
-        self.assertEqual(graph.nodes[caption.caption_id]["bipartite"], 1)
-
-        # Verify edge weight
-        self.assertTrue(graph.has_edge(photo_id, caption.caption_id))
-        self.assertEqual(graph[photo_id][caption.caption_id]["weight"], 5)
-
-    def test_multiple_photos_shared_captions(self):
-        """Test graph where multiple photos share the same captions"""
-        photo_id1 = uuid.uuid4()
-        photo_id2 = uuid.uuid4()
-        photo_id3 = uuid.uuid4()
-
-        caption_beach = Caption.objects.create(user=self.user1, caption="beach")
-        caption_sunset = Caption.objects.create(user=self.user1, caption="sunset")
-
-        # Photo 1: beach (weight=3), sunset (weight=2)
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id1, caption=caption_beach, weight=3
-        )
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id1, caption=caption_sunset, weight=2
-        )
-
-        # Photo 2: beach (weight=5)
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id2, caption=caption_beach, weight=5
-        )
-
-        # Photo 3: sunset (weight=1)
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id3, caption=caption_sunset, weight=1
-        )
-
-        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
-
-        # Verify sets
-        self.assertEqual(len(photo_set), 3)
-        self.assertEqual(len(caption_set), 2)
-        self.assertIn(photo_id1, photo_set)
-        self.assertIn(photo_id2, photo_set)
-        self.assertIn(photo_id3, photo_set)
-
-        # Verify graph structure: 3 photos + 2 captions = 5 nodes, 4 edges
-        self.assertEqual(graph.number_of_nodes(), 5)
-        self.assertEqual(graph.number_of_edges(), 4)
-
-        # Verify bipartite structure
-        for photo_id in [photo_id1, photo_id2, photo_id3]:
-            self.assertEqual(graph.nodes[photo_id]["bipartite"], 0)
-        for caption in [caption_beach, caption_sunset]:
-            self.assertEqual(graph.nodes[caption.caption_id]["bipartite"], 1)
-
-        # Verify specific edges and weights
-        self.assertEqual(graph[photo_id1][caption_beach.caption_id]["weight"], 3)
-        self.assertEqual(graph[photo_id1][caption_sunset.caption_id]["weight"], 2)
-        self.assertEqual(graph[photo_id2][caption_beach.caption_id]["weight"], 5)
-        self.assertEqual(graph[photo_id3][caption_sunset.caption_id]["weight"], 1)
-
-    def test_multiple_photos_unique_captions(self):
-        """Test graph where each photo has unique captions"""
-        photo_id1 = uuid.uuid4()
-        photo_id2 = uuid.uuid4()
-
-        caption1 = Caption.objects.create(user=self.user1, caption="mountain")
-        caption2 = Caption.objects.create(user=self.user1, caption="lake")
-
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id1, caption=caption1, weight=10
-        )
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id2, caption=caption2, weight=8
-        )
-
-        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
-
-        # Verify sets
-        self.assertEqual(len(photo_set), 2)
-        self.assertEqual(len(caption_set), 2)
-
-        # Verify graph structure
-        self.assertEqual(graph.number_of_nodes(), 4)
-        self.assertEqual(graph.number_of_edges(), 2)
-
-        # Verify no connection between photo1 and photo2 (they don't share captions)
-        self.assertFalse(graph.has_edge(photo_id1, photo_id2))
-
-    def test_user_isolation(self):
-        """Test that graph only includes data for the specified user"""
-        photo_id1 = uuid.uuid4()
-        photo_id2 = uuid.uuid4()
-
-        caption1 = Caption.objects.create(user=self.user1, caption="user1_caption")
-        caption2 = Caption.objects.create(user=self.user2, caption="user2_caption")
-
-        # Create photo caption for user1
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id1, caption=caption1, weight=5
-        )
-
-        # Create photo caption for user2
-        Photo_Caption.objects.create(
-            user=self.user2, photo_id=photo_id2, caption=caption2, weight=3
-        )
-
-        # Retrieve graph for user1
-        photo_set1, caption_set1, graph1 = retrieve_photo_caption_graph(self.user1)
-
-        # Verify only user1's data is present
-        self.assertEqual(len(photo_set1), 1)
-        self.assertEqual(len(caption_set1), 1)
-        self.assertIn(photo_id1, photo_set1)
-        self.assertNotIn(photo_id2, photo_set1)
-        self.assertIn(caption1.caption_id, caption_set1)
-        self.assertNotIn(caption2.caption_id, caption_set1)
-
-        # Retrieve graph for user2
-        photo_set2, caption_set2, graph2 = retrieve_photo_caption_graph(self.user2)
-
-        # Verify only user2's data is present
-        self.assertEqual(len(photo_set2), 1)
-        self.assertEqual(len(caption_set2), 1)
-        self.assertIn(photo_id2, photo_set2)
-        self.assertNotIn(photo_id1, photo_set2)
-
-    def test_complex_bipartite_graph_structure(self):
-        """Test complex graph with multiple photos and overlapping captions"""
-        photo_ids = [uuid.uuid4() for _ in range(5)]
-        captions = [
-            Caption.objects.create(user=self.user1, caption=f"caption{i}")
-            for i in range(3)
-        ]
-
-        # Create a complex bipartite structure
-        # Photo 0 -> caption 0, caption 1
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_ids[0], caption=captions[0], weight=1
-        )
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_ids[0], caption=captions[1], weight=2
-        )
-
-        # Photo 1 -> caption 1, caption 2
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_ids[1], caption=captions[1], weight=3
-        )
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_ids[1], caption=captions[2], weight=4
-        )
-
-        # Photo 2 -> caption 0, caption 2
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_ids[2], caption=captions[0], weight=5
-        )
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_ids[2], caption=captions[2], weight=6
-        )
-
-        # Photo 3 -> caption 1
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_ids[3], caption=captions[1], weight=7
-        )
-
-        # Photo 4 -> caption 0
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_ids[4], caption=captions[0], weight=8
-        )
-
-        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
-
-        # Verify basic structure
-        self.assertEqual(len(photo_set), 5)
-        self.assertEqual(len(caption_set), 3)
-        self.assertEqual(graph.number_of_nodes(), 8)
-        # 2 + 2 + 2 + 1 + 1 = 8 edges total
-        self.assertEqual(graph.number_of_edges(), 8)
-
-        # Verify bipartite property
-        self.assertTrue(nx.is_bipartite(graph))
-
-        # Verify all photos are in bipartite set 0
-        photo_nodes = {n for n, d in graph.nodes(data=True) if d["bipartite"] == 0}
-        self.assertEqual(photo_nodes, photo_set)
-
-        # Verify all captions are in bipartite set 1
-        caption_nodes = {n for n, d in graph.nodes(data=True) if d["bipartite"] == 1}
-        self.assertEqual(len(caption_nodes), 3)
-
-        # Verify no edges between photos (bipartite property)
-        for i in range(len(photo_ids)):
-            for j in range(i + 1, len(photo_ids)):
-                self.assertFalse(graph.has_edge(photo_ids[i], photo_ids[j]))
-
-        # Verify no edges between captions (bipartite property)
-        for i in range(len(captions)):
-            for j in range(i + 1, len(captions)):
-                self.assertFalse(graph.has_edge(captions[i], captions[j]))
-
-    def test_weight_preservation(self):
-        """Test that edge weights are correctly preserved"""
-        photo_id = uuid.uuid4()
-        caption = Caption.objects.create(user=self.user1, caption="test")
-
-        # Create with specific weight
-        weight_value = 42
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id, caption=caption, weight=weight_value
-        )
-
-        _, _, graph = retrieve_photo_caption_graph(self.user1)
-
-        # Verify weight is preserved
-        self.assertEqual(graph[photo_id][caption.caption_id]["weight"], weight_value)
-
-    def test_zero_weight(self):
-        """Test that zero weight edges are handled correctly"""
-        photo_id = uuid.uuid4()
-        caption = Caption.objects.create(user=self.user1, caption="zero_weight")
-
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id, caption=caption, weight=0
-        )
-
-        _, _, graph = retrieve_photo_caption_graph(self.user1)
-
-        # Verify edge exists with zero weight
-        self.assertTrue(graph.has_edge(photo_id, caption.caption_id))
-        self.assertEqual(graph[photo_id][caption.caption_id]["weight"], 0)
-
-    def test_duplicate_photo_caption_pairs(self):
-        """Test that duplicate photo-caption pairs don't create duplicate nodes"""
-        photo_id = uuid.uuid4()
-        caption = Caption.objects.create(user=self.user1, caption="duplicate_test")
-
-        # Create first photo-caption relationship
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id, caption=caption, weight=5
-        )
-
-        # Create another photo-caption with same photo_id but different caption
-        caption2 = Caption.objects.create(user=self.user1, caption="another_caption")
-        Photo_Caption.objects.create(
-            user=self.user1, photo_id=photo_id, caption=caption2, weight=3
-        )
-
-        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user1)
-
-        # Verify photo_id appears only once in photo_set
-        self.assertEqual(len(photo_set), 1)
-        self.assertEqual(len(caption_set), 2)
-        self.assertEqual(graph.number_of_nodes(), 3)  # 1 photo + 2 captions
-        self.assertEqual(graph.number_of_edges(), 2)
+        # photo1은 제외되고 photo2만 반환
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["photo_id"], str(self.photo2.photo_id))
 
 
 class RecommendPhotoFromPhotoTest(TestCase):
+    """recommend_photo_from_photo 함수 테스트"""
+
     def setUp(self):
         self.user = User.objects.create_user(
-            username="testuser", password="password123"
+            username="testuser", email="test@example.com", password="testpass123"
         )
+        self.photo1 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=201,
+            created_at=timezone.now(),
+        )
+        self.photo2 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=202,
+            created_at=timezone.now(),
+        )
+
+    def test_recommend_photo_from_photo_empty_input(self):
+        """빈 사진 리스트 입력"""
+        results = recommend_photo_from_photo(self.user, [])
+        self.assertEqual(results, [])
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_basic_recommendation_with_shared_captions(self, mock_get_client):
-        """Test basic photo-to-photo recommendation with shared captions"""
-        # Setup: Create 3 photos with overlapping captions
-        photo_id1 = uuid.uuid4()
-        photo_id2 = uuid.uuid4()
-        photo_id3 = uuid.uuid4()
+    def test_recommend_photo_from_photo_with_results(self, mock_get_client):
+        """사진 기반 추천 - 정상 결과"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
 
-        caption_beach = Caption.objects.create(user=self.user, caption="beach")
-        caption_sunset = Caption.objects.create(user=self.user, caption="sunset")
+        mock_point = MagicMock()
+        mock_point.id = str(self.photo2.photo_id)
+        mock_client.recommend.return_value = [mock_point]
 
-        # Target photo: photo1 with "beach" and "sunset"
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id1, caption=caption_beach, weight=5
+        results = recommend_photo_from_photo(self.user, [self.photo1.photo_id])
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["photo_id"], str(self.photo2.photo_id))
+        self.assertEqual(results[0]["photo_path_id"], 202)
+
+
+class TagRecommendationTest(TestCase):
+    """tag_recommendation 함수 테스트"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
         )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id1, caption=caption_sunset, weight=3
+        self.photo = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=301,
+            created_at=timezone.now(),
+        )
+        self.tag1 = Tag.objects.create(tag="태그1", user=self.user)
+        self.tag2 = Tag.objects.create(tag="태그2", user=self.user)
+
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_tag_recommendation_success(self, mock_get_client):
+        """태그 추천 성공"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        # Mock retrieve
+        mock_retrieved_point = MagicMock()
+        mock_retrieved_point.vector = [0.1, 0.2, 0.3]
+        mock_client.retrieve.return_value = [mock_retrieved_point]
+
+        # Mock search
+        mock_search_result1 = MagicMock()
+        mock_search_result1.payload = {"tag_id": str(self.tag1.tag_id)}
+        mock_search_result2 = MagicMock()
+        mock_search_result2.payload = {"tag_id": str(self.tag2.tag_id)}
+
+        mock_client.search.return_value = [mock_search_result1, mock_search_result2]
+
+        results = tag_recommendation(self.user, self.photo.photo_id)
+
+        self.assertEqual(len(results), 2)
+        self.assertIn(self.tag1, results)
+        self.assertIn(self.tag2, results)
+
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_tag_recommendation_no_image_found(self, mock_get_client):
+        """이미지를 찾을 수 없는 경우"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.retrieve.return_value = []
+
+        with self.assertRaises(ValueError) as context:
+            tag_recommendation(self.user, self.photo.photo_id)
+
+        self.assertIn("not found in collection", str(context.exception))
+
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_tag_recommendation_with_nonexistent_tags(self, mock_get_client):
+        """존재하지 않는 태그 ID 처리"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        mock_retrieved_point = MagicMock()
+        mock_retrieved_point.vector = [0.1, 0.2, 0.3]
+        mock_client.retrieve.return_value = [mock_retrieved_point]
+
+        # 존재하지 않는 tag_id
+        mock_search_result = MagicMock()
+        mock_search_result.payload = {"tag_id": str(uuid.uuid4())}
+        mock_client.search.return_value = [mock_search_result]
+
+        results = tag_recommendation(self.user, self.photo.photo_id)
+
+        # 존재하지 않는 태그는 무시됨
+        self.assertEqual(len(results), 0)
+
+
+class TagRecommendationBatchTest(TestCase):
+    """tag_recommendation_batch 함수 테스트 (통합)"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.photo1 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=401,
+            created_at=timezone.now(),
+        )
+        self.photo2 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=402,
+            created_at=timezone.now(),
         )
 
-        # Candidate photo2: shares "beach" with photo1
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id2, caption=caption_beach, weight=4
-        )
+    def test_tag_recommendation_batch_empty_input(self):
+        """빈 입력 처리"""
+        results = tag_recommendation_batch(self.user, [])
+        self.assertEqual(results, {})
 
-        # Candidate photo3: shares "sunset" with photo1
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id3, caption=caption_sunset, weight=2
-        )
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_tag_recommendation_batch_with_results(self, mock_get_client):
+        """배치 태그 추천 성공 (preset + user tags)"""
+        # Create tags
+        user_tag1 = Tag.objects.create(tag="사용자태그1", user=self.user)
+        user_tag2 = Tag.objects.create(tag="사용자태그2", user=self.user)
 
-        # Mock Qdrant client.retrieve
-        mock_points = [
-            MagicMock(id=str(photo_id2), payload={"photo_path_id": 102}),
-            MagicMock(id=str(photo_id3), payload={"photo_path_id": 103}),
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        # Mock batch retrieve (이미지 벡터 조회)
+        mock_point1 = MagicMock()
+        mock_point1.id = str(self.photo1.photo_id)
+        mock_point1.vector = [0.1, 0.2, 0.3]
+        
+        mock_point2 = MagicMock()
+        mock_point2.id = str(self.photo2.photo_id)
+        mock_point2.vector = [0.4, 0.5, 0.6]
+        
+        mock_client.retrieve.return_value = [mock_point1, mock_point2]
+
+        # Mock search results (preset + user tags)
+        # photo1에 대한 preset 검색 결과
+        mock_preset1 = MagicMock()
+        mock_preset1.payload = {"name": "프리셋태그1"}
+        
+        mock_preset2 = MagicMock()
+        mock_preset2.payload = {"name": "프리셋태그2"}
+
+        # photo1에 대한 user tag 검색 결과
+        mock_user_tag1 = MagicMock()
+        mock_user_tag1.payload = {"tag_id": str(user_tag1.tag_id)}
+        
+        mock_user_tag2 = MagicMock()
+        mock_user_tag2.payload = {"tag_id": str(user_tag2.tag_id)}
+
+        # photo2에 대한 검색 결과
+        mock_preset3 = MagicMock()
+        mock_preset3.payload = {"name": "프리셋태그3"}
+        
+        mock_user_tag3 = MagicMock()
+        mock_user_tag3.payload = {"tag_id": str(user_tag1.tag_id)}
+
+        # search 호출 순서: photo1 preset, photo1 user, photo2 preset, photo2 user
+        mock_client.search.side_effect = [
+            [mock_preset1, mock_preset2],  # photo1 preset
+            [mock_user_tag1, mock_user_tag2],  # photo1 user tags
+            [mock_preset3],  # photo2 preset
+            [mock_user_tag3],  # photo2 user tags
         ]
-        mock_get_client.return_value.retrieve.return_value = mock_points
 
-        # Execute
-        result = recommend_photo_from_photo(self.user, [photo_id1])
+        results = tag_recommendation_batch(
+            self.user, [str(self.photo1.photo_id), str(self.photo2.photo_id)]
+        )
 
-        # Assert
-        self.assertIsInstance(result, list)
-        self.assertLessEqual(len(result), 20)  # Should respect LIMIT
-        result_photo_ids = [r["photo_id"] for r in result]
+        # 결과 검증
+        self.assertEqual(len(results), 2)
+        self.assertIn(str(self.photo1.photo_id), results)
+        self.assertIn(str(self.photo2.photo_id), results)
+        
+        # photo1 결과: preset 2개 + user tag 2개
+        photo1_tags = results[str(self.photo1.photo_id)]
+        self.assertIn("프리셋태그1", photo1_tags)
+        self.assertIn("프리셋태그2", photo1_tags)
+        self.assertIn("사용자태그1", photo1_tags)
+        self.assertIn("사용자태그2", photo1_tags)
+        
+        # photo2 결과: preset 1개 + user tag 1개
+        photo2_tags = results[str(self.photo2.photo_id)]
+        self.assertIn("프리셋태그3", photo2_tags)
+        self.assertIn("사용자태그1", photo2_tags)
 
-        # Both candidates should be recommended
-        self.assertIn(str(photo_id2), result_photo_ids)
-        self.assertIn(str(photo_id3), result_photo_ids)
+        # Mock 호출 검증
+        mock_client.retrieve.assert_called_once()
+        self.assertEqual(mock_client.search.call_count, 4)  # 2 photos * 2 searches each
 
-        # Target photo should not be in recommendations
-        self.assertNotIn(str(photo_id1), result_photo_ids)
 
-        # Verify client.retrieve was called
-        mock_get_client.return_value.retrieve.assert_called_once()
+class RetrieveAllRepVectorsOfTagTest(TestCase):
+    """retrieve_all_rep_vectors_of_tag 함수 테스트"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.tag = Tag.objects.create(tag="벡터태그", user=self.user)
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_multiple_target_photos(self, mock_get_client):
-        """Test recommendation with multiple target photos"""
-        photo_ids = [uuid.uuid4() for _ in range(5)]
+    def test_retrieve_all_rep_vectors_success(self, mock_get_client):
+        """rep vector 조회 성공"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
 
-        caption1 = Caption.objects.create(user=self.user, caption="mountain")
-        caption2 = Caption.objects.create(user=self.user, caption="lake")
+        mock_point1 = MagicMock()
+        mock_point1.vector = [0.1, 0.2, 0.3]
+        mock_point2 = MagicMock()
+        mock_point2.vector = [0.4, 0.5, 0.6]
 
-        # Target photos: photo1 and photo2
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_ids[0], caption=caption1, weight=10
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_ids[1], caption=caption2, weight=8
-        )
+        mock_client.scroll.return_value = ([mock_point1, mock_point2], None)
 
-        # Candidate photos that share captions
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_ids[2], caption=caption1, weight=5
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_ids[3], caption=caption2, weight=6
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_ids[4], caption=caption1, weight=3
-        )
+        results = retrieve_all_rep_vectors_of_tag(self.user, self.tag.tag_id)
 
-        mock_points = [
-            MagicMock(id=str(pid), payload={"photo_path_id": i + 100})
-            for i, pid in enumerate(photo_ids[2:])
-        ]
-        mock_get_client.return_value.retrieve.return_value = mock_points
-
-        # Execute with multiple target photos
-        result = recommend_photo_from_photo(self.user, [photo_ids[0], photo_ids[1]])
-
-        # Assert
-        result_photo_ids = [r["photo_id"] for r in result]
-
-        # Target photos should not be in results
-        self.assertNotIn(str(photo_ids[0]), result_photo_ids)
-        self.assertNotIn(str(photo_ids[1]), result_photo_ids)
-
-        # Candidates should be present
-        self.assertIn(str(photo_ids[2]), result_photo_ids)
-        self.assertIn(str(photo_ids[3]), result_photo_ids)
-        self.assertIn(str(photo_ids[4]), result_photo_ids)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], [0.1, 0.2, 0.3])
+        self.assertEqual(results[1], [0.4, 0.5, 0.6])
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_no_candidates_all_photos_are_targets(self, mock_get_client):
-        """Test when all photos in database are target photos (no candidates)"""
-        photo_id1 = uuid.uuid4()
-        photo_id2 = uuid.uuid4()
+    def test_retrieve_all_rep_vectors_empty(self, mock_get_client):
+        """rep vector가 없는 경우"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.scroll.return_value = ([], None)
 
-        caption = Caption.objects.create(user=self.user, caption="test")
+        results = retrieve_all_rep_vectors_of_tag(self.user, self.tag.tag_id)
 
+        self.assertEqual(results, [])
+
+
+class RetrievePhotoCaptionGraphTest(TestCase):
+    """retrieve_photo_caption_graph 함수 테스트"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.photo1 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=501,
+            created_at=timezone.now(),
+        )
+        self.photo2 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=502,
+            created_at=timezone.now(),
+        )
+        self.caption1 = Caption.objects.create(user=self.user, caption="캡션1")
+        self.caption2 = Caption.objects.create(user=self.user, caption="캡션2")
+
+    def test_retrieve_photo_caption_graph_empty(self):
+        """사진-캡션 관계가 없는 경우"""
+        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user)
+
+        self.assertEqual(len(photo_set), 0)
+        self.assertEqual(len(caption_set), 0)
+        self.assertEqual(len(graph.nodes), 0)
+
+    def test_retrieve_photo_caption_graph_with_data(self):
+        """사진-캡션 그래프 생성"""
         Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id1, caption=caption, weight=5
+            user=self.user, photo=self.photo1, caption=self.caption1, weight=1
         )
         Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id2, caption=caption, weight=3
+            user=self.user, photo=self.photo1, caption=self.caption2, weight=2
+        )
+        Photo_Caption.objects.create(
+            user=self.user, photo=self.photo2, caption=self.caption1, weight=3
         )
 
-        mock_get_client.return_value.retrieve.return_value = []
+        photo_set, caption_set, graph = retrieve_photo_caption_graph(self.user)
 
-        # Execute with all photos as targets
-        result = recommend_photo_from_photo(self.user, [photo_id1, photo_id2])
+        self.assertEqual(len(photo_set), 2)
+        self.assertEqual(len(caption_set), 2)
+        self.assertIn(self.photo1.photo_id, photo_set)
+        self.assertIn(self.photo2.photo_id, photo_set)
+        self.assertIn(self.caption1.caption_id, caption_set)
+        self.assertIn(self.caption2.caption_id, caption_set)
 
-        # Assert
-        self.assertEqual(len(result), 0)
-        mock_get_client.return_value.retrieve.assert_called_once()
+        # 간선(edge) 확인
+        self.assertTrue(graph.has_edge(self.photo1.photo_id, self.caption1.caption_id))
+        self.assertEqual(
+            graph[self.photo1.photo_id][self.caption1.caption_id]["weight"], 1
+        )
+        self.assertEqual(
+            graph[self.photo1.photo_id][self.caption2.caption_id]["weight"], 2
+        )
+        self.assertEqual(
+            graph[self.photo2.photo_id][self.caption1.caption_id]["weight"], 3
+        )
+
+
+class ExecuteHybridSearchTest(TestCase):
+    """execute_hybrid_search 함수 테스트"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.tag = Tag.objects.create(tag="검색태그", user=self.user)
+        self.photo1 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=601,
+            created_at=timezone.now(),
+        )
+        self.photo2 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=602,
+            created_at=timezone.now(),
+        )
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_single_target_single_candidate(self, mock_get_client):
-        """Test minimal case with one target and one candidate"""
-        photo_id1 = uuid.uuid4()
-        photo_id2 = uuid.uuid4()
+    @patch("gallery.tasks.phrase_to_words")
+    @patch("search.embedding_service.create_query_embedding")
+    def test_execute_hybrid_search_tag_only(
+        self, mock_create_embedding, mock_phrase_to_words, mock_get_client
+    ):
+        """태그만 사용한 검색"""
+        Photo_Tag.objects.create(user=self.user, photo=self.photo1, tag=self.tag)
 
-        caption = Caption.objects.create(user=self.user, caption="shared")
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
 
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id1, caption=caption, weight=10
+        mock_recommend_result = MagicMock()
+        mock_recommend_result.id = str(self.photo2.photo_id)
+        mock_recommend_result.score = 0.8
+        mock_client.recommend.return_value = [mock_recommend_result]
+
+        results = execute_hybrid_search(
+            user=self.user, tag_ids=[self.tag.tag_id], query_string=""
         )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id2, caption=caption, weight=8
-        )
 
-        mock_point = MagicMock(id=str(photo_id2), payload={"photo_path_id": 200})
-        mock_get_client.return_value.retrieve.return_value = [mock_point]
-
-        result = recommend_photo_from_photo(self.user, [photo_id1])
-
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["photo_id"], str(photo_id2))
-        self.assertEqual(result[0]["photo_path_id"], 200)
+        # photo1 (태그 직접 연결, score=1.0) + photo2 (추천, score=0.8)
+        self.assertEqual(len(results), 2)
+        photo_ids = [r["photo_id"] for r in results]
+        self.assertIn(str(self.photo1.photo_id), photo_ids)
+        self.assertIn(str(self.photo2.photo_id), photo_ids)
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_no_shared_captions_between_photos(self, mock_get_client):
-        """Test recommendation when photos don't share any captions"""
-        photo_id1 = uuid.uuid4()
-        photo_id2 = uuid.uuid4()
-        photo_id3 = uuid.uuid4()
+    @patch("gallery.tasks.phrase_to_words")
+    @patch("search.embedding_service.create_query_embedding")
+    def test_execute_hybrid_search_query_only(
+        self, mock_create_embedding, mock_phrase_to_words, mock_get_client
+    ):
+        """쿼리 문자열만 사용한 검색"""
+        mock_create_embedding.return_value = [0.1, 0.2, 0.3]
 
-        caption1 = Caption.objects.create(user=self.user, caption="unique1")
-        caption2 = Caption.objects.create(user=self.user, caption="unique2")
-        caption3 = Caption.objects.create(user=self.user, caption="unique3")
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
 
-        # Each photo has completely unique captions (no overlap)
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id1, caption=caption1, weight=5
+        mock_search_result = MagicMock()
+        mock_search_result.id = str(self.photo1.photo_id)
+        mock_search_result.score = 0.9
+        mock_client.search.return_value = [mock_search_result]
+
+        mock_phrase_to_words.return_value = ["테스트"]
+
+        results = execute_hybrid_search(
+            user=self.user, tag_ids=[], query_string="테스트 쿼리"
         )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id2, caption=caption2, weight=4
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id3, caption=caption3, weight=3
-        )
 
-        mock_points = [
-            MagicMock(id=str(photo_id2), payload={"photo_path_id": 102}),
-            MagicMock(id=str(photo_id3), payload={"photo_path_id": 103}),
-        ]
-        mock_get_client.return_value.retrieve.return_value = mock_points
-
-        result = recommend_photo_from_photo(self.user, [photo_id1])
-
-        # Should still return candidates (based on PageRank scores)
-        # even though Adamic/Adar score will be 0
-        self.assertGreater(len(result), 0)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["photo_id"], str(self.photo1.photo_id))
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_limit_enforcement(self, mock_get_client):
-        """Test that recommendation respects LIMIT of 20"""
-        # Create 30 photos to exceed the limit
-        target_photo = uuid.uuid4()
-        candidate_photos = [uuid.uuid4() for _ in range(30)]
+    @patch("gallery.tasks.phrase_to_words")
+    @patch("search.embedding_service.create_query_embedding")
+    def test_execute_hybrid_search_no_results(
+        self, mock_create_embedding, mock_phrase_to_words, mock_get_client
+    ):
+        """검색 결과가 없는 경우"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.recommend.return_value = []
+        mock_client.search.return_value = []
 
-        caption = Caption.objects.create(user=self.user, caption="common")
-
-        # Target photo
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=target_photo, caption=caption, weight=10
+        results = execute_hybrid_search(
+            user=self.user, tag_ids=[], query_string=""
         )
 
-        # 30 candidate photos all sharing the same caption
-        for photo_id in candidate_photos:
-            Photo_Caption.objects.create(
-                user=self.user, photo_id=photo_id, caption=caption, weight=5
+        self.assertEqual(results, [])
+
+
+class IsValidUuidTest(TestCase):
+    """is_valid_uuid 함수 테스트"""
+
+    def test_is_valid_uuid_with_valid_uuid(self):
+        """유효한 UUID"""
+        valid_uuid = uuid.uuid4()
+        self.assertTrue(is_valid_uuid(valid_uuid))
+        self.assertTrue(is_valid_uuid(str(valid_uuid)))
+
+    def test_is_valid_uuid_with_invalid_uuid(self):
+        """잘못된 UUID"""
+        self.assertFalse(is_valid_uuid("not-a-uuid"))
+        self.assertFalse(is_valid_uuid("12345"))
+        self.assertFalse(is_valid_uuid(""))
+
+
+class GenerateStoriesTaskTest(TestCase):
+    """generate_stories_task Celery 작업 테스트"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        # 태그 없는 사진 생성
+        self.photo1 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=701,
+            created_at=timezone.now(),
+        )
+        self.photo2 = Photo.objects.create(
+            photo_id=uuid.uuid4(),
+            user=self.user,
+            photo_path_id=702,
+            created_at=timezone.now(),
+        )
+
+    @patch("config.redis.get_redis")
+    @patch("gallery.tasks.tag_recommendation_batch")
+    def test_generate_stories_task_success(self, mock_tag_batch, mock_get_redis):
+        """스토리 생성 작업 성공"""
+        mock_tag_batch.return_value = {
+            str(self.photo1.photo_id): ["태그1", "태그2"],
+            str(self.photo2.photo_id): ["태그3"],
+        }
+
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+
+        generate_stories_task(self.user.id, 10)
+
+        # Redis에 저장 확인
+        mock_redis.set.assert_called_once()
+        call_args = mock_redis.set.call_args
+        saved_data = json.loads(call_args[0][1])
+
+        self.assertEqual(len(saved_data), 2)
+        self.assertIn("photo_id", saved_data[0])
+        self.assertIn("photo_path_id", saved_data[0])
+        self.assertIn("tags", saved_data[0])
+
+    @patch("config.redis.get_redis")
+    @patch("gallery.tasks.tag_recommendation_batch")
+    def test_generate_stories_task_no_photos(self, mock_tag_batch, mock_get_redis):
+        """태그 없는 사진이 없는 경우"""
+        # 모든 사진에 태그 추가
+        tag = Tag.objects.create(tag="태그", user=self.user)
+        Photo_Tag.objects.create(user=self.user, photo=self.photo1, tag=tag)
+        Photo_Tag.objects.create(user=self.user, photo=self.photo2, tag=tag)
+
+        mock_tag_batch.return_value = {}
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+
+        generate_stories_task(self.user.id, 10)
+
+        # 빈 리스트가 저장되어야 함
+        call_args = mock_redis.set.call_args
+        saved_data = json.loads(call_args[0][1])
+        self.assertEqual(len(saved_data), 0)
+
+    @patch("config.redis.get_redis")
+    @patch("gallery.tasks.tag_recommendation_batch")
+    def test_generate_stories_task_exception_handling(
+        self, mock_tag_batch, mock_get_redis
+    ):
+        """예외 처리 테스트"""
+        mock_tag_batch.side_effect = Exception("Batch processing failed")
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+
+        # 예외가 발생해도 함수가 종료되어야 함 (로그만 출력)
+        generate_stories_task(self.user.id, 10)
+
+        # Redis에 저장되지 않아야 함
+        mock_redis.set.assert_not_called()
+
+
+class ComputeAndStoreRepVectorsTest(TestCase):
+    """compute_and_store_rep_vectors Celery 작업 테스트"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        self.tag = Tag.objects.create(tag="rep벡터태그", user=self.user)
+
+        # 여러 사진 생성
+        self.photos = []
+        for i in range(15):
+            photo = Photo.objects.create(
+                photo_id=uuid.uuid4(),
+                user=self.user,
+                photo_path_id=800 + i,
+                created_at=timezone.now(),
             )
-
-        # Mock only 20 results (LIMIT)
-        mock_points = [
-            MagicMock(id=str(pid), payload={"photo_path_id": i})
-            for i, pid in enumerate(candidate_photos[:20])
-        ]
-        mock_get_client.return_value.retrieve.return_value = mock_points
-
-        result = recommend_photo_from_photo(self.user, [target_photo])
-
-        # Assert limit is enforced
-        self.assertEqual(len(result), 20)
+            self.photos.append(photo)
+            Photo_Tag.objects.create(user=self.user, photo=photo, tag=self.tag)
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_ranking_by_shared_captions(self, mock_get_client):
-        """Test that photos with more shared captions rank higher"""
-        target_photo = uuid.uuid4()
-        candidate1 = uuid.uuid4()  # Shares 2 captions
-        candidate2 = uuid.uuid4()  # Shares 1 caption
-        candidate3 = uuid.uuid4()  # Shares 0 captions
+    def test_compute_and_store_rep_vectors_success(self, mock_get_client):
+        """rep vector 계산 및 저장 성공"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
 
-        caption_a = Caption.objects.create(user=self.user, caption="a")
-        caption_b = Caption.objects.create(user=self.user, caption="b")
-        caption_c = Caption.objects.create(user=self.user, caption="c")
+        # Mock retrieve (사진 벡터)
+        mock_points = []
+        for photo in self.photos:
+            mock_point = MagicMock()
+            mock_point.vector = np.random.rand(512).tolist()
+            mock_points.append(mock_point)
 
-        # Target: has caption_a and caption_b
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=target_photo, caption=caption_a, weight=10
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=target_photo, caption=caption_b, weight=10
-        )
+        mock_client.retrieve.return_value = mock_points
 
-        # Candidate1: shares both caption_a and caption_b
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=candidate1, caption=caption_a, weight=8
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=candidate1, caption=caption_b, weight=8
-        )
+        compute_and_store_rep_vectors(self.user.id, self.tag.tag_id)
 
-        # Candidate2: shares only caption_a
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=candidate2, caption=caption_a, weight=7
-        )
+        # delete 호출 확인 (기존 rep vector 삭제)
+        mock_client.delete.assert_called_once()
 
-        # Candidate3: shares no captions (only caption_c)
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=candidate3, caption=caption_c, weight=6
-        )
+        # upsert 호출 확인 (새 rep vector 저장)
+        mock_client.upsert.assert_called_once()
+        upsert_call_args = mock_client.upsert.call_args
+        points_to_upsert = upsert_call_args[1]["points"]
 
-        # Mock returns in the order of scoring (should be candidate1, candidate2, candidate3)
-        mock_points = [
-            MagicMock(id=str(candidate1), payload={"photo_path_id": 1}),
-            MagicMock(id=str(candidate2), payload={"photo_path_id": 2}),
-            MagicMock(id=str(candidate3), payload={"photo_path_id": 3}),
-        ]
-        mock_get_client.return_value.retrieve.return_value = mock_points
-
-        result = recommend_photo_from_photo(self.user, [target_photo])
-
-        # Verify all candidates are returned
-        self.assertEqual(len(result), 3)
+        # ML 모델이 적용되어 대표 벡터가 생성되어야 함
+        self.assertGreater(len(points_to_upsert), 0)
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_empty_database(self, mock_get_client):
-        """Test recommendation when database has no photo-caption relationships"""
-        non_existent_photo = uuid.uuid4()
+    def test_compute_and_store_rep_vectors_no_photos(self, mock_get_client):
+        """사진이 없는 태그"""
+        # 새로운 태그 생성 (사진 없음)
+        empty_tag = Tag.objects.create(tag="빈태그", user=self.user)
 
-        mock_get_client.return_value.retrieve.return_value = []
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
 
-        result = recommend_photo_from_photo(self.user, [non_existent_photo])
+        compute_and_store_rep_vectors(self.user.id, empty_tag.tag_id)
 
-        self.assertEqual(len(result), 0)
+        # delete 호출 확인
+        mock_client.delete.assert_called_once()
 
-    @patch("gallery.tasks.get_qdrant_client")
-    def test_user_isolation(self, mock_get_client):
-        """Test that recommendations only consider the specified user's photos"""
-        user2 = User.objects.create_user(username="user2", password="pass123")
-
-        photo1_user1 = uuid.uuid4()
-        photo2_user1 = uuid.uuid4()
-        photo_user2 = uuid.uuid4()
-
-        caption = Caption.objects.create(user=self.user, caption="shared_caption")
-
-        # User1's photos
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo1_user1, caption=caption, weight=10
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo2_user1, caption=caption, weight=8
-        )
-
-        # User2's photo (should not appear in user1's recommendations)
-        caption_user2 = Caption.objects.create(user=user2, caption="user2_caption")
-        Photo_Caption.objects.create(
-            user=user2, photo_id=photo_user2, caption=caption_user2, weight=5
-        )
-
-        mock_point = MagicMock(id=str(photo2_user1), payload={"photo_path_id": 200})
-        mock_get_client.return_value.retrieve.return_value = [mock_point]
-
-        result = recommend_photo_from_photo(self.user, [photo1_user1])
-
-        # Only user1's photo should be recommended
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["photo_id"], str(photo2_user1))
+        # upsert는 호출되지 않아야 함
+        mock_client.upsert.assert_not_called()
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_payload_structure(self, mock_get_client):
-        """Test that returned payload has correct structure"""
-        photo_id1 = uuid.uuid4()
-        photo_id2 = uuid.uuid4()
+    def test_compute_and_store_rep_vectors_few_samples(self, mock_get_client):
+        """샘플이 적은 경우 (ML 모델 미적용)"""
+        # 새로운 태그와 사진 3개만 생성
+        few_tag = Tag.objects.create(tag="적은샘플태그", user=self.user)
+        few_photos = []
+        for i in range(3):
+            photo = Photo.objects.create(
+                photo_id=uuid.uuid4(),
+                user=self.user,
+                photo_path_id=900 + i,
+                created_at=timezone.now(),
+            )
+            few_photos.append(photo)
+            Photo_Tag.objects.create(user=self.user, photo=photo, tag=few_tag)
 
-        caption = Caption.objects.create(user=self.user, caption="test")
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
 
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id1, caption=caption, weight=5
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photo_id2, caption=caption, weight=3
-        )
+        mock_points = []
+        for photo in few_photos:
+            mock_point = MagicMock()
+            mock_point.vector = np.random.rand(512).tolist()
+            mock_points.append(mock_point)
 
-        expected_photo_path_id = 999
-        mock_point = MagicMock(
-            id=str(photo_id2), payload={"photo_path_id": expected_photo_path_id}
-        )
-        mock_get_client.return_value.retrieve.return_value = [mock_point]
+        mock_client.retrieve.return_value = mock_points
 
-        result = recommend_photo_from_photo(self.user, [photo_id1])
+        compute_and_store_rep_vectors(self.user.id, few_tag.tag_id)
 
-        self.assertEqual(len(result), 1)
-        self.assertIn("photo_id", result[0])
-        self.assertIn("photo_path_id", result[0])
-        self.assertEqual(result[0]["photo_id"], str(photo_id2))
-        self.assertEqual(result[0]["photo_path_id"], expected_photo_path_id)
+        # upsert 호출 확인
+        mock_client.upsert.assert_called_once()
+        upsert_call_args = mock_client.upsert.call_args
+        points_to_upsert = upsert_call_args[1]["points"]
 
-    @patch("gallery.tasks.get_qdrant_client")
-    def test_weighted_captions_affect_recommendations(self, mock_get_client):
-        """Test that caption weights influence recommendation scores"""
-        target_photo = uuid.uuid4()
-        candidate1 = uuid.uuid4()
-        candidate2 = uuid.uuid4()
-
-        caption = Caption.objects.create(user=self.user, caption="weighted")
-
-        # Target photo with high weight
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=target_photo, caption=caption, weight=100
-        )
-
-        # Candidate1 with high weight (similar to target)
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=candidate1, caption=caption, weight=90
-        )
-
-        # Candidate2 with low weight (less similar to target)
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=candidate2, caption=caption, weight=1
-        )
-
-        mock_points = [
-            MagicMock(id=str(candidate1), payload={"photo_path_id": 1}),
-            MagicMock(id=str(candidate2), payload={"photo_path_id": 2}),
-        ]
-        mock_get_client.return_value.retrieve.return_value = mock_points
-
-        result = recommend_photo_from_photo(self.user, [target_photo])
-
-        # Both candidates should be returned (weights affect PageRank scores)
-        self.assertEqual(len(result), 2)
+        # 샘플이 적으면 모든 벡터가 rep vector가 됨
+        self.assertEqual(len(points_to_upsert), 3)
 
     @patch("gallery.tasks.get_qdrant_client")
-    def test_complex_graph_with_multiple_connections(self, mock_get_client):
-        """Test recommendation with a complex bipartite graph"""
-        photos = [uuid.uuid4() for _ in range(6)]
-        captions = [
-            Caption.objects.create(user=self.user, caption=f"caption{i}")
-            for i in range(4)
-        ]
+    def test_compute_and_store_rep_vectors_exception(self, mock_get_client):
+        """예외 발생 처리"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_client.retrieve.side_effect = Exception("Qdrant retrieval failed")
 
-        # Create complex interconnected graph
-        # Target: photos[0] with captions[0], captions[1]
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photos[0], caption=captions[0], weight=10
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photos[0], caption=captions[1], weight=8
-        )
+        # 예외가 발생해도 함수가 종료되어야 함
+        compute_and_store_rep_vectors(self.user.id, self.tag.tag_id)
 
-        # Highly related: photos[1] shares both captions
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photos[1], caption=captions[0], weight=9
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photos[1], caption=captions[1], weight=7
-        )
-
-        # Moderately related: photos[2] shares one caption
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photos[2], caption=captions[0], weight=5
-        )
-
-        # Indirectly related: photos[3] through caption connections
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photos[3], caption=captions[2], weight=6
-        )
-
-        # Create indirect connection through shared caption
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photos[4], caption=captions[0], weight=4
-        )
-        Photo_Caption.objects.create(
-            user=self.user, photo_id=photos[4], caption=captions[2], weight=3
-        )
-
-        mock_points = [
-            MagicMock(id=str(photos[i]), payload={"photo_path_id": i})
-            for i in range(1, 5)
-        ]
-        mock_get_client.return_value.retrieve.return_value = mock_points
-
-        result = recommend_photo_from_photo(self.user, [photos[0]])
-
-        # Should return recommendations based on graph structure
-        self.assertGreater(len(result), 0)
-        result_ids = [r["photo_id"] for r in result]
-
-        # Target should not be in results
-        self.assertNotIn(str(photos[0]), result_ids)
+        # upsert는 호출되지 않아야 함
+        mock_client.upsert.assert_not_called()
