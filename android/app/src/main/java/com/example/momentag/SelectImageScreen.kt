@@ -476,8 +476,8 @@ fun SelectImageScreen(navController: NavController) {
                         ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                         ),
                     modifier =
                         Modifier
