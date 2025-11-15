@@ -242,7 +242,14 @@ fun SearchResultScreen(
         uiState = uiState,
         isSelectionMode = isSelectionMode,
         selectedPhotos = selectedPhotos,
-        onBackClick = onNavigateBack,
+        onBackClick = {
+            if (isSelectionMode) {
+                searchViewModel.setSelectionMode(false)
+                searchViewModel.resetSelection()
+            } else {
+                onNavigateBack()
+            }
+        },
         onToggleSelectionMode = {
             searchViewModel.setSelectionMode(!isSelectionMode)
             if (!isSelectionMode) {
