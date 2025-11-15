@@ -36,44 +36,6 @@ class PhotoViewModel(
         }
     }
 
-    fun uploadPhotos() {
-        viewModelScope.launch {
-            // set to loading state
-            _uiState.update { it.copy(isLoading = true, userMessage = null, isUploadSuccess = false) }
-
-            try {
-                val photoUploadData = localRepository.getPhotoUploadRequest()
-                val response = remoteRepository.uploadPhotos(photoUploadData)
-
-                // update ui state
-                var message: String? = null
-                var error: String? = null
-                when (response) {
-                    is RemoteRepository.Result.Success -> {
-                        when (response.data) {
-                            202 -> {
-                                _uiState.update { it.copy(isUploadSuccess = true) }
-                                "Success"
-                            }
-                            else -> "Upload successful (Code: ${response.data})"
-                        }
-                    }
-                    is RemoteRepository.Result.BadRequest -> "Request form mismatch"
-                    is RemoteRepository.Result.Unauthorized -> "The refresh token is expired"
-                    is RemoteRepository.Result.Error -> "Unexpected error: ${response.code}"
-                    is RemoteRepository.Result.Exception -> "Unknown error: ${response.e.message}"
-                    is RemoteRepository.Result.NetworkError -> "Network error"
-                }
-
-                _uiState.update { it.copy(isLoading = false, userMessage = message) }
-            } catch (e: IOException) {
-                _uiState.update { it.copy(isLoading = false, userMessage = "Network error") }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, userMessage = "Unknown error: ${e.message}") }
-            }
-        }
-    }
-
     fun uploadPhotosForAlbums(
         albumIds: Set<Long>,
         context: Context,

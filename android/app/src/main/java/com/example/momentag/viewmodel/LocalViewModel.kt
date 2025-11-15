@@ -23,15 +23,6 @@ class LocalViewModel(
     private val _image = MutableStateFlow<List<Uri>>(emptyList())
     val image = _image.asStateFlow()
 
-    fun getImages() {
-        viewModelScope.launch {
-            _image.value =
-                withContext(Dispatchers.IO) {
-                    localRepository.getImages()
-                }
-        }
-    }
-
     private val _albums = MutableStateFlow<List<Album>>(emptyList())
     val albums = _albums.asStateFlow()
 

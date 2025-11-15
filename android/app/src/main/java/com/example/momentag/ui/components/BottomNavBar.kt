@@ -53,21 +53,25 @@ fun BottomNavBar(
         ) {
             BottomNavItem(
                 icon = Icons.Default.Home,
+                contentDescription = "Home",
                 isSelected = currentTab == BottomTab.HomeScreen,
             ) { onTabSelected(BottomTab.HomeScreen) }
 
             BottomNavItem(
                 icon = Icons.Default.Search,
+                contentDescription = "Search",
                 isSelected = currentTab == BottomTab.SearchResultScreen,
             ) { onTabSelected(BottomTab.SearchResultScreen) }
 
             BottomNavItem(
                 icon = Icons.AutoMirrored.Filled.Label,
+                contentDescription = "Tag",
                 isSelected = currentTab == BottomTab.MyTagsScreen,
             ) { onTabSelected(BottomTab.MyTagsScreen) }
 
             BottomNavItem(
                 icon = Icons.Default.AutoStories,
+                contentDescription = "Story",
                 isSelected = currentTab == BottomTab.StoryScreen,
             ) { onTabSelected(BottomTab.StoryScreen) }
         }
@@ -84,6 +88,7 @@ enum class BottomTab {
 @Composable
 private fun BottomNavItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
     isSelected: Boolean = false,
     onClick: () -> Unit,
 ) {
@@ -101,7 +106,7 @@ private fun BottomNavItem(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = contentDescription,
             tint = tint,
             modifier = Modifier.size(24.dp),
         )

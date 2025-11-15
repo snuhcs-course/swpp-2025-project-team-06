@@ -494,12 +494,6 @@ fun HomeScreen(navController: NavController) {
         if (hasPermission) {
             homeViewModel.loadServerTags()
             homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
-
-            val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED_112", false)
-            if (!hasAlreadyUploaded) {
-                // photoViewModel.uploadPhotos() // <--- 초기 자동 업로드 비활성화 (LocalGallery에서 수동)
-                // sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED_112", true).apply()
-            }
         }
     }
 
