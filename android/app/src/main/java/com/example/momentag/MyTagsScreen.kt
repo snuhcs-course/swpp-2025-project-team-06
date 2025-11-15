@@ -154,9 +154,13 @@ fun MyTagsScreen(navController: NavController) {
         }
     }
 
-    BackHandler {
-        // myTagsViewModel.clearDraft()
-        navController.popBackStack()
+    BackHandler(enabled = true) {
+        if (isEditMode) {
+            myTagsViewModel.toggleEditMode()
+        } else {
+            navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+            navController.popBackStack()
+        }
     }
 
     val isSelectingForPhotos by remember(uiState) {
@@ -186,7 +190,10 @@ fun MyTagsScreen(navController: NavController) {
                 CommonTopBar(
                     title = "#Tag",
                     showBackButton = true,
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = {
+                        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                        navController.popBackStack()
+                    },
                     actions = {
                         if (myTagsViewModel.isSelectedPhotosEmpty() &&
                             currentState is MyTagsUiState.Success &&
@@ -331,20 +338,26 @@ fun MyTagsScreen(navController: NavController) {
                             when (tab) {
                                 BottomTab.HomeScreen -> {
                                     myTagsViewModel.clearDraft()
-                                    navController.navigate(Screen.Home.route)
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(0) { inclusive = true }
+                                    }
                                 }
 
                                 BottomTab.SearchResultScreen -> {
                                     myTagsViewModel.clearDraft()
-                                    navController.navigate(Screen.SearchResult.createRoute(""))
+                                    navController.navigate(Screen.SearchResult.initialRoute()) {
+                                        popUpTo(Screen.Home.route)
+                                    }
                                 }
 
-                                BottomTab.MyTagsScreen -> { // 현재 화면이므로 아무것도 안 함
+                                BottomTab.MyTagsScreen -> {
                                 }
 
                                 BottomTab.StoryScreen -> {
                                     myTagsViewModel.clearDraft()
-                                    navController.navigate(Screen.Story.route)
+                                    navController.navigate(Screen.Story.route) {
+                                        popUpTo(Screen.Home.route)
+                                    }
                                 }
                             }
                         },
