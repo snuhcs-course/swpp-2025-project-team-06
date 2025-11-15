@@ -23,8 +23,11 @@ object SearchWorker {
         tagRegex.findAll(query).forEach { matchResult ->
             // 태그 이전의 텍스트를 추가
             val textBefore = query.substring(lastIndex, matchResult.range.first)
+
             if (textBefore.isNotEmpty()) {
                 elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = textBefore))
+            } else if (elements.isNotEmpty() && elements.last() is SearchContentElement.Chip) {
+                elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = ""))
             }
 
             // 태그(칩) 추가
