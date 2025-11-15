@@ -21,13 +21,13 @@ object SearchWorker {
         var lastIndex = 0
 
         tagRegex.findAll(query).forEach { matchResult ->
-            // 1. 태그 이전의 텍스트를 추가
+            // 태그 이전의 텍스트를 추가
             val textBefore = query.substring(lastIndex, matchResult.range.first)
             if (textBefore.isNotEmpty()) {
                 elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = textBefore))
             }
 
-            // 2. 태그(칩) 추가
+            // 태그(칩) 추가
             val tagName = matchResult.groupValues[1]
 
             // allTags 리스트에서 실제 TagItem을 검색 (대소문자 무시)
@@ -41,18 +41,18 @@ object SearchWorker {
             lastIndex = matchResult.range.last + 1
         }
 
-        // 3. 마지막 태그 이후의 나머지 텍스트 추가
+        // 마지막 태그 이후의 나머지 텍스트 추가
         val remainingText = query.substring(lastIndex)
         if (remainingText.isNotEmpty()) {
             elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = remainingText))
         }
 
-        // 4. 파싱 결과가 비어있거나, 칩으로 끝나는 경우, 커서를 위한 빈 텍스트 필드 추가
+        // 파싱 결과가 비어있거나, 칩으로 끝나는 경우, 커서를 위한 빈 텍스트 필드 추가
         if (elements.isEmpty() || elements.last() is SearchContentElement.Chip) {
             elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = ""))
         }
 
-        // 5. 쿼리가 태그 없이 텍스트만 있었던 경우
+        // 쿼리가 태그 없이 텍스트만 있었던 경우
         if (elements.isEmpty() && query.isNotEmpty()) {
             elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = query))
         }
