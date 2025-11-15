@@ -510,7 +510,7 @@ private fun SearchResultContent(
                             Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(start = 16.dp),
-                        text = "Add Tag with ${selectedPhotos.size}",
+                        text = "Add Tag (${selectedPhotos.size})",
                         onClick = {
                             onCreateTagClick()
                         },

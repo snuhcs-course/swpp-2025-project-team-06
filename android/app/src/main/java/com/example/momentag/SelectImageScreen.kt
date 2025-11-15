@@ -840,9 +840,9 @@ private fun RecommendExpandedPanel(
                         ) {
                             val (title, message) =
                                 if (recommendState is RecommendState.Error) {
-                                    "Recommendation Failed" to recommendState.message
+                                    "Couldn't load suggestions" to recommendState.message
                                 } else {
-                                    "Network Error" to (recommendState as RecommendState.NetworkError).message
+                                    "Connection lost" to (recommendState as RecommendState.NetworkError).message
                                 }
 
                             WarningBanner(

@@ -230,7 +230,7 @@ fun AddTagScreen(navController: NavController) {
                     // Error Banner - Floating above Done button
                     if (showErrorBanner && saveState is AddTagViewModel.SaveState.Error) {
                         WarningBanner(
-                            title = "Unable to save tag",
+                            title = "Couldn't save tag",
                             message = (saveState as AddTagViewModel.SaveState.Error).message,
                             onActionClick = { },
                             onDismiss = { showErrorBanner = false },
@@ -422,7 +422,7 @@ private fun CheckboxOverlay(
             modifier
                 .padding(4.dp)
                 .size(24.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(imageCornerRadius))
                 .background(
                     if (isSelected) {
                         MaterialTheme.colorScheme.primaryContainer

@@ -202,22 +202,22 @@ class SelectImageViewModel(
                 }
                 is RecommendRepository.RecommendResult.Error -> {
                     withContext(Dispatchers.Main) {
-                        _recommendState.value = RecommendState.Error(result.message)
+                        _recommendState.value = RecommendState.Error("Something went wrong. Please try again")
                     }
                 }
                 is RecommendRepository.RecommendResult.Unauthorized -> {
                     withContext(Dispatchers.Main) {
-                        _recommendState.value = RecommendState.Error("Please login again")
+                        _recommendState.value = RecommendState.Error("Your session expired. Please sign in again")
                     }
                 }
                 is RecommendRepository.RecommendResult.NetworkError -> {
                     withContext(Dispatchers.Main) {
-                        _recommendState.value = RecommendState.NetworkError(result.message)
+                        _recommendState.value = RecommendState.NetworkError("Connection lost. Check your internet and try again")
                     }
                 }
                 is RecommendRepository.RecommendResult.BadRequest -> {
                     withContext(Dispatchers.Main) {
-                        _recommendState.value = RecommendState.Error(result.message)
+                        _recommendState.value = RecommendState.Error("Something went wrong. Please try again")
                     }
                 }
             }
@@ -346,31 +346,31 @@ class SelectImageViewModel(
                     }
                     is RemoteRepository.Result.Error -> {
                         withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error(result.message)
+                            _addPhotosState.value = AddPhotosState.Error("Something went wrong. Please try again")
                         }
                         return@launch
                     }
                     is RemoteRepository.Result.Unauthorized -> {
                         withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error("Please login again")
+                            _addPhotosState.value = AddPhotosState.Error("Your session expired. Please sign in again")
                         }
                         return@launch
                     }
                     is RemoteRepository.Result.BadRequest -> {
                         withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error(result.message)
+                            _addPhotosState.value = AddPhotosState.Error("Something went wrong. Please try again")
                         }
                         return@launch
                     }
                     is RemoteRepository.Result.NetworkError -> {
                         withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error(result.message)
+                            _addPhotosState.value = AddPhotosState.Error("Connection lost. Check your internet and try again")
                         }
                         return@launch
                     }
                     is RemoteRepository.Result.Exception -> {
                         withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error(result.e.message ?: "Unknown error")
+                            _addPhotosState.value = AddPhotosState.Error("Connection lost. Check your internet and try again")
                         }
                         return@launch
                     }
