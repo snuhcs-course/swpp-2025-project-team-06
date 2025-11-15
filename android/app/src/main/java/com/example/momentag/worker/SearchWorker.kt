@@ -11,7 +11,10 @@ object SearchWorker {
      * @param allTags TagItem을 찾기 위한 전체 태그 리스트
      * @return 파싱된 SearchContentElement 리스트
      */
-    fun parseQueryToElements(query: String, allTags: List<TagItem>): List<SearchContentElement> {
+    fun parseQueryToElements(
+        query: String,
+        allTags: List<TagItem>,
+    ): List<SearchContentElement> {
         val elements = mutableListOf<SearchContentElement>()
         // "{tagname}" 형식을 찾는 정규식
         val tagRegex = "\\{([^}]+)\\}".toRegex()

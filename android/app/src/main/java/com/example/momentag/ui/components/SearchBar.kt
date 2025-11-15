@@ -63,8 +63,8 @@ import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.model.TagItem
-import kotlinx.coroutines.launch
 import com.example.momentag.worker.SearchWorker
+import kotlinx.coroutines.launch
 
 sealed class SearchContentElement {
     abstract val id: String // each element has unique ID
@@ -378,21 +378,22 @@ fun SearchHistoryItem(
     allTags: List<TagItem>,
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onHistoryClick(query) }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable { onHistoryClick(query) }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Icon(
             imageVector = Icons.Default.History,
             contentDescription = "History",
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(20.dp),
         )
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -401,32 +402,31 @@ fun SearchHistoryItem(
             verticalArrangement = Arrangement.Center,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            val elements = remember(query, allTags) {
-                SearchWorker.parseQueryToElements(query, allTags)
-            }
+            val elements =
+                remember(query, allTags) {
+                    SearchWorker.parseQueryToElements(query, allTags)
+                }
 
             elements.forEach { element ->
                 when (element) {
                     is SearchContentElement.Text -> {
-                        // 텍스트 부분 렌더링
                         if (element.text.isNotEmpty()) {
                             Text(
                                 text = element.text,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(vertical = 4.dp) // 칩의 패딩과 높이를 맞추기 위함
+                                modifier = Modifier.padding(vertical = 4.dp),
                             )
                         }
                     }
                     is SearchContentElement.Chip -> {
-                        // 칩 부분 렌더링 (SuggestionChip과 유사한 간단한 UI)
                         Box(
-                            modifier = Modifier
-                                .background(
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                            modifier =
+                                Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        shape = RoundedCornerShape(8.dp),
+                                    ).padding(horizontal = 10.dp, vertical = 4.dp),
                         ) {
                             Text(
                                 text = "#${element.tag.tagName}",
@@ -434,26 +434,25 @@ fun SearchHistoryItem(
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
                 }
             }
-        } // End FlowRow
+        }
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // 삭제 버튼
         IconButton(
             onClick = { onHistoryDelete(query) },
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(24.dp),
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Delete history item",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
         }
     }

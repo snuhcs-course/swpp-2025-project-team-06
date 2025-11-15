@@ -13,6 +13,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -36,10 +40,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -76,6 +82,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -101,6 +108,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -112,6 +120,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -123,6 +132,7 @@ import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchContentElement
+import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
@@ -133,6 +143,7 @@ import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
+import com.example.momentag.worker.SearchWorker
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.flow.debounce
@@ -141,17 +152,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Surface
-import androidx.compose.ui.zIndex
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.layout.onGloballyPositioned
-import com.example.momentag.ui.components.SearchHistoryItem
-import com.example.momentag.worker.SearchWorker
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -758,16 +758,17 @@ fun HomeScreen(navController: NavController) {
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            Box( // 오버레이를 위해 Box로 감쌈
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) {
-                        focusManager.clearFocus()
-                        isDeleteMode = false
-                    }
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            focusManager.clearFocus()
+                            isDeleteMode = false
+                        },
             ) {
                 Column(
                     modifier =
@@ -792,12 +793,12 @@ fun HomeScreen(navController: NavController) {
 
                     // Search Bar with Filter Button
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onGloballyPositioned { layoutCoordinates ->
-                                // Row의 실제 픽셀 높이를 저장
-                                searchBarRowHeight = layoutCoordinates.size.height
-                            },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .onGloballyPositioned { layoutCoordinates ->
+                                    searchBarRowHeight = layoutCoordinates.size.height
+                                },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -867,8 +868,8 @@ fun HomeScreen(navController: NavController) {
                                 // ZWSP가 삭제되었는지(커서가 1이었는지) 감지
                                 val didBackspaceAtStart =
                                     oldText.startsWith("\u200B") &&
-                                            !newText.startsWith("\u200B") &&
-                                            oldValue.selection.start == 1
+                                        !newText.startsWith("\u200B") &&
+                                        oldValue.selection.start == 1
 
                                 if (didBackspaceAtStart) {
                                     val currentIndex = contentItems.indexOfFirst { it.id == id }
@@ -957,8 +958,8 @@ fun HomeScreen(navController: NavController) {
                                             "\u200B$newText",
                                             TextRange(
                                                 newValue.selection.start + 1,
-                                                newValue.selection.end + 1
-                                            )
+                                                newValue.selection.end + 1,
+                                            ),
                                         )
                                     }
                                 val finalSelection =
@@ -1239,46 +1240,47 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
 
-                // 검색 기록 드롭다운 (오버레이)
+                // search history dropdown
                 AnimatedVisibility(
                     visible = showSearchHistoryDropdown && searchHistory.isNotEmpty(),
                     enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                     exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
-                    modifier = Modifier
-                        // Row의 높이(searchBarRowHeight)만큼 Y축으로 '이동'시킵니다.
-                        .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() })
-                        // Column의 padding(horizontal = 16.dp)와 동일하게 맞춤
-                        .padding(horizontal = 16.dp)
-                        .zIndex(1f) // 다른 UI 요소들 위에 오도록 z-index 설정
+                    modifier =
+                        Modifier
+                            .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() }) // change to move y-axis
+                            .padding(horizontal = 16.dp)
+                            .zIndex(1f), // z-index for overlay
                 ) {
                     Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            // 필터 버튼(48dp) + 간격(8dp) 만큼 오른쪽 패딩을 줘서 너비 맞춤
-                            .padding(end = 48.dp + 8.dp),
-                        // 검색창과 붙어 보이도록 아래쪽 모서리만 둥글게
-                        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-//                        shadowElevation = 8.dp,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(end = 48.dp + 8.dp),
+                        shape =
+                            RoundedCornerShape(
+//                                topStart = 16.dp,
+//                                topEnd = 16.dp,
+                                bottomStart = 16.dp,
+                                bottomEnd = 16.dp,
+                            ),
+                        //                        shadowElevation = 8.dp,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         LazyColumn(
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             items(searchHistory.take(4), key = { it }) { query ->
                                 SearchHistoryItem(
                                     query = query,
                                     allTags = allTags,
                                     onHistoryClick = { clickedQuery ->
-                                        // (a) 쿼리 문자열을 SearchContentElement 리스트로 파싱
                                         val newElements = SearchWorker.parseQueryToElements(clickedQuery, allTags)
 
-                                        // (b) ChipSearchBar의 현재 상태 초기화
                                         contentItems.clear()
                                         textStates.clear()
                                         focusRequesters.clear()
                                         bringIntoViewRequesters.clear()
 
-                                        // (c) 파싱된 Element로 ChipSearchBar 상태 복원
                                         newElements.forEach { element ->
                                             contentItems.add(element)
                                             if (element is SearchContentElement.Text) {
@@ -1289,15 +1291,13 @@ fun HomeScreen(navController: NavController) {
                                             }
                                         }
 
-                                        // (d) 포커스 해제
                                         focusManager.clearFocus()
 
-                                        // (e) ★ 즉시 검색 실행 ★
                                         performSearch()
                                     },
                                     onHistoryDelete = {
                                         searchViewModel.removeSearchHistory(it)
-                                    }
+                                    },
                                 )
                             }
                         }
