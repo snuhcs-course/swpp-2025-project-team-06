@@ -234,13 +234,18 @@ fun SearchResultScreen(
 
     var hasPerformedInitialSearch by rememberSaveable { mutableStateOf(false) }
 
+    val placeholderText = if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
+        initialQuery // 로딩 중(파싱 전)에는 initialQuery를 플레이스홀더로 사용
+    } else {
+        "Search with \"#tag\"" // 기본 플레이스홀더
+    }
+
     BackHandler(enabled = isSelectionMode) {
         searchViewModel.setSelectionMode(false)
         searchViewModel.resetSelection()
     }
 
     BackHandler(enabled = !isSelectionMode) {
-        searchViewModel.clearSearchContent()
         onNavigateBack()
     }
 
@@ -390,7 +395,6 @@ fun SearchResultScreen(
                 searchViewModel.setSelectionMode(false)
                 searchViewModel.resetSelection()
             } else {
-                searchViewModel.clearSearchContent()
                 onNavigateBack()
             }
         },
@@ -440,6 +444,7 @@ fun SearchResultScreen(
         showErrorBanner = showErrorBanner,
         errorMessage = errorMessage,
         onDismissError = { showErrorBanner = false },
+        placeholder = placeholderText,
     )
 }
 
@@ -489,7 +494,9 @@ fun SearchResultScreenUi(
     showErrorBanner: Boolean,
     errorMessage: String?,
     onDismissError: () -> Unit,
+    placeholder: String,
 ) {
+    val focusManager = LocalFocusManager.current
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -545,6 +552,7 @@ fun SearchResultScreenUi(
             showErrorBanner = showErrorBanner,
             errorMessage = errorMessage,
             onDismissError = onDismissError,
+            placeholder = placeholder,
         )
     }
 }
@@ -592,6 +600,7 @@ private fun SearchResultContent(
     showErrorBanner: Boolean,
     errorMessage: String?,
     onDismissError: () -> Unit,
+    placeholder: String,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -647,6 +656,7 @@ private fun SearchResultContent(
                     onChipClick = onChipClick,
                     onFocus = onFocus,
                     onTextChange = onTextChange,
+                    placeholder = placeholder,
                 )
                 IconButton(
                     onClick = {

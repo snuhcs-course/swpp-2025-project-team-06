@@ -251,7 +251,7 @@ class SearchViewModel(
             val textBefore = query.substring(lastIndex, matchResult.range.first)
             if (textBefore.isNotEmpty()) {
                 elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = textBefore))
-            } else if (elements.isNotEmpty() && elements.last() is SearchContentElement.Chip) {
+            } else {
                 elements.add(
                     SearchContentElement.Text(
                         id = UUID.randomUUID().toString(),

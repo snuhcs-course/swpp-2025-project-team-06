@@ -86,6 +86,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -114,6 +115,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -194,10 +198,8 @@ fun HomeScreen(navController: NavController) {
     val textStates = searchViewModel.textStates
     val contentItems = searchViewModel.contentItems
     val focusedElementId by searchViewModel.focusedElementId
-//    val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
-//    val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
-    val focusRequesters = searchViewModel.focusRequesters // <-- ViewModel에서 가져옴
-    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters // <-- ViewModel에서 가져옴
+    val focusRequesters = searchViewModel.focusRequesters
+    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
@@ -229,6 +231,21 @@ fun HomeScreen(navController: NavController) {
         )
 
     val showSearchHistoryDropdown by searchViewModel.showSearchHistoryDropdown.collectAsState()
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // SearchResultScreen에서 돌아올 때 등
+                // HomeScreen이 다시 보일 때 검색창 내용을 지웁니다.
+                searchViewModel.clearSearchContent()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(allPhotosGridState) {
         snapshotFlow {
