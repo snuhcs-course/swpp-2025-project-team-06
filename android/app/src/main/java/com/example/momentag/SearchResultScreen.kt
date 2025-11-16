@@ -777,20 +777,6 @@ private fun SearchResultContent(
                         },
                     )
                 }
-
-                Text(
-                    text = "${uiState.results.size} photos total",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(end = 16.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                                shape = RoundedCornerShape(8.dp),
-                            ).padding(horizontal = 12.dp, vertical = 6.dp),
-                )
             }
         }
     }
