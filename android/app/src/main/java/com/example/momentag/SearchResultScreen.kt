@@ -9,15 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -29,6 +24,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -42,7 +38,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
@@ -52,8 +47,6 @@ import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
-import com.example.momentag.ui.components.BottomNavBar
-import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchBarControlledCustom
@@ -88,7 +81,7 @@ fun SearchResultScreen(
     val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
 
     // var isSelectionMode by remember { mutableStateOf(false) }
-    var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
+    var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
     val focusManager = LocalFocusManager.current
@@ -173,38 +166,32 @@ fun SearchResultScreen(
     }
 
     val topBarActions = @Composable {
-        if (isSelectionModeDelay && selectedPhotos.isNotEmpty()) {
-            Box {
-                IconButton(onClick = {
+        if (isSelectionModeDelay) {
+            val isEnabled = selectedPhotos.isNotEmpty()
+            IconButton(
+                onClick = {
                     val photos = searchViewModel.getPhotosToShare()
                     ShareUtils.sharePhotos(context, photos)
-
-                    Toast
-                        .makeText(
-                            context,
-                            "Share ${photos.size} photo(s)",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Share",
-                    )
-                }
-            }
-        }
-        if (isSelectionModeDelay && !selectedPhotos.isNotEmpty()) {
-            Box {
-                IconButton(
-                    onClick = {},
-                    enabled = false,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        tint = Color.LightGray,
-                        contentDescription = "Share",
-                    )
-                }
+                    if (photos.isNotEmpty()) {
+                        Toast
+                            .makeText(
+                                context,
+                                "Share ${photos.size} photo(s)",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                    }
+                },
+                enabled = isEnabled,
+                colors =
+                    IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    ),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Share",
+                )
             }
         }
     }
@@ -256,32 +243,6 @@ fun SearchResultScreen(
             showErrorBanner = false
         },
         navController = navController,
-        currentTab = currentTab,
-        onTabSelected = { tab ->
-            currentTab = tab
-            when (tab) {
-                BottomTab.HomeScreen -> {
-                    searchViewModel.resetSelection()
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-                BottomTab.SearchResultScreen -> {
-                }
-                BottomTab.MyTagsScreen -> {
-                    searchViewModel.resetSelection()
-                    navController.navigate(Screen.MyTags.route) {
-                        popUpTo(Screen.Home.route)
-                    }
-                }
-                BottomTab.StoryScreen -> {
-                    searchViewModel.resetSelection()
-                    navController.navigate(Screen.Story.route) {
-                        popUpTo(Screen.Home.route)
-                    }
-                }
-            }
-        },
         topBarActions =
             if (uiState is SearchUiState.Success) {
                 topBarActions
@@ -322,8 +283,6 @@ fun SearchResultScreenUi(
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
-    currentTab: BottomTab,
-    onTabSelected: (BottomTab) -> Unit,
     topBarActions: @Composable () -> Unit = {},
     searchHistory: List<String>,
     onHistoryClick: (String) -> Unit,
@@ -341,20 +300,6 @@ fun SearchResultScreenUi(
                 showBackButton = true,
                 onBackClick = onBackClick,
                 actions = topBarActions,
-            )
-        },
-        bottomBar = {
-            BottomNavBar(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            WindowInsets.navigationBars
-                                .only(WindowInsetsSides.Bottom)
-                                .asPaddingValues(),
-                        ),
-                currentTab = currentTab,
-                onTabSelected = onTabSelected,
             )
         },
     ) { paddingValues ->

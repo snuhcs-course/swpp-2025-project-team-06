@@ -77,6 +77,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -628,42 +629,33 @@ fun HomeScreen(navController: NavController) {
                 onLogoutClick = { authViewModel.logout() },
                 isLogoutLoading = logoutState is LogoutState.Loading,
                 actions = {
-                    if (showAllPhotos && groupedPhotos.isNotEmpty()) {
-                        Box {
-                            if (isSelectionMode && selectedPhotos.isNotEmpty()) {
-                                // selectedPhotos.isNotEmpty()
-                                IconButton(onClick = {
-                                    val photos = homeViewModel.getPhotosToShare()
-                                    ShareUtils.sharePhotos(context, photos)
+                    if (showAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
+                        val isEnabled = selectedPhotos.isNotEmpty()
+                        IconButton(
+                            onClick = {
+                                val photos = homeViewModel.getPhotosToShare()
+                                ShareUtils.sharePhotos(context, photos)
 
-                                    if (photos.isNotEmpty()) {
-                                        Toast
-                                            .makeText(
-                                                context,
-                                                "Share ${photos.size} photo(s)",
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
-                                    } else {
-                                    }
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Share,
-                                        contentDescription = "Share",
-                                    )
+                                if (photos.isNotEmpty()) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "Share ${photos.size} photo(s)",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
                                 }
-                            }
-                            if (isSelectionMode && !selectedPhotos.isNotEmpty()) {
-                                IconButton(
-                                    onClick = {},
-                                    enabled = false,
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Share,
-                                        tint = Color.LightGray,
-                                        contentDescription = "Share",
-                                    )
-                                }
-                            }
+                            },
+                            enabled = isEnabled,
+                            colors =
+                                IconButtonDefaults.iconButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.primary,
+                                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                ),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share",
+                            )
                         }
                     }
                 },
@@ -685,12 +677,6 @@ fun HomeScreen(navController: NavController) {
 
                     when (tab) {
                         BottomTab.HomeScreen -> {
-                        }
-                        BottomTab.SearchResultScreen -> {
-                            homeViewModel.resetSelection()
-                            navController.navigate(Screen.SearchResult.initialRoute()) {
-                                popUpTo(Screen.Home.route)
-                            }
                         }
                         BottomTab.MyTagsScreen -> {
                             homeViewModel.resetSelection()
