@@ -315,6 +315,8 @@ fun SelectImageScreen(navController: NavController) {
                     )
 
                     if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+
                         Text(
                             text = "${selectedPhotos.size} selected",
                             color = MaterialTheme.colorScheme.primary,
