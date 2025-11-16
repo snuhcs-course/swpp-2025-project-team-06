@@ -1,9 +1,11 @@
 package com.example.momentag.viewmodel
 
+import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
@@ -304,11 +306,17 @@ class SearchViewModel(
     private val _bringIntoView = MutableSharedFlow<String>()
     val bringIntoView = _bringIntoView.asSharedFlow()
 
+    val focusRequesters = mutableStateMapOf<String, FocusRequester>()
+    val bringIntoViewRequesters = mutableStateMapOf<String, BringIntoViewRequester>()
+
     init {
         if (contentItems.isEmpty()) {
             val initialId = UUID.randomUUID().toString()
             contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
             textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
+
+            focusRequesters[initialId] = FocusRequester()
+            bringIntoViewRequesters[initialId] = BringIntoViewRequester()
         }
     }
 
@@ -467,9 +475,17 @@ class SearchViewModel(
                     val textC = currentItem
                     val mergedText = textA.text + textC.text
 
+                    val chipIdToRemove = contentItems[currentIndex - 1].id
+                    val textIdToRemove = id
+
                     contentItems.removeAt(currentIndex)
                     contentItems.removeAt(currentIndex - 1)
                     textStates.remove(id)
+
+                    focusRequesters.remove(chipIdToRemove)
+                    bringIntoViewRequesters.remove(chipIdToRemove)
+                    focusRequesters.remove(textIdToRemove)
+                    bringIntoViewRequesters.remove(textIdToRemove)
 
                     contentItems[prevPrevIndex] = textA.copy(text = mergedText)
                     val newTfv =
@@ -483,7 +499,12 @@ class SearchViewModel(
                         _requestFocus.emit(textA.id)
                     }
                 } else { // 1a-2. [ChipA] [ChipB] [TextC] 또는 [Start] [ChipB] [TextC] -> [ChipA] [TextC]
+                    val chipIdToRemove = contentItems[currentIndex - 1].id
+
                     contentItems.removeAt(currentIndex - 1)
+
+                    focusRequesters.remove(chipIdToRemove)
+                    bringIntoViewRequesters.remove(chipIdToRemove)
 
                     viewModelScope.launch {
                         _requestFocus.emit(id)
@@ -496,6 +517,9 @@ class SearchViewModel(
 
                 contentItems.removeAt(currentIndex)
                 textStates.remove(id)
+
+                focusRequesters.remove(id)
+                bringIntoViewRequesters.remove(id)
 
                 contentItems[currentIndex - 1] = textA.copy(text = mergedText)
                 val newTfv =
@@ -581,6 +605,11 @@ class SearchViewModel(
             contentItems.add(currentIndex + 1, newChip)
             contentItems.add(currentIndex + 2, newText)
 
+            focusRequesters[newChip.id] = FocusRequester()
+            bringIntoViewRequesters[newChip.id] = BringIntoViewRequester()
+            focusRequesters[newTextId] = FocusRequester()
+            bringIntoViewRequesters[newTextId] = BringIntoViewRequester()
+
             // 새 텍스트 필드 상태 설정 (커서는 1)
             textStates[newTextId] = TextFieldValue("\u200B" + succeedingText, TextRange(1))
 
@@ -654,7 +683,7 @@ class SearchViewModel(
         val allTags = if (_tagLoadingState.value is TagLoadingState.Success) {
             (_tagLoadingState.value as TagLoadingState.Success).tags
         } else {
-            emptyList()
+            emptyList<TagItem>()
         }
 
         // ViewModel에 있는 parseQueryToElements 함수를 사용합니다.
@@ -664,9 +693,16 @@ class SearchViewModel(
         contentItems.clear()
         textStates.clear()
 
+        focusRequesters.clear()
+        bringIntoViewRequesters.clear()
+
         // 새 쿼리 아이템들로 검색창 상태를 채웁니다.
         newElements.forEach { element ->
             contentItems.add(element)
+
+            focusRequesters[element.id] = FocusRequester()
+            bringIntoViewRequesters[element.id] = BringIntoViewRequester()
+
             if (element is SearchContentElement.Text) {
                 // 텍스트 아이템에 대한 TextFieldValue도 생성합니다.
                 val tfv = TextFieldValue(
@@ -680,5 +716,22 @@ class SearchViewModel(
 
     fun resetIgnoreFocusLossFlag() {
         _ignoreFocusLoss.value = false
+    }
+
+    /**
+     * ChipSearchBar의 모든 내용을 초기 빈 상태로 리셋합니다.
+     */
+    fun clearSearchContent() {
+        contentItems.clear()
+        textStates.clear()
+        focusRequesters.clear()
+        bringIntoViewRequesters.clear()
+        _focusedElementId.value = null
+
+        val initialId = UUID.randomUUID().toString()
+        contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
+        textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
+        focusRequesters[initialId] = FocusRequester()
+        bringIntoViewRequesters[initialId] = BringIntoViewRequester()
     }
 }

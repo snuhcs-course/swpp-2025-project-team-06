@@ -1,5 +1,6 @@
 package com.example.momentag
 
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -131,8 +132,8 @@ fun SearchResultScreen(
     val showSearchHistoryDropdown by searchViewModel.showSearchHistoryDropdown.collectAsState()
     val allTags = (tagLoadingState as? TagLoadingState.Success)?.tags ?: emptyList<TagItem>()
     val listState = rememberLazyListState()
-    val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
-    val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
+    val focusRequesters = searchViewModel.focusRequesters
+    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
     val topSpacerHeight = 8.dp
@@ -239,31 +240,16 @@ fun SearchResultScreen(
         }
     }
 
-    LaunchedEffect(contentItems.size) {
-        val currentIds = contentItems.map { it.id }.toSet()
-
-        val iterator = focusRequesters.keys.iterator()
-        while (iterator.hasNext()) {
-            val id = iterator.next()
-            if (id !in currentIds) {
-                iterator.remove()
-                bringIntoViewRequesters.remove(id)
-            }
-        }
-
-        contentItems.forEach { item ->
-            if (!focusRequesters.containsKey(item.id)) {
-                focusRequesters[item.id] = FocusRequester()
-                bringIntoViewRequesters[item.id] = BringIntoViewRequester()
-            }
-        }
-    }
-
     var hasPerformedInitialSearch by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(enabled = isSelectionMode) {
         searchViewModel.setSelectionMode(false)
         searchViewModel.resetSelection()
+    }
+
+    BackHandler(enabled = !isSelectionMode) {
+        searchViewModel.clearSearchContent()
+        onNavigateBack()
     }
 
     LaunchedEffect(isSelectionMode) {
@@ -286,11 +272,15 @@ fun SearchResultScreen(
     }
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
+    LaunchedEffect(initialQuery, hasPerformedInitialSearch) {
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
+            searchViewModel.search(initialQuery)
+        }
+    }
+
     LaunchedEffect(initialQuery, hasPerformedInitialSearch, tagLoadingState) {
-        // 태그 목록 로딩이 완료된 후에만 initialQuery를 파싱
         if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch && tagLoadingState is TagLoadingState.Success) {
             searchViewModel.selectHistoryItem(initialQuery)
-            searchViewModel.search(initialQuery)
             hasPerformedInitialSearch = true
         }
     }
@@ -430,6 +420,7 @@ fun SearchResultScreen(
                 searchViewModel.setSelectionMode(false)
                 searchViewModel.resetSelection()
             } else {
+                searchViewModel.clearSearchContent()
                 onNavigateBack()
             }
         },
@@ -675,11 +666,27 @@ private fun SearchResultContent(
     onDismissError: () -> Unit,
 ) {
     val context = LocalContext.current
-    Box(modifier = modifier) {
+    val focusManager = LocalFocusManager.current
+
+    Box(
+        modifier = modifier
+        .clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null
+        ) {
+            focusManager.clearFocus()
+        }
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusManager.clearFocus()
+                },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(8.dp))

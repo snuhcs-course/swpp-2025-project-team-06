@@ -8,6 +8,7 @@ import android.content.ContextWrapper
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -198,8 +199,10 @@ fun HomeScreen(navController: NavController) {
     val textStates = searchViewModel.textStates
     val contentItems = searchViewModel.contentItems
     val focusedElementId by searchViewModel.focusedElementId
-    val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
-    val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
+//    val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
+//    val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
+    val focusRequesters = searchViewModel.focusRequesters // <-- ViewModel에서 가져옴
+    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters // <-- ViewModel에서 가져옴
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
@@ -258,6 +261,7 @@ fun HomeScreen(navController: NavController) {
 
     LaunchedEffect(searchViewModel.requestFocus) {
         searchViewModel.requestFocus.collect { id ->
+            Log.d("home cursor", "true1")
             hideCursor = true
 
             try {
@@ -265,6 +269,7 @@ fun HomeScreen(navController: NavController) {
                     .filter { it == true }
                     .first()
             } catch (e: Exception) {
+                Log.d("home cursor", "false1")
                 hideCursor = false
                 searchViewModel.resetIgnoreFocusLossFlag()
                 return@collect
@@ -293,6 +298,7 @@ fun HomeScreen(navController: NavController) {
 
             focusRequesters[id]?.requestFocus()
 
+            Log.d("home cursor", "false2")
             hideCursor = false
             searchViewModel.resetIgnoreFocusLossFlag()
         }
@@ -315,26 +321,6 @@ fun HomeScreen(navController: NavController) {
         }
 
         previousImeBottom = imeBottom
-    }
-
-    LaunchedEffect(contentItems.size) {
-        val currentIds = contentItems.map { it.id }.toSet()
-
-        val iterator = focusRequesters.keys.iterator()
-        while (iterator.hasNext()) {
-            val id = iterator.next()
-            if (id !in currentIds) {
-                iterator.remove()
-                bringIntoViewRequesters.remove(id)
-            }
-        }
-
-        contentItems.forEach { item ->
-            if (!focusRequesters.containsKey(item.id)) {
-                focusRequesters[item.id] = FocusRequester()
-                bringIntoViewRequesters[item.id] = BringIntoViewRequester()
-            }
-        }
     }
 
     val tagSuggestions by searchViewModel.tagSuggestions.collectAsState()
