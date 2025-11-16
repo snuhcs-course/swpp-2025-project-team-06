@@ -1,4 +1,4 @@
-# Iteration 3 Working Demo
+# Iteration 4 Working Demo
 
 ## MomenTag application
 
@@ -12,7 +12,7 @@ MomenTag android application and backend API server are implemented.
   - Sign out
   - Refresh token
 - Image upload
-  - Upload image after allowing access
+  - Upload by 'Album' or by 'Photos'
 - Image search
   - Search using natural language query
   - Natural language search aware of tag names
@@ -20,10 +20,12 @@ MomenTag android application and backend API server are implemented.
   - Select photos from search results to create tags
 - Tag
   - Create tag
+  - Manage(delete,rename) tags in a mytags screen.
   - Display tag albums in a grid on the home screen
   - View photos contained in a tag album
   - Delete tag albums
   - Delete tags from individual photos
+  - Add custom tag to individual photos
 - Recommend
   - Photo recommendations based on selected photos when creating a tag
   - Photo recommendations that fit a tag album, within the tag album
@@ -108,4 +110,4 @@ Build android application and install it.
 Run MomenTag application to test features.
 
 ### Demo video
-[Video link](https://drive.google.com/file/d/1YTWzfTmbdSTkusysYr-jriLLWG-_Lq1F/view?usp=sharing)
+[Video link](https://drive.google.com/file/d/1SYkj9_yQ_UDujLGisNl37O6h1wYUq-Uo/view?usp=sharing)
