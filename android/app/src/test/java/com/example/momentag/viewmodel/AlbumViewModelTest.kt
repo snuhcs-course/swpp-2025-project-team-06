@@ -5,165 +5,130 @@ import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
+import io.mockk.clearAllMocks
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import io.mockk.verify
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
-@ExperimentalCoroutinesApi
+@OptIn(ExperimentalCoroutinesApi::class)
 class AlbumViewModelTest {
+    @get:Rule
+    val mainCoroutineRule = MainCoroutineRule()
+
     private lateinit var viewModel: AlbumViewModel
     private lateinit var localRepository: LocalRepository
     private lateinit var remoteRepository: RemoteRepository
     private lateinit var recommendRepository: RecommendRepository
     private lateinit var imageBrowserRepository: ImageBrowserRepository
-    private val testDispatcher = UnconfinedTestDispatcher()
-
-    private val testPhotos =
-        listOf(
-            createMockPhoto("photo1"),
-            createMockPhoto("photo2"),
-            createMockPhoto("photo3"),
-        )
+    private lateinit var photoSelectionRepository: PhotoSelectionRepository
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
-
+        mockkStatic(Uri::class)
         localRepository = mockk()
         remoteRepository = mockk()
         recommendRepository = mockk()
         imageBrowserRepository = mockk(relaxed = true)
+        photoSelectionRepository = mockk(relaxed = true)
 
         viewModel =
             AlbumViewModel(
-                localRepository = localRepository,
-                remoteRepository = remoteRepository,
-                recommendRepository = recommendRepository,
-                imageBrowserRepository = imageBrowserRepository,
-                ioDispatcher = testDispatcher,
+                localRepository,
+                remoteRepository,
+                recommendRepository,
+                imageBrowserRepository,
+                photoSelectionRepository,
+                mainCoroutineRule.testDispatcher,
             )
     }
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        clearAllMocks()
+        unmockkStatic(Uri::class)
     }
 
-    private fun createMockPhoto(id: String): Photo {
-        val mockUri = mockk<Uri>()
-        every { mockUri.toString() } returns "content://media/external/images/$id"
-        return Photo(photoId = id, contentUri = mockUri)
+    private fun createMockUri(path: String): Uri {
+        val uri = mockk<Uri>(relaxed = true)
+        every { uri.toString() } returns path
+        every { uri.lastPathSegment } returns path.substringAfterLast("/")
+        return uri
     }
 
-    private fun createPhotoResponse(
-        id: String,
-        pathId: Long,
-    ): PhotoResponse = PhotoResponse(photoId = id, photoPathId = pathId)
+    private fun createPhotoResponse(id: String = "photo1") =
+        PhotoResponse(
+            photoId = id,
+            photoPathId = 1L,
+            createdAt = "2025-01-01",
+        )
 
-    // ========== loadAlbum Tests ==========
+    private fun createPhoto(id: String = "photo1"): Photo {
+        val uri = createMockUri("content://media/external/images/media/$id")
+        every { Uri.parse("content://media/external/images/media/$id") } returns uri
+        return Photo(
+            photoId = id,
+            contentUri = uri,
+            createdAt = "2025-01-01",
+        )
+    }
 
+    // Load album tests
     @Test
-    fun `loadAlbum sets Loading state immediately`() =
+    fun `loadAlbum success loads photos and recommendations`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val tagName = "여행"
+            val tagName = "Test Tag"
+            val photoResponses = listOf(createPhotoResponse())
+            val photos = listOf(createPhoto())
+            val recommendPhotoResponses = listOf(createPhotoResponse("photo2"))
             coEvery { remoteRepository.getPhotosByTag(tagId) } returns
-                RemoteRepository.Result.Success(emptyList<PhotoResponse>())
-            coEvery { localRepository.toPhotos(any()) } returns emptyList()
+                RemoteRepository.Result.Success(photoResponses)
+            coEvery { localRepository.toPhotos(photoResponses) } returns photos
             coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList<PhotoResponse>())
+                RecommendRepository.RecommendResult.Success(recommendPhotoResponses)
+            coEvery { localRepository.toPhotos(recommendPhotoResponses) } returns emptyList()
 
             // When
             viewModel.loadAlbum(tagId, tagName)
-
-            // Then
-            // Loading state was set (though Success follows immediately with UnconfinedTestDispatcher)
-            assertTrue(viewModel.albumLoadingState.value is AlbumViewModel.AlbumLoadingState.Success)
-        }
-
-    @Test
-    fun `loadAlbum success with photos`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-            val tagName = "여행"
-            val remotePhotos =
-                listOf(
-                    createPhotoResponse("photo1", 1L),
-                    createPhotoResponse("photo2", 2L),
-                )
-
-            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
-                RemoteRepository.Result.Success(remotePhotos)
-            coEvery { localRepository.toPhotos(remotePhotos) } returns testPhotos
-            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList<PhotoResponse>())
-            coEvery { localRepository.toPhotos(emptyList<PhotoResponse>()) } returns emptyList()
-
-            // When
-            viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.albumLoadingState.value
             assertTrue(state is AlbumViewModel.AlbumLoadingState.Success)
-            assertEquals(testPhotos, (state as AlbumViewModel.AlbumLoadingState.Success).photos)
-
-            verify { imageBrowserRepository.setTagAlbum(testPhotos, tagName) }
-            coVerify { recommendRepository.recommendPhotosFromTag(tagId) }
+            assertEquals(photos, (state as AlbumViewModel.AlbumLoadingState.Success).photos)
+            verify { imageBrowserRepository.setTagAlbum(photos, tagName) }
         }
 
     @Test
-    fun `loadAlbum success with empty photos`() =
+    fun `loadAlbum error updates state with error message`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val tagName = "여행"
-
-            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
-                RemoteRepository.Result.Success(emptyList<PhotoResponse>())
-            coEvery { localRepository.toPhotos(emptyList<PhotoResponse>()) } returns emptyList()
-            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList<PhotoResponse>())
-
-            // When
-            viewModel.loadAlbum(tagId, tagName)
-
-            // Then
-            val state = viewModel.albumLoadingState.value
-            assertTrue(state is AlbumViewModel.AlbumLoadingState.Success)
-            assertTrue((state as AlbumViewModel.AlbumLoadingState.Success).photos.isEmpty())
-        }
-
-    @Test
-    fun `loadAlbum handles Error result`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-            val tagName = "여행"
-            val errorMessage = "Failed to load album"
-
+            val tagName = "Test Tag"
+            val errorMessage = "Network error"
             coEvery { remoteRepository.getPhotosByTag(tagId) } returns
                 RemoteRepository.Result.Error(500, errorMessage)
 
             // When
             viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.albumLoadingState.value
@@ -171,18 +136,226 @@ class AlbumViewModelTest {
             assertEquals(errorMessage, (state as AlbumViewModel.AlbumLoadingState.Error).message)
         }
 
+    // Load recommendations tests
     @Test
-    fun `loadAlbum handles Unauthorized result`() =
+    fun `loadRecommendations success loads recommended photos`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val tagName = "여행"
+            val photoResponses = listOf(createPhotoResponse())
+            val photos = listOf(createPhoto())
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Success(photoResponses)
+            coEvery { localRepository.toPhotos(photoResponses) } returns photos
 
+            // When
+            viewModel.loadRecommendations(tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.recommendLoadingState.value
+            assertTrue(state is AlbumViewModel.RecommendLoadingState.Success)
+            assertEquals(photos, (state as AlbumViewModel.RecommendLoadingState.Success).photos)
+        }
+
+    // Photo selection tests
+    @Test
+    fun `toggleRecommendPhoto toggles photo selection`() {
+        // Given
+        val photo = createPhoto()
+
+        // When - select photo
+        viewModel.toggleRecommendPhoto(photo)
+
+        // Then
+        assertTrue(viewModel.selectedRecommendPhotos.value.contains(photo))
+
+        // When - deselect photo
+        viewModel.toggleRecommendPhoto(photo)
+
+        // Then
+        assertFalse(viewModel.selectedRecommendPhotos.value.contains(photo))
+    }
+
+    @Test
+    fun `resetRecommendSelection clears selection`() {
+        // Given
+        viewModel.toggleRecommendPhoto(createPhoto())
+
+        // When
+        viewModel.resetRecommendSelection()
+
+        // Then
+        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
+    }
+
+    @Test
+    fun `toggleTagAlbumPhoto toggles photo selection`() {
+        // Given
+        val photo = createPhoto()
+
+        // When - select photo
+        viewModel.toggleTagAlbumPhoto(photo)
+
+        // Then
+        assertTrue(viewModel.selectedTagAlbumPhotos.value.contains(photo))
+
+        // When - deselect photo
+        viewModel.toggleTagAlbumPhoto(photo)
+
+        // Then
+        assertFalse(viewModel.selectedTagAlbumPhotos.value.contains(photo))
+    }
+
+    // Delete tag tests
+    @Test
+    fun `resetDeleteState resets to Idle`() =
+        runTest {
+            // When
+            viewModel.resetDeleteState()
+
+            // Then
+            assertTrue(viewModel.tagDeleteState.value is AlbumViewModel.TagDeleteState.Idle)
+        }
+
+    // Rename tag tests
+    @Test
+    fun `resetRenameState resets to Idle`() =
+        runTest {
+            // When
+            viewModel.resetRenameState()
+
+            // Then
+            assertTrue(viewModel.tagRenameState.value is AlbumViewModel.TagRenameState.Idle)
+        }
+
+    // Add state tests
+    @Test
+    fun `resetAddState resets to Idle`() =
+        runTest {
+            // When
+            viewModel.resetAddState()
+
+            // Then
+            assertTrue(viewModel.tagAddState.value is AlbumViewModel.TagAddState.Idle)
+        }
+
+    // Initialize add photos flow
+    @Test
+    fun `initializeAddPhotosFlow initializes photoSelectionRepository`() {
+        // Given
+        val tagId = "tag1"
+        val tagName = "Test Tag"
+
+        // When
+        viewModel.initializeAddPhotosFlow(tagId, tagName)
+
+        // Then
+        verify {
+            photoSelectionRepository.initialize(
+                initialTagName = tagName,
+                initialPhotos = emptyList(),
+                existingTagId = tagId,
+            )
+        }
+    }
+
+    @Test
+    fun `loadRecommendations error updates state with error message`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val errorMessage = "Network error"
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Error(errorMessage)
+
+            // When
+            viewModel.loadRecommendations(tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.recommendLoadingState.value
+            assertTrue(state is AlbumViewModel.RecommendLoadingState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.RecommendLoadingState.Error).message)
+        }
+
+    @Test
+    fun `resetTagAlbumPhotoSelection clears selection`() {
+        // Given
+        viewModel.toggleTagAlbumPhoto(createPhoto())
+
+        // When
+        viewModel.resetTagAlbumPhotoSelection()
+
+        // Then
+        assertTrue(viewModel.selectedTagAlbumPhotos.value.isEmpty())
+    }
+
+    @Test
+    fun `deleteTagFromPhotos success updates state to Success`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            coEvery { remoteRepository.removeTagFromPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.Success(Unit)
+
+            // When
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.tagDeleteState.value is AlbumViewModel.TagDeleteState.Success)
+        }
+
+    @Test
+    fun `deleteTagFromPhotos error updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val errorMessage = "Error deleting tag"
+            coEvery { remoteRepository.removeTagFromPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.Error(500, errorMessage)
+
+            // When
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagDeleteState.value
+            assertTrue(state is AlbumViewModel.TagDeleteState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagDeleteState.Error).message)
+        }
+
+    @Test
+    fun `getPhotosToShare returns selected photos`() {
+        // Given
+        val photo1 = createPhoto("photo1")
+        val photo2 = createPhoto("photo2")
+        viewModel.toggleTagAlbumPhoto(photo1)
+        viewModel.toggleTagAlbumPhoto(photo2)
+
+        // When
+        val photosToShare = viewModel.getPhotosToShare()
+
+        // Then
+        assertEquals(listOf(photo1, photo2), photosToShare)
+    }
+
+    // Additional loadAlbum error case tests
+    @Test
+    fun `loadAlbum unauthorized updates state with error message`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val tagName = "Test Tag"
             coEvery { remoteRepository.getPhotosByTag(tagId) } returns
                 RemoteRepository.Result.Unauthorized("Unauthorized")
 
             // When
             viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.albumLoadingState.value
@@ -191,18 +364,18 @@ class AlbumViewModelTest {
         }
 
     @Test
-    fun `loadAlbum handles NetworkError result`() =
+    fun `loadAlbum network error updates state with error message`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val tagName = "여행"
-            val errorMessage = "Network connection failed"
-
+            val tagName = "Test Tag"
+            val errorMessage = "Connection failed"
             coEvery { remoteRepository.getPhotosByTag(tagId) } returns
                 RemoteRepository.Result.NetworkError(errorMessage)
 
             // When
             viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.albumLoadingState.value
@@ -211,18 +384,18 @@ class AlbumViewModelTest {
         }
 
     @Test
-    fun `loadAlbum handles BadRequest result`() =
+    fun `loadAlbum bad request updates state with error message`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val tagName = "여행"
-            val errorMessage = "Bad request"
-
+            val tagName = "Test Tag"
+            val errorMessage = "Invalid tag ID"
             coEvery { remoteRepository.getPhotosByTag(tagId) } returns
                 RemoteRepository.Result.BadRequest(errorMessage)
 
             // When
             viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.albumLoadingState.value
@@ -231,18 +404,18 @@ class AlbumViewModelTest {
         }
 
     @Test
-    fun `loadAlbum handles Exception result`() =
+    fun `loadAlbum exception updates state with error message`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val tagName = "여행"
-            val exception = RuntimeException("Unexpected error")
-
+            val tagName = "Test Tag"
+            val exception = Exception("Unexpected error")
             coEvery { remoteRepository.getPhotosByTag(tagId) } returns
                 RemoteRepository.Result.Exception(exception)
 
             // When
             viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.albumLoadingState.value
@@ -250,147 +423,18 @@ class AlbumViewModelTest {
             assertEquals("Unexpected error", (state as AlbumViewModel.AlbumLoadingState.Error).message)
         }
 
+    // Additional loadRecommendations error case tests
     @Test
-    fun `loadAlbum handles Exception with null message`() =
+    fun `loadRecommendations unauthorized updates state with error message`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val tagName = "여행"
-            val exception = RuntimeException(null as String?)
-
-            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
-                RemoteRepository.Result.Exception(exception)
-
-            // When
-            viewModel.loadAlbum(tagId, tagName)
-
-            // Then
-            val state = viewModel.albumLoadingState.value
-            assertTrue(state is AlbumViewModel.AlbumLoadingState.Error)
-            assertEquals("Unknown error", (state as AlbumViewModel.AlbumLoadingState.Error).message)
-        }
-
-    @Test
-    fun `loadAlbum auto-loads recommendations after success`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-            val tagName = "여행"
-            val recommendPhotos = listOf(createMockPhoto("rec1"))
-
-            val recommendResponse = listOf(createPhotoResponse("rec1", 1L))
-
-            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
-                RemoteRepository.Result.Success(emptyList<PhotoResponse>())
-            coEvery { localRepository.toPhotos(emptyList<PhotoResponse>()) } returns emptyList()
-            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(recommendResponse)
-            coEvery { localRepository.toPhotos(recommendResponse) } returns recommendPhotos
-
-            // When
-            viewModel.loadAlbum(tagId, tagName)
-
-            // Then
-            val albumState = viewModel.albumLoadingState.value
-            assertTrue(albumState is AlbumViewModel.AlbumLoadingState.Success)
-
-            val recommendState = viewModel.recommendLoadingState.value
-            assertTrue(recommendState is AlbumViewModel.RecommendLoadingState.Success)
-            assertEquals(recommendPhotos, (recommendState as AlbumViewModel.RecommendLoadingState.Success).photos)
-        }
-
-    // ========== loadRecommendations Tests ==========
-
-    @Test
-    fun `loadRecommendations sets Loading state immediately`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList<PhotoResponse>())
-            coEvery { localRepository.toPhotos(any()) } returns emptyList()
-
-            // When
-            viewModel.loadRecommendations(tagId)
-
-            // Then
-            assertTrue(viewModel.recommendLoadingState.value is AlbumViewModel.RecommendLoadingState.Success)
-        }
-
-    @Test
-    fun `loadRecommendations success with photos`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-            val remotePhotos =
-                listOf(
-                    createPhotoResponse("photo1", 1L),
-                    createPhotoResponse("photo2", 2L),
-                )
-            val recommendPhotos = listOf(createMockPhoto("rec1"), createMockPhoto("rec2"))
-
-            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(remotePhotos)
-            coEvery { localRepository.toPhotos(remotePhotos) } returns recommendPhotos
-
-            // When
-            viewModel.loadRecommendations(tagId)
-
-            // Then
-            val state = viewModel.recommendLoadingState.value
-            assertTrue(state is AlbumViewModel.RecommendLoadingState.Success)
-            assertEquals(recommendPhotos, (state as AlbumViewModel.RecommendLoadingState.Success).photos)
-        }
-
-    @Test
-    fun `loadRecommendations success with empty photos`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-
-            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList<PhotoResponse>())
-            coEvery { localRepository.toPhotos(emptyList<PhotoResponse>()) } returns emptyList()
-
-            // When
-            viewModel.loadRecommendations(tagId)
-
-            // Then
-            val state = viewModel.recommendLoadingState.value
-            assertTrue(state is AlbumViewModel.RecommendLoadingState.Success)
-            assertTrue((state as AlbumViewModel.RecommendLoadingState.Success).photos.isEmpty())
-        }
-
-    @Test
-    fun `loadRecommendations handles Error result`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-            val errorMessage = "Failed to load recommendations"
-
-            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Error(errorMessage)
-
-            // When
-            viewModel.loadRecommendations(tagId)
-
-            // Then
-            val state = viewModel.recommendLoadingState.value
-            assertTrue(state is AlbumViewModel.RecommendLoadingState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.RecommendLoadingState.Error).message)
-        }
-
-    @Test
-    fun `loadRecommendations handles Unauthorized result`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-
             coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
                 RecommendRepository.RecommendResult.Unauthorized("Unauthorized")
 
             // When
             viewModel.loadRecommendations(tagId)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.recommendLoadingState.value
@@ -399,17 +443,17 @@ class AlbumViewModelTest {
         }
 
     @Test
-    fun `loadRecommendations handles NetworkError result`() =
+    fun `loadRecommendations network error updates state with error message`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val errorMessage = "Network connection failed"
-
+            val errorMessage = "Connection failed"
             coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
                 RecommendRepository.RecommendResult.NetworkError(errorMessage)
 
             // When
             viewModel.loadRecommendations(tagId)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.recommendLoadingState.value
@@ -418,17 +462,17 @@ class AlbumViewModelTest {
         }
 
     @Test
-    fun `loadRecommendations handles BadRequest result`() =
+    fun `loadRecommendations bad request updates state with error message`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val errorMessage = "Bad request"
-
+            val errorMessage = "Invalid request"
             coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
                 RecommendRepository.RecommendResult.BadRequest(errorMessage)
 
             // When
             viewModel.loadRecommendations(tagId)
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.recommendLoadingState.value
@@ -436,276 +480,581 @@ class AlbumViewModelTest {
             assertEquals(errorMessage, (state as AlbumViewModel.RecommendLoadingState.Error).message)
         }
 
-    // ========== toggleRecommendPhoto Tests ==========
-
+    // deleteTagFromPhotos with photo path ID conversion tests
     @Test
-    fun `toggleRecommendPhoto adds photo when not selected`() {
-        // Given
-        val photo = createMockPhoto("photo1")
-        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-
-        // When
-        viewModel.toggleRecommendPhoto(photo)
-
-        // Then
-        assertEquals(1, viewModel.selectedRecommendPhotos.value.size)
-        assertTrue(viewModel.selectedRecommendPhotos.value.contains(photo))
-    }
-
-    @Test
-    fun `toggleRecommendPhoto removes photo when already selected`() {
-        // Given
-        val photo = createMockPhoto("photo1")
-        viewModel.toggleRecommendPhoto(photo) // First add
-        assertTrue(viewModel.selectedRecommendPhotos.value.contains(photo))
-
-        // When
-        viewModel.toggleRecommendPhoto(photo) // Then remove
-
-        // Then
-        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-        assertFalse(viewModel.selectedRecommendPhotos.value.contains(photo))
-    }
-
-    @Test
-    fun `toggleRecommendPhoto works with multiple photos`() {
-        // Given
-        val photo1 = createMockPhoto("photo1")
-        val photo2 = createMockPhoto("photo2")
-        val photo3 = createMockPhoto("photo3")
-
-        // When - add photos
-        viewModel.toggleRecommendPhoto(photo1)
-        viewModel.toggleRecommendPhoto(photo2)
-        viewModel.toggleRecommendPhoto(photo3)
-
-        // Then - all added
-        assertEquals(3, viewModel.selectedRecommendPhotos.value.size)
-        assertTrue(viewModel.selectedRecommendPhotos.value.containsAll(listOf(photo1, photo2, photo3)))
-
-        // When - remove middle photo
-        viewModel.toggleRecommendPhoto(photo2)
-
-        // Then - only photo2 removed
-        assertEquals(2, viewModel.selectedRecommendPhotos.value.size)
-        assertTrue(viewModel.selectedRecommendPhotos.value.contains(photo1))
-        assertFalse(viewModel.selectedRecommendPhotos.value.contains(photo2))
-        assertTrue(viewModel.selectedRecommendPhotos.value.contains(photo3))
-    }
-
-    @Test
-    fun `toggleRecommendPhoto toggle same photo multiple times`() {
-        // Given
-        val photo = createMockPhoto("photo1")
-
-        // When & Then - toggle multiple times
-        viewModel.toggleRecommendPhoto(photo)
-        assertEquals(1, viewModel.selectedRecommendPhotos.value.size)
-
-        viewModel.toggleRecommendPhoto(photo)
-        assertEquals(0, viewModel.selectedRecommendPhotos.value.size)
-
-        viewModel.toggleRecommendPhoto(photo)
-        assertEquals(1, viewModel.selectedRecommendPhotos.value.size)
-
-        viewModel.toggleRecommendPhoto(photo)
-        assertEquals(0, viewModel.selectedRecommendPhotos.value.size)
-    }
-
-    // ========== resetRecommendSelection Tests ==========
-
-    @Test
-    fun `resetRecommendSelection clears empty selection`() {
-        // Given
-        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-
-        // When
-        viewModel.resetRecommendSelection()
-
-        // Then
-        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-    }
-
-    @Test
-    fun `resetRecommendSelection clears single photo selection`() {
-        // Given
-        val photo = createMockPhoto("photo1")
-        viewModel.toggleRecommendPhoto(photo)
-        assertEquals(1, viewModel.selectedRecommendPhotos.value.size)
-
-        // When
-        viewModel.resetRecommendSelection()
-
-        // Then
-        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-    }
-
-    @Test
-    fun `resetRecommendSelection clears multiple photos selection`() {
-        // Given
-        val photos =
-            listOf(
-                createMockPhoto("photo1"),
-                createMockPhoto("photo2"),
-                createMockPhoto("photo3"),
-            )
-        photos.forEach { viewModel.toggleRecommendPhoto(it) }
-        assertEquals(3, viewModel.selectedRecommendPhotos.value.size)
-
-        // When
-        viewModel.resetRecommendSelection()
-
-        // Then
-        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-    }
-
-    @Test
-    fun `resetRecommendSelection can be called multiple times`() {
-        // Given
-        val photo = createMockPhoto("photo1")
-        viewModel.toggleRecommendPhoto(photo)
-
-        // When & Then
-        viewModel.resetRecommendSelection()
-        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-
-        viewModel.resetRecommendSelection()
-        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-
-        viewModel.resetRecommendSelection()
-        assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-    }
-
-    // ========== Integration Tests ==========
-
-    @Test
-    fun `workflow - load album, load recommendations, select photos, reset`() =
+    fun `deleteTagFromPhotos with numeric photo ID converts to UUID`() =
         runTest {
             // Given
+            val photo = createPhoto("123")
             val tagId = "tag1"
-            val tagName = "여행"
-            val albumPhotos = listOf(createMockPhoto("album1"))
-            val recommendPhotos = listOf(createMockPhoto("rec1"), createMockPhoto("rec2"))
+            val actualPhotoId = "uuid-123"
+            val photoResponse = createPhotoResponse(actualPhotoId).copy(photoPathId = 123L)
 
-            val albumResponse = listOf(createPhotoResponse("album1", 1L))
-            val recommendResponse =
-                listOf(
-                    createPhotoResponse("rec1", 2L),
-                    createPhotoResponse("rec2", 3L),
-                )
-
-            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
-                RemoteRepository.Result.Success(albumResponse)
-            coEvery { localRepository.toPhotos(albumResponse) } returns albumPhotos
-            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(recommendResponse)
-            coEvery { localRepository.toPhotos(recommendResponse) } returns recommendPhotos
-
-            // When - load album (auto-loads recommendations)
-            viewModel.loadAlbum(tagId, tagName)
-
-            // Then - album loaded
-            val albumState = viewModel.albumLoadingState.value
-            assertTrue(albumState is AlbumViewModel.AlbumLoadingState.Success)
-            assertEquals(albumPhotos, (albumState as AlbumViewModel.AlbumLoadingState.Success).photos)
-
-            // Then - recommendations loaded
-            val recommendState = viewModel.recommendLoadingState.value
-            assertTrue(recommendState is AlbumViewModel.RecommendLoadingState.Success)
-            assertEquals(recommendPhotos, (recommendState as AlbumViewModel.RecommendLoadingState.Success).photos)
-
-            // When - select photos
-            viewModel.toggleRecommendPhoto(recommendPhotos[0])
-            viewModel.toggleRecommendPhoto(recommendPhotos[1])
-
-            // Then - photos selected
-            assertEquals(2, viewModel.selectedRecommendPhotos.value.size)
-
-            // When - reset
-            viewModel.resetRecommendSelection()
-
-            // Then - selection cleared
-            assertTrue(viewModel.selectedRecommendPhotos.value.isEmpty())
-        }
-
-    @Test
-    fun `workflow - load album fails, recommendations not loaded`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-            val tagName = "여행"
-
-            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
-                RemoteRepository.Result.Error(500, "Server error")
+            // Setup for delete
+            coEvery { remoteRepository.getAllPhotos() } returns
+                RemoteRepository.Result.Success(listOf(photoResponse))
+            coEvery { remoteRepository.removeTagFromPhoto(actualPhotoId, tagId) } returns
+                RemoteRepository.Result.Success(Unit)
 
             // When
-            viewModel.loadAlbum(tagId, tagName)
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
 
-            // Then - album error
-            val albumState = viewModel.albumLoadingState.value
-            assertTrue(albumState is AlbumViewModel.AlbumLoadingState.Error)
-
-            // Then - recommendations not triggered
-            val recommendState = viewModel.recommendLoadingState.value
-            assertTrue(recommendState is AlbumViewModel.RecommendLoadingState.Idle)
+            // Then
+            assertTrue(viewModel.tagDeleteState.value is AlbumViewModel.TagDeleteState.Success)
         }
 
     @Test
-    fun `workflow - album succeeds, recommendations fail`() =
+    fun `deleteTagFromPhotos with numeric photo ID not found returns error`() =
         runTest {
             // Given
+            val photo = createPhoto("999")
             val tagId = "tag1"
-            val tagName = "여행"
-            val albumPhotos = listOf(createMockPhoto("album1"))
 
-            val albumResponse = listOf(createPhotoResponse("album1", 1L))
-
-            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
-                RemoteRepository.Result.Success(albumResponse)
-            coEvery { localRepository.toPhotos(albumResponse) } returns albumPhotos
-            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Error("Recommendation failed")
+            coEvery { remoteRepository.getAllPhotos() } returns
+                RemoteRepository.Result.Success(emptyList())
 
             // When
-            viewModel.loadAlbum(tagId, tagName)
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
 
-            // Then - album success
-            val albumState = viewModel.albumLoadingState.value
-            assertTrue(albumState is AlbumViewModel.AlbumLoadingState.Success)
-
-            // Then - recommendations error
-            val recommendState = viewModel.recommendLoadingState.value
-            assertTrue(recommendState is AlbumViewModel.RecommendLoadingState.Error)
-            assertEquals("Recommendation failed", (recommendState as AlbumViewModel.RecommendLoadingState.Error).message)
+            // Then
+            val state = viewModel.tagDeleteState.value
+            assertTrue(state is AlbumViewModel.TagDeleteState.Error)
+            assertEquals("Photo not found in backend", (state as AlbumViewModel.TagDeleteState.Error).message)
         }
 
     @Test
-    fun `state transitions maintain independence`() =
+    fun `deleteTagFromPhotos unauthorized updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val errorMessage = "Unauthorized"
+            coEvery { remoteRepository.removeTagFromPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.Unauthorized(errorMessage)
+
+            // When
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagDeleteState.value
+            assertTrue(state is AlbumViewModel.TagDeleteState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagDeleteState.Error).message)
+        }
+
+    @Test
+    fun `deleteTagFromPhotos bad request updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val errorMessage = "Bad request"
+            coEvery { remoteRepository.removeTagFromPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.BadRequest(errorMessage)
+
+            // When
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagDeleteState.value
+            assertTrue(state is AlbumViewModel.TagDeleteState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagDeleteState.Error).message)
+        }
+
+    @Test
+    fun `deleteTagFromPhotos network error updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val errorMessage = "Network error"
+            coEvery { remoteRepository.removeTagFromPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.NetworkError(errorMessage)
+
+            // When
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagDeleteState.value
+            assertTrue(state is AlbumViewModel.TagDeleteState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagDeleteState.Error).message)
+        }
+
+    @Test
+    fun `deleteTagFromPhotos exception updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val exception = Exception("Unexpected error")
+            coEvery { remoteRepository.removeTagFromPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.Exception(exception)
+
+            // When
+            viewModel.deleteTagFromPhotos(listOf(photo), tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagDeleteState.value
+            assertTrue(state is AlbumViewModel.TagDeleteState.Error)
+            assertEquals("Unexpected error", (state as AlbumViewModel.TagDeleteState.Error).message)
+        }
+
+    @Test
+    fun `deleteTagFromPhotos updates album state after successful deletion`() =
+        runTest {
+            // Given
+            val photo1 = createPhoto("photo1")
+            val photo2 = createPhoto("photo2")
+            val tagId = "tag1"
+            val tagName = "Test Tag"
+
+            // First load the album
+            val photoResponses = listOf(createPhotoResponse("photo1"), createPhotoResponse("photo2"))
+            val photos = listOf(photo1, photo2)
+            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
+                RemoteRepository.Result.Success(photoResponses)
+            coEvery { localRepository.toPhotos(photoResponses) } returns photos
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Success(emptyList())
+            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
+
+            viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
+
+            // Setup for delete
+            coEvery { remoteRepository.removeTagFromPhoto(photo1.photoId, tagId) } returns
+                RemoteRepository.Result.Success(Unit)
+
+            // When
+            viewModel.deleteTagFromPhotos(listOf(photo1), tagId)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.albumLoadingState.value
+            assertTrue(state is AlbumViewModel.AlbumLoadingState.Success)
+            val remainingPhotos = (state as AlbumViewModel.AlbumLoadingState.Success).photos
+            assertEquals(1, remainingPhotos.size)
+            assertEquals(photo2, remainingPhotos[0])
+        }
+
+    // renameTag tests
+    @Test
+    fun `renameTag success updates state to Success`() =
         runTest {
             // Given
             val tagId = "tag1"
-            val tagName = "여행"
+            val tagName = "New Tag Name"
+            val tagIdResponse =
+                com.example.momentag.model
+                    .TagId(id = tagId)
+            coEvery { remoteRepository.renameTag(tagId, tagName) } returns
+                RemoteRepository.Result.Success(tagIdResponse)
 
+            // When
+            viewModel.renameTag(tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.tagRenameState.value is AlbumViewModel.TagRenameState.Success)
+        }
+
+    @Test
+    fun `renameTag with mismatched ID returns error`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val tagName = "New Tag Name"
+            val tagIdResponse =
+                com.example.momentag.model
+                    .TagId(id = "different-tag-id")
+            coEvery { remoteRepository.renameTag(tagId, tagName) } returns
+                RemoteRepository.Result.Success(tagIdResponse)
+
+            // When
+            viewModel.renameTag(tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagRenameState.value
+            assertTrue(state is AlbumViewModel.TagRenameState.Error)
+            assertTrue((state as AlbumViewModel.TagRenameState.Error).message.contains("Returned tag id is different"))
+        }
+
+    @Test
+    fun `renameTag error updates state to Error`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val tagName = "New Tag Name"
+            val errorMessage = "Server error"
+            coEvery { remoteRepository.renameTag(tagId, tagName) } returns
+                RemoteRepository.Result.Error(500, errorMessage)
+
+            // When
+            viewModel.renameTag(tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagRenameState.value
+            assertTrue(state is AlbumViewModel.TagRenameState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagRenameState.Error).message)
+        }
+
+    @Test
+    fun `renameTag unauthorized updates state to Error`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val tagName = "New Tag Name"
+            val errorMessage = "Unauthorized"
+            coEvery { remoteRepository.renameTag(tagId, tagName) } returns
+                RemoteRepository.Result.Unauthorized(errorMessage)
+
+            // When
+            viewModel.renameTag(tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagRenameState.value
+            assertTrue(state is AlbumViewModel.TagRenameState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagRenameState.Error).message)
+        }
+
+    @Test
+    fun `renameTag bad request updates state to Error`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val tagName = "New Tag Name"
+            val errorMessage = "Bad request"
+            coEvery { remoteRepository.renameTag(tagId, tagName) } returns
+                RemoteRepository.Result.BadRequest(errorMessage)
+
+            // When
+            viewModel.renameTag(tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagRenameState.value
+            assertTrue(state is AlbumViewModel.TagRenameState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagRenameState.Error).message)
+        }
+
+    @Test
+    fun `renameTag network error updates state to Error`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val tagName = "New Tag Name"
+            val errorMessage = "Network error"
+            coEvery { remoteRepository.renameTag(tagId, tagName) } returns
+                RemoteRepository.Result.NetworkError(errorMessage)
+
+            // When
+            viewModel.renameTag(tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagRenameState.value
+            assertTrue(state is AlbumViewModel.TagRenameState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagRenameState.Error).message)
+        }
+
+    @Test
+    fun `renameTag exception updates state to Error`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val tagName = "New Tag Name"
+            val exception = Exception("Unexpected error")
+            coEvery { remoteRepository.renameTag(tagId, tagName) } returns
+                RemoteRepository.Result.Exception(exception)
+
+            // When
+            viewModel.renameTag(tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagRenameState.value
+            assertTrue(state is AlbumViewModel.TagRenameState.Error)
+            assertEquals("Unexpected error", (state as AlbumViewModel.TagRenameState.Error).message)
+        }
+
+    // addRecommendedPhotosToTagAlbum tests
+    @Test
+    fun `addRecommendedPhotosToTagAlbum success adds photos to album`() =
+        runTest {
+            // Given
+            val photo1 = createPhoto("photo1")
+            val photo2 = createPhoto("photo2")
+            val tagId = "tag1"
+            val tagName = "Test Tag"
+
+            // First load the album
+            val initialPhotoResponses = listOf(createPhotoResponse("photo1"))
+            val initialPhotos = listOf(photo1)
             coEvery { remoteRepository.getPhotosByTag(tagId) } returns
-                RemoteRepository.Result.Success(emptyList<PhotoResponse>())
-            coEvery { localRepository.toPhotos(any()) } returns emptyList()
+                RemoteRepository.Result.Success(initialPhotoResponses)
+            coEvery { localRepository.toPhotos(initialPhotoResponses) } returns initialPhotos
             coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList<PhotoResponse>())
+                RecommendRepository.RecommendResult.Success(emptyList())
+            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
 
-            // When - load album
             viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
 
-            // Then - both states updated
-            assertTrue(viewModel.albumLoadingState.value is AlbumViewModel.AlbumLoadingState.Success)
-            assertTrue(viewModel.recommendLoadingState.value is AlbumViewModel.RecommendLoadingState.Success)
+            // Setup for adding photos
+            coEvery { remoteRepository.postTagsToPhoto(photo2.photoId, tagId) } returns
+                RemoteRepository.Result.Success(Unit)
 
-            // When - manually reload recommendations with error
+            // Reload album after adding - needs to return updated list
+            val updatedPhotoResponses = listOf(createPhotoResponse("photo1"), createPhotoResponse("photo2"))
+            val updatedPhotos = listOf(photo1, photo2)
+            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
+                RemoteRepository.Result.Success(updatedPhotoResponses)
+            coEvery { localRepository.toPhotos(updatedPhotoResponses) } returns updatedPhotos
+
+            // When
+            viewModel.addRecommendedPhotosToTagAlbum(listOf(photo2), tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.tagAddState.value is AlbumViewModel.TagAddState.Success)
+        }
+
+    @Test
+    fun `addRecommendedPhotosToTagAlbum with numeric photo ID converts to UUID`() =
+        runTest {
+            // Given
+            val photo = createPhoto("456")
+            val tagId = "tag1"
+            val tagName = "Test Tag"
+            val actualPhotoId = "uuid-456"
+            val photoResponse = createPhotoResponse(actualPhotoId).copy(photoPathId = 456L)
+
+            // Setup album
+            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
+                RemoteRepository.Result.Success(emptyList())
+            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
             coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Error("New error")
-            viewModel.loadRecommendations(tagId)
+                RecommendRepository.RecommendResult.Success(emptyList())
 
-            // Then - album state unchanged, recommend state changed
-            assertTrue(viewModel.albumLoadingState.value is AlbumViewModel.AlbumLoadingState.Success)
-            assertTrue(viewModel.recommendLoadingState.value is AlbumViewModel.RecommendLoadingState.Error)
+            viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
+
+            // Setup for adding
+            coEvery { remoteRepository.getAllPhotos() } returns
+                RemoteRepository.Result.Success(listOf(photoResponse))
+            coEvery { remoteRepository.postTagsToPhoto(actualPhotoId, tagId) } returns
+                RemoteRepository.Result.Success(Unit)
+
+            // When
+            viewModel.addRecommendedPhotosToTagAlbum(listOf(photo), tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            assertTrue(viewModel.tagAddState.value is AlbumViewModel.TagAddState.Success)
+        }
+
+    @Test
+    fun `addRecommendedPhotosToTagAlbum with conversion error sets error state`() =
+        runTest {
+            // Given
+            val photo = createPhoto("789")
+            val tagId = "tag1"
+            val tagName = "Test Tag"
+
+            // Setup album
+            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
+                RemoteRepository.Result.Success(emptyList())
+            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Success(emptyList())
+
+            viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
+
+            // Setup for adding - photo not found
+            coEvery { remoteRepository.getAllPhotos() } returns
+                RemoteRepository.Result.Success(emptyList())
+
+            // When
+            viewModel.addRecommendedPhotosToTagAlbum(listOf(photo), tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagAddState.value
+            assertTrue(state is AlbumViewModel.TagAddState.Error)
+            assertEquals("Convert Photo Id Error", (state as AlbumViewModel.TagAddState.Error).message)
+        }
+
+    @Test
+    fun `addRecommendedPhotosToTagAlbum error updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val tagName = "Test Tag"
+            val errorMessage = "Failed to add tag"
+
+            // Setup album
+            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
+                RemoteRepository.Result.Success(emptyList())
+            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Success(emptyList())
+
+            viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
+
+            // Setup for adding
+            coEvery { remoteRepository.postTagsToPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.Error(500, errorMessage)
+
+            // When
+            viewModel.addRecommendedPhotosToTagAlbum(listOf(photo), tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagAddState.value
+            assertTrue(state is AlbumViewModel.TagAddState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagAddState.Error).message)
+        }
+
+    @Test
+    fun `addRecommendedPhotosToTagAlbum unauthorized updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val tagName = "Test Tag"
+            val errorMessage = "Unauthorized"
+
+            // Setup album
+            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
+                RemoteRepository.Result.Success(emptyList())
+            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Success(emptyList())
+
+            viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
+
+            // Setup for adding
+            coEvery { remoteRepository.postTagsToPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.Unauthorized(errorMessage)
+
+            // When
+            viewModel.addRecommendedPhotosToTagAlbum(listOf(photo), tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagAddState.value
+            assertTrue(state is AlbumViewModel.TagAddState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagAddState.Error).message)
+        }
+
+    @Test
+    fun `addRecommendedPhotosToTagAlbum bad request updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val tagName = "Test Tag"
+            val errorMessage = "Bad request"
+
+            // Setup album
+            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
+                RemoteRepository.Result.Success(emptyList())
+            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Success(emptyList())
+
+            viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
+
+            // Setup for adding
+            coEvery { remoteRepository.postTagsToPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.BadRequest(errorMessage)
+
+            // When
+            viewModel.addRecommendedPhotosToTagAlbum(listOf(photo), tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagAddState.value
+            assertTrue(state is AlbumViewModel.TagAddState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagAddState.Error).message)
+        }
+
+    @Test
+    fun `addRecommendedPhotosToTagAlbum network error updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val tagName = "Test Tag"
+            val errorMessage = "Network error"
+
+            // Setup album
+            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
+                RemoteRepository.Result.Success(emptyList())
+            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Success(emptyList())
+
+            viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
+
+            // Setup for adding
+            coEvery { remoteRepository.postTagsToPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.NetworkError(errorMessage)
+
+            // When
+            viewModel.addRecommendedPhotosToTagAlbum(listOf(photo), tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagAddState.value
+            assertTrue(state is AlbumViewModel.TagAddState.Error)
+            assertEquals(errorMessage, (state as AlbumViewModel.TagAddState.Error).message)
+        }
+
+    @Test
+    fun `addRecommendedPhotosToTagAlbum exception updates state to Error`() =
+        runTest {
+            // Given
+            val photo = createPhoto("photo1")
+            val tagId = "tag1"
+            val tagName = "Test Tag"
+            val exception = Exception("Unexpected error")
+
+            // Setup album
+            coEvery { remoteRepository.getPhotosByTag(tagId) } returns
+                RemoteRepository.Result.Success(emptyList())
+            coEvery { localRepository.toPhotos(emptyList()) } returns emptyList()
+            coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
+                RecommendRepository.RecommendResult.Success(emptyList())
+
+            viewModel.loadAlbum(tagId, tagName)
+            advanceUntilIdle()
+
+            // Setup for adding
+            coEvery { remoteRepository.postTagsToPhoto(photo.photoId, tagId) } returns
+                RemoteRepository.Result.Exception(exception)
+
+            // When
+            viewModel.addRecommendedPhotosToTagAlbum(listOf(photo), tagId, tagName)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.tagAddState.value
+            assertTrue(state is AlbumViewModel.TagAddState.Error)
+            assertEquals("Unexpected error", (state as AlbumViewModel.TagAddState.Error).message)
         }
 }

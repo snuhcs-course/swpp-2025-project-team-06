@@ -146,22 +146,30 @@ class SearchEmptyStateComposableTest {
     fun searchIdle_displaysIdleMessage() {
         // Given
         composeTestRule.setContent {
-            SearchIdleCustom()
+            SearchIdleCustom(
+                history = emptyList(),
+                onHistoryClick = {},
+                onHistoryDelete = {},
+            )
         }
 
         // Then
-        composeTestRule.onNodeWithText("검색어를 입력해주세요.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Please enter a search term.").assertIsDisplayed()
     }
 
     @Test
     fun searchIdle_displaysCorrectText() {
         // Given
         composeTestRule.setContent {
-            SearchIdleCustom()
+            SearchIdleCustom(
+                history = emptyList(),
+                onHistoryClick = {},
+                onHistoryDelete = {},
+            )
         }
 
         // Then
-        val expectedText = "검색어를 입력해주세요."
+        val expectedText = "Please enter a search term."
         composeTestRule.onNodeWithText(expectedText).assertIsDisplayed()
     }
 
@@ -169,11 +177,15 @@ class SearchEmptyStateComposableTest {
     fun searchIdle_centersContent() {
         // Given
         composeTestRule.setContent {
-            SearchIdleCustom()
+            SearchIdleCustom(
+                history = emptyList(),
+                onHistoryClick = {},
+                onHistoryDelete = {},
+            )
         }
 
         // Then - 텍스트가 표시되면 중앙 정렬이 적용됨
-        composeTestRule.onNodeWithText("검색어를 입력해주세요.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Please enter a search term.").assertIsDisplayed()
     }
     // endregion
 
@@ -186,7 +198,7 @@ class SearchEmptyStateComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("오류가 발생했습니다.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("An error occurred.").assertIsDisplayed()
     }
 
     @Test
@@ -197,7 +209,7 @@ class SearchEmptyStateComposableTest {
         }
 
         // Then
-        val expectedText = "오류가 발생했습니다."
+        val expectedText = "An error occurred."
         composeTestRule.onNodeWithText(expectedText).assertIsDisplayed()
     }
 
@@ -209,7 +221,7 @@ class SearchEmptyStateComposableTest {
         }
 
         // Then - 텍스트가 표시되면 중앙 정렬이 적용됨
-        composeTestRule.onNodeWithText("오류가 발생했습니다.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("An error occurred.").assertIsDisplayed()
     }
     // endregion
 
@@ -266,10 +278,14 @@ class SearchEmptyStateComposableTest {
     fun searchStates_idleStateDifferentMessage() {
         // Given - Idle 상태
         composeTestRule.setContent {
-            SearchIdleCustom()
+            SearchIdleCustom(
+                history = emptyList(),
+                onHistoryClick = {},
+                onHistoryDelete = {},
+            )
         }
         // Then
-        composeTestRule.onNodeWithText("검색어를 입력해주세요.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Please enter a search term.").assertIsDisplayed()
     }
 
     @Test
@@ -289,7 +305,7 @@ class SearchEmptyStateComposableTest {
             SearchErrorStateFallbackCustom()
         }
         // Then
-        composeTestRule.onNodeWithText("오류가 발생했습니다.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("An error occurred.").assertIsDisplayed()
     }
     // endregion
 
@@ -412,9 +428,13 @@ class SearchEmptyStateComposableTest {
         // (시각적으로는 확인 불가, 렌더링만 확인)
 
         composeTestRule.setContent {
-            SearchIdleCustom()
+            SearchIdleCustom(
+                history = emptyList(),
+                onHistoryClick = {},
+                onHistoryDelete = {},
+            )
         }
-        composeTestRule.onNodeWithText("검색어를 입력해주세요.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Please enter a search term.").assertIsDisplayed()
     }
 
     @Test
@@ -432,7 +452,7 @@ class SearchEmptyStateComposableTest {
         composeTestRule.setContent {
             SearchErrorStateFallbackCustom()
         }
-        composeTestRule.onNodeWithText("오류가 발생했습니다.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("An error occurred.").assertIsDisplayed()
     }
 
     @Test
@@ -440,9 +460,13 @@ class SearchEmptyStateComposableTest {
         // Given & Then - Idle 상태가 중앙 정렬을 사용하는지 확인
 
         composeTestRule.setContent {
-            SearchIdleCustom()
+            SearchIdleCustom(
+                history = emptyList(),
+                onHistoryClick = {},
+                onHistoryDelete = {},
+            )
         }
-        composeTestRule.onNodeWithText("검색어를 입력해주세요.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Please enter a search term.").assertIsDisplayed()
     }
 
     @Test
@@ -460,7 +484,7 @@ class SearchEmptyStateComposableTest {
         composeTestRule.setContent {
             SearchErrorStateFallbackCustom()
         }
-        composeTestRule.onNodeWithText("오류가 발생했습니다.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("An error occurred.").assertIsDisplayed()
     }
     // endregion
 }

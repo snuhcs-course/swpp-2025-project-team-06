@@ -74,6 +74,9 @@ class DataModelsTest {
         val tagName = "Vacation"
         val coverImageId = 100L
         val tagId = "tag789"
+        val createdAt = "2025-11-01T10:00:00"
+        val updatedAt = "2025-11-02T15:30:00"
+        val photoCount = 42
 
         // When
         val tagItem =
@@ -81,12 +84,18 @@ class DataModelsTest {
                 tagName = tagName,
                 coverImageId = coverImageId,
                 tagId = tagId,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+                photoCount = photoCount,
             )
 
         // Then
         assertEquals(tagName, tagItem.tagName)
         assertEquals(coverImageId, tagItem.coverImageId)
         assertEquals(tagId, tagItem.tagId)
+        assertEquals(createdAt, tagItem.createdAt)
+        assertEquals(updatedAt, tagItem.updatedAt)
+        assertEquals(photoCount, tagItem.photoCount)
     }
 
     @Test
@@ -97,27 +106,20 @@ class DataModelsTest {
                 tagName = "Test",
                 coverImageId = null,
                 tagId = "tag001",
+                createdAt = "2025-11-01T10:00:00",
+                updatedAt = null,
+                photoCount = 0,
             )
 
         // Then
         assertNull(tagItem.coverImageId)
+        assertNull(tagItem.updatedAt)
         assertEquals("Test", tagItem.tagName)
         assertEquals("tag001", tagItem.tagId)
+        assertEquals(0, tagItem.photoCount)
     }
 
-    // ========== TagCreateRequest Tests ==========
-
-    @Test
-    fun `TagCreateRequest should be created with correct name`() {
-        // Given
-        val tagName = "NewTag"
-
-        // When
-        val request = TagCreateRequest(name = tagName)
-
-        // Then
-        assertEquals(tagName, request.name)
-    }
+    // ========== TagCreateRequest Tests - REMOVED (class no longer exists) ==========
 
     // ========== PhotoDetailResponse Tests ==========
 
@@ -125,6 +127,7 @@ class DataModelsTest {
     fun `PhotoDetailResponse should be created with correct properties`() {
         // Given
         val photoPathId = 12345L
+        val address = "Seoul, South Korea"
         val tags =
             listOf(
                 Tag("Nature", "tag1"),
@@ -135,11 +138,13 @@ class DataModelsTest {
         val response =
             PhotoDetailResponse(
                 photoPathId = photoPathId,
+                address = address,
                 tags = tags,
             )
 
         // Then
         assertEquals(photoPathId, response.photoPathId)
+        assertEquals(address, response.address)
         assertEquals(2, response.tags.size)
         assertEquals("Nature", response.tags[0].tagName)
         assertEquals("Sunset", response.tags[1].tagName)
@@ -151,12 +156,14 @@ class DataModelsTest {
         val response =
             PhotoDetailResponse(
                 photoPathId = 999L,
+                address = null,
                 tags = emptyList(),
             )
 
         // Then
         assertTrue(response.tags.isEmpty())
         assertEquals(999L, response.photoPathId)
+        assertNull(response.address)
     }
 
     // ========== PhotoResponse Tests ==========
@@ -166,17 +173,20 @@ class DataModelsTest {
         // Given
         val photoId = "photo123"
         val photoPathId = 456L
+        val createdAt = "2025-11-01T10:00:00"
 
         // When
         val response =
             PhotoResponse(
                 photoId = photoId,
                 photoPathId = photoPathId,
+                createdAt = createdAt,
             )
 
         // Then
         assertEquals(photoId, response.photoId)
         assertEquals(photoPathId, response.photoPathId)
+        assertEquals(createdAt, response.createdAt)
     }
 
     // ========== Photo Tests ==========
@@ -185,25 +195,29 @@ class DataModelsTest {
     fun `Photo should be created with Uri`() {
         // Given
         val photoId = "photo789"
+        val createdAt = "2025-11-01T10:00:00"
 
         // When
         val photo =
             Photo(
                 photoId = photoId,
                 contentUri = mockUri,
+                createdAt = createdAt,
             )
 
         // Then
         assertEquals(photoId, photo.photoId)
         assertEquals(mockUri, photo.contentUri)
+        assertEquals(createdAt, photo.createdAt)
         assertEquals("content://test/image.jpg", photo.contentUri.toString())
     }
 
     @Test
     fun `Photo equality test with same Uri`() {
         // Given
-        val photo1 = Photo(photoId = "photo1", contentUri = mockUri)
-        val photo2 = Photo(photoId = "photo1", contentUri = mockUri)
+        val createdAt = "2025-11-01T10:00:00"
+        val photo1 = Photo(photoId = "photo1", contentUri = mockUri, createdAt = createdAt)
+        val photo2 = Photo(photoId = "photo1", contentUri = mockUri, createdAt = createdAt)
 
         // Then
         assertEquals(photo1, photo2)
@@ -214,11 +228,12 @@ class DataModelsTest {
     @Test
     fun `Photos should contain list of Photo objects`() {
         // Given
+        val createdAt = "2025-11-01T10:00:00"
         val photoList =
             listOf(
-                Photo("photo1", mockUri),
-                Photo("photo2", mockUri),
-                Photo("photo3", mockUri),
+                Photo("photo1", mockUri, createdAt),
+                Photo("photo2", mockUri, createdAt),
+                Photo("photo3", mockUri, createdAt),
             )
 
         // When
@@ -240,32 +255,18 @@ class DataModelsTest {
         assertTrue(photos.photos.isEmpty())
     }
 
-    // ========== TagIdRequest Tests ==========
+    // ========== TagId Tests ==========
 
     @Test
-    fun `TagIdRequest should be created with tagId`() {
+    fun `TagId should be created with id`() {
         // Given
         val tagId = "tag999"
 
         // When
-        val request = TagIdRequest(tagId = tagId)
+        val tag = TagId(id = tagId)
 
         // Then
-        assertEquals(tagId, request.tagId)
-    }
-
-    // ========== TagCreateResponse Tests ==========
-
-    @Test
-    fun `TagCreateResponse should return tagId`() {
-        // Given
-        val tagId = "newTag123"
-
-        // When
-        val response = TagCreateResponse(tagId = tagId)
-
-        // Then
-        assertEquals(tagId, response.tagId)
+        assertEquals(tagId, tag.id)
     }
 
     // ========== PhotoTag Tests ==========
@@ -505,31 +506,29 @@ class DataModelsTest {
     // ========== StoryResponse Tests ==========
 
     @Test
-    fun `StoryResponse should contain list of recommendations`() {
+    fun `StoryResponse should contain photo information and tags`() {
         // Given
-        val recs =
-            listOf(
-                PhotoResponse("photo1", 1L),
-                PhotoResponse("photo2", 2L),
-                PhotoResponse("photo3", 3L),
-            )
+        val photoId = "photo1"
+        val photoPathId = 1L
+        val tags = listOf("tag1", "tag2", "tag3")
 
         // When
-        val response = StoryResponse(recs = recs)
+        val response = StoryResponse(photoId = photoId, photoPathId = photoPathId, tags = tags)
 
         // Then
-        assertEquals(3, response.recs.size)
-        assertEquals("photo1", response.recs[0].photoId)
-        assertEquals(2L, response.recs[1].photoPathId)
+        assertEquals(photoId, response.photoId)
+        assertEquals(photoPathId, response.photoPathId)
+        assertEquals(3, response.tags.size)
+        assertEquals("tag1", response.tags[0])
     }
 
     @Test
-    fun `StoryResponse with empty recommendations`() {
+    fun `StoryResponse with empty tags`() {
         // Given & When
-        val response = StoryResponse(recs = emptyList())
+        val response = StoryResponse(photoId = "photo1", photoPathId = 1L, tags = emptyList())
 
         // Then
-        assertTrue(response.recs.isEmpty())
+        assertTrue(response.tags.isEmpty())
     }
 
     // ========== PhotoMeta Tests ==========
@@ -643,7 +642,7 @@ class DataModelsTest {
         // Given
         val id = "story1"
         val photoId = "photo1"
-        val images = listOf("img1.jpg", "img2.jpg")
+        val images = listOf(Uri.parse("content://media/1"), Uri.parse("content://media/2"))
         val date = "2025-11-02"
         val location = "Seoul, Korea"
         val suggestedTags = listOf("Nature", "City", "Night")
@@ -694,7 +693,7 @@ class DataModelsTest {
             StoryModel(
                 id = "story1",
                 photoId = "photo1",
-                images = listOf("img1.jpg"),
+                images = listOf(Uri.parse("content://media/1")),
                 date = "2025-11-01",
                 location = "Seoul",
                 suggestedTags = listOf("Tag1"),
@@ -716,11 +715,13 @@ class DataModelsTest {
     @Test
     fun `StoryModel equality test`() {
         // Given
+        val uri1 = Uri.parse("content://media/1")
+        val uri2 = Uri.parse("content://media/2")
         val story1 =
             StoryModel(
                 id = "story1",
                 photoId = "photo1",
-                images = listOf("img1.jpg"),
+                images = listOf(uri1),
                 date = "2025-11-02",
                 location = "Seoul",
                 suggestedTags = listOf("Nature"),
@@ -729,7 +730,7 @@ class DataModelsTest {
             StoryModel(
                 id = "story1",
                 photoId = "photo1",
-                images = listOf("img1.jpg"),
+                images = listOf(uri1),
                 date = "2025-11-02",
                 location = "Seoul",
                 suggestedTags = listOf("Nature"),
@@ -738,7 +739,7 @@ class DataModelsTest {
             StoryModel(
                 id = "story2",
                 photoId = "photo2",
-                images = listOf("img2.jpg"),
+                images = listOf(uri2),
                 date = "2025-11-03",
                 location = "Busan",
                 suggestedTags = listOf("City"),
@@ -787,6 +788,7 @@ class DataModelsTest {
         val photoResponse =
             PhotoDetailResponse(
                 photoPathId = 100L,
+                address = "Seoul, South Korea",
                 tags = tags,
             )
 

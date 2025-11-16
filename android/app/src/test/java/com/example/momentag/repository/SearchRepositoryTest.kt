@@ -37,6 +37,7 @@ class SearchRepositoryTest {
         PhotoResponse(
             photoId = id,
             photoPathId = 1L,
+            createdAt = "2024-01-01T00:00:00Z",
         )
 
     // ========== Input Validation Tests ==========
