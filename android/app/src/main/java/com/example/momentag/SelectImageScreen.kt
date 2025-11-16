@@ -311,7 +311,7 @@ fun SelectImageScreen(navController: NavController) {
                         style = MaterialTheme.typography.headlineMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.weight(1f, fill = false),
                     )
 
                     if (isSelectionMode && selectedPhotos.isNotEmpty()) {
