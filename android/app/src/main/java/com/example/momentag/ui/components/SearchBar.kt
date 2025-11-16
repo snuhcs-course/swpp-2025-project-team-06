@@ -95,7 +95,7 @@ fun ChipSearchBar(
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
-    placeholder: String = "검색 또는 #태그 입력",
+    placeholder: String = "Search your photo, #tag or both",
 ) {
     val colors =
         TextFieldDefaults.colors(
