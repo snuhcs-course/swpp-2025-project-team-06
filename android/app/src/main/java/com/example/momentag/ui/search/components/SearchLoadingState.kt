@@ -18,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.momentag.ui.components.WarningBanner
 
 /**
@@ -43,22 +42,20 @@ fun SearchLoadingStateCustom(
     Box(
         modifier = modifier.fillMaxSize(),
     ) {
-        // 🔹 중앙 로딩 섹션
         Column(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("🐻", style = MaterialTheme.typography.displayLarge.copy(fontSize = 80.sp), modifier = Modifier.padding(bottom = 16.dp))
+            CircularProgressIndicator(
+                modifier = Modifier.size(48.dp),
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 4.dp,
+            )
             Text(
                 text = "Loading ...",
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium),
                 modifier = Modifier.padding(bottom = 16.dp),
-            )
-            CircularProgressIndicator(
-                modifier = Modifier.size(48.dp),
-                color = MaterialTheme.colorScheme.primary,
-                strokeWidth = 4.dp,
             )
         }
 

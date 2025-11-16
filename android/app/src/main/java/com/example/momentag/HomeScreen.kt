@@ -796,7 +796,7 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     if (!hasPermission) {
                         Box(
@@ -1140,7 +1140,7 @@ private fun MainContent(
                             modifier =
                                 Modifier
                                     .padding(horizontal = 4.dp)
-                                    .padding(top = 16.dp, bottom = 8.dp),
+                                    .padding(top = 4.dp, bottom = 4.dp),
                         )
                     }
 
@@ -1189,6 +1189,7 @@ private fun MainContent(
                                     modifier =
                                         Modifier
                                             .fillMaxSize()
+                                            .clip(RoundedCornerShape(4.dp))
                                             .background(
                                                 if (isSelected) {
                                                     MaterialTheme.colorScheme.onSurface.copy(
@@ -1283,8 +1284,8 @@ private fun MainContent(
                         columns = GridCells.Fixed(3),
                         modifier = modifier,
                         state = tagAlbumGridState,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         items(tagItems) { item ->
                             TagGridItem(
