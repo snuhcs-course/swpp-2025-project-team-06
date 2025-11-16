@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
@@ -234,6 +235,8 @@ fun TagChipWithCount(
             text = tagName,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
 
         // Edit 모드가 아닐 때만 카운트 표시
@@ -329,6 +332,8 @@ fun StoryTagChip(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
                 color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.width(4.dp))
         }
