@@ -7,7 +7,7 @@ All external dependencies (Qdrant, Redis, Celery, Storage) are mocked.
 import uuid
 import json
 from io import BytesIO
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -16,7 +16,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from PIL import Image
 
-from ..models import Photo, Tag, Photo_Tag, Caption, Photo_Caption
+from ..models import Photo, Tag, Photo_Tag
 
 
 class PhotoViewTest(TestCase):
@@ -625,7 +625,6 @@ class TagViewTest(TestCase):
         """모든 태그 조회 성공"""
         tag1 = Tag.objects.create(tag="태그1", user=self.user)
         tag2 = Tag.objects.create(tag="태그2", user=self.user)
-
         # Create photos for thumbnails
         photo1 = Photo.objects.create(
             photo_id=uuid.uuid4(),
@@ -634,6 +633,7 @@ class TagViewTest(TestCase):
             created_at=timezone.now(),
         )
         Photo_Tag.objects.create(user=self.user, photo=photo1, tag=tag1)
+        Photo_Tag.objects.create(user=self.user, photo=photo1, tag=tag2)
 
         response = self.client.get(self.url)
 

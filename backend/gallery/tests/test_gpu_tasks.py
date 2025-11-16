@@ -6,7 +6,7 @@ All GPU dependencies (models, Qdrant, storage) are mocked.
 
 import uuid
 from io import BytesIO
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone

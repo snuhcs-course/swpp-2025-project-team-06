@@ -1,11 +1,9 @@
-import sys
 import importlib
 import uuid
 from io import StringIO
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 from django.test import TestCase
 
-from gallery.models import Photo
 
 
 class DeleteDBDuplicateTest(TestCase):
@@ -24,7 +22,7 @@ class DeleteDBDuplicateTest(TestCase):
         stdout_capture = StringIO()
         
         with patch('sys.stdout', stdout_capture):
-            with patch('sys.exit') as mock_exit:
+            with patch('sys.exit'):
                 with patch('gallery.qdrant_utils.get_qdrant_client', return_value=mock_client):
                     with patch('gallery.models.Photo.objects', mock_photo_queryset):
                         # Reload the module to re-execute the script

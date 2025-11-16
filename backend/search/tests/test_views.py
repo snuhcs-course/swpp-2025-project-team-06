@@ -1,4 +1,3 @@
-import uuid
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -7,7 +6,6 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch, MagicMock
 from gallery.models import Tag, Photo_Tag, Photo
-from qdrant_client.http import models as qdrant_models
 
 
 class SemanticSearchViewTest(APITestCase):
@@ -258,6 +256,7 @@ class SemanticSearchViewTest(APITestCase):
         # Verify score_threshold was used
         call_kwargs = mock_get_client.return_value.search.call_args[1]
         self.assertEqual(call_kwargs["score_threshold"], 0.2)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_search_empty_query_after_tag_removal(self):
         """Test search with only tags in curly braces and no text"""

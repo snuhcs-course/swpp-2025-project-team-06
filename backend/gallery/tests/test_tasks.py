@@ -6,8 +6,7 @@ All external dependencies (Qdrant, Redis, Celery) are mocked.
 
 import uuid
 import json
-from datetime import datetime
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone

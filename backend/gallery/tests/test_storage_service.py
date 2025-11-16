@@ -8,7 +8,7 @@ import os
 import tempfile
 import uuid
 from io import BytesIO
-from unittest.mock import patch, MagicMock, mock_open, call
+from unittest.mock import patch, MagicMock, mock_open
 
 from django.test import TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -152,7 +152,7 @@ class MinIOStorageBackendTest(TestCase):
         mock_boto3_client.return_value = mock_s3_client
         mock_s3_client.head_bucket.return_value = None  # Bucket exists
         
-        backend = MinIOStorageBackend()
+        MinIOStorageBackend()
         
         # Verify boto3 client was created with correct parameters
         mock_boto3_client.assert_called_once_with(
@@ -187,7 +187,7 @@ class MinIOStorageBackendTest(TestCase):
             {'Error': {'Code': '404'}}, 'HeadBucket'
         )
         
-        backend = MinIOStorageBackend()
+        MinIOStorageBackend()
         
         # Verify bucket creation was attempted
         mock_s3_client.create_bucket.assert_called_once_with(Bucket='test-bucket')
