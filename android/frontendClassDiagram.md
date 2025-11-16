@@ -82,16 +82,22 @@ classDiagram
             +storyViewModel StoryViewModel
             +render()
         }
+        class MyTagsScreen {
+            <<Composable>>
+            +navController NavController
+            +myTagsViewModel MyTagsViewModel
+            +render()
+        }
     }
     namespace ViewModel {
         class AuthViewModel {
             -TokenRepository tokenRepository
-            +StateFlow~String?~ isLoggedIn
-            +StateFlow~Boolean~ isSessionLoaded
-            +StateFlow~LoginState~ loginState
-            +StateFlow~RegisterState~ registerState
-            +StateFlow~RefreshState~ refreshState
-            +StateFlow~LogoutState~ logoutState
+            +isLoggedIn String?
+            +isSessionLoaded Boolean
+            +loginState LoginState
+            +registerState RegisterState
+            +refreshState RefreshState
+            +logoutState LogoutState
             +login(username, password)
             +register(email, username, password)
             +refreshTokens()
@@ -102,14 +108,26 @@ classDiagram
             +resetLogoutState()
         }
         class HomeViewModel {
-            -RemoteRepository remoteRepository
+            -PhotoSelectionRepository photoSelectionRepository
             -LocalRepository localRepository
-            -PhotoViewModel photoViewModel
-            +StateFlow~HomeScreenUiState~ uiState
-            +StateFlow~List~Tag~~ allTags
-            +getAllTags()
-            +uploadPhotos()
-            +userMessageShown()
+            -RemoteRepository remoteRepository
+            -TokenRepository tokenRepository
+            +homeLoadingState HomeLoadingState
+            +homeDeleteState HomeDeleteState
+            +allTags List~TagItem~
+            +selectedPhotos List~Photo~
+            +isLoadingPhotos Boolean
+            +isLoadingMorePhotos Boolean
+            +showAllPhotos Boolean
+            +isSelectionMode Boolean
+            +groupedPhotos List~DatedPhotoGroup~
+            +allPhotos List~Photo~
+            +loadServerTags()
+            +loadAllPhotos()
+            +deleteTag(tagId)
+            +togglePhoto(photo)
+            +setSelectionMode(enabled)
+            +setShowAllPhotos(show)
         }
         class PhotoViewModel {
             -RemoteRepository remoteRepository
@@ -118,60 +136,109 @@ classDiagram
         }
         class AlbumViewModel {
             -RemoteRepository remoteRepository
-            +StateFlow~List~Photo~~ photoByTag
+            +photoByTag List~Photo~
             +getPhotoByTag(tagName)
         }
         class LocalViewModel {
             -LocalRepository localRepository
-            +StateFlow~List~Uri~~ images
-            +StateFlow~List~Album~~ albums
-            +StateFlow~List~Uri~~ imagesInAlbum
+            -ImageBrowserRepository imageBrowserRepository
+            +images List~Uri~
+            +albums List~Album~
+            +imagesInAlbum List~Photo~
+            +selectedPhotosInAlbum Set~Photo~
             +getImages()
             +getAlbums()
             +getImagesForAlbum(albumId)
+            +togglePhotoSelection(photo)
+            +clearPhotoSelection()
         }
         class SearchViewModel {
             -SearchRepository searchRepository
-            +StateFlow~SemanticSearchState~ searchState
+            -PhotoSelectionRepository photoSelectionRepository
+            -LocalRepository localRepository
+            -ImageBrowserRepository imageBrowserRepository
+            -TokenRepository tokenRepository
+            -RemoteRepository remoteRepository
+            +tagLoadingState TagLoadingState
+            +searchState SemanticSearchState
+            +allTags List~TagItem~
+            +isSelectionMode Boolean
+            +selectedPhotos List~Photo~
+            +searchHistory List~String~
             +search(query, offset)
             +resetSearchState()
+            +loadServerTags()
+            +togglePhoto(photo)
+            +setSelectionMode(enabled)
         }
         class ImageDetailViewModel {
             -ImageBrowserRepository imageBrowserRepository
-            +StateFlow~Uri?~ imageUri
-            +StateFlow~ImageContext?~ imageContext
+            +imageUri Uri?
+            +imageContext ImageContext?
             +loadImage(photoPathId)
             +setImageContext(context)
             +clearImageContext()
             +setSingleImage(uri)
         }
         class AddTagViewModel {
-            -DraftTagRepository draftTagRepository
-            -RecommendRepository recommendRepository
+            -PhotoSelectionRepository photoSelectionRepository
+            -LocalRepository localRepository
             -RemoteRepository remoteRepository
-            +StateFlow~String~ tagName
-            +StateFlow~List~Photo~~ selectedPhotos
-            +StateFlow~RecommendState~ recommendState
-            +StateFlow~SaveState~ saveState
+            +tagName String
+            +selectedPhotos List~Photo~
+            +existingTags List~String~
+            +isTagNameDuplicate Boolean
+            +saveState SaveState
             +updateTagName(name)
-            +togglePhoto(photo)
-            +getRecommendedPhotos()
-            +saveTag()
+            +addPhoto(photo)
+            +removePhoto(photo)
+            +saveTagAndPhotos()
+            +clearDraft()
         }
         class SelectImageViewModel {
-            -DraftTagRepository draftTagRepository
+            -PhotoSelectionRepository photoSelectionRepository
+            -LocalRepository localRepository
             -RemoteRepository remoteRepository
-            +StateFlow~String~ tagName
-            +StateFlow~List~Photo~~ selectedPhotos
-            +StateFlow~List~Photo~~ allPhotos
+            -ImageBrowserRepository imageBrowserRepository
+            -RecommendRepository recommendRepository
+            +tagName String
+            +selectedPhotos List~Photo~
+            +existingTagId String?
+            +allPhotos List~Photo~
+            +isLoading Boolean
+            +isLoadingMore Boolean
+            +recommendState RecommendState
+            +isSelectionMode Boolean
+            +recommendedPhotos List~Photo~
+            +addPhotosState AddPhotosState
             +getAllPhotos()
+            +loadMorePhotos()
             +togglePhoto(photo)
+            +getRecommendedPhotos()
+            +addPhotosToExistingTag()
         }
         class StoryViewModel {
             -RemoteRepository remoteRepository
-            +StateFlow~StoryState~ storyState
+            +storyState StoryState
             +getStoryByTag(tagId)
             +likeStory(storyId)
+        }
+        class MyTagsViewModel {
+            -RemoteRepository remoteRepository
+            -PhotoSelectionRepository photoSelectionRepository
+            +uiState MyTagsUiState
+            +isEditMode Boolean
+            +selectedTagsForBulkEdit Set~String~
+            +sortOrder TagSortOrder
+            +tagActionState TagActionState
+            +selectedPhotos List~Photo~
+            +saveState SaveState
+            +loadTags()
+            +toggleEditMode()
+            +toggleTagSelection(tagId)
+            +deleteSelectedTags()
+            +updateTagName(tagId, newName)
+            +setSortOrder(order)
         }
     }
     namespace Model {
@@ -207,9 +274,9 @@ classDiagram
         }
         class SessionStore {
             <<interface>>
-            +StateFlow~String?~ accessTokenFlow
-            +StateFlow~String?~ refreshTokenFlow
-            +StateFlow~Boolean~ isLoaded
+            +accessTokenFlow String?
+            +refreshTokenFlow String?
+            +isLoaded Boolean
             +getAccessToken() String?
             +getRefreshToken() String?
             +saveTokens(accessToken, refreshToken)
@@ -217,9 +284,6 @@ classDiagram
         }
         class SessionManager {
             -DataStore~Preferences~ dataStore
-            -MutableStateFlow~String?~ _accessToken
-            -MutableStateFlow~String?~ _refreshToken
-            -MutableStateFlow~Boolean~ _isLoaded
             +getInstance(context) SessionManager
             +getAccessToken() String?
             +getRefreshToken() String?
@@ -272,8 +336,8 @@ classDiagram
         class TokenRepository {
             -ApiService apiService
             -SessionStore sessionStore
-            +StateFlow~String?~ isLoggedIn
-            +StateFlow~Boolean~ isSessionLoaded
+            +isLoggedIn String?
+            +isSessionLoaded Boolean
             +login(username, password) LoginResult
             +register(email, username, password) RegisterResult
             +refreshTokens() RefreshResult
@@ -283,12 +347,11 @@ classDiagram
             -ApiService apiService
             +semanticSearch(query, offset) SearchResult
         }
-        class DraftTagRepository {
-            -MutableStateFlow~String~ _tagName
-            -MutableStateFlow~List~Photo~~ _selectedPhotos
-            +StateFlow~String~ tagName
-            +StateFlow~List~Photo~~ selectedPhotos
-            +initialize(tagName, photos)
+        class PhotoSelectionRepository {
+            +tagName String
+            +selectedPhotos List~Photo~
+            +existingTagId String?
+            +initialize(tagName, photos, existingTagId)
             +updateTagName(name)
             +addPhoto(photo)
             +removePhoto(photo)
@@ -319,22 +382,36 @@ classDiagram
     TokenRepository --> SessionStore : uses
     SearchRepository --> ApiService : uses
     RecommendRepository --> ApiService : uses
-    DraftTagRepository ..> Photo : manages
+    PhotoSelectionRepository ..> Photo : manages
     ImageBrowserRepository --> LocalRepository : uses
     AuthViewModel --> TokenRepository : uses
+    HomeViewModel --> PhotoSelectionRepository : uses
+    HomeViewModel --> LocalRepository : uses
     HomeViewModel --> RemoteRepository : uses
     HomeViewModel --> TokenRepository : uses
     AlbumViewModel --> RemoteRepository : uses
     LocalViewModel --> LocalRepository : uses
+    LocalViewModel --> ImageBrowserRepository : uses
     LocalViewModel ..> Album : manages
     SearchViewModel --> SearchRepository : uses
+    SearchViewModel --> PhotoSelectionRepository : uses
+    SearchViewModel --> LocalRepository : uses
+    SearchViewModel --> ImageBrowserRepository : uses
+    SearchViewModel --> TokenRepository : uses
+    SearchViewModel --> RemoteRepository : uses
     ImageDetailViewModel --> ImageBrowserRepository : uses
     ImageDetailViewModel ..> ImageContext : manages
-    AddTagViewModel --> DraftTagRepository : uses
+    AddTagViewModel --> PhotoSelectionRepository : uses
+    AddTagViewModel --> LocalRepository : uses
     AddTagViewModel --> RemoteRepository : uses
+    SelectImageViewModel --> PhotoSelectionRepository : uses
     SelectImageViewModel --> LocalRepository : uses
+    SelectImageViewModel --> RemoteRepository : uses
+    SelectImageViewModel --> ImageBrowserRepository : uses
     SelectImageViewModel --> RecommendRepository : uses
     StoryViewModel --> RemoteRepository : uses
+    MyTagsViewModel --> RemoteRepository : uses
+    MyTagsViewModel --> PhotoSelectionRepository : uses
     MainActivity ..> Navigation : creates
     Navigation --> HomeScreen : routes to
     Navigation --> LoginScreen : routes to
@@ -347,8 +424,11 @@ classDiagram
     Navigation --> AddTagScreen : routes to
     Navigation --> SelectImageScreen : routes to
     Navigation --> StoryScreen : routes to
+    Navigation --> MyTagsScreen : routes to
     HomeScreen --> HomeViewModel : observes
     HomeScreen --> PhotoViewModel : observes
+    HomeScreen --> SearchViewModel : observes
+    HomeScreen --> AuthViewModel : observes
     LoginScreen --> AuthViewModel : observes
     RegisterScreen --> AuthViewModel : observes
     AlbumScreen --> AlbumViewModel : observes
@@ -359,4 +439,5 @@ classDiagram
     AddTagScreen --> AddTagViewModel : observes
     SelectImageScreen --> SelectImageViewModel : observes
     StoryScreen --> StoryViewModel : observes
+    MyTagsScreen --> MyTagsViewModel : observes
     ```
