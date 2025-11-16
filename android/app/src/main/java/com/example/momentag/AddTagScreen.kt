@@ -164,10 +164,6 @@ fun AddTagScreen(navController: NavController) {
                             navController.navigate(Screen.Home.route) {
                                 popUpTo(0) { inclusive = true }
                             }
-                        BottomTab.SearchResultScreen ->
-                            navController.navigate(Screen.SearchResult.initialRoute()) {
-                                popUpTo(Screen.Home.route)
-                            }
                         BottomTab.MyTagsScreen ->
                             navController.navigate(Screen.MyTags.route) {
                                 popUpTo(Screen.Home.route)

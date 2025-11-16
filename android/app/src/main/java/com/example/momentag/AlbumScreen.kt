@@ -51,6 +51,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -338,25 +339,29 @@ fun AlbumScreen(
                     }
                 },
                 actions = {
-                    if (isTagAlbumPhotoSelectionMode && selectedTagAlbumPhotos.isNotEmpty()) {
+                    if (isTagAlbumPhotoSelectionMode) {
+                        val isEnabled = selectedTagAlbumPhotos.isNotEmpty()
                         Row {
                             IconButton(
                                 onClick = {
                                     val photos = albumViewModel.getPhotosToShare()
                                     ShareUtils.sharePhotos(context, photos)
-
-                                    if (selectedTagAlbumPhotos.isNotEmpty()) {
-                                        Toast // 성공: Toast
+                                    if (photos.isNotEmpty()) {
+                                        Toast
                                             .makeText(
                                                 context,
                                                 "Share ${photos.size} photo(s)",
                                                 Toast.LENGTH_SHORT,
                                             ).show()
-                                    } else {
-                                        showSelectPhotosBannerShare = true
                                     }
                                 },
-                                modifier = Modifier.width(32.dp),
+                                enabled = isEnabled,
+                                colors =
+                                    IconButtonDefaults.iconButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.primary,
+                                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    ),
+                                modifier = Modifier.width(36.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Share,
@@ -364,42 +369,16 @@ fun AlbumScreen(
                                 )
                             }
                             IconButton(
-                                onClick = {
-                                    if (selectedTagAlbumPhotos.isNotEmpty()) {
-                                        showDeleteConfirmationDialog = true
-                                    } else {
-                                        showSelectPhotosBannerUntag = true
-                                    }
-                                },
+                                onClick = { showDeleteConfirmationDialog = true },
+                                enabled = isEnabled,
+                                colors =
+                                    IconButtonDefaults.iconButtonColors(
+                                        contentColor = Color(0xFFD32F2F),
+                                        disabledContentColor = Color(0xFFD32F2F).copy(alpha = 0.38f),
+                                    ),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    contentDescription = "Untag",
-                                )
-                            }
-                        }
-                    }
-                    if (isTagAlbumPhotoSelectionMode && !selectedTagAlbumPhotos.isNotEmpty()) {
-                        Row {
-                            IconButton(
-                                onClick = {},
-                                enabled = false,
-                                modifier = Modifier.width(32.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Share,
-                                    tint = Color.LightGray,
-                                    contentDescription = "Share",
-                                )
-                            }
-                            IconButton(
-                                onClick = {},
-                                enabled = false,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    tint = Color.LightGray,
                                     contentDescription = "Untag",
                                 )
                             }
