@@ -234,11 +234,12 @@ fun SearchResultScreen(
 
     var hasPerformedInitialSearch by rememberSaveable { mutableStateOf(false) }
 
-    val placeholderText = if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
-        initialQuery // 로딩 중(파싱 전)에는 initialQuery를 플레이스홀더로 사용
-    } else {
-        "Search with \"#tag\"" // 기본 플레이스홀더
-    }
+    val placeholderText =
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
+            initialQuery // 로딩 중(파싱 전)에는 initialQuery를 플레이스홀더로 사용
+        } else {
+            "Search with \"#tag\"" // 기본 플레이스홀더
+        }
 
     BackHandler(enabled = isSelectionMode) {
         searchViewModel.setSelectionMode(false)

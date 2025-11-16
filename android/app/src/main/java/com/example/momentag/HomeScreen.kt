@@ -234,13 +234,14 @@ fun HomeScreen(navController: NavController) {
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                // SearchResultScreen에서 돌아올 때 등
-                // HomeScreen이 다시 보일 때 검색창 내용을 지웁니다.
-                searchViewModel.clearSearchContent()
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    // SearchResultScreen에서 돌아올 때 등
+                    // HomeScreen이 다시 보일 때 검색창 내용을 지웁니다.
+                    searchViewModel.clearSearchContent()
+                }
             }
-        }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
