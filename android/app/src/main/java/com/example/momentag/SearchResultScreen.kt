@@ -20,9 +20,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
@@ -167,51 +166,36 @@ fun SearchResultScreen(
     }
 
     val topBarActions = @Composable {
-        Box {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options",
-                )
+        if (isSelectionModeDelay && selectedPhotos.isNotEmpty()) {
+            Box {
+                IconButton(onClick = {
+                    val photos = searchViewModel.getPhotosToShare()
+                    ShareUtils.sharePhotos(context, photos)
+
+                    Toast
+                        .makeText(
+                            context,
+                            "Share ${photos.size} photo(s)",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share",
+                    )
+                }
             }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
-            ) {
-                if (isSelectionModeDelay) {
-                    DropdownMenuItem(
-                        text = { Text("Share") },
-                        onClick = {
-                            val photos = searchViewModel.getPhotosToShare()
-                            ShareUtils.sharePhotos(context, photos)
-
-                            Toast
-                                .makeText(
-                                    context,
-                                    "Share ${photos.size} photo(s)",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-
-                            showMenu = false
-                            searchViewModel.setSelectionMode(false)
-                            searchViewModel.resetSelection()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Cancel") },
-                        onClick = {
-                            searchViewModel.setSelectionMode(false)
-                            searchViewModel.resetSelection()
-                            showMenu = false
-                        },
-                    )
-                } else {
-                    DropdownMenuItem(
-                        text = { Text("Select") },
-                        onClick = {
-                            searchViewModel.setSelectionMode(true)
-                            showMenu = false
-                        },
+        }
+        if (isSelectionModeDelay && !selectedPhotos.isNotEmpty()) {
+            Box {
+                IconButton(
+                    onClick = {},
+                    enabled = false,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        tint = Color.LightGray,
+                        contentDescription = "Share",
                     )
                 }
             }
@@ -462,21 +446,19 @@ private fun SearchResultContent(
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 16.dp),
             ) {
-                CreateTagButton(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(start = 16.dp),
-                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Add Tag with ${selectedPhotos.size}" else "Create Tag",
-                    enabled = !isSelectionMode || selectedPhotos.isNotEmpty(),
-                    onClick = {
-                        if (!isSelectionMode) {
-                            onToggleSelectionMode()
-                        } else if (selectedPhotos.isNotEmpty()) {
+                // Only show CreateTagButton when in selection mode and photos are selected
+                if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                    CreateTagButton(
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(start = 16.dp),
+                        text = "Add Tag (${selectedPhotos.size})",
+                        onClick = {
                             onCreateTagClick()
-                        }
-                    },
-                )
+                        },
+                    )
+                }
 
                 Text(
                     text = "${uiState.results.size} photos total",

@@ -41,13 +41,10 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,6 +81,8 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.horizontalArrangement
+import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
@@ -115,6 +114,7 @@ fun SelectImageScreen(navController: NavController) {
     val recommendState by selectImageViewModel.recommendState.collectAsState()
     val recommendedPhotos by selectImageViewModel.recommendedPhotos.collectAsState()
     val isSelectionMode by selectImageViewModel.isSelectionMode.collectAsState()
+    val addPhotosState by selectImageViewModel.addPhotosState.collectAsState()
 
     var isSelectionModeDelay by remember { mutableStateOf(true) }
     var showMenu by remember { mutableStateOf(false) }
@@ -199,6 +199,15 @@ fun SelectImageScreen(navController: NavController) {
         }
     }
 
+    // Handle add photos success
+    LaunchedEffect(addPhotosState) {
+        if (addPhotosState is SelectImageViewModel.AddPhotosState.Success) {
+            // Set result to trigger refresh in AlbumScreen
+            navController.previousBackStackEntry?.savedStateHandle?.set("photos_added", true)
+            navController.popBackStack()
+        }
+    }
+
     // LazyGrid state for pagination
     val listState = selectImageViewModel.lazyGridState
 
@@ -227,46 +236,13 @@ fun SelectImageScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "Select Picture",
+                title = "Select Photos",
                 showBackButton = true,
                 onBackClick = {
                     navController.popBackStack()
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-                actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options",
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                        ) {
-                            if (isSelectionModeDelay) {
-                                DropdownMenuItem(
-                                    text = { Text("Cancel") },
-                                    onClick = {
-                                        isSelectionModeDelay = false
-                                        selectImageViewModel.setSelectionMode(false)
-                                        showMenu = false
-                                    },
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text("Select") },
-                                    onClick = {
-                                        isSelectionModeDelay = true
-                                        selectImageViewModel.setSelectionMode(true)
-                                        showMenu = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                },
+                actions = {},
             )
         },
         bottomBar = {
@@ -318,19 +294,6 @@ fun SelectImageScreen(navController: NavController) {
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Tab Navigation
-                TabNavigation(
-                    selectedTab = 1,
-                    onTabSelected = { tab ->
-                        if (tab == 0) {
-                            navController.popBackStack()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 // Pictures Header with count
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -374,8 +337,8 @@ fun SelectImageScreen(navController: NavController) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         state = listState,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(verticalArrangement),
+                        horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding =
                             PaddingValues(
@@ -480,8 +443,14 @@ fun SelectImageScreen(navController: NavController) {
             if (!isRecommendationExpanded) {
                 Button(
                     onClick = {
-                        navController.navigate(Screen.AddTag.route) {
-                            popUpTo(Screen.AddTag.route) { inclusive = true }
+                        if (selectImageViewModel.isAddingToExistingTag()) {
+                            // Add photos to existing tag
+                            selectImageViewModel.handleDoneButtonClick()
+                        } else {
+                            // Navigate to AddTagScreen for new tag creation
+                            navController.navigate(Screen.AddTag.route) {
+                                popUpTo(Screen.AddTag.route) { inclusive = true }
+                            }
                         }
                     },
                     shape = RoundedCornerShape(24.dp),
@@ -489,8 +458,8 @@ fun SelectImageScreen(navController: NavController) {
                         ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                         ),
                     modifier =
                         Modifier
@@ -504,78 +473,23 @@ fun SelectImageScreen(navController: NavController) {
                                 shape = RoundedCornerShape(24.dp),
                                 clip = false,
                             ),
-                    enabled = selectedPhotos.isNotEmpty(),
+                    enabled = selectedPhotos.isNotEmpty() && addPhotosState !is SelectImageViewModel.AddPhotosState.Loading,
                 ) {
-                    Text(
-                        text = "Add Pic to Tag",
-                        style = MaterialTheme.typography.labelLarge,
-                    )
+                    if (addPhotosState is SelectImageViewModel.AddPhotosState.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text(
+                            text = "Add to Tag",
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TabNavigation(
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        TabItem(
-            text = "Tag Details",
-            isSelected = selectedTab == 0,
-            onClick = { onTabSelected(0) },
-            modifier = Modifier.weight(1f),
-        )
-        TabItem(
-            text = "Select Pictures",
-            isSelected = selectedTab == 1,
-            onClick = { onTabSelected(1) },
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun TabItem(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier =
-            modifier
-                .shadow(
-                    elevation = if (isSelected) 4.dp else 2.dp,
-                    shape = RoundedCornerShape(24.dp),
-                    clip = false,
-                ).clip(RoundedCornerShape(24.dp))
-                .background(
-                    if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                ).clickable(onClick = onClick)
-                .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color =
-                if (isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-        )
     }
 }
 
@@ -674,7 +588,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "AI Recommending...",
+                    text = "Finding suggestions...",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -688,7 +602,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "AI Recommend",
+                    text = "Suggested for You",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -702,7 +616,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Recommendation Failed",
+                    text = "Could not load suggestions",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -715,7 +629,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Preparing...",
+                    text = "Getting ready...",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -835,7 +749,7 @@ private fun RecommendExpandedPanel(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "AI Recommend",
+                            text = "Suggested for You",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -883,7 +797,7 @@ private fun RecommendExpandedPanel(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    "No recommendations available",
+                                    "No suggestions at this time",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -922,9 +836,9 @@ private fun RecommendExpandedPanel(
                         ) {
                             val (title, message) =
                                 if (recommendState is RecommendState.Error) {
-                                    "Recommendation Failed" to recommendState.message
+                                    "Couldn't load suggestions" to recommendState.message
                                 } else {
-                                    "Network Error" to (recommendState as RecommendState.NetworkError).message
+                                    "Connection lost" to (recommendState as RecommendState.NetworkError).message
                                 }
 
                             WarningBanner(
