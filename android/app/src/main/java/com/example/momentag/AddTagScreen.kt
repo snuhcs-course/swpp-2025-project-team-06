@@ -7,11 +7,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -24,22 +24,21 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -48,34 +47,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.model.Photo
-import com.example.momentag.model.RecommendState
+import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Semi_background
-import com.example.momentag.ui.theme.Temp_word
-import com.example.momentag.ui.theme.Word
+import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.viewmodel.AddTagViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -83,19 +78,16 @@ import com.example.momentag.viewmodel.ViewModelFactory
 @Composable
 fun AddTagScreen(navController: NavController) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
+    var showErrorBanner by remember { mutableStateOf(false) }
 
-    // Screen-scoped ViewModels using DraftTagRepository
     val addTagViewModel: AddTagViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
     val tagName by addTagViewModel.tagName.collectAsState()
     val selectedPhotos by addTagViewModel.selectedPhotos.collectAsState()
-    val recommendState by addTagViewModel.recommendState.collectAsState()
     val saveState by addTagViewModel.saveState.collectAsState()
-
-    val recommendedPhotos = remember { mutableStateListOf<Photo>() }
-    var currentTab by remember { mutableStateOf(BottomTab.AddTagScreen) }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -117,61 +109,40 @@ fun AddTagScreen(navController: NavController) {
         permissionLauncher.launch(permission)
     }
 
-    // Call recommendPhoto once when screen is entered
-    LaunchedEffect(Unit) {
-        addTagViewModel.recommendPhoto()
-    }
-
-    // Handle back button - clear draft when leaving workflow
     BackHandler {
         addTagViewModel.clearDraft()
         navController.popBackStack()
     }
 
-    LaunchedEffect(recommendState) {
-        if (recommendState is RecommendState.Success) {
-            val successState = recommendState as RecommendState.Success
-            recommendedPhotos.clear()
-
-            // Filter out photos that are already selected
-            val selectedPhotoIds = selectedPhotos.map { it.photoId }.toSet()
-            val newRecommended = successState.photos.filter { it.photoId !in selectedPhotoIds }
-            recommendedPhotos.addAll(newRecommended)
-        }
-    }
-
-    // Handle save completion
     LaunchedEffect(saveState) {
         when (saveState) {
             is AddTagViewModel.SaveState.Success -> {
                 addTagViewModel.clearDraft()
                 navController.popBackStack()
             }
-            else -> { /* Idle, Loading, or Error - Error is now shown in UI */ }
+            is AddTagViewModel.SaveState.Error -> {
+                showErrorBanner = true
+                kotlinx.coroutines.delay(2000) // 2초 후 자동 사라짐
+                showErrorBanner = false
+            }
+            else -> { }
         }
     }
 
     val onDeselectPhoto: (Photo) -> Unit = { photo ->
         isChanged = true
         addTagViewModel.removePhoto(photo)
-        recommendedPhotos.add(photo)
-    }
-
-    val onSelectPhoto: (Photo) -> Unit = { photo ->
-        isChanged = true
-        addTagViewModel.addPhoto(photo)
-        recommendedPhotos.remove(photo)
     }
 
     Scaffold(
         topBar = {
             BackTopBar(
-                title = "MomenTag",
+                title = "Create Tag",
                 onBackClick = {
                     addTagViewModel.clearDraft()
                     navController.popBackStack()
                 },
-                modifier = Modifier.background(Background),
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface),
             )
         },
         bottomBar = {
@@ -184,114 +155,159 @@ fun AddTagScreen(navController: NavController) {
                                 .only(WindowInsetsSides.Bottom)
                                 .asPaddingValues(),
                         ),
-                currentTab = currentTab,
+                currentTab = BottomTab.MyTagsScreen,
                 onTabSelected = { tab ->
-                    currentTab = tab
+                    addTagViewModel.clearDraft()
+
                     when (tab) {
-                        BottomTab.HomeScreen -> {
-                            navController.navigate(Screen.Home.route)
-                        }
-                        BottomTab.SearchResultScreen -> {
-                            navController.navigate(Screen.SearchResult.route)
-                        }
-                        BottomTab.AddTagScreen -> {
-                            // 이미 Tag 화면
-                        }
-                        BottomTab.StoryScreen -> {
-                            navController.navigate(Screen.Story.route)
-                        }
+                        BottomTab.HomeScreen ->
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        BottomTab.MyTagsScreen ->
+                            navController.navigate(Screen.MyTags.route) {
+                                popUpTo(Screen.Home.route)
+                            }
+                        BottomTab.StoryScreen ->
+                            navController.navigate(Screen.Story.route) {
+                                popUpTo(Screen.Home.route)
+                            }
                     }
                 },
             )
         },
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(vertical = 16.dp),
+                    .padding(paddingValues),
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 24.dp),
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                focusManager.clearFocus()
+                            })
+                        },
             ) {
-                TagNameSection(
-                    tagName = tagName,
-                    onTagNameChange = { addTagViewModel.updateTagName(it) },
-                )
-
-                Spacer(modifier = Modifier.height(41.dp))
-
-                SelectPicturesButton(onClick = { navController.navigate(Screen.SelectImage.route) })
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            if (hasPermission) {
-                SelectedPhotosSection(
-                    photos = selectedPhotos,
-                    onPhotoClick = onDeselectPhoto,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            if (hasPermission) {
                 Column(
                     modifier =
                         Modifier
-                            .padding(horizontal = 24.dp)
-                            .weight(1f),
-                ) {
-                    RecommendedPicturesSection(
-                        photos = recommendedPhotos,
-                        onPhotoClick = onSelectPhoto,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
-
-            if (isChanged) {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
+                            .fillMaxSize()
                             .padding(horizontal = 24.dp),
                 ) {
-                    // Show error message if save failed
-                    if (saveState is AddTagViewModel.SaveState.Error) {
-                        WarningBanner(
-                            title = "Save failed",
-                            message = (saveState as AddTagViewModel.SaveState.Error).message,
-                            onActionClick = {
-                                addTagViewModel.saveTagAndPhotos()
+                    // Tag Name Section
+                    TagNameSection(
+                        tagName = tagName,
+                        onTagNameChange = { addTagViewModel.updateTagName(it) },
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Added Pictures Section
+                    Text(
+                        text = if (selectedPhotos.isEmpty()) "Photos" else "Photos (${selectedPhotos.size})",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (hasPermission) {
+                        SelectedPhotosGrid(
+                            photos = selectedPhotos,
+                            onPhotoClick = onDeselectPhoto,
+                            onAddPhotosClick = {
+                                navController.navigate(Screen.SelectImage.route)
                             },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+
+                // Bottom Section - Floating
+                Column(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                ) {
+                    // Error Banner - Floating above Done button
+                    if (showErrorBanner && saveState is AddTagViewModel.SaveState.Error) {
+                        WarningBanner(
+                            title = "Couldn't save tag",
+                            message = (saveState as AddTagViewModel.SaveState.Error).message,
+                            onActionClick = { },
+                            onDismiss = { showErrorBanner = false },
+                            showActionButton = false,
+                            showDismissButton = true,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    Button(
-                        onClick = {
-                            addTagViewModel.saveTagAndPhotos()
-                        },
-                        shape = RoundedCornerShape(15.dp),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = Button,
-                                contentColor = Color.White,
-                            ),
-                        modifier = Modifier.align(Alignment.End),
-                        contentPadding = PaddingValues(horizontal = 32.dp),
-                        enabled = saveState != AddTagViewModel.SaveState.Loading,
-                    ) {
-                        if (saveState == AddTagViewModel.SaveState.Loading) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        } else {
-                            Text("Done")
+                    // Done Button
+                    if (isChanged) {
+                        val isFormValid = selectedPhotos.isNotEmpty() && tagName.isNotBlank()
+                        val canSubmit = isFormValid && saveState != AddTagViewModel.SaveState.Loading
+
+                        Button(
+                            onClick = {
+                                addTagViewModel.saveTagAndPhotos()
+                            },
+                            shape = RoundedCornerShape(24.dp),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                ),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .shadow(
+                                        elevation = if (canSubmit) 6.dp else 2.dp,
+                                        shape = RoundedCornerShape(24.dp),
+                                        clip = false,
+                                    ),
+                            enabled = canSubmit,
+                        ) {
+                            Text(
+                                "Done",
+                                style = MaterialTheme.typography.labelLarge,
+                            )
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Full Screen Loading Overlay
+                if (saveState == AddTagViewModel.SaveState.Loading) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier =
+                                Modifier
+                                    .size(56.dp)
+                                    .shadow(
+                                        elevation = 8.dp,
+                                        shape = CircleShape,
+                                        clip = false,
+                                    ),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 5.dp,
+                        )
+                    }
                 }
             }
         }
@@ -303,82 +319,66 @@ private fun TagNameSection(
     tagName: String,
     onTagNameChange: (String) -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
     Column {
-        Text(
-            text = "New tag name",
-            fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
-            color = Word,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
         TextField(
             value = tagName,
             onValueChange = onTagNameChange,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = TextStyle(fontSize = 21.sp),
-            placeholder = { Text("태그 입력") },
-            leadingIcon = { Text("#", fontSize = 21.sp, color = Word) },
+            textStyle = MaterialTheme.typography.headlineSmall,
+            placeholder = {
+                Text(
+                    "Enter tag name",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                )
+            },
+            leadingIcon = {
+                Text(
+                    text = "#",
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+            },
             colors =
                 TextFieldDefaults.colors(
-                    focusedContainerColor = Background,
-                    unfocusedContainerColor = Background,
-                    focusedIndicatorColor = Word,
-                    unfocusedIndicatorColor = Temp_word,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
                 ),
             singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         )
     }
 }
 
 @Composable
-private fun SelectPicturesButton(onClick: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(vertical = 8.dp),
-    ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = "Select Pictures",
-            modifier =
-                Modifier
-                    .clip(CircleShape)
-                    .background(Button)
-                    .padding(2.dp),
-            tint = Word,
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "Select Pictures",
-            fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
-            color = Word,
-        )
-    }
-}
-
-@Composable
-private fun SelectedPhotosSection(
+private fun SelectedPhotosGrid(
     photos: List<Photo>,
     onPhotoClick: (Photo) -> Unit,
+    onAddPhotosClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    LazyRow(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .background(Semi_background),
-        horizontalArrangement = Arrangement.spacedBy(21.dp),
-        contentPadding = PaddingValues(vertical = 8.dp),
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier,
+        contentPadding = PaddingValues(bottom = 8.dp),
     ) {
+        // Add Picture Button - Always first
+        item {
+            AddPhotosButton(
+                onClick = onAddPhotosClick,
+                modifier = Modifier.aspectRatio(1f),
+            )
+        }
+
+        // Photos
         items(photos) { photo ->
-            PhotoCheckedItem(
+            PhotoItem(
                 photo = photo,
-                isSelected = true,
                 onClick = { onPhotoClick(photo) },
                 modifier = Modifier.aspectRatio(1f),
             )
@@ -387,59 +387,26 @@ private fun SelectedPhotosSection(
 }
 
 @Composable
-private fun RecommendedPicturesSection(
-    photos: List<Photo>,
-    onPhotoClick: (Photo) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = "Recommended Pictures",
-            fontSize = 21.sp,
-            fontFamily = FontFamily.Serif,
-            color = Word,
-        )
-        Spacer(modifier = Modifier.height(11.dp))
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(21.dp),
-            modifier = Modifier.height(193.dp),
-        ) {
-            items(photos) { photo ->
-                PhotoCheckedItem(
-                    photo = photo,
-                    isSelected = false,
-                    onClick = { onPhotoClick(photo) },
-                    modifier = Modifier.aspectRatio(1f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun PhotoCheckedItem(
+private fun PhotoItem(
     photo: Photo,
-    isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(Semi_background)
+                .clip(RoundedCornerShape(imageCornerRadius))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(onClick = onClick),
     ) {
         AsyncImage(
             model = photo.contentUri,
-            contentDescription = "사진 ${photo.photoId}",
+            contentDescription = "Photo ${photo.photoId}",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
         CheckboxOverlay(
-            isSelected = isSelected,
+            isSelected = true,
             modifier = Modifier.align(Alignment.TopEnd),
         )
     }
@@ -453,17 +420,23 @@ private fun CheckboxOverlay(
     Box(
         modifier =
             modifier
-                .padding(8.dp)
+                .padding(4.dp)
                 .size(24.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(Background),
+                .clip(RoundedCornerShape(imageCornerRadius))
+                .background(
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                    },
+                ),
         contentAlignment = Alignment.Center,
     ) {
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Selected",
-                tint = Word,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(16.dp),
             )
         }

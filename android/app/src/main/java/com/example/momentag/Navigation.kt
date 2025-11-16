@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -138,7 +137,14 @@ fun appNavigation() {
 
         composable(
             route = Screen.SearchResult.route,
-            arguments = listOf(navArgument("query") { type = NavType.StringType }),
+            arguments =
+                listOf(
+                    navArgument("query") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
         ) { backStackEntry ->
             val encodedQuery = backStackEntry.arguments?.getString("query") ?: ""
             val query = URLDecoder.decode(encodedQuery, StandardCharsets.UTF_8.toString())
@@ -160,6 +166,13 @@ fun appNavigation() {
                 navController = navController,
             )
         }
+
+        composable(route = Screen.MyTags.route) {
+            MyTagsScreen(
+                navController = navController,
+            )
+        }
+
         // Story screen with ViewModel integration
         composable(
             route = Screen.Story.route,

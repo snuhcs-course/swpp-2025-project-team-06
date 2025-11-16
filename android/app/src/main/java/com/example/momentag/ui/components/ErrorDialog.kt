@@ -3,8 +3,10 @@ package com.example.momentag.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,19 +18,23 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.momentag.ui.theme.Background
 
 /**
  * 재사용 가능한 에러 다이얼로그 컴포넌트
@@ -74,7 +80,7 @@ fun errorDialog(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
             )
 
             // 에러 다이얼로그 카드
@@ -86,7 +92,7 @@ fun errorDialog(
                 shape = RoundedCornerShape(16.dp),
                 colors =
                     CardDefaults.cardColors(
-                        containerColor = Color.White,
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
             ) {
@@ -100,17 +106,16 @@ fun errorDialog(
                     // 제목
                     Text(
                         text = title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
                     // 에러 메시지
                     Text(
                         text = errorMessage,
-                        fontSize = 14.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp),
                     )
@@ -120,16 +125,15 @@ fun errorDialog(
                         onClick = onRetry,
                         colors =
                             ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color(0xFFE57373),
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.error,
                             ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
                     ) {
                         Text(
                             text = retryButtonText,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge,
                         )
                     }
                 }
@@ -169,7 +173,7 @@ fun ErrorOverlay(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f)),
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f)),
         )
 
         // 에러 다이얼로그 카드
@@ -181,7 +185,7 @@ fun ErrorOverlay(
             shape = RoundedCornerShape(16.dp),
             colors =
                 CardDefaults.cardColors(
-                    containerColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
                 ),
             elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
         ) {
@@ -198,17 +202,16 @@ fun ErrorOverlay(
                     // 제목
                     Text(
                         text = title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
                     // 에러 메시지
                     Text(
                         text = errorMessage,
-                        fontSize = 14.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp),
                     )
@@ -226,14 +229,264 @@ fun ErrorOverlay(
                     ) {
                         Text(
                             text = retryButtonText,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge,
                         )
                     }
                 }
 
                 // X 닫기 버튼 (오른쪽 상단)
                 if (onDismiss != null) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(32.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.Gray,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun confirmDialog(
+    title: String,
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: (() -> Unit)? = null,
+    confirmButtonText: String,
+    dismissible: Boolean = false,
+) {
+    Dialog(
+        onDismissRequest = {
+            if (dismissible) {
+                onDismiss?.invoke()
+            }
+        },
+        properties =
+            DialogProperties(
+                dismissOnBackPress = dismissible,
+                dismissOnClickOutside = dismissible,
+                usePlatformDefaultWidth = false,
+            ),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+            )
+
+            Card(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.85f)
+                        .padding(32.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = title,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.padding(bottom = 16.dp),
+                        )
+
+                        Text(
+                            text = message,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 24.dp),
+                        )
+
+                        Button(
+                            onClick = onConfirm,
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color.Red,
+                                ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                        ) {
+                            Text(
+                                text = confirmButtonText,
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    }
+
+                    if (onDismiss != null) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color.Gray,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RenameTagDialog(
+    title: String,
+    message: String,
+    initialValue: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+    dismissible: Boolean = true,
+) {
+    var editedTagName by remember(initialValue) { mutableStateOf(initialValue) }
+
+    Dialog(
+        onDismissRequest = {
+            if (dismissible) {
+                onDismiss()
+            }
+        },
+        properties =
+            DialogProperties(
+                dismissOnBackPress = dismissible,
+                dismissOnClickOutside = dismissible,
+                usePlatformDefaultWidth = false,
+            ),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            // Backdrop/Scrim
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
+            )
+
+            // Dialog Card
+            Card(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(0.85f)
+                        .padding(32.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        // 1. Title (Font size matches confirmDialog)
+                        Text(
+                            text = title,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.padding(bottom = 24.dp),
+                        )
+
+                        Text(
+                            text = message,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 16.dp),
+                        )
+
+                        // 2. TextField (Styled as requested)
+                        TextField(
+                            value = editedTagName,
+                            onValueChange = { editedTagName = it },
+                            singleLine = true,
+                            placeholder = { Text("Tag name") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors =
+                                TextFieldDefaults.colors( // <-- TextFieldDefaults로 변경
+                                    // 배경색 투명하게 설정
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    disabledContainerColor = Color.Transparent,
+                                    // 밑줄(Indicator) 색상 설정
+                                    focusedIndicatorColor = MaterialTheme.colorScheme.primary, // 포커스 시
+                                    unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceDim, // 포커스 없을 시
+                                    // 텍스트 색상
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                ),
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Button(
+                            onClick = {
+                                if (editedTagName.isNotBlank()) {
+                                    onConfirm(editedTagName.trim())
+                                }
+                            },
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color.Red,
+                                ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            enabled = editedTagName.isNotBlank(),
+                        ) {
+                            Text(
+                                text = "Update",
+                                style = MaterialTheme.typography.labelLarge, // Font size matches confirmDialog
+                            )
+                        }
+                    }
+
+                    // 'X' close button (matches confirmDialog)
                     IconButton(
                         onClick = onDismiss,
                         modifier =
@@ -265,7 +518,7 @@ private fun previewErrorDialog() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         errorDialog(
             errorMessage = "Network Error!\nPlease check your internet connection.",
@@ -281,7 +534,7 @@ private fun previewErrorDialogCustomText() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         errorDialog(
             errorMessage = "서버 연결에 실패했습니다.\n잠시 후 다시 시도해주세요.",
@@ -299,7 +552,7 @@ private fun previewErrorOverlay() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Background),
+                .background(MaterialTheme.colorScheme.surface),
     ) {
         // 뒤 배경 콘텐츠
         Column(
@@ -308,7 +561,7 @@ private fun previewErrorOverlay() {
         ) {
             Text(
                 text = "Some Screen Content",
-                fontSize = 24.sp,
+                style = MaterialTheme.typography.displaySmall,
                 modifier = Modifier.padding(32.dp),
             )
         }

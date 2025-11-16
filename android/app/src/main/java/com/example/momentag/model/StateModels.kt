@@ -3,6 +3,8 @@ package com.example.momentag.model
 sealed class LoginState {
     object Idle : LoginState()
 
+    object Loading : LoginState()
+
     object Success : LoginState()
 
     data class BadRequest(
@@ -24,6 +26,8 @@ sealed class LoginState {
 
 sealed class RegisterState {
     object Idle : RegisterState()
+
+    object Loading : RegisterState()
 
     data class Success(
         val id: Int,
@@ -79,6 +83,7 @@ sealed interface LogoutState {
 data class HomeScreenUiState(
     val isLoading: Boolean = false,
     val userMessage: String? = null,
+    val errorMessage: String? = null,
     val isUploadSuccess: Boolean = false,
 )
 
@@ -115,4 +120,48 @@ sealed class PhotoTagState {
     data class Error(
         val message: String,
     ) : PhotoTagState()
+}
+
+sealed interface ImageDetailTagState {
+    // 공통 상태: 초기 상태, 에러 상태
+    data object Idle : ImageDetailTagState
+
+    data class Error(
+        val message: String,
+    ) : ImageDetailTagState
+
+    // 데이터 상태: 기존 태그와 추천 태그 목록을 각각 관리
+    data class Success(
+        val existingTags: List<Tag> = emptyList(),
+        val recommendedTags: List<String> = emptyList(),
+        val isExistingLoading: Boolean = true, // 기존 태그 로딩 중 여부
+        val isRecommendedLoading: Boolean = true, // 추천 태그 로딩 중 여부
+    ) : ImageDetailTagState
+}
+
+sealed class MyTagsUiState {
+    object Loading : MyTagsUiState()
+
+    data class Success(
+        val tags: List<TagCntData>,
+    ) : MyTagsUiState()
+
+    data class Error(
+        val message: String,
+    ) : MyTagsUiState()
+}
+
+/**
+ * Represents the state of tag submission for a story
+ */
+sealed class StoryTagSubmissionState {
+    object Idle : StoryTagSubmissionState()
+
+    object Loading : StoryTagSubmissionState()
+
+    object Success : StoryTagSubmissionState()
+
+    data class Error(
+        val message: String,
+    ) : StoryTagSubmissionState()
 }

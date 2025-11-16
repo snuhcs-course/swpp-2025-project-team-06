@@ -658,10 +658,12 @@ class ImageDetailViewModelTest {
         // When
         viewModel.loadImageContextByUri(uri)
 
-        // Then
+        // Then - URI로부터 Photo 객체가 생성됨
         val context = viewModel.imageContext.value
         assertNotNull(context)
-        assertEquals("photo", context!!.images[0].photoId) // lastPathSegment from "content://standalone/photo"
+        assertEquals(1, context!!.images.size)
+        assertEquals("photo", context.images[0].photoId) // lastPathSegment from URI
+        assertEquals(uri, context.images[0].contentUri)
 
         // When - try to load tags with empty photoId
         viewModel.loadPhotoTags("")

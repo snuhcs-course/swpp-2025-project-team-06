@@ -4,11 +4,12 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.ImageContext
-import com.example.momentag.model.PhotoTagState
+import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -36,14 +37,33 @@ class ImageDetailViewModel(
         ) : TagDeleteState()
     }
 
+    sealed class TagAddState {
+        object Idle : TagAddState()
+
+        object Loading : TagAddState()
+
+        object Success : TagAddState()
+
+        data class Error(
+            val message: String,
+        ) : TagAddState()
+    }
+
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
     val imageContext = _imageContext.asStateFlow()
 
-    private val _photoTagState = MutableStateFlow<PhotoTagState>(PhotoTagState.Idle)
-    val photoTagState = _photoTagState.asStateFlow()
+    private val _imageDetailTagState =
+        MutableStateFlow<ImageDetailTagState>(ImageDetailTagState.Idle)
+    val imageDetailTagState: StateFlow<ImageDetailTagState> = _imageDetailTagState.asStateFlow()
 
     private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
     val tagDeleteState = _tagDeleteState.asStateFlow()
+
+    private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
+    val tagAddState = _tagAddState.asStateFlow()
+
+    private val _photoAddress = MutableStateFlow<String?>(null)
+    val photoAddress = _photoAddress.asStateFlow()
 
     /**
      * photoId를 기반으로 ImageContext를 Repository에서 조회하여 설정
@@ -58,36 +78,22 @@ class ImageDetailViewModel(
      * @param uri 현재 보고 있는 사진의 URI
      */
     fun loadImageContextByUri(uri: Uri) {
-        // Repository에서 URI로 컨텍스트 조회
         val context = imageBrowserRepository.getPhotoContextByUri(uri)
-
-        if (context != null) {
-            // Found in browsing session
-            _imageContext.value = context
-        } else {
-            // Not in session - create empty context
-            _imageContext.value =
-                ImageContext(
-                    images = emptyList(),
-                    currentIndex = 0,
-                    contextType = ImageContext.ContextType.GALLERY,
-                )
-        }
+        _imageContext.value = context // may be null when no active browsing session
     }
 
     /**
-     * photoId를 기반으로 사진의 태그와 추천 태그를 로드
+     * photoId를 기반으로 사진의 태그와 추천 태그를 로드 + 사진이 찍힌 주소도 로드
      * @param photoId 사진 ID (로컬 사진의 경우 photo_path_id일 수 있음)
      */
     fun loadPhotoTags(photoId: String) {
         if (photoId.isEmpty()) {
-            _photoTagState.value = PhotoTagState.Idle
+            _imageDetailTagState.value = ImageDetailTagState.Idle
+            _photoAddress.value = null
             return
         }
 
         viewModelScope.launch {
-            _photoTagState.value = PhotoTagState.Loading
-
             // If photoId is numeric (photo_path_id from local album), find the actual UUID
             val actualPhotoId =
                 if (photoId.toLongOrNull() != null) {
@@ -100,11 +106,14 @@ class ImageDetailViewModel(
 
             if (actualPhotoId == null) {
                 // Photo not found in backend (not uploaded yet)
-                _photoTagState.value =
-                    PhotoTagState.Success(
+                _imageDetailTagState.value =
+                    ImageDetailTagState.Success(
                         existingTags = emptyList(),
                         recommendedTags = emptyList(),
+                        isExistingLoading = false,
+                        isRecommendedLoading = false,
                     )
+                _photoAddress.value = null
                 return@launch
             }
 
@@ -113,13 +122,22 @@ class ImageDetailViewModel(
 
             when (photoDetailResult) {
                 is RemoteRepository.Result.Success -> {
-                    val existingTags = photoDetailResult.data.tags
+                    // 우선 photo_address를 저장
+                    _photoAddress.value = photoDetailResult.data.address
 
+                    // 이제 태그 처리
+                    val existingTags = photoDetailResult.data.tags
                     val existingTagNames = existingTags.map { it.tagName }
+
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Success(
+                            existingTags = existingTags,
+                            isExistingLoading = false,
+                            isRecommendedLoading = true, // 추천 태그는 아직 로딩 중
+                        )
 
                     // Load recommended tags
                     val recommendResult = recommendRepository.recommendTagFromPhoto(actualPhotoId)
-
                     when (recommendResult) {
                         is RecommendRepository.RecommendResult.Success -> {
                             val recommendedTags =
@@ -130,47 +148,56 @@ class ImageDetailViewModel(
                                         it !in existingTagNames
                                     }.take(1)
 
-                            _photoTagState.value =
-                                PhotoTagState.Success(
-                                    existingTags = existingTags,
-                                    recommendedTags = recommendedTags,
-                                )
+                            val currentState = _imageDetailTagState.value
+                            if (currentState is ImageDetailTagState.Success) {
+                                _imageDetailTagState.value =
+                                    currentState.copy(
+                                        recommendedTags = recommendedTags,
+                                        isRecommendedLoading = false,
+                                    )
+                            }
                         }
-                        is RecommendRepository.RecommendResult.Error -> {
-                            // If recommendation fails, still show existing tags
-                            _photoTagState.value =
-                                PhotoTagState.Success(
-                                    existingTags = existingTags,
-                                    recommendedTags = emptyList(),
-                                )
-                        }
+
                         is RecommendRepository.RecommendResult.BadRequest,
                         is RecommendRepository.RecommendResult.Unauthorized,
                         is RecommendRepository.RecommendResult.NetworkError,
+                        is RecommendRepository.RecommendResult.Error,
                         -> {
                             // If recommendation fails, still show existing tags
-                            _photoTagState.value =
-                                PhotoTagState.Success(
-                                    existingTags = existingTags,
-                                    recommendedTags = emptyList(),
-                                )
+                            val currentState = _imageDetailTagState.value
+                            if (currentState is ImageDetailTagState.Success) {
+                                _imageDetailTagState.value =
+                                    currentState.copy(
+                                        isRecommendedLoading = false,
+                                    )
+                            }
                         }
                     }
                 }
+
                 is RemoteRepository.Result.Error -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.message)
                 }
+
                 is RemoteRepository.Result.BadRequest -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.message)
                 }
+
                 is RemoteRepository.Result.Unauthorized -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.message)
                 }
+
                 is RemoteRepository.Result.NetworkError -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.message)
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.message)
                 }
+
                 is RemoteRepository.Result.Exception -> {
-                    _photoTagState.value = PhotoTagState.Error(photoDetailResult.e.message ?: "Unknown error")
+                    _imageDetailTagState.value =
+                        ImageDetailTagState.Error(photoDetailResult.e.message ?: "Unknown error")
                 }
             }
         }
@@ -229,6 +256,58 @@ class ImageDetailViewModel(
         _tagDeleteState.value = TagDeleteState.Idle
     }
 
+    fun addTagToPhoto(
+        photoId: String,
+        tagName: String,
+    ) {
+        viewModelScope.launch {
+            _tagAddState.value = TagAddState.Loading
+
+            val actualPhotoId =
+                if (photoId.toLongOrNull() != null) {
+                    findPhotoIdByPathId(photoId.toLong())
+                } else {
+                    photoId
+                }
+
+            if (actualPhotoId == null) {
+                _tagAddState.value = TagAddState.Error("Photo not found in backend")
+                return@launch
+            }
+
+            // Step 1: Create the tag and get its ID
+            when (val postTagResult = remoteRepository.postTags(tagName)) {
+                is RemoteRepository.Result.Success -> {
+                    val tagId = postTagResult.data.id
+                    // Step 2: Associate the new tag with the photo
+                    when (val postToPhotoResult = remoteRepository.postTagsToPhoto(actualPhotoId, tagId)) {
+                        is RemoteRepository.Result.Success -> {
+                            _tagAddState.value = TagAddState.Success
+                            // Reload tags to show the new tag
+                            loadPhotoTags(actualPhotoId)
+                        }
+                        is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
+                        is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
+                        is RemoteRepository.Result.Unauthorized -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
+                        is RemoteRepository.Result.NetworkError -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
+                        is RemoteRepository.Result.Exception ->
+                            _tagAddState.value =
+                                TagAddState.Error(postToPhotoResult.e.message ?: "Unknown error")
+                    }
+                }
+                is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(postTagResult.message)
+                is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(postTagResult.message)
+                is RemoteRepository.Result.Unauthorized -> _tagAddState.value = TagAddState.Error(postTagResult.message)
+                is RemoteRepository.Result.NetworkError -> _tagAddState.value = TagAddState.Error(postTagResult.message)
+                is RemoteRepository.Result.Exception -> _tagAddState.value = TagAddState.Error(postTagResult.e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    fun resetAddState() {
+        _tagAddState.value = TagAddState.Idle
+    }
+
     /**
      * photo_path_id로 실제 photo_id (UUID)를 찾는 함수
      * @param photoPathId 로컬 미디어 ID
@@ -242,6 +321,7 @@ class ImageDetailViewModel(
                     val photo = allPhotosResult.data.find { it.photoPathId == photoPathId }
                     photo?.photoId
                 }
+
                 else -> null
             }
         } catch (e: Exception) {
@@ -253,6 +333,6 @@ class ImageDetailViewModel(
      */
     fun clearImageContext() {
         _imageContext.value = null
-        _photoTagState.value = PhotoTagState.Idle
+        _imageDetailTagState.value = ImageDetailTagState.Idle
     }
 }

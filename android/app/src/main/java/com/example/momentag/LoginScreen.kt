@@ -1,6 +1,6 @@
 package com.example.momentag
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,20 +8,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,27 +41,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.LoginState
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Blue_word
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.TagColor
-import com.example.momentag.ui.theme.Temp_word
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -72,7 +63,6 @@ fun LoginScreen(navController: NavController) {
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var rememberMe by remember { mutableStateOf(false) }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     var isUsernameError by remember { mutableStateOf(false) }
@@ -80,42 +70,58 @@ fun LoginScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var usernameTouched by remember { mutableStateOf(false) }
     var passwordTouched by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var showErrorBanner by remember { mutableStateOf(false) }
 
     val clearAllErrors = {
         isUsernameError = false
         isPasswordError = false
         errorMessage = null
+        showErrorBanner = false
     }
 
     LaunchedEffect(loginState) {
         when (val state = loginState) {
+            is LoginState.Loading -> {
+                isLoading = true
+                showErrorBanner = false
+            }
             is LoginState.Success -> {
+                isLoading = false
                 navController.navigate(Screen.Home.route) {
                     popUpTo(Screen.Login.route) { inclusive = true }
                 }
             }
             is LoginState.BadRequest -> {
+                isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
+                showErrorBanner = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Unauthorized -> {
+                isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
+                showErrorBanner = true
                 authViewModel.resetLoginState()
             }
             is LoginState.NetworkError -> {
+                isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
+                showErrorBanner = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Error -> {
+                isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
+                showErrorBanner = true
                 authViewModel.resetLoginState()
             }
             else -> {}
@@ -127,45 +133,41 @@ fun LoginScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .imePadding()
                     .background(
                         brush =
                             Brush.verticalGradient(
                                 colorStops =
                                     arrayOf(
-                                        0.5f to Background,
-                                        1.0f to TagColor.copy(alpha = 0.7f),
+                                        0.5f to MaterialTheme.colorScheme.surface,
+                                        1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                                     ),
                             ),
                     ).padding(paddingValues)
                     .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             // MomenTag title
             Text(
-                text = "MomenTag",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
+                text = "#MomenTag",
+                style = MaterialTheme.typography.displayLarge,
             )
-            Spacer(modifier = Modifier.height(24.dp))
 
             Column(
                 modifier =
                     Modifier
                         .fillMaxWidth(0.95f)
-                        .fillMaxHeight(0.75f),
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Top,
             ) {
+                Spacer(modifier = Modifier.weight(0.5f))
                 // Login title
                 Text(
                     text = "Login",
-                    style =
-                        TextStyle(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                        ),
+                    style = MaterialTheme.typography.displayLarge,
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -174,7 +176,7 @@ fun LoginScreen(navController: NavController) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Don't have an account? ", color = Color.Gray)
+                    Text("Don't have an account? ", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         text = "Sign Up",
                         modifier =
@@ -183,14 +185,14 @@ fun LoginScreen(navController: NavController) {
                                     popUpTo(Screen.Login.route) { inclusive = true }
                                 }
                             },
-                        style = TextStyle(color = Blue_word, fontWeight = FontWeight.Bold),
+                        style = TextStyle(color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold),
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // username input
-                Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -219,19 +221,19 @@ fun LoginScreen(navController: NavController) {
                             isUsernameError = false
                         }
                     },
-                    placeholder = { Text("Username", color = Temp_word) },
+                    placeholder = { Text("Username", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     isError = isUsernameError,
                     colors =
                         OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            errorBorderColor = Color.Red,
-                            errorContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
                 Box(
@@ -244,14 +246,14 @@ fun LoginScreen(navController: NavController) {
                     if (isUsernameError && username.isEmpty()) {
                         Text(
                             text = "Please enter your username",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
 
                 // password input
-                Text(text = "Password", modifier = Modifier.fillMaxWidth(), color = Color.Gray)
+                Text(text = "Password", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -280,7 +282,7 @@ fun LoginScreen(navController: NavController) {
                             isPasswordError = false
                         }
                     },
-                    placeholder = { Text("Password", color = Temp_word) },
+                    placeholder = { Text("Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -294,16 +296,17 @@ fun LoginScreen(navController: NavController) {
                     isError = isPasswordError,
                     colors =
                         OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            disabledContainerColor = Color.White,
-                            focusedBorderColor = Color.Gray,
-                            unfocusedBorderColor = Color.LightGray,
-                            errorBorderColor = Color.Red,
-                            errorContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
 
+                // --- 수정: 로컬 에러만 여기에 표시 ---
                 Box(
                     modifier =
                         Modifier
@@ -311,55 +314,27 @@ fun LoginScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(top = 4.dp, start = 4.dp),
                 ) {
-                    val serverErr = errorMessage
-                    if (serverErr != null) {
-                        Text(
-                            text = serverErr,
-                            color = Color.Red,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    } else if (isPasswordError && password.isEmpty()) {
+                    if (!showErrorBanner && isPasswordError && password.isEmpty()) {
                         Text(
                             text = "Please enter your password",
-                            color = Color.Red,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // "Remember me" checkbox & "Forgot Password?"
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        modifier = Modifier.offset(x = (-8).dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = rememberMe,
-                            onCheckedChange = { rememberMe = it },
-                            colors = CheckboxDefaults.colors(checkedColor = Button),
-                        )
-                        Text("Remember me", color = Color.Gray)
-                    }
-                    Text(
-                        text = "Forgot Password?",
-                        modifier =
-                            Modifier
-                                .clickable {
-                                    // TODO: finding password
-                                },
-                        style = TextStyle(color = Blue_word, fontWeight = FontWeight.Bold),
+                Spacer(modifier = Modifier.height(8.dp))
+                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    WarningBanner(
+                        title = "Login Failed",
+                        message = errorMessage ?: "Unknown error",
+                        onActionClick = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { showErrorBanner = false },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // login button
+                Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = {
                         val usernameEmpty = username.isEmpty()
@@ -377,13 +352,22 @@ fun LoginScreen(navController: NavController) {
                     shape = RoundedCornerShape(12.dp),
                     colors =
                         ButtonDefaults.buttonColors(
-                            containerColor = Button,
-                            contentColor = Color.White,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
-                    border = BorderStroke(0.dp, Color.Transparent),
+                    enabled = !isLoading,
                 ) {
-                    Text("Log In", fontSize = 18.sp)
+                    if (isLoading) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.height(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text("Log In", style = MaterialTheme.typography.headlineSmall)
+                    }
                 }
+                Spacer(modifier = Modifier.weight(1f))
             }
         }
     }

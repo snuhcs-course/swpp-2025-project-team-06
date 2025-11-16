@@ -4,7 +4,6 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
 import time
 import os
-import numpy as np
 from tqdm import tqdm
 
 IMG_DIR = "/home/team6/real_image_grouped"

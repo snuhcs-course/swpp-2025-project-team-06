@@ -3,10 +3,8 @@ package com.example.momentag.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
-import com.example.momentag.model.RecommendState
-import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.LocalRepository
-import com.example.momentag.repository.RecommendRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,21 +15,18 @@ import kotlinx.coroutines.launch
  * AddTagViewModel
  *
  * ViewModel for AddTagScreen
- * - Delegates state management to DraftTagRepository
+ * - Delegates state management to PhotoSelectionRepository
  * - Provides convenient methods for tag creation workflow
  * - Each screen instance gets its own ViewModel, but they share the Repository
  */
 class AddTagViewModel(
-    private val draftTagRepository: DraftTagRepository,
-    private val recommendRepository: RecommendRepository,
+    private val photoSelectionRepository: PhotoSelectionRepository,
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
 ) : ViewModel() {
     // Expose repository state as read-only flows
-    val tagName: StateFlow<String> = draftTagRepository.tagName
-    val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
-    private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
-    val recommendState = _recommendState.asStateFlow()
+    val tagName: StateFlow<String> = photoSelectionRepository.tagName
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
 
     sealed class SaveState {
         object Idle : SaveState()
@@ -56,65 +51,35 @@ class AddTagViewModel(
         initialTagName: String?,
         initialPhotos: List<Photo>,
     ) {
-        draftTagRepository.initialize(initialTagName, initialPhotos)
+        photoSelectionRepository.initialize(initialTagName, initialPhotos)
     }
 
     /**
      * Update the tag name
      */
     fun updateTagName(name: String) {
-        draftTagRepository.updateTagName(name)
+        photoSelectionRepository.updateTagName(name)
     }
 
     /**
      * Add a photo to the selection
      */
     fun addPhoto(photo: Photo) {
-        draftTagRepository.addPhoto(photo)
+        photoSelectionRepository.addPhoto(photo)
     }
 
     /**
      * Remove a photo from the selection
      */
     fun removePhoto(photo: Photo) {
-        draftTagRepository.removePhoto(photo)
+        photoSelectionRepository.removePhoto(photo)
     }
 
     /**
      * Clear the draft when workflow is complete or cancelled
      */
     fun clearDraft() {
-        draftTagRepository.clear()
-    }
-
-    fun recommendPhoto() {
-        viewModelScope.launch {
-            _recommendState.value = RecommendState.Loading
-
-            when (val result = recommendRepository.recommendPhotosFromPhotos(selectedPhotos.value.map { it.photoId })) {
-                is RecommendRepository.RecommendResult.Success -> {
-                    _recommendState.value =
-                        RecommendState.Success(
-                            photos = localRepository.toPhotos(result.data),
-                        )
-                }
-                is RecommendRepository.RecommendResult.Error -> {
-                    _recommendState.value = RecommendState.Error(result.message)
-                }
-
-                is RecommendRepository.RecommendResult.Unauthorized -> {
-                    _recommendState.value = RecommendState.Error("Please login again")
-                }
-
-                is RecommendRepository.RecommendResult.NetworkError -> {
-                    _recommendState.value = RecommendState.NetworkError(result.message)
-                }
-
-                is RecommendRepository.RecommendResult.BadRequest -> {
-                    _recommendState.value = RecommendState.Error(result.message)
-                }
-            }
-        }
+        photoSelectionRepository.clear()
     }
 
     fun saveTagAndPhotos() {
@@ -124,7 +89,7 @@ class AddTagViewModel(
         }
 
         if (tagName.value.isBlank() || selectedPhotos.value.isEmpty()) {
-            _saveState.value = SaveState.Error("Tag cannot be empty and photos must be selected")
+            _saveState.value = SaveState.Error("Please enter a tag name and select at least one photo")
             return
         }
 
@@ -136,10 +101,10 @@ class AddTagViewModel(
 
             when (tagResult) {
                 is RemoteRepository.Result.Success -> {
-                    tagId = tagResult.data.tagId
+                    tagId = tagResult.data.id
                 }
                 else -> {
-                    _saveState.value = SaveState.Error("Error creating tag")
+                    _saveState.value = SaveState.Error("Couldn't create tag. Please try again")
                     return@launch
                 }
             }
@@ -166,7 +131,7 @@ class AddTagViewModel(
     /**
      * Check if there are unsaved changes
      */
-    fun hasChanges(): Boolean = draftTagRepository.hasChanges()
+    fun hasChanges(): Boolean = photoSelectionRepository.hasChanges()
 
     /**
      * Reset save state (e.g., after showing error to user)
@@ -177,11 +142,11 @@ class AddTagViewModel(
 
     private fun getErrorMessage(result: RemoteRepository.Result<*>): String =
         when (result) {
-            is RemoteRepository.Result.BadRequest -> "Bad Request: ${result.message}"
-            is RemoteRepository.Result.Unauthorized -> "Login error: ${result.message}"
-            is RemoteRepository.Result.Error -> "Server Error (${result.code}): ${result.message}"
-            is RemoteRepository.Result.Exception -> "Network Error: ${result.e.message}"
-            is RemoteRepository.Result.Success -> "An unknown error occurred (Success was passed to error handler)"
-            is RemoteRepository.Result.NetworkError -> "Network Error: ${result.message}"
+            is RemoteRepository.Result.BadRequest -> "Something went wrong. Please try again"
+            is RemoteRepository.Result.Unauthorized -> "Your session expired. Please sign in again"
+            is RemoteRepository.Result.Error -> "Something went wrong. Please try again"
+            is RemoteRepository.Result.Exception -> "Connection lost. Check your internet and try again"
+            is RemoteRepository.Result.Success -> "Something went wrong. Please try again"
+            is RemoteRepository.Result.NetworkError -> "Connection lost. Check your internet and try again"
         }
 }

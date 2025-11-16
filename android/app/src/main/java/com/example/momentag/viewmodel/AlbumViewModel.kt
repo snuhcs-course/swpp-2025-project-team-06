@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -18,6 +19,7 @@ class AlbumViewModel(
     private val remoteRepository: RemoteRepository,
     private val recommendRepository: RecommendRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
+    private val photoSelectionRepository: PhotoSelectionRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     sealed class AlbumLoadingState {
@@ -48,6 +50,42 @@ class AlbumViewModel(
         ) : RecommendLoadingState()
     }
 
+    sealed class TagDeleteState {
+        object Idle : TagDeleteState()
+
+        object Loading : TagDeleteState()
+
+        object Success : TagDeleteState()
+
+        data class Error(
+            val message: String,
+        ) : TagDeleteState()
+    }
+
+    sealed class TagRenameState {
+        object Idle : TagRenameState()
+
+        object Loading : TagRenameState()
+
+        object Success : TagRenameState()
+
+        data class Error(
+            val message: String,
+        ) : TagRenameState()
+    }
+
+    sealed class TagAddState {
+        object Idle : TagAddState()
+
+        object Loading : TagAddState()
+
+        object Success : TagAddState()
+
+        data class Error(
+            val message: String,
+        ) : TagAddState()
+    }
+
     private val _albumLoadingState = MutableStateFlow<AlbumLoadingState>(AlbumLoadingState.Idle)
     val albumLoadingState = _albumLoadingState.asStateFlow()
 
@@ -56,6 +94,18 @@ class AlbumViewModel(
 
     private val _selectedRecommendPhotos = MutableStateFlow<List<Photo>>(emptyList())
     val selectedRecommendPhotos = _selectedRecommendPhotos.asStateFlow()
+
+    private val _selectedTagAlbumPhotos = MutableStateFlow<List<Photo>>(emptyList())
+    val selectedTagAlbumPhotos = _selectedTagAlbumPhotos.asStateFlow()
+
+    private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
+    val tagDeleteState = _tagDeleteState.asStateFlow()
+
+    private val _tagRenameState = MutableStateFlow<TagRenameState>(TagRenameState.Idle)
+    val tagRenameState = _tagRenameState.asStateFlow()
+
+    private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
+    val tagAddState = _tagAddState.asStateFlow()
 
     fun loadAlbum(
         tagId: String,
@@ -132,5 +182,242 @@ class AlbumViewModel(
 
     fun resetRecommendSelection() {
         _selectedRecommendPhotos.value = emptyList()
+    }
+
+    fun toggleTagAlbumPhoto(photo: Photo) {
+        val currentSelection = _selectedTagAlbumPhotos.value.toMutableList()
+        if (currentSelection.contains(photo)) {
+            currentSelection.remove(photo)
+        } else {
+            currentSelection.add(photo)
+        }
+        _selectedTagAlbumPhotos.value = currentSelection
+    }
+
+    fun resetTagAlbumPhotoSelection() {
+        _selectedTagAlbumPhotos.value = emptyList()
+    }
+
+    // logic duplicated with ImageDetailViewModel
+    // but rewrite to make view & viewmodel 1-1 mapping
+    fun deleteTagFromPhotos(
+        photos: List<Photo>,
+        tagId: String,
+    ) {
+        viewModelScope.launch {
+            _tagDeleteState.value = TagDeleteState.Loading
+
+            val removedPhotoIds = mutableListOf<String>()
+
+            for (photo in photos) {
+                // If photoId is numeric (photo_path_id from local album), find the actual UUID
+                val actualPhotoId =
+                    if (photo.photoId.toLongOrNull() != null) {
+                        findPhotoIdByPathId(photo.photoId.toLong())
+                    } else {
+                        photo.photoId
+                    }
+
+                if (actualPhotoId == null) {
+                    _tagDeleteState.value = TagDeleteState.Error("Photo not found in backend")
+                    return@launch // exit for one or more error
+                }
+
+                when (val result = remoteRepository.removeTagFromPhoto(actualPhotoId, tagId)) {
+                    is RemoteRepository.Result.Success -> {
+                        removedPhotoIds.add(actualPhotoId)
+                    }
+
+                    is RemoteRepository.Result.Error -> {
+                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        return@launch
+                    }
+
+                    is RemoteRepository.Result.Unauthorized -> {
+                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        return@launch
+                    }
+
+                    is RemoteRepository.Result.BadRequest -> {
+                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        return@launch
+                    }
+
+                    is RemoteRepository.Result.NetworkError -> {
+                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        return@launch
+                    }
+
+                    is RemoteRepository.Result.Exception -> {
+                        _tagDeleteState.value =
+                            TagDeleteState.Error(result.e.message ?: "Unknown error")
+                        return@launch
+                    }
+                }
+            }
+
+            _tagDeleteState.value = TagDeleteState.Success
+
+            // Update the album state locally instead of reloading
+            val currentAlbumState = _albumLoadingState.value
+            if (currentAlbumState is AlbumLoadingState.Success) {
+                val updatedPhotos =
+                    currentAlbumState.photos.filterNot {
+                        removedPhotoIds.contains(it.photoId)
+                    }
+                _albumLoadingState.value = AlbumLoadingState.Success(updatedPhotos)
+            }
+        }
+    }
+
+    fun resetDeleteState() {
+        _tagDeleteState.value = TagDeleteState.Idle
+    }
+
+    // also duplicated with ImageDetailViewModel
+    private suspend fun findPhotoIdByPathId(photoPathId: Long): String? =
+        try {
+            val allPhotosResult = remoteRepository.getAllPhotos()
+            when (allPhotosResult) {
+                is RemoteRepository.Result.Success -> {
+                    val photo = allPhotosResult.data.find { it.photoPathId == photoPathId }
+                    photo?.photoId
+                }
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
+        }
+
+    fun renameTag(
+        tagId: String,
+        tagName: String,
+    ) {
+        viewModelScope.launch {
+            _tagRenameState.value = TagRenameState.Loading
+
+            val returnTagId: String
+
+            when (val result = remoteRepository.renameTag(tagId, tagName)) {
+                is RemoteRepository.Result.Success -> {
+                    returnTagId = result.data.id
+                    if (returnTagId != tagId) {
+                        _tagRenameState.value = TagRenameState.Error("Rename failed: Returned tag id is different")
+                    } else {
+                        _tagRenameState.value = TagRenameState.Success
+                    }
+                }
+
+                is RemoteRepository.Result.Error -> {
+                    _tagRenameState.value = TagRenameState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.Unauthorized -> {
+                    _tagRenameState.value = TagRenameState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.BadRequest -> {
+                    _tagRenameState.value = TagRenameState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.NetworkError -> {
+                    _tagRenameState.value = TagRenameState.Error(result.message)
+                }
+
+                is RemoteRepository.Result.Exception -> {
+                    _tagRenameState.value = TagRenameState.Error(result.e.message ?: "Unknown error")
+                }
+            }
+        }
+    }
+
+    fun resetRenameState() {
+        _tagRenameState.value = TagRenameState.Idle
+    }
+
+    fun addRecommendedPhotosToTagAlbum(
+        photos: List<Photo>,
+        tagId: String,
+        tagName: String,
+    ) {
+        viewModelScope.launch {
+            _tagAddState.value = TagAddState.Loading
+
+            val addedPhotos = mutableListOf<Photo>()
+
+            for (photo in photos) {
+                val actualPhotoId =
+                    if (photo.photoId.toLongOrNull() != null) {
+                        findPhotoIdByPathId(photo.photoId.toLong())
+                    } else {
+                        photo.photoId
+                    }
+
+                if (actualPhotoId == null) {
+                    _tagAddState.value = TagAddState.Error("Convert Photo Id Error")
+                    continue
+                }
+
+                when (val result = remoteRepository.postTagsToPhoto(actualPhotoId, tagId)) {
+                    is RemoteRepository.Result.Success -> {
+                        addedPhotos.add(photo)
+                        (_albumLoadingState.value as? AlbumLoadingState.Success)?.let {
+                            val updatedPhotos = (it.photos + photo).distinct()
+                            _albumLoadingState.value = AlbumLoadingState.Success(updatedPhotos)
+                        }
+                    }
+
+                    is RemoteRepository.Result.Error -> {
+                        _tagAddState.value = TagAddState.Error(result.message)
+                    }
+
+                    is RemoteRepository.Result.Unauthorized -> {
+                        _tagAddState.value = TagAddState.Error(result.message)
+                    }
+
+                    is RemoteRepository.Result.BadRequest -> {
+                        _tagAddState.value = TagAddState.Error(result.message)
+                    }
+
+                    is RemoteRepository.Result.NetworkError -> {
+                        _tagAddState.value = TagAddState.Error(result.message)
+                    }
+
+                    is RemoteRepository.Result.Exception -> {
+                        _tagAddState.value = TagAddState.Error(result.e.message ?: "Unknown error")
+                    }
+                }
+            }
+
+            if (_tagAddState.value == TagAddState.Loading) {
+                _tagAddState.value = TagAddState.Success
+            }
+
+            loadAlbum(tagId, tagName)
+        }
+    }
+
+    fun resetAddState() {
+        _tagAddState.value = TagAddState.Idle
+    }
+
+    /**
+     * Get photos ready for sharing
+     * Returns list of content URIs to share via Android ShareSheet
+     */
+    fun getPhotosToShare() = selectedTagAlbumPhotos.value
+
+    /**
+     * Initialize photo selection for adding photos to existing tag
+     */
+    fun initializeAddPhotosFlow(
+        tagId: String,
+        tagName: String,
+    ) {
+        photoSelectionRepository.initialize(
+            initialTagName = tagName,
+            initialPhotos = emptyList(),
+            existingTagId = tagId,
+        )
     }
 }

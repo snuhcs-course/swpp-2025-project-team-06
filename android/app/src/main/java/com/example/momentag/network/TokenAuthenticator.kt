@@ -74,16 +74,22 @@ class TokenAuthenticator(
     }
 
     private suspend fun refreshTokenApi(refreshToken: String): retrofit2.Response<RefreshResponse> {
+        val baseUrl = context.getString(R.string.API_BASE_URL)
+
+        // Create OkHttpClient with SSL configuration for self-signed cert
+        val okHttpClient =
+            SslHelper
+                .configureToTrustCertificate(
+                    OkHttpClient.Builder(),
+                    context,
+                ).build()
+
         val retrofit =
             Retrofit
                 .Builder()
-                .baseUrl(context.getString(R.string.API_BASE_URL))
+                .baseUrl(baseUrl)
                 .addConverterFactory(GsonConverterFactory.create())
-                .client(
-                    OkHttpClient
-                        .Builder()
-                        .build(),
-                ) // no authinterceptor → no recursion
+                .client(okHttpClient) // no authinterceptor → no recursion, but with SSL config
                 .build()
 
         val service = retrofit.create(ApiService::class.java)

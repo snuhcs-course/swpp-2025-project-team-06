@@ -1,8 +1,8 @@
 package com.example.momentag.ui.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -12,17 +12,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.momentag.ui.theme.Background
 
 /**
  * 공통 TopAppBar 컴포넌트
@@ -56,9 +51,7 @@ fun CommonTopBar(
         title = {
             Text(
                 text = title,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
+                style = MaterialTheme.typography.displayLarge,
                 modifier =
                     if (onTitleClick != null) {
                         Modifier.clickable { onTitleClick() }
@@ -68,7 +61,24 @@ fun CommonTopBar(
             )
         },
         navigationIcon = {
-            if (showBackButton && onBackClick != null) {
+            // 로그아웃 버튼 (왼쪽)
+            if (showLogout && onLogoutClick != null) {
+                if (isLogoutLoading) {
+                    Box(modifier = Modifier.padding(start = 8.dp)) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                } else {
+                    IconButton(onClick = onLogoutClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Logout",
+                        )
+                    }
+                }
+            } else if (showBackButton && onBackClick != null) {
                 IconButton(onClick = onBackClick) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -78,39 +88,12 @@ fun CommonTopBar(
             }
         },
         actions = {
-            // 로그아웃 버튼
-            if (showLogout && onLogoutClick != null) {
-                if (isLogoutLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    TextButton(onClick = onLogoutClick) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Logout",
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Text(
-                                text = "Logout",
-                                fontSize = 12.sp,
-                            )
-                        }
-                    }
-                }
-            }
-
             // 커스텀 액션 버튼들
             actions()
         },
         colors =
             TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = Background,
+                containerColor = MaterialTheme.colorScheme.surface,
             ),
         modifier = modifier,
     )
@@ -122,18 +105,21 @@ fun CommonTopBar(
  * @param title 화면 제목
  * @param onBackClick 뒤로가기 클릭 핸들러
  * @param modifier Modifier
+ * @param actions 추가 액션 버튼들 (커스텀)
  */
 @Composable
 fun BackTopBar(
     title: String,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    actions: @Composable () -> Unit = {},
 ) {
     CommonTopBar(
         title = title,
         showBackButton = true,
         onBackClick = onBackClick,
         modifier = modifier,
+        actions = actions,
     )
 }
 

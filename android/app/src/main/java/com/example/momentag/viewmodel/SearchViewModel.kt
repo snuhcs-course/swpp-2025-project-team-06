@@ -4,10 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SemanticSearchState
-import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.SearchRepository
+import com.example.momentag.repository.TokenRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,14 +24,60 @@ import kotlinx.coroutines.launch
  */
 class SearchViewModel(
     private val searchRepository: SearchRepository,
-    private val draftTagRepository: DraftTagRepository,
+    private val photoSelectionRepository: PhotoSelectionRepository,
     private val localRepository: LocalRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
+    private val tokenRepository: TokenRepository,
 ) : ViewModel() {
     private val _searchState = MutableStateFlow<SemanticSearchState>(SemanticSearchState.Idle)
     val searchState = _searchState.asStateFlow()
 
-    val selectedPhotos: StateFlow<List<Photo>> = draftTagRepository.selectedPhotos
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+
+    private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
+    val searchHistory = _searchHistory.asStateFlow()
+
+    private val _searchText = MutableStateFlow("")
+    val searchText: StateFlow<String> = _searchText.asStateFlow()
+
+    private val _isSelectionMode = MutableStateFlow(false)
+    val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+
+    // TokenRepository의 로그인 상태 Flow 구독
+    private val isLoggedInFlow = tokenRepository.isLoggedIn
+
+    init {
+        loadSearchHistory()
+
+        viewModelScope.launch {
+            isLoggedInFlow.collect { accessToken ->
+                if (accessToken == null) {
+                    clearHistoryAndReload()
+                }
+            }
+        }
+    }
+
+    fun setSelectionMode(isOn: Boolean) {
+        _isSelectionMode.value = isOn
+    }
+
+    fun loadSearchHistory() {
+        viewModelScope.launch {
+            _searchHistory.value = localRepository.getSearchHistory()
+        }
+    }
+
+    private fun clearHistoryAndReload() {
+        viewModelScope.launch {
+            localRepository.clearSearchHistory()
+            _searchHistory.value = emptyList()
+        }
+    }
+
+    fun onSearchTextChanged(query: String) {
+        _searchText.value = query
+    }
 
     /**
      * Semantic Search 수행 (GET 방식)
@@ -47,7 +94,11 @@ class SearchViewModel(
         }
 
         viewModelScope.launch {
+            localRepository.addSearchHistory(query)
+            loadSearchHistory()
+
             _searchState.value = SemanticSearchState.Loading
+            _searchText.value = query
 
             when (val result = searchRepository.semanticSearch(query, offset)) {
                 is SearchRepository.SearchResult.Success -> {
@@ -84,13 +135,26 @@ class SearchViewModel(
         }
     }
 
+    fun removeSearchHistory(query: String) {
+        viewModelScope.launch {
+            localRepository.removeSearchHistory(query)
+            loadSearchHistory()
+        }
+    }
+
     fun togglePhoto(photo: Photo) {
-        draftTagRepository.togglePhoto(photo)
+        photoSelectionRepository.togglePhoto(photo)
     }
 
     fun resetSelection() {
-        draftTagRepository.clear()
+        photoSelectionRepository.clear()
     }
+
+    /**
+     * Get photos ready for sharing
+     * Returns list of content URIs to share via Android ShareSheet
+     */
+    fun getPhotosToShare() = selectedPhotos.value
 
     /**
      * 검색 상태 초기화

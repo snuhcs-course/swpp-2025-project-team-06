@@ -3,10 +3,9 @@ package com.example.momentag.repository
 import com.example.momentag.model.PhotoDetailResponse
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.PhotoUploadData
-import com.example.momentag.model.Tag
-import com.example.momentag.model.TagCreateRequest
-import com.example.momentag.model.TagCreateResponse
-import com.example.momentag.model.TagIdRequest
+import com.example.momentag.model.TagId
+import com.example.momentag.model.TagName
+import com.example.momentag.model.TagResponse
 import com.example.momentag.network.ApiService
 import retrofit2.HttpException
 import java.io.IOException
@@ -41,7 +40,7 @@ class RemoteRepository(
         ) : Result<T>()
     }
 
-    suspend fun getAllTags(): Result<List<Tag>> =
+    suspend fun getAllTags(): Result<List<TagResponse>> =
         try {
             val response = apiService.getAllTags()
 
@@ -64,9 +63,12 @@ class RemoteRepository(
             Result.Exception(e)
         }
 
-    suspend fun getAllPhotos(): Result<List<PhotoResponse>> =
+    suspend fun getAllPhotos(
+        limit: Int? = null,
+        offset: Int? = null,
+    ): Result<List<PhotoResponse>> =
         try {
-            val response = apiService.getAllPhotos()
+            val response = apiService.getAllPhotos(limit, offset)
 
             if (response.isSuccessful) {
                 response.body()?.let { photos ->
@@ -130,14 +132,14 @@ class RemoteRepository(
             Result.Exception(e)
         }
 
-    suspend fun postTags(tagName: String): Result<TagCreateResponse> =
+    suspend fun postTags(tagName: String): Result<TagId> =
         try {
-            val request = TagCreateRequest(name = tagName)
+            val request = TagName(name = tagName)
             val response = apiService.postTags(request)
 
             if (response.isSuccessful) {
-                response.body()?.let { tagCreateResponse ->
-                    Result.Success(tagCreateResponse)
+                response.body()?.let { TagId ->
+                    Result.Success(TagId)
                 } ?: Result.Error(response.code(), "Response body is null")
             } else {
                 when (response.code()) {
@@ -208,7 +210,7 @@ class RemoteRepository(
         tagId: String,
     ): Result<Unit> =
         try {
-            val requestBody = listOf(TagIdRequest(tagId = tagId))
+            val requestBody = listOf(TagId(id = tagId))
 
             val response = apiService.postTagsToPhoto(photoId, requestBody)
 
@@ -244,6 +246,35 @@ class RemoteRepository(
                     else -> Result.Error(response.code(), "An unknown error occurred: ${response.message()}")
                 }
             }
+        } catch (e: IOException) {
+            Result.Exception(e)
+        } catch (e: Exception) {
+            Result.Exception(e)
+        }
+
+    suspend fun renameTag(
+        tagId: String,
+        tagName: String,
+    ): Result<TagId> =
+        try {
+            val request = TagName(name = tagName)
+            val response = apiService.renameTag(tagId, request)
+
+            if (response.isSuccessful) {
+                response.body()?.let { TagId ->
+                    Result.Success(TagId)
+                } ?: Result.Error(response.code(), "Response body is null")
+            } else {
+                when (response.code()) {
+                    401 -> Result.Unauthorized("Authentication failed")
+                    400 -> Result.BadRequest("Bad request")
+                    403 -> Result.Error(response.code(), "Tag is forbidden")
+                    404 -> Result.Error(response.code(), "Tag not found")
+                    else -> Result.Error(response.code(), "An unknown error occurred: ${response.message()}")
+                }
+            }
+        } catch (e: HttpException) {
+            Result.Error(e.code(), e.message())
         } catch (e: IOException) {
             Result.Exception(e)
         } catch (e: Exception) {

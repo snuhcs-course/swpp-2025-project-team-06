@@ -12,44 +12,72 @@ data class Tag(
     val tagId: String,
 )
 
+data class TagResponse(
+    @SerializedName("tag")
+    val tagName: String,
+    @SerializedName("tag_id")
+    val tagId: String,
+    @SerializedName("thumbnail_path_id")
+    val thumbnailPhotoPathId: Long?,
+    @SerializedName("created_at")
+    val createdAt: String?,
+    @SerializedName("updated_at")
+    val updatedAt: String?,
+    @SerializedName("photo_count")
+    val photoCount: Int,
+)
+
 data class TagItem(
     val tagName: String,
     val coverImageId: Long?,
     val tagId: String,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val photoCount: Int,
 )
 
-data class TagCreateRequest(
+data class TagName(
     @SerializedName("tag")
     val name: String,
 )
 
+data class TagId(
+    @SerializedName("tag_id")
+    val id: String,
+)
+
+data class TagCntData(
+    val tagId: String,
+    val tagName: String,
+    val count: Int,
+)
+
 data class PhotoDetailResponse(
     @SerializedName("photo_path_id") val photoPathId: Long,
+    @SerializedName("address") val address: String?,
     val tags: List<Tag>,
 )
 
 data class PhotoResponse(
     @SerializedName("photo_id") val photoId: String,
     @SerializedName("photo_path_id") val photoPathId: Long,
+    @SerializedName("created_at") val createdAt: String,
+)
+
+data class StoryResponse(
+    @SerializedName("photo_id") val photoId: String,
+    @SerializedName("photo_path_id") val photoPathId: Long,
+    val tags: List<String>,
 )
 
 data class Photo(
     val photoId: String,
     val contentUri: Uri,
+    val createdAt: String,
 )
 
 data class Photos(
     val photos: List<Photo>,
-)
-
-data class TagIdRequest(
-    @SerializedName("tag_id")
-    val tagId: String,
-)
-
-data class TagCreateResponse(
-    @SerializedName("tag_id")
-    val tagId: String,
 )
 
 data class PhotoTag(
@@ -95,10 +123,6 @@ data class RefreshResponse(
     val access_token: String,
 )
 
-data class StoryResponse(
-    val recs: List<PhotoResponse>,
-)
-
 // ========== Upload Models ==========
 
 data class PhotoMeta(
@@ -118,7 +142,7 @@ data class PhotoUploadData(
 data class StoryModel(
     val id: String,
     val photoId: String,
-    val images: List<String>,
+    val images: List<Uri>,
     val date: String,
     val location: String,
     val suggestedTags: List<String>,

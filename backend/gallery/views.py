@@ -1,19 +1,22 @@
 import uuid
+import requests
+from django.db.models import Exists, OuterRef, Count, Subquery, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from qdrant_client import models
+from django.db import IntegrityError
 
 
 from .reponse_serializers import (
     ResPhotoSerializer,
     ResPhotoTagListSerializer,
-    ResPhotoIdSerializer,
     ResTagIdSerializer,
     ResTagVectorSerializer,
+    NewResStorySerializer,
+    ResTagThumbnailSerializer,
     ResStorySerializer,
 )
 from .request_serializers import (
@@ -25,26 +28,28 @@ from .request_serializers import (
 )
 
 from .serializers import TagSerializer
-from .models import Photo_Tag, Tag, User, Photo_Caption
+from .models import Photo_Tag, Tag, Photo
 from .qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-from django.core.files.storage import FileSystemStorage
-from django.conf import settings
-from django.core.cache import cache
-
 from .tasks import (
-    process_and_embed_photo,
     tag_recommendation,
-    is_valid_uuid,
     recommend_photo_from_tag,
     recommend_photo_from_photo,
     compute_and_store_rep_vectors,
+    generate_stories_task,
 )
+from .gpu_tasks import (
+    process_and_embed_photos_batch,  # GPU-dependent task (batch)
+)
+from .storage_service import upload_photo, delete_photo
+import logging
+from config.redis import get_redis
+import json
+from django.conf import settings
 
-
-from django.db import transaction
+logger = logging.getLogger(__name__)
 
 
 class PhotoView(APIView):
@@ -54,12 +59,10 @@ class PhotoView(APIView):
 
     @swagger_auto_schema(
         operation_summary="Upload Photos",
-        operation_description="Upload photos to the backend",
+        operation_description="Upload photos to the backend. Photos are automatically chunked into batches of 8 for GPU efficiency.",
         request_body=ReqPhotoDetailSerializer(many=True),
         responses={
-            201: openapi.Response(
-                description="Created", schema=ResPhotoIdSerializer(many=True)
-            ),
+            202: openapi.Response(description="Accepted - Photos are being processed"),
             400: openapi.Response(description="Bad Request - Request form mismatch"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -83,7 +86,7 @@ class PhotoView(APIView):
                 name="metadata",
                 in_=openapi.IN_FORM,
                 type=openapi.TYPE_STRING,
-                description="JSON string containing metadata for each photo: [{'filename': str, 'photo_path_id': str, 'created_at': str, 'lat': float, 'lng': float}, ...]",
+                description="JSON string containing metadata for each photo: [{'filename': str, 'photo_path_id': int, 'created_at': str, 'lat': float, 'lng': float}, ...]",
                 required=True,
             ),
         ],
@@ -143,30 +146,76 @@ class PhotoView(APIView):
 
             photos_data = serializer.validated_data
 
-            fs = FileSystemStorage(location=settings.MEDIA_ROOT)
-            
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
+            all_metadata = []
+            skipped_count = 0
 
             for data in photos_data:
-                image_file = data["photo"]
+                storage_key = None
 
-                temp_filename = f"{uuid.uuid4()}_{image_file.name}"
-                saved_path = fs.save(temp_filename, image_file)
-                full_path = fs.path(saved_path)
+                try:
+                    image_file = data["photo"]
 
-                process_and_embed_photo.delay(
-                    image_path=full_path,
-                    user_id=request.user.id,
-                    filename=data["filename"],
-                    photo_path_id=data["photo_path_id"],
-                    created_at=data["created_at"].isoformat(),
-                    lat=data["lat"],
-                    lng=data["lng"],
+                    storage_key = upload_photo(image_file)
+
+                    photo = Photo.objects.create(
+                        user=request.user,
+                        photo_id=storage_key,
+                        photo_path_id=data["photo_path_id"],
+                        filename=data["filename"],
+                        created_at=data["created_at"],
+                        lat=data["lat"],
+                        lng=data["lng"],
+                    )
+
+                    all_metadata.append(
+                        {
+                            "storage_key": storage_key,
+                            "user_id": request.user.id,
+                            "filename": data["filename"],
+                            "photo_path_id": data["photo_path_id"],
+                            "created_at": data["created_at"].isoformat(),
+                            "lat": data["lat"],
+                            "lng": data["lng"],
+                        }
+                    )
+
+                except IntegrityError:
+                    skipped_count += 1
+                    print(
+                        f"[INFO] Skipping duplicate photo: User {request.user.id}, Path ID {data['photo_path_id']}"
+                    )
+
+                    if storage_key:
+                        print(
+                            f"       ... Cleaning up orphaned file from storage: {storage_key}"
+                        )
+                        delete_photo(storage_key)
+
+                    continue
+
+            # Split into batches of 8 for GPU memory management
+            if not all_metadata:
+                return Response(
+                    {
+                        "message": f"Processed {len(photos_data)} photos. All were duplicates."
+                    },
+                    status=status.HTTP_200_OK,  # 새 작업이 없으므로 200 OK
                 )
 
+            # all_metadata 리스트 (신규 사진) 기준으로 배치 생성
+            BATCH_SIZE = 8
+            for i in range(0, len(all_metadata), BATCH_SIZE):
+                batch_metadata = all_metadata[i : i + BATCH_SIZE]
+                process_and_embed_photos_batch.delay(batch_metadata)
+                print(
+                    f"[INFO] Dispatched batch task for {len(batch_metadata)} new photos (batch {i // BATCH_SIZE + 1})"
+                )
+
+            # 응답 메시지를 더 명확하게
             return Response(
-                {"message": "Photos are being processed."},
+                {
+                    "message": f"Processed {len(photos_data)} photos. {len(all_metadata)} new photos are being processed. {skipped_count} duplicates skipped."
+                },
                 status=status.HTTP_202_ACCEPTED,
             )
         except Exception as e:
@@ -182,6 +231,9 @@ class PhotoView(APIView):
             200: openapi.Response(
                 description="Success", schema=ResPhotoSerializer(many=True)
             ),
+            400: openapi.Response(
+                description="Bad Request - Invalid offset or limit parameter"
+            ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
             ),
@@ -192,48 +244,49 @@ class PhotoView(APIView):
                 openapi.IN_HEADER,
                 description="access token",
                 type=openapi.TYPE_STRING,
-            )
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description="number of photos to skip",
+                type=openapi.TYPE_INTEGER,
+            ),
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description="maximum number of photos to return",
+                type=openapi.TYPE_INTEGER,
+            ),
         ],
     )
     def get(self, request):
-        client = get_qdrant_client()
         try:
-            user_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="user_id",
-                        match=models.MatchValue(value=request.user.id),
+            # Pagination 파라미터 검증
+            try:
+                offset = int(request.GET.get("offset", 0))
+                limit = int(request.GET.get("limit", 100))
+                if offset < 0 or limit < 1:
+                    return Response(
+                        {
+                            "error": "Offset must be non-negative and limit must be positive"
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
-                ]
-            )
-
-            all_user_points = []
-            next_offset = None
-
-            while True:
-                points, next_offset = client.scroll(
-                    collection_name=IMAGE_COLLECTION_NAME,
-                    scroll_filter=user_filter,
-                    limit=200,
-                    offset=next_offset,
-                    with_payload=True,
+                limit = min(limit, 100)  # 최대 100개 제한
+            except ValueError:
+                return Response(
+                    {"error": "Invalid offset or limit parameter"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
-                all_user_points.extend(points)
+            # created_at 기준으로 최신순 정렬 (가장 최신이 먼저)
+            photos = Photo.objects.filter(user=request.user).order_by("-created_at")
 
-                if next_offset is None:
-                    break
+            # 페이지네이션 적용
+            photos = photos[offset : offset + limit]
 
-            photos = []
-            for point in all_user_points:
-                photos.append(
-                    {
-                        "photo_id": point.id,
-                        "photo_path_id": point.payload.get("photo_path_id"),
-                    }
-                )
-
-            return Response(photos, status=status.HTTP_200_OK)
+            serializer = ResPhotoSerializer(photos, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -270,43 +323,64 @@ class PhotoDetailView(APIView):
     )
     def get(self, request, photo_id):
         try:
-            client = get_qdrant_client()
-            points = client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME,
-                ids=[str(photo_id)],
-                with_payload=True,
-            )
+            photo = Photo.objects.get(photo_id=photo_id, user=request.user)
+            photo_tags = Photo_Tag.objects.filter(photo=photo, user=request.user)
+            tags = [photo_tag.tag for photo_tag in photo_tags]
 
-            if not points:
-                return Response(
-                    {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
-                )
+            tag_list = [
+                {
+                    "tag_id": str(tag.tag_id),
+                    "tag": tag.tag,
+                }
+                for tag in tags
+            ]
 
-            # 사용자 권한 확인 (해당 사진이 현재 사용자의 것인지 확인)
-            photo_point = points[0]
-            if photo_point.payload.get("user_id") != request.user.id:
-                return Response(
-                    {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
-                )
+            lat = str(photo.lat)
+            lng = str(photo.lng)
 
-            # 해당 사진의 태그들 조회
-            photo_tags = Photo_Tag.objects.filter(photo_id=photo_id)
+            r = get_redis()
 
-            # 태그 정보 구성
-            tags_list = []
-            for pt in photo_tags:
-                tag = Tag.objects.get(tag_id=pt.tag_id)
-                tags_list.append({"tag_id": str(tag.tag_id), "tag": tag.tag})
+            address = ""
+            key = f"cord:({lat},{lng})"
+            hashed_key = hash(key)
 
-            # 응답 데이터 구성
+            # Check cache first
+            if r.get(hashed_key):
+                address = r.get(hashed_key)
+                print("[INFO] Cache hit for coordinates:", hashed_key)
+            else:
+                # URL for kakaomap lacation query
+                URL = f"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x={lng}&y={lat}"
+
+                # Headers for authentication
+                KM_REST_API_KEY = settings.KM_REST_API_KEY
+                headers = {"Authorization": f"KakaoAK {KM_REST_API_KEY}"}
+
+                # KakaoMap REST API Call
+                resp = requests.get(URL, headers=headers, timeout=5)
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get("documents"):
+                        address = data["documents"][0]["address_name"]
+
+                # Cache the result
+                r.set(hashed_key, address, ex=60 * 60 * 24)  # Cache for a day
+
             photo_data = {
-                "photo_path_id": photo_point.payload.get("photo_path_id"),
-                "tags": tags_list,
+                "photo_path_id": photo.photo_path_id,
+                "address": address,
+                "tags": tag_list,
             }
 
             serializer = ResPhotoTagListSerializer(photo_data)
 
             return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Photo.DoesNotExist:
+            return Response(
+                {"error": "Photo not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         except Exception as e:
             return Response(
@@ -335,25 +409,22 @@ class PhotoDetailView(APIView):
     def delete(self, request, photo_id):
         try:
             client = get_qdrant_client()
-            Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).delete()
-            Photo_Caption.objects.filter(photo_id=photo_id, user=request.user).delete()
-            
-            associated_tags = Photo_Tag.objects.filter(photo_id=photo_id, user=request.user).select_related('tag')
-            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_tags]
 
-            associated_tags.delete()
+            associated_photo_tags = Photo_Tag.objects.filter(
+                photo__photo_id=photo_id, user=request.user
+            )
+            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_photo_tags]
+
+            Photo.objects.filter(photo_id=photo_id, user=request.user).delete()
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
                 points_selector=[str(photo_id)],
                 wait=True,
             )
-            
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
 
-            for tag_id_str in set(tag_ids_to_recompute):
-                compute_and_store_rep_vectors.delay(request.user.id, tag_id_str)
+            for tag_id in tag_ids_to_recompute:
+                compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -394,29 +465,28 @@ class BulkDeletePhotoView(APIView):
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            photos_data = serializer.validated_data["photos"]
+            photos_raw_data = serializer.validated_data["photos"]
 
-            photos_to_delete = [data["photo_id"] for data in photos_data]
+            photo_ids_to_delete = [data["photo_id"] for data in photos_raw_data]
 
-            # 일단 동작만 하게 해놓음.
-            # 여러 API가 동시에 들어와서 중복 삭제하는 등의 문제를 해결하는건 나중에 atomic transaction 등의 방식으로 수정
-            associated_tags = Photo_Tag.objects.filter(
-                photo_id__in=photos_to_delete, user=request.user
-            ).select_related('tag')
-            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_tags]
-            associated_tags.delete()
+            associated_photo_tags = Photo_Tag.objects.filter(
+                photo__photo_id__in=photo_ids_to_delete, user=request.user
+            )
+
+            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_photo_tags]
 
             client.delete(
                 collection_name=IMAGE_COLLECTION_NAME,
-                points_selector=[str(photo_id) for photo_id in photos_to_delete],
+                points_selector=[str(photo_id) for photo_id in photo_ids_to_delete],
                 wait=True,
             )
-            
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
 
-            for tag_id_str in set(tag_ids_to_recompute):
-                compute_and_store_rep_vectors.delay(request.user.id, tag_id_str)
+            for tag_id in tag_ids_to_recompute:
+                compute_and_store_rep_vectors.delay(request.user.id, tag_id)
+
+            Photo.objects.filter(
+                photo_id__in=photo_ids_to_delete, user=request.user
+            ).delete()
 
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
@@ -453,31 +523,27 @@ class GetPhotosByTagView(APIView):
     )
     def get(self, request, tag_id):
         try:
-            client = get_qdrant_client()
-            photo_tags = Photo_Tag.objects.filter(user=request.user, tag_id=tag_id)
+            tag = Tag.objects.get(tag_id=tag_id, user=request.user)
 
-            photo_ids = [str(pt.photo_id) for pt in photo_tags]
+            photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user)
 
-            retrieved_points = client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME, ids=photo_ids, with_payload=True
-            )
+            photos = [photo_tag.photo for photo_tag in photo_tags]
 
-            photos = []
+            photos_data = [
+                {
+                    "photo_id": photo.photo_id,
+                    "photo_path_id": photo.photo_path_id,
+                    "created_at": photo.created_at,
+                }
+                for photo in photos
+            ]
 
-            for point in retrieved_points:
-                photos.append(
-                    {
-                        "photo_id": point.id,
-                        "photo_path_id": point.payload.get("photo_path_id"),
-                    }
-                )
-
-            serializer = ResPhotoSerializer(photos, many=True)
+            serializer = ResPhotoSerializer(photos_data, many=True)
 
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except Photo_Tag.DoesNotExist:
+        except Tag.DoesNotExist:
             return Response(
-                {"error": "Photo not found."}, status=status.HTTP_404_NOT_FOUND
+                {"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response(
@@ -512,62 +578,37 @@ class PostPhotoTagsView(APIView):
     )
     def post(self, request, photo_id):
         try:
-            client = get_qdrant_client()
             serializer = ReqTagIdSerializer(data=request.data, many=True)
 
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            try:
-                User.objects.get(pk=request.user.pk)
-            except User.DoesNotExist:
-                return Response(
-                    {"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED
-                )
-
             tag_ids = [data["tag_id"] for data in serializer.validated_data]
 
-            points = client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME, ids=[str(photo_id)]
-            )
-            if not points:
-                return Response(
-                    {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
-                )
-
-            with transaction.atomic():
-                for tag_id in tag_ids:
-                    pt_id = uuid.uuid4()
-
-                    tag = Tag.objects.get(tag_id=tag_id, user=request.user)
-
-                    if Photo_Tag.objects.filter(
-                        photo_id=photo_id, tag=tag, user=request.user
-                    ).exists():
-                        continue  # Skip if the relationship already exists
-
-                    Photo_Tag.objects.create(
-                        pt_id=pt_id, photo_id=photo_id, tag=tag, user=request.user
-                    )
-
-            # now update the metadata isTagged in Qdrant
-            client.set_payload(
-                collection_name=IMAGE_COLLECTION_NAME,
-                payload={"isTagged": True},
-                points=[str(photo_id)],
-            )
-            
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
+            photo = Photo.objects.get(photo_id=photo_id, user=request.user)
 
             for tag_id in tag_ids:
+                tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+
+                if Photo_Tag.objects.filter(
+                    photo=photo, tag=tag, user=request.user
+                ).exists():
+                    continue  # Skip if the relationship already exists
+
+                Photo_Tag.objects.create(
+                    pt_id=uuid.uuid4(), photo=photo, tag=tag, user=request.user
+                )
+                tag.save()
+
                 compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             return Response(status=status.HTTP_200_OK)
-        except Tag.DoesNotExist:
+        except Photo.DoesNotExist:
             return Response(
-                {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
+                {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
             )
+        except Tag.DoesNotExist:
+            return Response({"error": "No such tag"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -600,40 +641,18 @@ class DeletePhotoTagsView(APIView):
     )
     def delete(self, request, photo_id, tag_id):
         try:
-            client = get_qdrant_client()
+            photo = Photo.objects.get(photo_id=photo_id, user=request.user)
             tag = Tag.objects.get(tag_id=tag_id, user=request.user)
-            if not client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME, ids=[str(photo_id)]
-            ):
-                return Response(
-                    {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
-                )
 
-            photo_tag = Photo_Tag.objects.get(
-                photo_id=photo_id, tag=tag, user=request.user
-            )
+            photo_tag = Photo_Tag.objects.get(photo=photo, tag=tag, user=request.user)
 
             photo_tag.delete()
-
-            # Check if any tags remain for the photo
-            remaining_tags = Photo_Tag.objects.filter(
-                photo_id=photo_id, user=request.user
-            )
-            if not remaining_tags.exists():
-                # If no tags remain, update isTagged to False in Qdrant
-                client.set_payload(
-                    collection_name=IMAGE_COLLECTION_NAME,
-                    payload={"isTagged": False},
-                    points=[str(photo_id)],
-                )
-                
-            print(f"[INFO] Invalidating graph cache for user {request.user.id}")
-            cache.delete(f"user_{request.user.id}_combined_graph")
+            tag.save()
 
             compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except Tag.DoesNotExist:
+        except (Photo.DoesNotExist, Tag.DoesNotExist):
             return Response(
                 {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
             )
@@ -679,17 +698,7 @@ class GetRecommendTagView(APIView):
     )
     def get(self, request, photo_id, *args, **kwargs):
         try:
-            client = get_qdrant_client()
-            if not is_valid_uuid(photo_id):
-                return Response(
-                    {"error": "Request form mismatch."},
-                    status=status.HTTP_400_NOT_FOUND,
-                )
-
-            points = client.retrieve(
-                collection_name=IMAGE_COLLECTION_NAME, ids=[str(photo_id)]
-            )
-            if not points:
+            if not Photo.objects.filter(photo_id=photo_id).exists():
                 return Response(
                     {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
                 )
@@ -746,7 +755,9 @@ class PhotoRecommendationView(APIView):
 
             photos = recommend_photo_from_tag(request.user, tag_id)
 
-            return Response(photos, status=status.HTTP_200_OK)
+            serializer = ResPhotoSerializer(photos, many=True)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response(
@@ -804,7 +815,8 @@ class TagView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success", schema=TagSerializer(many=True)
+                description="Success",
+                schema=ResTagThumbnailSerializer(many=True),
             ),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -824,9 +836,20 @@ class TagView(APIView):
     )
     def get(self, request):
         try:
-            tags = Tag.objects.filter(user=request.user)
+            latest_photo_subquery = (
+                Photo_Tag.objects.filter(tag=OuterRef("pk"), user=request.user)
+                .select_related("photo")
+                .order_by("-photo__created_at")
+            )
 
-            response_serializer = TagSerializer(tags, many=True)
+            tags = Tag.objects.filter(user=request.user).annotate(
+                photo_count=Count("photo_tag", filter=Q(photo_tag__user=request.user)),
+                thumbnail_path_id=Subquery(
+                    latest_photo_subquery.values("photo__photo_path_id")[:1]
+                ),
+            )
+
+            response_serializer = ResTagThumbnailSerializer(tags, many=True)
 
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         except Tag.DoesNotExist:
@@ -834,6 +857,10 @@ class TagView(APIView):
                 {"error": "The user has no tags"}, status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
+            logger.error(
+                f"[TagView GET] 500 ERROR for user: {request.user.id}. Exception: {str(e)}",
+                exc_info=True,
+            )
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -932,7 +959,7 @@ class TagDetailView(APIView):
                     {"error": "Forbidden - you are not the owner of this tag."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-                
+
             compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
 
             tag.delete()
@@ -1071,86 +1098,161 @@ class StoryView(APIView):
                 type=openapi.TYPE_STRING,
             ),
             openapi.Parameter(
-                "page",
+                "size",
                 openapi.IN_QUERY,
-                description="Page number (default: 1)",
-                type=openapi.TYPE_INTEGER,
-            ),
-            openapi.Parameter(
-                "page_size",
-                openapi.IN_QUERY,
-                description="Number of items per page (default: 50, max: 200)",
+                description="number of photos",
                 type=openapi.TYPE_INTEGER,
             ),
         ],
     )
     def get(self, request):
         try:
-            client = get_qdrant_client()
-
-            # 페이지네이션 파라미터 가져오기
-            page = int(request.GET.get("page", 1))
-            page_size = min(
-                int(request.GET.get("pagesize", 20)), 200
-            )  # 최대 200개 제한
-
-            if page < 1:
-                page = 1
-            if page_size < 1:
-                page_size = 20
-
-            # isTagged=False인 사용자의 사진들만 필터링
-            user_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="user_id",
-                        match=models.MatchValue(value=request.user.id),
-                    ),
-                    models.FieldCondition(
-                        key="isTagged",
-                        match=models.MatchValue(value=False),
-                    ),
-                ]
-            )
-
-            # 페이지네이션을 위한 offset 계산
-            offset = (page - 1) * page_size
-
-            # 요청된 페이지의 데이터만 가져오기
-            points, next_offset = client.scroll(
-                collection_name=IMAGE_COLLECTION_NAME,
-                scroll_filter=user_filter,
-                limit=page_size,
-                offset=offset,
-                with_payload=True,
-            )
-
-            # 태그되지 않은 사진이 없는 경우
-            if len(points) == 0:
+            # 페이지네이션 파라미터 가져오기 및 검증
+            try:
+                size = int(request.GET.get("size", 20))
+                if size < 1:
+                    return Response(
+                        {"error": "Size parameter must be positive"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                size = min(size, 200)  # 최대 200개 제한
+            except ValueError:
                 return Response(
-                    {
-                        "recs": [],
-                    },
-                    status=status.HTTP_200_OK,
+                    {"error": "Invalid size parameter"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # ResPhotoSerializer 형태로 데이터 변환
-            photos_data = []
-            for point in points:
-                photos_data.append(
-                    {
-                        "photo_id": point.id,
-                        "photo_path_id": point.payload.get("photo_path_id"),
-                    }
-                )
+            # 랜덤 정렬로 매번 다른 순서 보장
+            # Filter photos that don't have any Photo_Tag relations
+            has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=request.user)
+            photos_queryset = (
+                Photo.objects.filter(user=request.user)
+                .exclude(Exists(has_tags))
+                .order_by("?")[:size]
+            )  # 랜덤 정렬 + 슬라이싱
 
-            # ResStorySerializer에 맞는 형태로 응답 데이터 구성
-            story_response = {
-                "recs": photos_data,
-            }
+            # QuerySet을 유지하면서 데이터 직렬화
+            photos_data = [
+                {
+                    "photo_id": str(photo.photo_id),
+                    "photo_path_id": photo.photo_path_id,
+                    "created_at": photo.created_at,
+                }
+                for photo in photos_queryset
+            ]
+
+            # 빈 결과 처리
+            if not photos_data:
+                story_response = {"recs": []}
+            else:
+                story_response = {"recs": photos_data}
 
             serializer = ResStorySerializer(story_response)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class NewStoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Stories from redis",
+        operation_description="Get stories from redis",
+        request_body=None,
+        responses={
+            200: openapi.Response(
+                description="Success", schema=NewResStorySerializer()
+            ),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
+    )
+    def get(self, request):
+        try:
+            r = get_redis()
+            exists = r.exists(request.user.id)
+            if not exists:
+                return Response(
+                    {"error": "We're working on your stories! Please wait a moment."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            story_data_json = r.get(request.user.id)
+            story_data = json.loads(story_data_json)
+            serializer = NewResStorySerializer(story_data, many=True)
+
+            r.delete(request.user.id)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @swagger_auto_schema(
+        operation_summary="Generate and save stories into redis",
+        operation_description="Generate and save stories into redis",
+        request_body=None,
+        responses={
+            202: openapi.Response(description="Accepted - Story generation started"),
+            400: openapi.Response(description="Bad Request - Invalid size parameter"),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            ),
+            openapi.Parameter(
+                "size",
+                openapi.IN_QUERY,
+                description="number of photos",
+                type=openapi.TYPE_INTEGER,
+            ),
+        ],
+    )
+    def post(self, request):
+        try:
+            # 페이지네이션 파라미터 가져오기 및 검증
+            try:
+                size = int(request.GET.get("size", 20))
+                if size < 1:
+                    return Response(
+                        {"error": "Size parameter must be positive"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                size = min(size, 200)  # 최대 200개 제한
+            except ValueError:
+                return Response(
+                    {"error": "Invalid size parameter"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Celery 백그라운드 작업으로 위임
+            generate_stories_task.delay(request.user.id, size)
+
+            return Response(
+                {"message": "Story generation started"}, status=status.HTTP_202_ACCEPTED
+            )
 
         except Exception as e:
             return Response(

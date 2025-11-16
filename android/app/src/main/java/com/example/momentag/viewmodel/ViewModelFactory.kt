@@ -5,12 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.momentag.data.SessionManager
 import com.example.momentag.network.RetrofitInstance
-import com.example.momentag.repository.DraftTagRepository
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
+import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.repository.TokenRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.uuid.ExperimentalUuidApi
 
 /**
@@ -38,6 +40,10 @@ class ViewModelFactory private constructor(
             }
     }
 
+    val albumUploadJobCount = MutableStateFlow(0)
+
+    val albumUploadSuccessEvent = MutableSharedFlow<Long>()
+
     // 싱글톤으로 관리되는 SessionStore (앱 전체에서 하나만 존재)
     private val sessionStore by lazy {
         SessionManager.getInstance(context.applicationContext)
@@ -52,12 +58,12 @@ class ViewModelFactory private constructor(
     }
 
     // RemoteRepository (Feature API)
-    private val remoteRepository by lazy {
+    val remoteRepository by lazy {
         RemoteRepository(RetrofitInstance.getApiService(context.applicationContext))
     }
 
     // LocalRepository (MediaStore 접근)
-    private val localRepository by lazy {
+    val localRepository by lazy {
         LocalRepository(context.applicationContext)
     }
 
@@ -78,9 +84,9 @@ class ViewModelFactory private constructor(
         ImageBrowserRepository()
     }
 
-    // DraftTagRepository (태그 생성 워크플로우 상태 관리)
-    private val draftTagRepository by lazy {
-        DraftTagRepository()
+    // PhotoSelectionRepository (사진 선택 상태 관리 - 태그 생성, 공유 등)
+    private val photoSelectionRepository by lazy {
+        PhotoSelectionRepository()
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -88,34 +94,49 @@ class ViewModelFactory private constructor(
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
         when {
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
-                HomeViewModel(localRepository, remoteRepository) as T
+                HomeViewModel(localRepository, remoteRepository, recommendRepository, photoSelectionRepository, imageBrowserRepository) as T
             }
             modelClass.isAssignableFrom(LocalViewModel::class.java) -> {
-                LocalViewModel(localRepository, imageBrowserRepository) as T
+                LocalViewModel(localRepository, imageBrowserRepository, albumUploadSuccessEvent) as T
             }
             modelClass.isAssignableFrom(AuthViewModel::class.java) -> {
                 AuthViewModel(tokenRepository) as T
             }
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
-                SearchViewModel(searchRepository, draftTagRepository, localRepository, imageBrowserRepository) as T
+                SearchViewModel(searchRepository, photoSelectionRepository, localRepository, imageBrowserRepository, tokenRepository) as T
             }
             modelClass.isAssignableFrom(ImageDetailViewModel::class.java) -> {
                 ImageDetailViewModel(imageBrowserRepository, remoteRepository, recommendRepository) as T
             }
             modelClass.isAssignableFrom(PhotoViewModel::class.java) -> {
-                PhotoViewModel(remoteRepository, localRepository) as T
+                PhotoViewModel(remoteRepository, localRepository, albumUploadJobCount) as T
             }
             modelClass.isAssignableFrom(AddTagViewModel::class.java) -> {
-                AddTagViewModel(draftTagRepository, recommendRepository, localRepository, remoteRepository) as T
+                AddTagViewModel(photoSelectionRepository, localRepository, remoteRepository) as T
             }
             modelClass.isAssignableFrom(SelectImageViewModel::class.java) -> {
-                SelectImageViewModel(draftTagRepository, localRepository, remoteRepository) as T
+                SelectImageViewModel(
+                    photoSelectionRepository,
+                    localRepository,
+                    remoteRepository,
+                    imageBrowserRepository,
+                    recommendRepository,
+                ) as T
             }
             modelClass.isAssignableFrom(AlbumViewModel::class.java) -> {
-                AlbumViewModel(localRepository, remoteRepository, recommendRepository, imageBrowserRepository) as T
+                AlbumViewModel(
+                    localRepository,
+                    remoteRepository,
+                    recommendRepository,
+                    imageBrowserRepository,
+                    photoSelectionRepository,
+                ) as T
             }
             modelClass.isAssignableFrom(StoryViewModel::class.java) -> {
-                StoryViewModel(recommendRepository, localRepository, remoteRepository) as T
+                StoryViewModel(recommendRepository, localRepository, remoteRepository, imageBrowserRepository) as T
+            }
+            modelClass.isAssignableFrom(MyTagsViewModel::class.java) -> {
+                MyTagsViewModel(remoteRepository, photoSelectionRepository) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

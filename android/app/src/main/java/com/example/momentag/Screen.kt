@@ -44,11 +44,13 @@ sealed class Screen(
         }
     }
 
-    object SearchResult : Screen("search_result_screen/{query}") {
+    object SearchResult : Screen("search_result_screen?query={query}") {
         fun createRoute(query: String): String {
             val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
-            return "search_result_screen/$encodedQuery"
+            return "search_result_screen?query=$encodedQuery"
         }
+
+        fun initialRoute(): String = "search_result_screen"
     }
 
     object Login : Screen("login_screen")
@@ -60,4 +62,6 @@ sealed class Screen(
     object AddTag : Screen("add_tag_screen")
 
     object SelectImage : Screen("select_image_screen")
+
+    object MyTags : Screen("my_tags_screen")
 }

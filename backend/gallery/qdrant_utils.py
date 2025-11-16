@@ -12,9 +12,11 @@ def get_qdrant_client():
         url=QDRANT_URL,
         api_key=QDRANT_API_KEY,
     )
-    
+
+
 IMAGE_COLLECTION_NAME = "my_image_collection"
 REPVEC_COLLECTION_NAME = "my_repvec_collection"
+TAG_PRESET_COLLECTION_NAME = "tag_recommendation_preset"
 
 
 def initialize_qdrant():
@@ -48,7 +50,7 @@ def initialize_qdrant():
         "created_at": models.PayloadSchemaType.DATETIME,
         "lat": models.PayloadSchemaType.FLOAT,
         "lng": models.PayloadSchemaType.FLOAT,
-        "isTagged": models.PayloadSchemaType.BOOL,   
+        "isTagged": models.PayloadSchemaType.BOOL,
     }
 
     for field, schema in image_indexes.items():
@@ -77,6 +79,5 @@ def initialize_qdrant():
             pass
 
 
-initialize_qdrant()
-
-print("Qdrant initialization process completed.")
+if __name__ == "__main__":
+    initialize_qdrant()

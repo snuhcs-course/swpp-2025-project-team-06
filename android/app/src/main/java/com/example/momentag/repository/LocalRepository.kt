@@ -2,6 +2,7 @@ package com.example.momentag.repository
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
@@ -15,6 +16,7 @@ import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.PhotoUploadData
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -24,9 +26,26 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+data class PhotoInfoForUpload(
+    val uri: Uri,
+    val meta: PhotoMeta,
+)
+
 class LocalRepository(
     private val context: Context,
 ) {
+    private val gson: Gson = Gson()
+
+    companion object {
+        private const val SEARCH_PREFS_NAME = "SearchHistoryPrefs"
+        private const val KEY_SEARCH_HISTORY = "search_history"
+        private const val MAX_HISTORY_SIZE = 10
+    }
+
+    private val searchPrefs: SharedPreferences by lazy {
+        context.getSharedPreferences(SEARCH_PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
     fun getImages(): List<Uri> {
         val imageUriList = mutableListOf<Uri>()
         val projection = arrayOf(MediaStore.Images.Media._ID)
@@ -59,7 +78,7 @@ class LocalRepository(
     // - JPEG로 압축한 ByteArray를 반환 (실패 시 null)
     // - API 28+ : ImageDecoder (EXIF 자동 반영) + 정수 샘플링 우선
     // - API <28 : BitmapFactory + inSampleSize(OR 루프) + EXIF 수동 회전 보정
-    private fun resizeImage(
+    fun resizeImage(
         contentUri: Uri,
         maxWidth: Int,
         maxHeight: Int,
@@ -248,6 +267,7 @@ class LocalRepository(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DISPLAY_NAME,
                 MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED, // <<< [수정] DATE_ADDED 추가
             )
         val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
 
@@ -261,7 +281,9 @@ class LocalRepository(
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                var count = 3 // for testing
+                val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) // <<< [수정]
+                val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) // <<< [수정]
+                var count = 0 // for testing
 
                 while (cursor.moveToNext() && count-- > 0) {
                     val id = cursor.getLong(idColumn)
@@ -273,7 +295,15 @@ class LocalRepository(
 
                     val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
 
-                    val dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
+                    // --- [수정] DATE_TAKEN이 없으면 DATE_ADDED 사용 ---
+                    var dateValue = cursor.getLong(dateTakenColumn)
+                    if (dateValue == 0L) { // DATE_TAKEN이 0이거나 없는 경우
+                        val dateAddedSeconds = cursor.getLong(dateAddedColumn)
+                        if (dateAddedSeconds > 0L) {
+                            dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                        }
+                    }
+                    // --- [수정] 끝 ---
                     val date = Date(dateValue)
 
                     val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
@@ -300,7 +330,7 @@ class LocalRepository(
 
                     // generate MultipartBody.Part
                     // Resize & compress to JPEG to reduce upload size and memory usage. If resize fails, fall back to raw bytes.
-                    val resizedBytes = resizeImage(contentUri, maxWidth = 1280, maxHeight = 1280, quality = 85)
+                    val resizedBytes = resizeImage(contentUri, maxWidth = 224, maxHeight = 224, quality = 85)
                     val (bytes, mime) =
                         if (resizedBytes != null) {
                             resizedBytes to "image/jpeg"
@@ -328,7 +358,6 @@ class LocalRepository(
             }
 
         // convert metadata to JSON
-        val gson = Gson()
         val metadataJson = gson.toJson(metadataList)
         val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
 
@@ -374,9 +403,14 @@ class LocalRepository(
         return albums.values.toList()
     }
 
-    fun getImagesForAlbum(albumId: Long): List<Uri> {
-        val images = mutableListOf<Uri>()
-        val projection = arrayOf(MediaStore.Images.Media._ID)
+    fun getImagesForAlbum(albumId: Long): List<Photo> {
+        val images = mutableListOf<Photo>()
+        val projection =
+            arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED, // <<< [수정] DATE_ADDED 추가
+            )
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
         val selectionArgs = arrayOf(albumId.toString())
         val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
@@ -390,14 +424,43 @@ class LocalRepository(
                 sortOrder,
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+                val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) // <<< [수정] 인덱스 가져오기
+
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
+
+                    // --- [수정] DATE_TAKEN이 없으면 DATE_ADDED 사용 ---
+                    var dateValue = cursor.getLong(dateTakenColumn)
+                    if (dateValue == 0L) { // DATE_TAKEN이 0이거나 없는 경우
+                        val dateAddedSeconds = cursor.getLong(dateAddedColumn)
+                        if (dateAddedSeconds > 0L) {
+                            dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                        }
+                    }
+                    // --- [수정] 끝 ---
+
                     val contentUri =
                         ContentUris.withAppendedId(
                             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                             id,
                         )
-                    images.add(contentUri)
+                    val createdAt =
+                        try {
+                            val date = Date(dateValue)
+                            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                            sdf.timeZone = TimeZone.getTimeZone("UTC")
+                            sdf.format(date)
+                        } catch (e: Exception) {
+                            ""
+                        }
+                    images.add(
+                        Photo(
+                            photoId = id.toString(),
+                            contentUri = contentUri,
+                            createdAt = createdAt,
+                        ),
+                    )
                 }
             }
         return images
@@ -434,6 +497,7 @@ class LocalRepository(
                     Photo(
                         photoId = photoResponse.photoId,
                         contentUri = contentUri,
+                        createdAt = photoResponse.createdAt,
                     )
                 } else {
                     null
@@ -458,17 +522,31 @@ class LocalRepository(
                     photoPathId,
                 )
 
-            val projection = arrayOf(MediaStore.Images.Media.DATE_TAKEN)
+            // --- [수정] DATE_ADDED를 projection에 추가 ---
+            val projection = arrayOf(MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
             context.contentResolver
                 .query(contentUri, projection, null, null, null)
                 ?.use { cursor ->
                     if (cursor.moveToFirst()) {
                         val dateTakenIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)
+                        val dateAddedIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED) // <<< [수정]
+
                         if (dateTakenIndex != -1) {
-                            val dateTaken = cursor.getLong(dateTakenIndex)
-                            val date = Date(dateTaken)
-                            val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
-                            return sdf.format(date)
+                            // --- [수정] DATE_TAKEN이 없으면 DATE_ADDED 사용 ---
+                            var dateValue = cursor.getLong(dateTakenIndex)
+                            if (dateValue == 0L && dateAddedIndex != -1) {
+                                val dateAddedSeconds = cursor.getLong(dateAddedIndex)
+                                if (dateAddedSeconds > 0L) {
+                                    dateValue = dateAddedSeconds * 1000L // 밀리초로 변환
+                                }
+                            }
+                            // --- [수정] 끝 ---
+
+                            if (dateValue > 0L) { // 유효한 날짜 값이 있을 때만 포맷
+                                val date = Date(dateValue)
+                                val sdf = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
+                                return sdf.format(date)
+                            }
                         }
                     }
                     "Unknown date"
@@ -506,4 +584,162 @@ class LocalRepository(
         } catch (e: Exception) {
             "Unknown location"
         }
+
+    fun getAlbumPhotoInfo(albumId: Long): List<PhotoInfoForUpload> {
+        val photoInfoList = mutableListOf<PhotoInfoForUpload>()
+        val projection =
+            arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED, // <<< [수정] DATE_ADDED 추가
+            )
+        val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
+        val selectionArgs = arrayOf(albumId.toString())
+        val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+
+        context.contentResolver
+            .query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder,
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+                val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) // <<< [수정] 인덱스 가져오기
+
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idColumn)
+                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                    val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
+
+                    // --- [수정] DATE_TAKEN이 없으면 DATE_ADDED 사용 ---
+                    var dateValue = cursor.getLong(dateTakenColumn)
+                    if (dateValue == 0L) { // DATE_TAKEN이 0이거나 없는 경우
+                        val dateAddedSeconds = cursor.getLong(dateAddedColumn)
+                        if (dateAddedSeconds > 0L) {
+                            dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                        }
+                    }
+                    // --- [수정] 끝 ---
+
+                    val createdAt =
+                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                            .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
+                            .format(Date(dateValue))
+
+                    var finalLat = 0.0
+                    var finalLng = 0.0
+                    try {
+                        context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
+                            val exif = ExifInterface(inputStream)
+                            val latOutput = FloatArray(2)
+                            if (exif.getLatLong(latOutput)) {
+                                finalLat = latOutput[0].toDouble()
+                                finalLng = latOutput[1].toDouble()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // 0.0 유지
+                    }
+
+                    val meta =
+                        PhotoMeta(
+                            filename = filename,
+                            photo_path_id = id.toInt(),
+                            created_at = createdAt,
+                            lat = finalLat,
+                            lng = finalLng,
+                        )
+                    photoInfoList.add(PhotoInfoForUpload(contentUri, meta))
+                }
+            }
+        return photoInfoList
+    }
+
+    fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
+        val photoParts = mutableListOf<MultipartBody.Part>()
+        val metadataList = mutableListOf<PhotoMeta>()
+
+        chunk.forEach { photoInfo ->
+            // (기존 getPhotoUploadRequest의 리사이즈/변환 로직 재사용)
+            val resizedBytes = resizeImage(photoInfo.uri, maxWidth = 224, maxHeight = 224, quality = 85)
+            val (bytes, mime) =
+                if (resizedBytes != null) {
+                    resizedBytes to "image/jpeg"
+                } else {
+                    val raw = context.contentResolver.openInputStream(photoInfo.uri)?.use { it.readBytes() }
+                    val type = context.contentResolver.getType(photoInfo.uri) ?: "application/octet-stream"
+                    raw to type
+                }
+
+            bytes?.let { b ->
+                val requestBody = b.toRequestBody(mime.toMediaTypeOrNull())
+                val part = MultipartBody.Part.createFormData("photo", photoInfo.meta.filename, requestBody)
+                photoParts.add(part)
+            }
+            metadataList.add(photoInfo.meta)
+        }
+
+        val gson = Gson()
+        val metadataJson = gson.toJson(metadataList)
+        val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
+
+        return PhotoUploadData(photoParts, metadataBody)
+    }
+
+    fun getSearchHistory(): List<String> {
+        val json = searchPrefs.getString(KEY_SEARCH_HISTORY, null)
+        if (json.isNullOrEmpty()) {
+            return emptyList()
+        }
+
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson(json, type)
+        } catch (e: Exception) {
+            searchPrefs.edit().remove(KEY_SEARCH_HISTORY).apply()
+            emptyList()
+        }
+    }
+
+    /**
+     * 새 검색어를 최근 검색 기록에 추가합니다.
+     * - 이미 존재하면, 맨 위로 이동시킵니다.
+     * - 최대 10(MAX_HISTORY_SIZE)개까지만 유지합니다.
+     *
+     * @param query 추가할 검색어
+     */
+    fun addSearchHistory(query: String) {
+        val currentHistory = getSearchHistory().toMutableList()
+
+        currentHistory.remove(query)
+        currentHistory.add(0, query)
+
+        val updatedHistory = currentHistory.take(MAX_HISTORY_SIZE)
+        val json = gson.toJson(updatedHistory)
+
+        searchPrefs.edit().putString(KEY_SEARCH_HISTORY, json).apply()
+    }
+
+    /**
+     * 특정 검색어를 기록에서 삭제합니다.
+     *
+     * @param query 삭제할 검색어
+     */
+    fun removeSearchHistory(query: String) {
+        val currentHistory = getSearchHistory().toMutableList()
+
+        if (currentHistory.remove(query)) {
+            val json = gson.toJson(currentHistory)
+            searchPrefs.edit().putString(KEY_SEARCH_HISTORY, json).apply()
+        }
+    }
+
+    fun clearSearchHistory() {
+        searchPrefs.edit().remove(KEY_SEARCH_HISTORY).apply()
+    }
 }

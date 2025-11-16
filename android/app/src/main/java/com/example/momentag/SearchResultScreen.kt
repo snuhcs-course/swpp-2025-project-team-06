@@ -1,33 +1,31 @@
 package com.example.momentag
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,35 +34,28 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
-import com.example.momentag.ui.components.BackTopBar
-import com.example.momentag.ui.components.BottomNavBar
-import com.example.momentag.ui.components.BottomTab
+import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
-import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.SearchBarControlledCustom
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.search.components.SearchEmptyStateCustom
-import com.example.momentag.ui.search.components.SearchErrorStateFallbackCustom
 import com.example.momentag.ui.search.components.SearchIdleCustom
 import com.example.momentag.ui.search.components.SearchLoadingStateCustom
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Button
-import com.example.momentag.ui.theme.Semi_background
-import com.example.momentag.ui.theme.Temp_word
-import com.example.momentag.ui.theme.Word
+import com.example.momentag.ui.theme.horizontalArrangement
+import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
@@ -83,16 +74,50 @@ fun SearchResultScreen(
     val context = LocalContext.current
     val searchViewModel: SearchViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
-    var searchText by remember { mutableStateOf(initialQuery) }
     val semanticSearchState by searchViewModel.searchState.collectAsState()
-    var isSelectionMode by remember { mutableStateOf(false) }
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
-    var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
+    val searchHistory by searchViewModel.searchHistory.collectAsState()
+    val searchText by searchViewModel.searchText.collectAsState()
+    val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
+
+    // var isSelectionMode by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
+
+    val focusManager = LocalFocusManager.current
+
+    var hasPerformedInitialSearch by rememberSaveable { mutableStateOf(false) }
+
+    BackHandler(enabled = isSelectionMode) {
+        searchViewModel.setSelectionMode(false)
+        searchViewModel.resetSelection()
+    }
+
+    LaunchedEffect(isSelectionMode) {
+        kotlinx.coroutines.delay(200L) // 0.2초
+        isSelectionModeDelay = isSelectionMode
+    }
+
+    val navBackStackEntry = navController.currentBackStackEntry
+
+    LaunchedEffect(navBackStackEntry) {
+        navBackStackEntry
+            ?.savedStateHandle
+            ?.getLiveData<Boolean>("selectionModeComplete")
+            ?.observe(navBackStackEntry) { isSuccess ->
+                if (isSuccess) {
+                    searchViewModel.setSelectionMode(false)
+                    navBackStackEntry.savedStateHandle.remove<Boolean>("selectionModeComplete")
+                }
+            }
+    }
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
-    LaunchedEffect(initialQuery) {
-        if (initialQuery.isNotEmpty()) {
+    LaunchedEffect(initialQuery, hasPerformedInitialSearch) {
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
+            searchViewModel.onSearchTextChanged(initialQuery)
             searchViewModel.search(initialQuery)
+            hasPerformedInitialSearch = true
         }
     }
 
@@ -125,12 +150,63 @@ fun SearchResultScreen(
             }
         }
 
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(uiState) {
+        if (uiState is SearchUiState.Error) {
+            errorMessage = uiState.message
+            showErrorBanner = true
+        } else {
+            // 로딩이 성공하거나, Idle 상태가 되면 배너를 숨깁니다.
+            if (uiState is SearchUiState.Success || uiState is SearchUiState.Loading || uiState is SearchUiState.Idle) {
+                showErrorBanner = false
+            }
+        }
+    }
+
+    val topBarActions = @Composable {
+        if (isSelectionModeDelay) {
+            val isEnabled = selectedPhotos.isNotEmpty()
+            IconButton(
+                onClick = {
+                    val photos = searchViewModel.getPhotosToShare()
+                    ShareUtils.sharePhotos(context, photos)
+                    if (photos.isNotEmpty()) {
+                        Toast
+                            .makeText(
+                                context,
+                                "Share ${photos.size} photo(s)",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                    }
+                },
+                enabled = isEnabled,
+                colors =
+                    IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    ),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Share",
+                )
+            }
+        }
+    }
+
     SearchResultScreenUi(
         searchText = searchText,
-        onSearchTextChange = { searchText = it },
+        onSearchTextChange = { searchViewModel.onSearchTextChanged(it) },
         onSearchSubmit = {
             if (searchText.isNotEmpty()) {
+                if (isSelectionMode) {
+                    searchViewModel.setSelectionMode(false)
+                    searchViewModel.resetSelection()
+                }
                 searchViewModel.search(searchText)
+                focusManager.clearFocus()
             }
         },
         uiState = uiState,
@@ -138,7 +214,7 @@ fun SearchResultScreen(
         selectedPhotos = selectedPhotos,
         onBackClick = onNavigateBack,
         onToggleSelectionMode = {
-            isSelectionMode = !isSelectionMode
+            searchViewModel.setSelectionMode(!isSelectionMode)
             if (!isSelectionMode) {
                 searchViewModel.resetSelection()
             }
@@ -148,7 +224,7 @@ fun SearchResultScreen(
         },
         onImageLongPress = {
             if (!isSelectionMode) {
-                isSelectionMode = true
+                searchViewModel.setSelectionMode(true)
             }
         },
         onCreateTagClick = {
@@ -156,34 +232,34 @@ fun SearchResultScreen(
             val currentState = uiState as? SearchUiState.Success
             if (currentState != null) {
                 // photo selection already stored in draftRepository
-                isSelectionMode = false
-                navController.navigate(Screen.AddTag.route)
+                // isSelectionMode = false
+                navController.navigate(Screen.MyTags.route)
             }
         },
         onRetry = {
             if (searchText.isNotEmpty()) {
                 searchViewModel.search(searchText)
             }
+            showErrorBanner = false
         },
         navController = navController,
-        currentTab = currentTab,
-        onTabSelected = { tab ->
-            currentTab = tab
-            when (tab) {
-                BottomTab.HomeScreen -> {
-                    navController.navigate(Screen.Home.route)
-                }
-                BottomTab.SearchResultScreen -> {
-                    // 이미 Search 화면
-                }
-                BottomTab.AddTagScreen -> {
-                    navController.navigate(Screen.AddTag.route)
-                }
-                BottomTab.StoryScreen -> {
-                    navController.navigate(Screen.Story.route)
-                }
-            }
+        topBarActions =
+            if (uiState is SearchUiState.Success) {
+                topBarActions
+            } else {
+                {}
+            },
+        searchHistory = searchHistory,
+        onHistoryClick = { query ->
+            searchViewModel.onSearchTextChanged(query)
+            searchViewModel.search(query)
         },
+        onHistoryDelete = { query ->
+            searchViewModel.removeSearchHistory(query)
+        },
+        showErrorBanner = showErrorBanner,
+        errorMessage = errorMessage,
+        onDismissError = { showErrorBanner = false },
     )
 }
 
@@ -207,65 +283,51 @@ fun SearchResultScreenUi(
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
-    currentTab: BottomTab,
-    onTabSelected: (BottomTab) -> Unit,
+    topBarActions: @Composable () -> Unit = {},
+    searchHistory: List<String>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
+    showErrorBanner: Boolean,
+    errorMessage: String?,
+    onDismissError: () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            modifier = modifier,
-            containerColor = Background,
-            topBar = {
-                BackTopBar(
-                    title = "Search Results",
-                    onBackClick = onBackClick,
-                )
-            },
-            bottomBar = {
-                BottomNavBar(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                WindowInsets.navigationBars
-                                    .only(WindowInsetsSides.Bottom)
-                                    .asPaddingValues(),
-                            ),
-                    currentTab = currentTab,
-                    onTabSelected = onTabSelected,
-                )
-            },
-        ) { paddingValues ->
-            SearchResultContent(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .padding(horizontal = 24.dp),
-                searchText = searchText,
-                onSearchTextChange = onSearchTextChange,
-                onSearchSubmit = onSearchSubmit,
-                uiState = uiState,
-                isSelectionMode = isSelectionMode,
-                selectedPhotos = selectedPhotos,
-                onToggleSelectionMode = onToggleSelectionMode,
-                onToggleImageSelection = onToggleImageSelection,
-                onImageLongPress = onImageLongPress,
-                onCreateTagClick = onCreateTagClick,
-                onRetry = onRetry,
-                navController = navController,
+    Scaffold(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surface,
+        topBar = {
+            CommonTopBar(
+                title = "Search Results",
+                showBackButton = true,
+                onBackClick = onBackClick,
+                actions = topBarActions,
             )
-        }
-        // TODO : 혹시 네트워크 에러일 때만 오버레이 띄울거면 NetworkError 상태로 바꾸기
-        if (uiState is SearchUiState.Error) {
-            Box(modifier = Modifier.matchParentSize()) {
-                ErrorOverlay(
-                    modifier = Modifier.fillMaxSize(),
-                    errorMessage = uiState.message,
-                    onRetry = onRetry,
-                    onDismiss = { navController.popBackStack() },
-                )
-            }
-        }
+        },
+    ) { paddingValues ->
+        SearchResultContent(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
+            searchText = searchText,
+            onSearchTextChange = onSearchTextChange,
+            onSearchSubmit = onSearchSubmit,
+            uiState = uiState,
+            isSelectionMode = isSelectionMode,
+            selectedPhotos = selectedPhotos,
+            onToggleSelectionMode = onToggleSelectionMode,
+            onToggleImageSelection = onToggleImageSelection,
+            onImageLongPress = onImageLongPress,
+            onCreateTagClick = onCreateTagClick,
+            onRetry = onRetry,
+            navController = navController,
+            searchHistory = searchHistory,
+            onHistoryClick = onHistoryClick,
+            onHistoryDelete = onHistoryDelete,
+            showErrorBanner = showErrorBanner,
+            errorMessage = errorMessage,
+            onDismissError = onDismissError,
+        )
     }
 }
 
@@ -287,74 +349,55 @@ private fun SearchResultContent(
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    searchHistory: List<String>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
+    showErrorBanner: Boolean,
+    errorMessage: String?,
+    onDismissError: () -> Unit,
 ) {
+    val context = LocalContext.current
     Box(modifier = modifier) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Instruction + Selection mode toggle
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Search for Photo",
-                        fontSize = 18.sp,
-                        fontFamily = FontFamily.Serif,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Default.PhotoCamera,
-                        contentDescription = "카메라 아이콘",
-                    )
-                }
-
-                if (uiState is SearchUiState.Success && uiState.results.isNotEmpty()) {
-                    Button(
-                        onClick = onToggleSelectionMode,
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor =
-                                    if (isSelectionMode) {
-                                        Button
-                                    } else {
-                                        Semi_background
-                                    },
-                                contentColor = if (isSelectionMode) Color.White else Word,
-                            ),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = if (isSelectionMode) "선택 모드 해제" else "선택 모드",
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isSelectionMode) "선택 모드" else "선택",
-                            fontSize = 14.sp,
-                        )
-                    }
-                }
-            }
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Input
-            SearchBarControlledCustom(
-                value = searchText,
-                onValueChange = onSearchTextChange,
-                onSearch = onSearchSubmit,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SearchBarControlledCustom(
+                    value = searchText,
+                    onValueChange = onSearchTextChange,
+                    onSearch = onSearchSubmit,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = {
+                        // TODO: Show filter dialog
+                        Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier =
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(12.dp),
+                            ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = "Filter",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Results
             SearchResultsFromState(
@@ -369,7 +412,21 @@ private fun SearchResultContent(
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
                 navController = navController,
+                searchHistory = searchHistory,
+                onHistoryClick = onHistoryClick,
+                onHistoryDelete = onHistoryDelete,
             )
+            AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                WarningBanner(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    title = "Search Failed",
+                    message = errorMessage ?: "Unknown error",
+                    onActionClick = onRetry, // 재시도
+                    onDismiss = onDismissError, // 닫기
+                    showActionButton = true,
+                    showDismissButton = true,
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -383,32 +440,30 @@ private fun SearchResultContent(
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 16.dp),
             ) {
-                CreateTagButton(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(start = 16.dp),
-                    text = "Create Tag",
-                    enabled = !isSelectionMode || selectedPhotos.isNotEmpty(),
-                    onClick = {
-                        if (!isSelectionMode) {
-                            onToggleSelectionMode()
-                        } else if (selectedPhotos.isNotEmpty()) {
+                // Only show CreateTagButton when in selection mode and photos are selected
+                if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                    CreateTagButton(
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(start = 16.dp),
+                        text = "Add Tag (${selectedPhotos.size})",
+                        onClick = {
                             onCreateTagClick()
-                        }
-                    },
-                )
+                        },
+                    )
+                }
 
                 Text(
-                    text = "총 ${uiState.results.size}장",
-                    fontSize = 14.sp,
-                    color = Temp_word,
+                    text = "${uiState.results.size} photos total",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
                     modifier =
                         Modifier
                             .align(Alignment.BottomStart)
                             .padding(end = 16.dp)
                             .background(
-                                color = Background.copy(alpha = 0.9f),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                                 shape = RoundedCornerShape(8.dp),
                             ).padding(horizontal = 12.dp, vertical = 6.dp),
                 )
@@ -422,7 +477,7 @@ private fun SearchResultContent(
  */
 @Composable
 private fun SearchResultsFromState(
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     uiState: SearchUiState,
     isSelectionMode: Boolean,
     selectedPhotos: List<Photo>,
@@ -430,16 +485,24 @@ private fun SearchResultsFromState(
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    searchHistory: List<String>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
             is SearchUiState.Idle -> {
-                SearchIdleCustom(Modifier.fillMaxSize())
+                SearchIdleCustom(
+                    history = searchHistory,
+                    onHistoryClick = onHistoryClick,
+                    onHistoryDelete = onHistoryDelete,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
 
             is SearchUiState.Loading -> {
                 SearchLoadingStateCustom(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier,
                     onRefresh = onRetry,
                 )
             }
@@ -447,16 +510,16 @@ private fun SearchResultsFromState(
             is SearchUiState.Empty -> {
                 SearchEmptyStateCustom(
                     query = uiState.query,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier,
                 )
             }
 
             is SearchUiState.Success -> {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = modifier,
+                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
                 ) {
                     items(
                         count = uiState.results.size,
@@ -472,17 +535,14 @@ private fun SearchResultsFromState(
                             onToggleSelection = { onToggleImageSelection(photo) },
                             onLongPress = {
                                 onImageLongPress()
-                                onToggleImageSelection(photo)
                             },
-                            cornerRadius = 12.dp,
-                            topPadding = 0.dp,
                         )
                     }
                 }
             }
 
             is SearchUiState.Error -> {
-                SearchErrorStateFallbackCustom(Modifier.fillMaxSize())
+                Box(modifier = Modifier.fillMaxHeight())
             }
         }
     }

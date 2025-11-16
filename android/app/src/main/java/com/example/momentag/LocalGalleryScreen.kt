@@ -1,28 +1,49 @@
+@file:Suppress("ktlint:standard:function-naming")
+
 package com.example.momentag
 
 import android.Manifest
-import android.net.Uri
 import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,22 +59,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.model.Album
 import com.example.momentag.ui.components.BackTopBar
-import com.example.momentag.ui.theme.Background
-import com.example.momentag.ui.theme.Picture
-import com.example.momentag.ui.theme.TagColor
-import com.example.momentag.ui.theme.Word
+import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.LocalViewModel
+import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
-@Suppress("ktlint:standard:function-naming")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocalGalleryScreen(
@@ -62,9 +79,44 @@ fun LocalGalleryScreen(
 ) {
     val context = LocalContext.current
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     var hasPermission by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
+
+    val selectedAlbumIds by localViewModel.selectedAlbumIds.collectAsState()
+    val isSelectionMode = selectedAlbumIds.isNotEmpty()
+
+    val uploadState by photoViewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+
+    var showErrorBanner by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(uploadState.errorMessage) {
+        if (uploadState.errorMessage != null) {
+            errorMessage = uploadState.errorMessage
+            showErrorBanner = true
+        } else {
+            showErrorBanner = false
+        }
+    }
+
+    BackHandler(enabled = isSelectionMode) {
+        localViewModel.clearAlbumSelection()
+    }
+
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    if (selectedAlbumIds.isNotEmpty()) {
+                        photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
+                    }
+                } else {
+                }
+            },
+        )
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -95,12 +147,72 @@ fun LocalGalleryScreen(
     val albumSet by localViewModel.albums.collectAsState()
 
     Scaffold(
-        containerColor = Background,
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            BackTopBar(
-                title = "MomenTag",
-                onBackClick = onNavigateBack,
-            )
+            if (isSelectionMode) {
+                TopAppBar(
+                    title = { Text("${selectedAlbumIds.size} selected") },
+                    navigationIcon = {
+                        IconButton(onClick = { localViewModel.clearAlbumSelection() }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            if (selectedAlbumIds.size == albumSet.size) {
+                                localViewModel.clearAlbumSelection()
+                            } else {
+                                localViewModel.selectAllAlbums(albumSet)
+                            }
+                        }) {
+                            Icon(
+                                if (selectedAlbumIds.size == albumSet.size) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                contentDescription = "Select All",
+                            )
+                        }
+                    },
+                )
+            } else {
+                BackTopBar(
+                    title = "MomenTag",
+                    onBackClick = onNavigateBack,
+                )
+            }
+        },
+        floatingActionButton = {
+            if (isSelectionMode) {
+                ExtendedFloatingActionButton(
+                    text = {
+                        if (uploadState.isLoading) {
+                            Text("Upload started (check notification)")
+                        } else {
+                            Text("Upload ${selectedAlbumIds.size} selected albums")
+                        }
+                    },
+                    icon = {
+                        if (uploadState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = "Upload",
+                            )
+                        }
+                    },
+                    onClick = {
+                        if (uploadState.isLoading) return@ExtendedFloatingActionButton
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
+                        }
+                    },
+                )
+            }
         },
     ) { paddingValues ->
         PullToRefreshBox(
@@ -131,81 +243,147 @@ fun LocalGalleryScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "Albums",
-                    fontSize = 28.sp,
-                    fontFamily = FontFamily.Serif,
+                    style = MaterialTheme.typography.displayMedium,
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-                    color = Color.Black.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 )
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(albumSet) { album ->
-                        albumGridItem(
-                            albumName = album.albumName,
-                            albumId = album.albumId,
-                            imageUri = album.thumbnailUri,
-                            navController = navController,
+                        val isSelected = selectedAlbumIds.contains(album.albumId)
+                        AlbumGridItem(
+                            album = album,
+                            isSelected = isSelected,
+                            isSelectionMode = isSelectionMode,
+                            onClick = {
+                                if (isSelectionMode) {
+                                    localViewModel.toggleAlbumSelection(album.albumId)
+                                } else {
+                                    navController.navigate(
+                                        Screen.LocalAlbum.createRoute(album.albumId, album.albumName),
+                                    )
+                                }
+                            },
+                            onLongClick = {
+                                if (!isSelectionMode) {
+                                    localViewModel.toggleAlbumSelection(album.albumId)
+                                }
+                            },
                         )
                     }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                uploadState.userMessage?.let { message ->
+                    LaunchedEffect(uploadState.userMessage) {
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        photoViewModel.infoMessageShown()
+                    }
+                }
+
+                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth(),
+                        title = "Upload Failed",
+                        message = errorMessage ?: "An error occurred",
+                        onActionClick = { showErrorBanner = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = {
+                            showErrorBanner = false
+                            photoViewModel.errorMessageShown()
+                        },
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun albumGridItem(
-    albumName: String,
-    albumId: Long,
-    imageUri: Uri?,
-    navController: NavController,
+private fun AlbumGridItem(
+    album: Album,
+    isSelected: Boolean,
+    isSelectionMode: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
-    Box(modifier = Modifier) {
-        if (imageUri != null) {
-            AsyncImage(
-                model = imageUri,
-                contentDescription = albumName,
-                modifier =
-                    Modifier
-                        .padding(top = 12.dp)
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .align(Alignment.BottomCenter)
-                        .clickable {
-                            navController.navigate(Screen.LocalAlbum.createRoute(albumId, albumName))
-                        },
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Spacer(
-                modifier =
-                    Modifier
-                        .padding(top = 12.dp)
-                        .aspectRatio(1f)
-                        .background(
-                            color = Picture,
-                            shape = RoundedCornerShape(16.dp),
-                        ).align(Alignment.BottomCenter)
-                        .clickable { /* TODO */ },
-            )
-        }
-
+    Box(
+        modifier =
+            Modifier
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
+    ) {
+        AsyncImage(
+            model = album.thumbnailUri,
+            contentDescription = "Album ${album.albumName}",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
         Text(
-            text = albumName,
-            color = Word,
-            fontSize = 12.sp,
+            text = album.albumName,
+            color = Color.White,
+            style = MaterialTheme.typography.bodySmall,
             modifier =
                 Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 8.dp)
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp) // Position from the corner
                     .background(
-                        color = TagColor,
+                        color = Color.Black.copy(alpha = 0.6f), // Use black with some transparency
                         shape = RoundedCornerShape(8.dp),
-                    ).padding(horizontal = 8.dp, vertical = 4.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp), // Padding inside the background
         )
+
+        if (isSelectionMode) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            } else {
+                                Color.Transparent
+                            },
+                        ),
+            )
+
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(24.dp)
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                            },
+                            CircleShape,
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
     }
 }
