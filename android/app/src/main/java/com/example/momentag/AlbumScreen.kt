@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,18 +40,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -69,6 +70,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -81,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.horizontalArrangement
@@ -124,7 +127,6 @@ fun AlbumScreen(
     var isTagAlbumPhotoSelectionMode by remember { mutableStateOf(false) }
     var isTagAlbumPhotoSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
-    var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
     // === Edge-to-edge Overlay 상태를 상위로 끌어올림 ===
@@ -138,12 +140,21 @@ fun AlbumScreen(
     var showErrorBanner by remember { mutableStateOf(false) }
     var errorBannerTitle by remember { mutableStateOf("Error") }
     var errorBannerMessage by remember { mutableStateOf("An error occurred") }
-    var showSelectPhotosBanner by remember { mutableStateOf(false) }
+    var showSelectPhotosBannerShare by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showSelectPhotosBanner) {
-        if (showSelectPhotosBanner) {
+    LaunchedEffect(showSelectPhotosBannerShare) {
+        if (showSelectPhotosBannerShare) {
             kotlinx.coroutines.delay(2000)
-            showSelectPhotosBanner = false
+            showSelectPhotosBannerShare = false
+        }
+    }
+
+    var showSelectPhotosBannerUntag by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showSelectPhotosBannerUntag) {
+        if (showSelectPhotosBannerUntag) {
+            kotlinx.coroutines.delay(2000)
+            showSelectPhotosBannerUntag = false
         }
     }
 
@@ -245,6 +256,18 @@ fun AlbumScreen(
         permissionLauncher.launch(permission)
     }
 
+    // Refresh album when returning from SelectImageScreen
+    LaunchedEffect(navController) {
+        val currentBackStackEntry = navController.currentBackStackEntry
+        val savedStateHandle = currentBackStackEntry?.savedStateHandle
+        savedStateHandle?.getLiveData<Boolean>("photos_added")?.observeForever { photosAdded ->
+            if (photosAdded == true) {
+                albumViewModel.loadAlbum(tagId, currentTagName)
+                savedStateHandle.remove<Boolean>("photos_added")
+            }
+        }
+    }
+
     val submitAndClearFocus = {
         if (editableTagName.isNotBlank() && editableTagName != currentTagName) {
             albumViewModel.renameTag(tagId, editableTagName)
@@ -287,7 +310,6 @@ fun AlbumScreen(
 
                         showDeleteConfirmationDialog = false
                         isTagAlbumPhotoSelectionMode = false
-                        showMenu = false
                         albumViewModel.resetTagAlbumPhotoSelection()
                     },
                 ) {
@@ -317,62 +339,47 @@ fun AlbumScreen(
                     }
                 },
                 actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options",
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                        ) {
-                            if (isTagAlbumPhotoSelectionModeDelay) {
-                                DropdownMenuItem(
-                                    text = { Text("Share") },
-                                    onClick = {
-                                        val photos = albumViewModel.getPhotosToShare()
-                                        ShareUtils.sharePhotos(context, photos)
-
-                                        Toast // 성공: Toast
+                    if (isTagAlbumPhotoSelectionMode) {
+                        val isEnabled = selectedTagAlbumPhotos.isNotEmpty()
+                        Row {
+                            IconButton(
+                                onClick = {
+                                    val photos = albumViewModel.getPhotosToShare()
+                                    ShareUtils.sharePhotos(context, photos)
+                                    if (photos.isNotEmpty()) {
+                                        Toast
                                             .makeText(
                                                 context,
                                                 "Share ${photos.size} photo(s)",
                                                 Toast.LENGTH_SHORT,
                                             ).show()
-
-                                        showMenu = false
-                                        isTagAlbumPhotoSelectionMode = false
-                                        albumViewModel.resetTagAlbumPhotoSelection()
-                                    },
+                                    }
+                                },
+                                enabled = isEnabled,
+                                colors =
+                                    IconButtonDefaults.iconButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.primary,
+                                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    ),
+                                modifier = Modifier.width(36.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Share",
                                 )
-                                DropdownMenuItem(
-                                    text = { Text("Delete") },
-                                    onClick = {
-                                        if (selectedTagAlbumPhotos.isNotEmpty()) {
-                                            showDeleteConfirmationDialog = true
-                                        } else {
-                                            showSelectPhotosBanner = true
-                                        }
-                                        showMenu = false
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Cancel") },
-                                    onClick = {
-                                        albumViewModel.resetTagAlbumPhotoSelection()
-                                        isTagAlbumPhotoSelectionMode = false
-                                        showMenu = false
-                                    },
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text("Select") },
-                                    onClick = {
-                                        isTagAlbumPhotoSelectionMode = true
-                                        showMenu = false
-                                    },
+                            }
+                            IconButton(
+                                onClick = { showDeleteConfirmationDialog = true },
+                                enabled = isEnabled,
+                                colors =
+                                    IconButtonDefaults.iconButtonColors(
+                                        contentColor = Color(0xFFD32F2F),
+                                        disabledContentColor = Color(0xFFD32F2F).copy(alpha = 0.38f),
+                                    ),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Untag",
                                 )
                             }
                         }
@@ -466,15 +473,27 @@ fun AlbumScreen(
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
 
-                    AnimatedVisibility(visible = showSelectPhotosBanner) {
+                    AnimatedVisibility(visible = showSelectPhotosBannerShare) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             title = "No Photos Selected",
-                            message = "Please select photos to delete.",
-                            onActionClick = { showSelectPhotosBanner = false },
+                            message = "Please select photos to share.",
+                            onActionClick = { showSelectPhotosBannerShare = false },
                             showActionButton = false,
                             showDismissButton = true,
-                            onDismiss = { showSelectPhotosBanner = false },
+                            onDismiss = { showSelectPhotosBannerShare = false },
+                        )
+                    }
+
+                    AnimatedVisibility(visible = showSelectPhotosBannerUntag) {
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            title = "No Photos Selected",
+                            message = "Please select photos to untag.",
+                            onActionClick = { showSelectPhotosBannerUntag = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { showSelectPhotosBannerUntag = false },
                         )
                     }
 
@@ -508,27 +527,10 @@ fun AlbumScreen(
                             panelHeight = panelHeight,
                             // Chip 클릭 시 오버레이 열기
                             onExpandRecommend = { isRecommendationExpanded = true },
-                        )
-                    }
-                    if (!hasPermission) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("이미지 접근 권한을 허용해주세요.")
-                        }
-                    } else {
-                        // === 그리드 + 축소 Chip (오버레이 X) ===
-                        AlbumGridArea(
-                            albumLoadState = imageLoadState,
-                            recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
-                            selectedTagAlbumPhotos = selectedTagAlbumPhotos,
-                            navController = navController,
-                            isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
-                            onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
-                            onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
-                            // 펼쳐짐 여부와 패널 높이에 따라 그리드 bottom padding 조절
-                            isRecommendationExpanded = isRecommendationExpanded,
-                            panelHeight = panelHeight,
-                            // Chip 클릭 시 오버레이 열기
-                            onExpandRecommend = { isRecommendationExpanded = true },
+                            // Add photos button handler
+                            albumViewModel = albumViewModel,
+                            tagId = tagId,
+                            tagName = currentTagName,
                         )
                     }
                 }
@@ -570,6 +572,9 @@ private fun AlbumGridArea(
     isRecommendationExpanded: Boolean,
     panelHeight: Dp,
     onExpandRecommend: () -> Unit,
+    albumViewModel: AlbumViewModel,
+    tagId: String,
+    tagName: String,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (albumLoadState) {
@@ -590,9 +595,23 @@ private fun AlbumGridArea(
                         ),
                     modifier = Modifier.fillMaxSize(),
                 ) {
+                    // Add Photos Button as first item
+                    item(
+                        key = "add_photos_button",
+                    ) {
+                        AddPhotosButton(
+                            onClick = {
+                                albumViewModel.initializeAddPhotosFlow(tagId, tagName)
+                                navController.navigate(Screen.SelectImage.route)
+                            },
+                            modifier = Modifier.aspectRatio(1f),
+                        )
+                    }
+
+                    // Photo grid items
                     items(
                         count = photos.size,
-                        key = { index -> index },
+                        key = { index -> "photo_$index" },
                     ) { index ->
                         ImageGridUriItem(
                             photo = photos[index],

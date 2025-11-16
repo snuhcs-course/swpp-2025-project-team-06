@@ -103,7 +103,14 @@ class ViewModelFactory private constructor(
                 AuthViewModel(tokenRepository) as T
             }
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
-                SearchViewModel(searchRepository, photoSelectionRepository, localRepository, imageBrowserRepository, tokenRepository, remoteRepository) as T
+                SearchViewModel(
+                    searchRepository,
+                    photoSelectionRepository,
+                    localRepository,
+                    imageBrowserRepository,
+                    tokenRepository,
+                    remoteRepository,
+                ) as T
             }
             modelClass.isAssignableFrom(ImageDetailViewModel::class.java) -> {
                 ImageDetailViewModel(imageBrowserRepository, remoteRepository, recommendRepository) as T
@@ -124,7 +131,13 @@ class ViewModelFactory private constructor(
                 ) as T
             }
             modelClass.isAssignableFrom(AlbumViewModel::class.java) -> {
-                AlbumViewModel(localRepository, remoteRepository, recommendRepository, imageBrowserRepository) as T
+                AlbumViewModel(
+                    localRepository,
+                    remoteRepository,
+                    recommendRepository,
+                    imageBrowserRepository,
+                    photoSelectionRepository,
+                ) as T
             }
             modelClass.isAssignableFrom(StoryViewModel::class.java) -> {
                 StoryViewModel(recommendRepository, localRepository, remoteRepository, imageBrowserRepository) as T

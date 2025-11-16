@@ -51,7 +51,11 @@ class VisionServicesTest(TestCase):
         mock_processor = MagicMock()
         mock_get_processor.return_value = mock_processor
 
-        mock_processor.return_value = {"inputs_tensor": "dummy_tensor"}
+        # Create mock tensor with .to() method
+        mock_tensor = MagicMock()
+        mock_tensor.to.return_value = mock_tensor
+        
+        mock_processor.return_value = {"inputs_tensor": mock_tensor}
 
         fake_decoded_phrases = [
             "A photo of a brown dog",
@@ -96,7 +100,7 @@ class VisionServicesTest(TestCase):
         )
 
         mock_model.generate.assert_called_once_with(
-            inputs_tensor="dummy_tensor",  # This comes from **inputs
+            inputs_tensor=mock_tensor,  # This comes from **inputs
             max_new_tokens=20,
             do_sample=True,
             top_k=50,
@@ -121,11 +125,16 @@ class VisionServicesTest(TestCase):
 
         mock_image = MagicMock()
         mock_image_open.return_value = mock_image
+        mock_image.convert.return_value = mock_image
 
         mock_processor = MagicMock()
         mock_get_processor.return_value = mock_processor
 
-        mock_processor.return_value = {"inputs": "dummy"}
+        # Create mock tensor with .to() method
+        mock_tensor = MagicMock()
+        mock_tensor.to.return_value = mock_tensor
+        
+        mock_processor.return_value = {"inputs": mock_tensor}
         mock_model = MagicMock()
 
         mock_get_model.return_value = mock_model

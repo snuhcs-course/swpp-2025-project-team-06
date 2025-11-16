@@ -56,7 +56,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -69,17 +68,16 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -91,7 +89,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -102,7 +99,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -154,7 +150,6 @@ fun HomeScreen(navController: NavController) {
     val focusManager = LocalFocusManager.current
     val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
@@ -440,12 +435,6 @@ fun HomeScreen(navController: NavController) {
             homeViewModel.loadServerTags()
             searchViewModel.loadServerTags()
             homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
-
-            val hasAlreadyUploaded = sharedPreferences.getBoolean("INITIAL_UPLOAD_COMPLETED_112", false)
-            if (!hasAlreadyUploaded) {
-                // photoViewModel.uploadPhotos() // <--- 초기 자동 업로드 비활성화 (LocalGallery에서 수동)
-                // sharedPreferences.edit().putBoolean("INITIAL_UPLOAD_COMPLETED_112", true).apply()
-            }
         }
     }
 
@@ -539,7 +528,7 @@ fun HomeScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "#MomenTag",
+                title = "MomenTag",
                 onTitleClick = {
                     navController.navigate(Screen.LocalGallery.route)
                 },
@@ -547,56 +536,33 @@ fun HomeScreen(navController: NavController) {
                 onLogoutClick = { authViewModel.logout() },
                 isLogoutLoading = logoutState is LogoutState.Loading,
                 actions = {
-                    if (showAllPhotos && groupedPhotos.isNotEmpty()) {
-                        Box {
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "More options",
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false },
-                            ) {
-                                if (isSelectionModeDelay) {
-                                    DropdownMenuItem(
-                                        text = { Text("Share") },
-                                        onClick = {
-                                            val photos = homeViewModel.getPhotosToShare()
-                                            ShareUtils.sharePhotos(context, photos)
+                    if (showAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
+                        val isEnabled = selectedPhotos.isNotEmpty()
+                        IconButton(
+                            onClick = {
+                                val photos = homeViewModel.getPhotosToShare()
+                                ShareUtils.sharePhotos(context, photos)
 
-                                            Toast
-                                                .makeText(
-                                                    context,
-                                                    "Share ${photos.size} photo(s)",
-                                                    Toast.LENGTH_SHORT,
-                                                ).show()
-
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
-                                        enabled = selectedPhotos.isNotEmpty(),
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Cancel") },
-                                        onClick = {
-                                            homeViewModel.setSelectionMode(false)
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
-                                    )
-                                } else {
-                                    DropdownMenuItem(
-                                        text = { Text("Select") },
-                                        onClick = {
-                                            homeViewModel.setSelectionMode(true)
-                                            homeViewModel.resetSelection()
-                                            showMenu = false
-                                        },
-                                    )
+                                if (photos.isNotEmpty()) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "Share ${photos.size} photo(s)",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
                                 }
-                            }
+                            },
+                            enabled = isEnabled,
+                            colors =
+                                IconButtonDefaults.iconButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.primary,
+                                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                ),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share",
+                            )
                         }
                     }
                 },
@@ -619,12 +585,6 @@ fun HomeScreen(navController: NavController) {
                     when (tab) {
                         BottomTab.HomeScreen -> {
                         }
-                        BottomTab.SearchResultScreen -> {
-                            homeViewModel.resetSelection()
-                            navController.navigate(Screen.SearchResult.initialRoute()) {
-                                popUpTo(Screen.Home.route)
-                            }
-                        }
                         BottomTab.MyTagsScreen -> {
                             homeViewModel.resetSelection()
                             navController.navigate(Screen.MyTags.route) {
@@ -644,10 +604,11 @@ fun HomeScreen(navController: NavController) {
         containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
             // 태그 앨범 뷰(!showAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
-            if (showAllPhotos && groupedPhotos.isNotEmpty()) {
+            // Only show when in selection mode and photos are selected
+            if (showAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
-                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Add Tag with ${selectedPhotos.size}" else "Create Tag",
+                    text = "Add Tag (${selectedPhotos.size})",
                     onClick = {
                         // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
                         // SearchResultScreen과 동일한 패턴
@@ -978,7 +939,7 @@ fun HomeScreen(navController: NavController) {
                                 bottomStart = 16.dp,
                                 bottomEnd = 16.dp,
                             ),
-                            shadowElevation = 8.dp,
+                        shadowElevation = 8.dp,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         LazyColumn(

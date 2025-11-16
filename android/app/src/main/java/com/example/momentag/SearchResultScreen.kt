@@ -1,6 +1,5 @@
 package com.example.momentag
 
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -17,16 +16,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,12 +35,11 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -55,7 +49,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -85,8 +78,6 @@ import com.example.momentag.model.SearchUiState
 import com.example.momentag.model.SemanticSearchState
 import com.example.momentag.model.TagItem
 import com.example.momentag.model.TagLoadingState
-import com.example.momentag.ui.components.BottomNavBar
-import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
@@ -139,7 +130,7 @@ fun SearchResultScreen(
     val topSpacerHeight = 8.dp
 
     var hideCursor by remember { mutableStateOf(false) }
-    var currentTab by remember { mutableStateOf(BottomTab.SearchResultScreen) }
+    // var isSelectionMode by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
@@ -165,12 +156,13 @@ fun SearchResultScreen(
     }
 
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                searchViewModel.loadServerTags()
-                hideCursor = false
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    searchViewModel.loadServerTags()
+                    hideCursor = false
+                }
             }
-        }
 
         lifecycleOwner.lifecycle.addObserver(observer)
 
@@ -330,53 +322,32 @@ fun SearchResultScreen(
     }
 
     val topBarActions = @Composable {
-        Box {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options",
-                )
-            }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
+        if (isSelectionModeDelay) {
+            val isEnabled = selectedPhotos.isNotEmpty()
+            IconButton(
+                onClick = {
+                    val photos = searchViewModel.getPhotosToShare()
+                    ShareUtils.sharePhotos(context, photos)
+                    if (photos.isNotEmpty()) {
+                        Toast
+                            .makeText(
+                                context,
+                                "Share ${photos.size} photo(s)",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                    }
+                },
+                enabled = isEnabled,
+                colors =
+                    IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    ),
             ) {
-                if (isSelectionModeDelay) {
-                    DropdownMenuItem(
-                        text = { Text("Share") },
-                        onClick = {
-                            val photos = searchViewModel.getPhotosToShare()
-                            ShareUtils.sharePhotos(context, photos)
-
-                            Toast
-                                .makeText(
-                                    context,
-                                    "Share ${photos.size} photo(s)",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-
-                            showMenu = false
-                            searchViewModel.setSelectionMode(false)
-                            searchViewModel.resetSelection()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Cancel") },
-                        onClick = {
-                            searchViewModel.setSelectionMode(false)
-                            searchViewModel.resetSelection()
-                            showMenu = false
-                        },
-                    )
-                } else {
-                    DropdownMenuItem(
-                        text = { Text("Select") },
-                        onClick = {
-                            searchViewModel.setSelectionMode(true)
-                            showMenu = false
-                        },
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Share",
+                )
             }
         }
     }
@@ -411,7 +382,6 @@ fun SearchResultScreen(
         topSpacerHeight = topSpacerHeight,
         searchBarWidth = searchBarWidth,
         onSearchBarWidthChange = { searchBarWidth = it },
-
         uiState = uiState,
         isSelectionMode = isSelectionMode,
         selectedPhotos = selectedPhotos,
@@ -452,32 +422,6 @@ fun SearchResultScreen(
             showErrorBanner = false
         },
         navController = navController,
-        currentTab = currentTab,
-        onTabSelected = { tab ->
-            currentTab = tab
-            when (tab) {
-                BottomTab.HomeScreen -> {
-                    searchViewModel.resetSelection()
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-                BottomTab.SearchResultScreen -> {
-                }
-                BottomTab.MyTagsScreen -> {
-                    searchViewModel.resetSelection()
-                    navController.navigate(Screen.MyTags.route) {
-                        popUpTo(Screen.Home.route)
-                    }
-                }
-                BottomTab.StoryScreen -> {
-                    searchViewModel.resetSelection()
-                    navController.navigate(Screen.Story.route) {
-                        popUpTo(Screen.Home.route)
-                    }
-                }
-            }
-        },
         topBarActions =
             if (uiState is SearchUiState.Success) {
                 topBarActions
@@ -538,8 +482,6 @@ fun SearchResultScreenUi(
     onCreateTagClick: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
-    currentTab: BottomTab,
-    onTabSelected: (BottomTab) -> Unit,
     topBarActions: @Composable () -> Unit = {},
     searchHistory: List<String>,
     onHistoryClick: (String) -> Unit,
@@ -557,20 +499,6 @@ fun SearchResultScreenUi(
                 showBackButton = true,
                 onBackClick = onBackClick,
                 actions = topBarActions,
-            )
-        },
-        bottomBar = {
-            BottomNavBar(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            WindowInsets.navigationBars
-                                .only(WindowInsetsSides.Bottom)
-                                .asPaddingValues(),
-                        ),
-                currentTab = currentTab,
-                onTabSelected = onTabSelected,
             )
         },
     ) { paddingValues ->
@@ -669,33 +597,36 @@ private fun SearchResultContent(
     val focusManager = LocalFocusManager.current
 
     Box(
-        modifier = modifier
-        .clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null
-        ) {
-            focusManager.clearFocus()
-        }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
+        modifier =
+            modifier
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null
+                    indication = null,
                 ) {
                     focusManager.clearFocus()
                 },
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        focusManager.clearFocus()
+                    },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Input
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onGloballyPositioned { onSearchBarRowHeightChange(it.size.height) },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { onSearchBarRowHeightChange(it.size.height) },
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -839,21 +770,19 @@ private fun SearchResultContent(
                         .padding(bottom = 16.dp)
                         .padding(horizontal = 16.dp),
             ) {
-                CreateTagButton(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(start = 16.dp),
-                    text = if (isSelectionMode && selectedPhotos.isNotEmpty()) "Add Tag with ${selectedPhotos.size}" else "Create Tag",
-                    enabled = !isSelectionMode || selectedPhotos.isNotEmpty(),
-                    onClick = {
-                        if (!isSelectionMode) {
-                            onToggleSelectionMode()
-                        } else if (selectedPhotos.isNotEmpty()) {
+                // Only show CreateTagButton when in selection mode and photos are selected
+                if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                    CreateTagButton(
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(start = 16.dp),
+                        text = "Add Tag (${selectedPhotos.size})",
+                        onClick = {
                             onCreateTagClick()
-                        }
-                    },
-                )
+                        },
+                    )
+                }
 
                 Text(
                     text = "${uiState.results.size} photos total",

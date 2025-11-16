@@ -26,6 +26,9 @@ class PhotoSelectionRepository {
     private val _selectedPhotos = MutableStateFlow<List<Photo>>(emptyList())
     val selectedPhotos: StateFlow<List<Photo>> = _selectedPhotos.asStateFlow()
 
+    private val _existingTagId = MutableStateFlow<String?>(null)
+    val existingTagId: StateFlow<String?> = _existingTagId.asStateFlow()
+
     /**
      * Initialize selection with existing data
      * Used when navigating from other screens with pre-selected photos
@@ -33,9 +36,11 @@ class PhotoSelectionRepository {
     fun initialize(
         initialTagName: String?,
         initialPhotos: List<Photo>,
+        existingTagId: String? = null,
     ) {
         _tagName.value = initialTagName ?: ""
         _selectedPhotos.value = initialPhotos
+        _existingTagId.value = existingTagId
     }
 
     /**
@@ -81,6 +86,7 @@ class PhotoSelectionRepository {
     fun clear() {
         _tagName.value = ""
         _selectedPhotos.value = emptyList()
+        _existingTagId.value = null
     }
 
     /**

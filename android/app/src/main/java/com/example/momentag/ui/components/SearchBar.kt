@@ -1,6 +1,5 @@
 package com.example.momentag.ui.components
 
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,12 +28,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -268,21 +265,21 @@ private fun InternalChipSearchInput(
                         }
                     }
 
-                    val baseModifier = Modifier
-                        .then(
-                            if (isPlaceholder) {
-                                Modifier.fillMaxWidth()
-                            } else {
-                                Modifier.width(finalWidth)
-                            },
-                        )
-                        .onFocusChanged { focusState ->
-                            if (focusState.isFocused) {
-                                onFocus(item.id)
-                            } else {
-                                onFocus(null)
-                            }
-                        }.padding(horizontal = 4.dp, vertical = 8.dp)
+                    val baseModifier =
+                        Modifier
+                            .then(
+                                if (isPlaceholder) {
+                                    Modifier.fillMaxWidth()
+                                } else {
+                                    Modifier.width(finalWidth)
+                                },
+                            ).onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    onFocus(item.id)
+                                } else {
+                                    onFocus(null)
+                                }
+                            }.padding(horizontal = 4.dp, vertical = 8.dp)
 
                     BasicTextField(
                         value = textValue,
@@ -294,7 +291,15 @@ private fun InternalChipSearchInput(
                             Modifier
                                 .then(baseModifier)
                                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-                                .then(if (bringIntoViewRequester != null) Modifier.bringIntoViewRequester(bringIntoViewRequester) else Modifier),
+                                .then(
+                                    if (bringIntoViewRequester !=
+                                        null
+                                    ) {
+                                        Modifier.bringIntoViewRequester(bringIntoViewRequester)
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
                         maxLines = 1, // 스크롤 방지
                         cursorBrush = cursorBrush,
                         textStyle = textStyle,

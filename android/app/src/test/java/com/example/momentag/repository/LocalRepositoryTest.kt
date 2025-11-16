@@ -11,8 +11,8 @@ import android.graphics.Color
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.test.core.app.ApplicationProvider
+import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoResponse
-import com.example.momentag.model.PhotoUploadData
 import io.mockk.Runs
 import io.mockk.clearAllMocks
 import io.mockk.every
@@ -48,33 +48,6 @@ class LocalRepositoryTest {
 
         // Clear all mocks before each test
         clearAllMocks()
-    }
-
-    @Test
-    fun `getImages returns empty list when no images exist`() {
-        // When
-        val result = repository.getImages()
-
-        // Then
-        assertNotNull(result)
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    fun `getImages returns list of image URIs when images exist`() {
-        // Given: Insert mock images into MediaStore
-        // Insert a couple of mock images; we don't rely on returned Uri values in Robolectric
-        insertMockImage("test_image_1.jpg", System.currentTimeMillis())
-        insertMockImage("test_image_2.jpg", System.currentTimeMillis() - 1000)
-
-        // When
-        val result = repository.getImages()
-
-        // Then
-        assertNotNull(result)
-        // Robolectric's MediaStore mock may not persist inserts, so we check for non-null list
-        // In real device/instrumentation tests, we would verify result.size >= 2
-        // For now, we verify the function runs without crashing
     }
 
     @Test
@@ -117,94 +90,6 @@ class LocalRepositoryTest {
     }
 
     @Test
-    fun `getPhotoUploadRequest returns valid PhotoUploadData structure`() {
-        // Given: Insert mock images
-        insertMockImage("upload_test_1.jpg", System.currentTimeMillis())
-        insertMockImage("upload_test_2.jpg", System.currentTimeMillis() - 1000)
-        insertMockImage("upload_test_3.jpg", System.currentTimeMillis() - 2000)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then
-        assertNotNull(result)
-        assertNotNull(result.photo)
-        assertNotNull(result.metadata)
-        // Robolectric's MediaStore mock may not persist inserts
-        // In real tests, we would verify result.photo.size <= 3
-    }
-
-    @Test
-    fun `getPhotoUploadRequest produces jpeg part when resize succeeds`() {
-        // Given: insert a real drawable image (img1.jpg) into MediaStore
-        // This ensures we have actual JPEG bytes for resize/decode paths
-        insertMockImageFromDrawable("img1_from_drawable.jpg", System.currentTimeMillis(), com.example.momentag.R.drawable.img1)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: In Robolectric, MediaStore stream reading may fail, so we accept either:
-        // 1) Photo parts with actual bytes (ideal case - resize worked), OR
-        // 2) At least metadata is generated (fallback - proves function ran without crash)
-        assertNotNull(result.photo)
-        assertNotNull(result.metadata)
-
-        // Try to verify photo bytes if available
-        if (result.photo.isNotEmpty()) {
-            val part = result.photo.first()
-            // Now verify the request body has non-zero bytes.
-            val buffer = Buffer()
-            part.body.writeTo(buffer)
-            val photoHasBytes = buffer.size > 0
-
-            // If we got a photo part, it should have bytes
-            assertTrue(photoHasBytes, "Photo part exists but has zero bytes")
-        } else {
-            // If no photo parts, at least metadata should be non-empty
-            val metadataHasBytes =
-                try {
-                    result.metadata.contentLength() > 0
-                } catch (_: Exception) {
-                    false
-                }
-            // Accept test if metadata was generated (proves MediaStore query worked)
-            org.junit.Assume.assumeTrue("No photo parts and no metadata - Robolectric MediaStore limitation", metadataHasBytes)
-        }
-    }
-
-    @Test
-    fun `getPhotoUploadRequest limits to 3 photos`() {
-        // Given: Insert more than 3 imagesdd
-        insertMockImageFromDrawable("img1.jpg", System.currentTimeMillis(), com.example.momentag.R.drawable.img1)
-        insertMockImageFromDrawable("img2.jpg", System.currentTimeMillis() - 1000, com.example.momentag.R.drawable.img2)
-        insertMockImageFromDrawable("img3.jpg", System.currentTimeMillis() - 2000, com.example.momentag.R.drawable.img3)
-        insertMockImageFromDrawable("img4.jpg", System.currentTimeMillis() - 3000, com.example.momentag.R.drawable.img2)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: Should have at most 3 photos (in Robolectric may have 0 due to stream limitations)
-        assertNotNull(result.photo)
-        assertTrue(result.photo.size <= 3)
-    }
-
-    @Test
-    fun `getImages returns sorted by date taken descending`() {
-        // Given: Insert images with different dates
-        val now = System.currentTimeMillis()
-        insertMockImageFromDrawable("newest.jpg", now, com.example.momentag.R.drawable.img1)
-        insertMockImageFromDrawable("oldest.jpg", now - 10000, com.example.momentag.R.drawable.img2)
-        insertMockImageFromDrawable("middle.jpg", now - 5000, com.example.momentag.R.drawable.img1)
-
-        // When
-        val result = repository.getImages()
-
-        // Then: Function should run without crash (Robolectric may not persist order)
-        assertNotNull(result)
-        // In real device test, we would verify result[0] is newest, result[2] is oldest
-    }
-
-    @Test
     fun `getAlbums returns unique albums with thumbnails`() {
         // Given: Insert images into same album
         insertMockImageFromDrawable("album1_img1.jpg", System.currentTimeMillis(), com.example.momentag.R.drawable.img1, "TestAlbum1")
@@ -239,18 +124,6 @@ class LocalRepositoryTest {
         assertNotNull(result1)
         assertNotNull(result2)
         // Robolectric may not persist bucket IDs, so we just verify no crash
-    }
-
-    @Test
-    fun `getPhotoUploadRequest handles empty gallery gracefully`() {
-        // When: No images in MediaStore
-        val result = repository.getPhotoUploadRequest()
-
-        // Then
-        assertNotNull(result)
-        assertNotNull(result.photo)
-        assertNotNull(result.metadata)
-        // Function should handle empty gallery without crashing
     }
 
     @Test
@@ -327,25 +200,6 @@ class LocalRepositoryTest {
         // Clean up
         if (result !== originalBitmap) result.recycle()
         originalBitmap.recycle()
-    }
-
-    @Test
-    fun `getPhotoUploadRequest includes EXIF location data when available`() {
-        // Given: Insert image with location (Robolectric may not persist EXIF)
-        insertMockImageFromDrawable("img_with_location.jpg", System.currentTimeMillis(), com.example.momentag.R.drawable.img1)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: metadata should be generated (EXIF read attempt was made)
-        assertNotNull(result.metadata)
-        val metadataLength =
-            try {
-                result.metadata.contentLength()
-            } catch (_: Exception) {
-                0L
-            }
-        assertTrue(metadataLength > 0, "Metadata JSON should be generated")
     }
 
     @Test
@@ -450,78 +304,6 @@ class LocalRepositoryTest {
     }
 
     @Test
-    fun `getPhotoUploadRequest handles fallback to raw bytes when resize fails`() {
-        // Given: Insert image but will simulate resize failure by using invalid max dimensions
-        insertMockImageFromDrawable("fallback_test.jpg", System.currentTimeMillis(), com.example.momentag.R.drawable.img1)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: Should still create PhotoUploadData (may use raw bytes)
-        assertNotNull(result)
-        assertNotNull(result.photo)
-        assertNotNull(result.metadata)
-        // Function should handle resize failures gracefully
-    }
-
-    @Test
-    fun `getPhotoUploadRequest generates correct metadata JSON format`() {
-        // Given: Insert image
-        insertMockImageFromDrawable("metadata_format_test.jpg", System.currentTimeMillis(), com.example.momentag.R.drawable.img1)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: Metadata should be valid JSON array
-        val buffer = Buffer()
-        result.metadata.writeTo(buffer)
-        val jsonString = buffer.readUtf8()
-
-        assertTrue(jsonString.startsWith("["), "Metadata should be JSON array")
-        assertTrue(jsonString.endsWith("]"), "Metadata should be JSON array")
-
-        // If not empty, should contain expected fields
-        if (jsonString != "[]") {
-            assertTrue(jsonString.contains("filename"), "Should contain filename field")
-            assertTrue(jsonString.contains("created_at"), "Should contain created_at field")
-            assertTrue(jsonString.contains("lat"), "Should contain lat field")
-            assertTrue(jsonString.contains("lng"), "Should contain lng field")
-            assertTrue(jsonString.contains("photo_path_id"), "Should contain photo_path_id field")
-        }
-    }
-
-    @Test
-    fun `getPhotoUploadRequest handles date formatting correctly`() {
-        // Given: Insert image with specific timestamp
-        val specificTime = 1609459200000L // 2021-01-01 00:00:00 UTC
-        insertMockImageFromDrawable("date_test.jpg", specificTime, com.example.momentag.R.drawable.img1)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: Metadata should contain ISO 8601 formatted date
-        val buffer = Buffer()
-        result.metadata.writeTo(buffer)
-        val jsonString = buffer.readUtf8()
-
-        // If metadata is not empty, verify date format
-        if (jsonString != "[]") {
-            assertTrue(jsonString.contains("T"), "Should contain ISO 8601 date with T separator")
-            assertTrue(jsonString.contains("Z"), "Should contain UTC timezone marker")
-        }
-    }
-
-    @Test
-    fun `getImages handles MediaStore query errors gracefully`() {
-        // When: Call getImages (MediaStore may fail in Robolectric)
-        val result = repository.getImages()
-
-        // Then: Should return non-null list (may be empty)
-        assertNotNull(result)
-        assertTrue(result is List, "Should return List type")
-    }
-
-    @Test
     fun `getAlbums handles MediaStore query errors gracefully`() {
         // When: Call getAlbums
         val result = repository.getAlbums()
@@ -587,23 +369,6 @@ class LocalRepositoryTest {
 
         testBitmap.recycle()
         if (result !== testBitmap) result.recycle()
-    }
-
-    @Test
-    fun `getPhotoUploadRequest creates multipart form data correctly`() {
-        // Given: Insert images
-        insertMockImageFromDrawable("multipart1.jpg", System.currentTimeMillis(), com.example.momentag.R.drawable.img1)
-        insertMockImageFromDrawable("multipart2.jpg", System.currentTimeMillis() - 1000, com.example.momentag.R.drawable.img2)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: Photo parts should be MultipartBody.Part instances
-        assertNotNull(result.photo)
-        result.photo.forEach { part ->
-            assertNotNull(part.body, "Each part should have a body")
-            assertNotNull(part.headers, "Each part should have headers")
-        }
     }
 
     @Test
@@ -714,69 +479,6 @@ class LocalRepositoryTest {
                 assertTrue(bitmap.height <= 300, "Should scale to <= 300 height")
                 bitmap.recycle()
             }
-        }
-    }
-
-    @Test
-    fun `getPhotoUploadRequest reads EXIF lat lng data`() {
-        // Given: Insert image (EXIF data may not persist in Robolectric)
-        insertMockImageFromDrawable("exif_latlong_test.jpg", System.currentTimeMillis(), com.example.momentag.R.drawable.img1)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: Metadata should contain lat/lng fields (even if 0.0)
-        val buffer = Buffer()
-        result.metadata.writeTo(buffer)
-        val jsonString = buffer.readUtf8()
-
-        if (jsonString != "[]") {
-            // Verify ExifInterface reading was attempted
-            assertTrue(jsonString.contains("\"lat\""), "Should attempt to read EXIF latitude")
-            assertTrue(jsonString.contains("\"lng\""), "Should attempt to read EXIF longitude")
-            // Values will likely be 0.0 in Robolectric, but the code path should execute
-        }
-    }
-
-    @Test
-    fun `getPhotoUploadRequest creates JSON metadata with all required fields`() {
-        // Given: Insert image with known timestamp
-        val timestamp = System.currentTimeMillis()
-        insertMockImageFromDrawable("all_fields_test.jpg", timestamp, com.example.momentag.R.drawable.img1)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: Verify all PhotoMeta fields are in JSON
-        val buffer = Buffer()
-        result.metadata.writeTo(buffer)
-        val jsonString = buffer.readUtf8()
-
-        if (jsonString != "[]") {
-            assertTrue(jsonString.contains("\"filename\""), "Should have filename")
-            assertTrue(jsonString.contains("\"photo_path_id\""), "Should have photo_path_id")
-            assertTrue(jsonString.contains("\"created_at\""), "Should have created_at")
-            assertTrue(jsonString.contains("\"lat\""), "Should have lat")
-            assertTrue(jsonString.contains("\"lng\""), "Should have lng")
-        }
-    }
-
-    @Test
-    fun `getPhotoUploadRequest uses Asia Seoul timezone for dates`() {
-        // Given: Insert image
-        insertMockImageFromDrawable("timezone_test.jpg", System.currentTimeMillis(), com.example.momentag.R.drawable.img1)
-
-        // When
-        val result: PhotoUploadData = repository.getPhotoUploadRequest()
-
-        // Then: Date should be formatted with Z (UTC marker) but calculated from Asia/Seoul
-        val buffer = Buffer()
-        result.metadata.writeTo(buffer)
-        val jsonString = buffer.readUtf8()
-
-        if (jsonString != "[]") {
-            // Check ISO 8601 format with Z timezone
-            assertTrue(jsonString.contains("Z\""), "Should use UTC/Z timezone marker in ISO format")
         }
     }
 
@@ -921,47 +623,6 @@ class LocalRepositoryTest {
     // ============================================================================
 
     @Test
-    fun `getImages with mocked cursor returns correct URIs`() {
-        // Given: Mock context and ContentResolver
-        val mockContext = mockk<Context>()
-        val mockCursor = mockk<Cursor>(relaxed = true)
-
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
-
-        // Mock cursor behavior
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
-        every { mockCursor.moveToNext() } returnsMany listOf(true, true, false)
-        every { mockCursor.getLong(0) } returnsMany listOf(1L, 2L)
-        every { mockCursor.close() } just Runs
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getImages()
-
-        // Then
-        assertEquals(2, result.size)
-        verify { mockCursor.close() }
-    }
-
-    @Test
-    fun `getImages with null cursor returns empty list`() {
-        // Given
-        val mockContext = mockk<Context>()
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns null
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getImages()
-
-        // Then
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
     fun `getAlbums with mocked cursor groups albums correctly`() {
         // Given
         val mockContext = mockk<Context>()
@@ -1069,279 +730,6 @@ class LocalRepositoryTest {
     }
 
     @Test
-    fun `getPhotoUploadRequest with mocked cursor creates correct structure`() {
-        // Given
-        val mockContext = mockk<Context>()
-        val mockCursor = mockk<Cursor>(relaxed = true)
-
-        // Create a real JPEG byte array
-        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-        val baos = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
-        val jpegBytes = baos.toByteArray()
-        bitmap.recycle()
-
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
-
-        // Mock cursor columns
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME) } returns 1
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) } returns 2
-
-        // Mock one image
-        every { mockCursor.moveToNext() } returnsMany listOf(true, false)
-        every { mockCursor.getLong(0) } returns 1L
-        every { mockCursor.getString(1) } returns "test.jpg"
-        every { mockCursor.getLong(2) } returns System.currentTimeMillis()
-        every { mockCursor.close() } just Runs
-
-        // Mock input stream for image data
-        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(jpegBytes)
-        every { mockContentResolver.getType(any()) } returns "image/jpeg"
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getPhotoUploadRequest()
-
-        // Then
-        assertNotNull(result)
-        assertNotNull(result.photo)
-        assertNotNull(result.metadata)
-        verify { mockCursor.close() }
-    }
-
-    @Test
-    fun `getPhotoUploadRequest limits to 3 photos with mock`() {
-        // Given
-        val mockContext = mockk<Context>()
-        val mockCursor = mockk<Cursor>(relaxed = true)
-
-        val bitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888)
-        val baos = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
-        val jpegBytes = baos.toByteArray()
-        bitmap.recycle()
-
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
-
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME) } returns 1
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) } returns 2
-
-        // Mock 5 images
-        every { mockCursor.moveToNext() } returnsMany listOf(true, true, true, true, true, false)
-        every { mockCursor.getLong(0) } returnsMany listOf(1L, 2L, 3L, 4L, 5L)
-        every { mockCursor.getString(1) } returnsMany listOf("1.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg")
-        every { mockCursor.getLong(2) } returns System.currentTimeMillis()
-        every { mockCursor.close() } just Runs
-
-        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(jpegBytes)
-        every { mockContentResolver.getType(any()) } returns "image/jpeg"
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getPhotoUploadRequest()
-
-        // Then
-        assertTrue(result.photo.size <= 3, "Should limit to 3 photos")
-    }
-
-    @Test
-    fun `getPhotoUploadRequest handles EXIF location data with mock`() {
-        // Given
-        val mockContext = mockk<Context>()
-        val mockCursor = mockk<Cursor>(relaxed = true)
-
-        // Create JPEG with mock EXIF data
-        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-        val baos = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
-        val jpegBytes = baos.toByteArray()
-        bitmap.recycle()
-
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
-
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME) } returns 1
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) } returns 2
-
-        every { mockCursor.moveToNext() } returnsMany listOf(true, false)
-        every { mockCursor.getLong(0) } returns 1L
-        every { mockCursor.getString(1) } returns "test_exif.jpg"
-        every { mockCursor.getLong(2) } returns System.currentTimeMillis()
-        every { mockCursor.close() } just Runs
-
-        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(jpegBytes)
-        every { mockContentResolver.getType(any()) } returns "image/jpeg"
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getPhotoUploadRequest()
-
-        // Then
-        val buffer = Buffer()
-        result.metadata.writeTo(buffer)
-        val jsonString = buffer.readUtf8()
-
-        assertTrue(jsonString.contains("lat"))
-        assertTrue(jsonString.contains("lng"))
-        assertTrue(jsonString.contains("created_at"))
-    }
-
-    @Test
-    fun `getPhotoUploadRequest handles empty gallery with mock`() {
-        // Given
-        val mockContext = mockk<Context>()
-        val mockCursor = mockk<Cursor>(relaxed = true)
-
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
-
-        // Empty cursor
-        every { mockCursor.moveToNext() } returns false
-        every { mockCursor.close() } just Runs
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getPhotoUploadRequest()
-
-        // Then
-        assertNotNull(result)
-        assertTrue(result.photo.isEmpty())
-
-        val buffer = Buffer()
-        result.metadata.writeTo(buffer)
-        val jsonString = buffer.readUtf8()
-        assertEquals("[]", jsonString)
-    }
-
-    @Test
-    fun `getPhotoUploadRequest handles null bytes gracefully with mock`() {
-        // Given
-        val mockContext = mockk<Context>()
-        val mockCursor = mockk<Cursor>(relaxed = true)
-
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
-
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME) } returns 1
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) } returns 2
-
-        every { mockCursor.moveToNext() } returnsMany listOf(true, false)
-        every { mockCursor.getLong(0) } returns 1L
-        every { mockCursor.getString(1) } returns "test.jpg"
-        every { mockCursor.getLong(2) } returns System.currentTimeMillis()
-        every { mockCursor.close() } just Runs
-
-        // Return null for openInputStream to simulate failure
-        every { mockContentResolver.openInputStream(any()) } returns null
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getPhotoUploadRequest()
-
-        // Then - should still create metadata even if photo failed
-        assertNotNull(result)
-        assertNotNull(result.metadata)
-    }
-
-    @Test
-    fun `getPhotoUploadRequest creates valid JSON metadata format with mock`() {
-        // Given
-        val mockContext = mockk<Context>()
-        val mockCursor = mockk<Cursor>(relaxed = true)
-
-        val bitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888)
-        val baos = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
-        val jpegBytes = baos.toByteArray()
-        bitmap.recycle()
-
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
-
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME) } returns 1
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) } returns 2
-
-        every { mockCursor.moveToNext() } returnsMany listOf(true, false)
-        every { mockCursor.getLong(0) } returns 42L
-        every { mockCursor.getString(1) } returns "metadata_test.jpg"
-        every { mockCursor.getLong(2) } returns 1609459200000L // 2021-01-01
-        every { mockCursor.close() } just Runs
-
-        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(jpegBytes)
-        every { mockContentResolver.getType(any()) } returns "image/jpeg"
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getPhotoUploadRequest()
-
-        // Then
-        val buffer = Buffer()
-        result.metadata.writeTo(buffer)
-        val jsonString = buffer.readUtf8()
-
-        assertTrue(jsonString.startsWith("["))
-        assertTrue(jsonString.endsWith("]"))
-        assertTrue(jsonString.contains("\"filename\""))
-        assertTrue(jsonString.contains("\"photo_path_id\""))
-        assertTrue(jsonString.contains("\"created_at\""))
-        assertTrue(jsonString.contains("\"lat\""))
-        assertTrue(jsonString.contains("\"lng\""))
-        assertTrue(jsonString.contains("metadata_test.jpg"))
-        assertTrue(jsonString.contains("42")) // photo_path_id
-    }
-
-    @Test
-    fun `getPhotoUploadRequest uses correct MIME type with mock`() {
-        // Given
-        val mockContext = mockk<Context>()
-        val mockCursor = mockk<Cursor>(relaxed = true)
-
-        val bitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888)
-        val baos = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
-        val pngBytes = baos.toByteArray()
-        bitmap.recycle()
-
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
-
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME) } returns 1
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) } returns 2
-
-        every { mockCursor.moveToNext() } returnsMany listOf(true, false)
-        every { mockCursor.getLong(0) } returns 1L
-        every { mockCursor.getString(1) } returns "test.png"
-        every { mockCursor.getLong(2) } returns System.currentTimeMillis()
-        every { mockCursor.close() } just Runs
-
-        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(pngBytes)
-        every { mockContentResolver.getType(any()) } returns "image/png"
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getPhotoUploadRequest()
-
-        // Then
-        assertNotNull(result)
-        assertTrue(result.photo.isNotEmpty())
-    }
-
-    @Test
     fun `resizeImage handles exception in ImageDecoder path via reflection with mock`() {
         // Given
         val mockContext = mockk<Context>()
@@ -1394,34 +782,6 @@ class LocalRepositoryTest {
 
         testBitmap.recycle()
         if (result !== testBitmap) result.recycle()
-    }
-
-    @Test
-    fun `getImages processes multiple images in correct order with mock`() {
-        // Given
-        val mockContext = mockk<Context>()
-        val mockCursor = mockk<Cursor>(relaxed = true)
-
-        every { mockContext.contentResolver } returns mockContentResolver
-        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
-
-        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
-        every { mockCursor.moveToNext() } returnsMany listOf(true, true, true, true, false)
-        every { mockCursor.getLong(0) } returnsMany listOf(10L, 20L, 30L, 40L)
-        every { mockCursor.close() } just Runs
-
-        val repo = LocalRepository(mockContext)
-
-        // When
-        val result = repo.getImages()
-
-        // Then
-        assertEquals(4, result.size)
-        // Verify URIs contain the correct IDs
-        assertTrue(result[0].toString().contains("10"))
-        assertTrue(result[1].toString().contains("20"))
-        assertTrue(result[2].toString().contains("30"))
-        assertTrue(result[3].toString().contains("40"))
     }
 
     @Test
@@ -1594,13 +954,16 @@ class LocalRepositoryTest {
         val mockContext = mockk<Context>()
         val mockCursor = mockk<Cursor>(relaxed = true)
         val photoId = 12345L
-        val dateTaken = 0L // Epoch time
+        val dateTaken = 0L // Epoch time - should fall back to DATE_ADDED
+        val dateAdded = System.currentTimeMillis() / 1000L // DATE_ADDED is in seconds
 
         every { mockContext.contentResolver } returns mockContentResolver
         every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
         every { mockCursor.moveToFirst() } returns true
         every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns 0
+        every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED) } returns 1
         every { mockCursor.getLong(0) } returns dateTaken
+        every { mockCursor.getLong(1) } returns dateAdded
         every { mockCursor.close() } just Runs
 
         val repo = LocalRepository(mockContext)
@@ -1937,7 +1300,7 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "1", photoPathId = 0),
+                PhotoResponse(photoId = "1", photoPathId = 0, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -1956,7 +1319,7 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "1", photoPathId = -1),
+                PhotoResponse(photoId = "1", photoPathId = -1, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -1980,7 +1343,7 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = 123),
+                PhotoResponse(photoId = "photo1", photoPathId = 123, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -2007,7 +1370,7 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = 123),
+                PhotoResponse(photoId = "photo1", photoPathId = 123, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -2029,7 +1392,7 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = 123),
+                PhotoResponse(photoId = "photo1", photoPathId = 123, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -2052,7 +1415,7 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = 123),
+                PhotoResponse(photoId = "photo1", photoPathId = 123, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -2076,9 +1439,9 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = 123),
-                PhotoResponse(photoId = "photo2", photoPathId = 456),
-                PhotoResponse(photoId = "photo3", photoPathId = 789),
+                PhotoResponse(photoId = "photo1", photoPathId = 123, createdAt = "2024-01-01T00:00:00Z"),
+                PhotoResponse(photoId = "photo2", photoPathId = 456, createdAt = "2024-01-01T00:00:00Z"),
+                PhotoResponse(photoId = "photo3", photoPathId = 789, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -2105,11 +1468,11 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = 123), // exists
-                PhotoResponse(photoId = "photo2", photoPathId = -1), // invalid
-                PhotoResponse(photoId = "photo3", photoPathId = 0), // invalid
-                PhotoResponse(photoId = "photo4", photoPathId = 456), // doesn't exist
-                PhotoResponse(photoId = "photo5", photoPathId = 789), // exists
+                PhotoResponse(photoId = "photo1", photoPathId = 123, createdAt = "2024-01-01T00:00:00Z"), // exists
+                PhotoResponse(photoId = "photo2", photoPathId = -1, createdAt = "2024-01-01T00:00:00Z"), // invalid
+                PhotoResponse(photoId = "photo3", photoPathId = 0, createdAt = "2024-01-01T00:00:00Z"), // invalid
+                PhotoResponse(photoId = "photo4", photoPathId = 456, createdAt = "2024-01-01T00:00:00Z"), // doesn't exist
+                PhotoResponse(photoId = "photo5", photoPathId = 789, createdAt = "2024-01-01T00:00:00Z"), // exists
             )
 
         // When
@@ -2136,7 +1499,7 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = photoPathId),
+                PhotoResponse(photoId = "photo1", photoPathId = photoPathId, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -2172,8 +1535,8 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = 123),
-                PhotoResponse(photoId = "photo2", photoPathId = 456),
+                PhotoResponse(photoId = "photo1", photoPathId = 123, createdAt = "2024-01-01T00:00:00Z"),
+                PhotoResponse(photoId = "photo2", photoPathId = 456, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -2198,7 +1561,7 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = 123),
+                PhotoResponse(photoId = "photo1", photoPathId = 123, createdAt = "2024-01-01T00:00:00Z"),
             )
 
         // When
@@ -2223,8 +1586,8 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext)
         val photoResponses =
             listOf(
-                PhotoResponse(photoId = "photo1", photoPathId = 123), // exists
-                PhotoResponse(photoId = "photo2", photoPathId = 456), // doesn't exist
+                PhotoResponse(photoId = "photo1", photoPathId = 123, createdAt = "2024-01-01T00:00:00Z"), // exists
+                PhotoResponse(photoId = "photo2", photoPathId = 456, createdAt = "2024-01-01T00:00:00Z"), // doesn't exist
             )
 
         // When
@@ -2234,6 +1597,435 @@ class LocalRepositoryTest {
         assertEquals(1, result.size)
         assertEquals("photo1", result[0].photoId)
         verify(exactly = 2) { mockCursor.close() }
+    }
+    // endregion
+
+    // region Search History Tests
+    @Test
+    fun `getSearchHistory returns empty list when no history exists`() {
+        // When
+        val result = repository.getSearchHistory()
+
+        // Then
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `addSearchHistory adds query to history`() {
+        // Given
+        val query = "sunset"
+
+        // When
+        repository.addSearchHistory(query)
+
+        // Then
+        val history = repository.getSearchHistory()
+        assertEquals(1, history.size)
+        assertEquals(query, history[0])
+    }
+
+    @Test
+    fun `addSearchHistory adds multiple queries in order`() {
+        // Given
+        repository.addSearchHistory("sunset")
+        repository.addSearchHistory("mountain")
+        repository.addSearchHistory("beach")
+
+        // When
+        val history = repository.getSearchHistory()
+
+        // Then
+        assertEquals(3, history.size)
+        assertEquals("beach", history[0]) // Most recent first
+        assertEquals("mountain", history[1])
+        assertEquals("sunset", history[2])
+    }
+
+    @Test
+    fun `addSearchHistory moves existing query to top`() {
+        // Given
+        repository.addSearchHistory("sunset")
+        repository.addSearchHistory("mountain")
+        repository.addSearchHistory("beach")
+
+        // When - re-add "sunset"
+        repository.addSearchHistory("sunset")
+        val history = repository.getSearchHistory()
+
+        // Then
+        assertEquals(3, history.size)
+        assertEquals("sunset", history[0]) // Should be moved to top
+        assertEquals("beach", history[1])
+        assertEquals("mountain", history[2])
+    }
+
+    @Test
+    fun `addSearchHistory limits to MAX_HISTORY_SIZE`() {
+        // Given - add 15 queries (max is 10)
+        for (i in 1..15) {
+            repository.addSearchHistory("query$i")
+        }
+
+        // When
+        val history = repository.getSearchHistory()
+
+        // Then
+        assertEquals(10, history.size)
+        assertEquals("query15", history[0]) // Most recent
+        assertEquals("query6", history[9]) // 10th item
+    }
+
+    @Test
+    fun `removeSearchHistory removes specific query`() {
+        // Given
+        repository.addSearchHistory("sunset")
+        repository.addSearchHistory("mountain")
+        repository.addSearchHistory("beach")
+
+        // When
+        repository.removeSearchHistory("mountain")
+        val history = repository.getSearchHistory()
+
+        // Then
+        assertEquals(2, history.size)
+        assertEquals("beach", history[0])
+        assertEquals("sunset", history[1])
+    }
+
+    @Test
+    fun `removeSearchHistory does nothing for non-existent query`() {
+        // Given
+        repository.addSearchHistory("sunset")
+
+        // When
+        repository.removeSearchHistory("nonexistent")
+        val history = repository.getSearchHistory()
+
+        // Then
+        assertEquals(1, history.size)
+        assertEquals("sunset", history[0])
+    }
+
+    @Test
+    fun `clearSearchHistory removes all history`() {
+        // Given
+        repository.addSearchHistory("sunset")
+        repository.addSearchHistory("mountain")
+        repository.addSearchHistory("beach")
+
+        // When
+        repository.clearSearchHistory()
+        val history = repository.getSearchHistory()
+
+        // Then
+        assertTrue(history.isEmpty())
+    }
+
+    @Test
+    fun `clearSearchHistory on empty history does nothing`() {
+        // When
+        repository.clearSearchHistory()
+        val history = repository.getSearchHistory()
+
+        // Then
+        assertTrue(history.isEmpty())
+    }
+
+    @Test
+    fun `search history persists across repository instances`() {
+        // Given
+        repository.addSearchHistory("sunset")
+        repository.addSearchHistory("mountain")
+
+        // When - create new repository instance
+        val newRepo = LocalRepository(context)
+        val history = newRepo.getSearchHistory()
+
+        // Then
+        assertEquals(2, history.size)
+        assertEquals("mountain", history[0])
+        assertEquals("sunset", history[1])
+    }
+    // endregion
+
+    // region Album Photo Info Tests
+    @Test
+    fun `getAlbumPhotoInfo returns empty list for non-existent album`() {
+        // Given
+        val nonExistentAlbumId = 999999L
+
+        // When
+        val result = repository.getAlbumPhotoInfo(nonExistentAlbumId)
+
+        // Then
+        assertNotNull(result)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `getAlbumPhotoInfo returns photo info with metadata`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val albumId = 123L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME) } returns 1
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) } returns 2
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) } returns 3
+
+        every { mockCursor.moveToNext() } returnsMany listOf(true, false)
+        every { mockCursor.getLong(0) } returns 1L
+        every { mockCursor.getString(1) } returns "test.jpg"
+        every { mockCursor.getLong(2) } returns System.currentTimeMillis()
+        every { mockCursor.getLong(3) } returns System.currentTimeMillis() / 1000
+        every { mockCursor.close() } just Runs
+
+        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(byteArrayOf())
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getAlbumPhotoInfo(albumId)
+
+        // Then
+        assertNotNull(result)
+        assertEquals(1, result.size)
+        assertEquals("test.jpg", result[0].meta.filename)
+        assertEquals(1, result[0].meta.photo_path_id)
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `getAlbumPhotoInfo handles DATE_TAKEN fallback to DATE_ADDED`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val albumId = 123L
+        val dateAdded = System.currentTimeMillis() / 1000
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME) } returns 1
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) } returns 2
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) } returns 3
+
+        every { mockCursor.moveToNext() } returnsMany listOf(true, false)
+        every { mockCursor.getLong(0) } returns 1L
+        every { mockCursor.getString(1) } returns "test.jpg"
+        every { mockCursor.getLong(2) } returns 0L // DATE_TAKEN is 0
+        every { mockCursor.getLong(3) } returns dateAdded // DATE_ADDED
+        every { mockCursor.close() } just Runs
+
+        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(byteArrayOf())
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getAlbumPhotoInfo(albumId)
+
+        // Then
+        assertNotNull(result)
+        assertEquals(1, result.size)
+        // Verify created_at is not empty (date was used)
+        assertTrue(result[0].meta.created_at.isNotEmpty())
+        verify { mockCursor.close() }
+    }
+
+    @Test
+    fun `getAlbumPhotoInfo extracts GPS coordinates from EXIF`() {
+        // Given
+        val mockContext = mockk<Context>()
+        val mockCursor = mockk<Cursor>(relaxed = true)
+        val albumId = 123L
+
+        every { mockContext.contentResolver } returns mockContentResolver
+        every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
+
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID) } returns 0
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME) } returns 1
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN) } returns 2
+        every { mockCursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) } returns 3
+
+        every { mockCursor.moveToNext() } returnsMany listOf(true, false)
+        every { mockCursor.getLong(0) } returns 1L
+        every { mockCursor.getString(1) } returns "test.jpg"
+        every { mockCursor.getLong(2) } returns System.currentTimeMillis()
+        every { mockCursor.getLong(3) } returns System.currentTimeMillis() / 1000
+        every { mockCursor.close() } just Runs
+
+        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(byteArrayOf())
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.getAlbumPhotoInfo(albumId)
+
+        // Then
+        assertNotNull(result)
+        assertEquals(1, result.size)
+        // EXIF reading was attempted (values will be 0.0 in mock)
+        assertNotNull(result[0].meta.lat)
+        assertNotNull(result[0].meta.lng)
+        verify { mockCursor.close() }
+    }
+    // endregion
+
+    // region createUploadDataFromChunk Tests
+    @Test
+    fun `createUploadDataFromChunk creates valid PhotoUploadData`() {
+        // Given
+        val uri = Uri.parse("content://test/1")
+        val meta = PhotoMeta(filename = "test.jpg", photo_path_id = 1, created_at = "2024-01-01T00:00:00Z", lat = 0.0, lng = 0.0)
+        val chunk = listOf(PhotoInfoForUpload(uri, meta))
+
+        val mockContext = mockk<Context>()
+        every { mockContext.contentResolver } returns mockContentResolver
+
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        val baos = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
+        val jpegBytes = baos.toByteArray()
+        bitmap.recycle()
+
+        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(jpegBytes)
+        every { mockContentResolver.getType(any()) } returns "image/jpeg"
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.createUploadDataFromChunk(chunk)
+
+        // Then
+        assertNotNull(result)
+        assertNotNull(result.photo)
+        assertNotNull(result.metadata)
+    }
+
+    @Test
+    fun `createUploadDataFromChunk handles empty chunk`() {
+        // Given
+        val chunk = emptyList<PhotoInfoForUpload>()
+
+        // When
+        val result = repository.createUploadDataFromChunk(chunk)
+
+        // Then
+        assertNotNull(result)
+        assertTrue(result.photo.isEmpty())
+
+        val buffer = Buffer()
+        result.metadata.writeTo(buffer)
+        val jsonString = buffer.readUtf8()
+        assertEquals("[]", jsonString)
+    }
+
+    @Test
+    fun `createUploadDataFromChunk processes multiple photos`() {
+        // Given
+        val uri1 = Uri.parse("content://test/1")
+        val uri2 = Uri.parse("content://test/2")
+        val meta1 = PhotoMeta(filename = "test1.jpg", photo_path_id = 1, created_at = "2024-01-01T00:00:00Z", lat = 0.0, lng = 0.0)
+        val meta2 = PhotoMeta(filename = "test2.jpg", photo_path_id = 2, created_at = "2024-01-01T00:00:00Z", lat = 0.0, lng = 0.0)
+        val chunk =
+            listOf(
+                PhotoInfoForUpload(uri1, meta1),
+                PhotoInfoForUpload(uri2, meta2),
+            )
+
+        val mockContext = mockk<Context>()
+        every { mockContext.contentResolver } returns mockContentResolver
+
+        val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        val baos = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
+        val jpegBytes = baos.toByteArray()
+        bitmap.recycle()
+
+        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(jpegBytes)
+        every { mockContentResolver.getType(any()) } returns "image/jpeg"
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.createUploadDataFromChunk(chunk)
+
+        // Then
+        assertNotNull(result)
+        assertTrue(result.photo.size <= 2)
+    }
+
+    @Test
+    fun `createUploadDataFromChunk handles resize failure gracefully`() {
+        // Given
+        val uri = Uri.parse("content://test/1")
+        val meta = PhotoMeta(filename = "test.jpg", photo_path_id = 1, created_at = "2024-01-01T00:00:00Z", lat = 0.0, lng = 0.0)
+        val chunk = listOf(PhotoInfoForUpload(uri, meta))
+
+        val mockContext = mockk<Context>()
+        every { mockContext.contentResolver } returns mockContentResolver
+
+        // Simulate resize failure by returning null for openInputStream
+        every { mockContentResolver.openInputStream(any()) } returns null
+        every { mockContentResolver.getType(any()) } returns "image/jpeg"
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.createUploadDataFromChunk(chunk)
+
+        // Then
+        assertNotNull(result)
+        assertNotNull(result.metadata)
+        // Photo part may be empty due to resize failure, but metadata should exist
+    }
+
+    @Test
+    fun `createUploadDataFromChunk creates correct metadata JSON`() {
+        // Given
+        val uri = Uri.parse("content://test/1")
+        val meta =
+            PhotoMeta(
+                filename = "metadata_test.jpg",
+                photo_path_id = 42,
+                created_at = "2024-01-01T00:00:00Z",
+                lat = 37.123,
+                lng = 127.456,
+            )
+        val chunk = listOf(PhotoInfoForUpload(uri, meta))
+
+        val mockContext = mockk<Context>()
+        every { mockContext.contentResolver } returns mockContentResolver
+
+        val bitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888)
+        val baos = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
+        val jpegBytes = baos.toByteArray()
+        bitmap.recycle()
+
+        every { mockContentResolver.openInputStream(any()) } returns ByteArrayInputStream(jpegBytes)
+        every { mockContentResolver.getType(any()) } returns "image/jpeg"
+
+        val repo = LocalRepository(mockContext)
+
+        // When
+        val result = repo.createUploadDataFromChunk(chunk)
+
+        // Then
+        val buffer = Buffer()
+        result.metadata.writeTo(buffer)
+        val jsonString = buffer.readUtf8()
+
+        assertTrue(jsonString.contains("metadata_test.jpg"))
+        assertTrue(jsonString.contains("42"))
+        assertTrue(jsonString.contains("2024-01-01T00:00:00Z"))
+        assertTrue(jsonString.contains("37.123"))
+        assertTrue(jsonString.contains("127.456"))
     }
     // endregion
 }

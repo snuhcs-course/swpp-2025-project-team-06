@@ -96,8 +96,7 @@ class CommonTopBarComposableTest {
             )
         }
 
-        // Then
-        composeTestRule.onNodeWithText("Logout").assertIsDisplayed()
+        // Then - 로그아웃은 IconButton이므로 contentDescription만 확인
         composeTestRule.onNodeWithContentDescription("Logout").assertIsDisplayed()
     }
 
@@ -112,7 +111,7 @@ class CommonTopBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("Logout").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Logout").assertDoesNotExist()
     }
 
     @Test
@@ -128,7 +127,7 @@ class CommonTopBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Logout").performClick()
+        composeTestRule.onNodeWithContentDescription("Logout").performClick()
 
         // Then
         assertTrue(logoutClicked)
@@ -146,8 +145,8 @@ class CommonTopBarComposableTest {
             )
         }
 
-        // Then - 로딩 중에는 "Logout" 텍스트가 보이지 않음
-        composeTestRule.onNodeWithText("Logout").assertDoesNotExist()
+        // Then - 로딩 중에는 Logout 아이콘이 보이지 않음
+        composeTestRule.onNodeWithContentDescription("Logout").assertDoesNotExist()
     }
 
     @Test
@@ -163,7 +162,7 @@ class CommonTopBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("Logout").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Logout").assertIsDisplayed()
     }
 
     @Test
@@ -218,17 +217,15 @@ class CommonTopBarComposableTest {
 
         // Then - 모든 요소가 표시됨
         composeTestRule.onNodeWithText("Full Featured").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Back").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Logout").assertIsDisplayed()
+        // showLogout이 true이면 logout이 우선 표시되고 back은 표시되지 않음
+        composeTestRule.onNodeWithContentDescription("Logout").assertIsDisplayed()
 
         // When - 각 요소 클릭
         composeTestRule.onNodeWithText("Full Featured").performClick()
-        composeTestRule.onNodeWithContentDescription("Back").performClick()
-        composeTestRule.onNodeWithText("Logout").performClick()
+        composeTestRule.onNodeWithContentDescription("Logout").performClick()
 
-        // Then - 모든 콜백이 호출됨
+        // Then - 콜백이 호출됨
         assertTrue(titleClicked)
-        assertTrue(backClicked)
         assertTrue(logoutClicked)
     }
     // endregion
@@ -291,7 +288,7 @@ class CommonTopBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("Logout").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Logout").assertDoesNotExist()
     }
     // endregion
 
@@ -319,7 +316,6 @@ class CommonTopBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("Logout").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Logout").assertIsDisplayed()
     }
 
@@ -334,7 +330,7 @@ class CommonTopBarComposableTest {
         }
 
         // When
-        composeTestRule.onNodeWithText("Logout").performClick()
+        composeTestRule.onNodeWithContentDescription("Logout").performClick()
 
         // Then
         assertTrue(logoutClicked)
@@ -351,7 +347,7 @@ class CommonTopBarComposableTest {
         }
 
         // Then - 로딩 중에는 "Logout" 텍스트가 보이지 않음
-        composeTestRule.onNodeWithText("Logout").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Logout").assertDoesNotExist()
     }
 
     @Test
@@ -365,7 +361,7 @@ class CommonTopBarComposableTest {
         }
 
         // Then
-        composeTestRule.onNodeWithText("Logout").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Logout").assertIsDisplayed()
     }
 
     @Test
@@ -415,11 +411,11 @@ class CommonTopBarComposableTest {
 
         // Then - 모든 요소가 표시됨
         composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Logout").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Logout").assertIsDisplayed()
 
         // When - 각 요소 클릭
         composeTestRule.onNodeWithText("MomenTag").performClick()
-        composeTestRule.onNodeWithText("Logout").performClick()
+        composeTestRule.onNodeWithContentDescription("Logout").performClick()
 
         // Then - 모든 콜백이 호출됨
         assertTrue(titleClicked)
@@ -503,7 +499,7 @@ class CommonTopBarComposableTest {
 
         // When - 여러 번 클릭
         repeat(2) {
-            composeTestRule.onNodeWithText("Logout").performClick()
+            composeTestRule.onNodeWithContentDescription("Logout").performClick()
         }
 
         // Then
