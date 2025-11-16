@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -308,9 +309,14 @@ fun SelectImageScreen(navController: NavController) {
                         text = "Add to #$tagName",
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
 
                     if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+
                         Text(
                             text = "${selectedPhotos.size} selected",
                             color = MaterialTheme.colorScheme.primary,
