@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -16,6 +17,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -61,7 +66,7 @@ fun CommonTopBar(
             )
         },
         navigationIcon = {
-            // 로그아웃 버튼 (왼쪽)
+            var showLogoutConfirm by remember { mutableStateOf(false) }
             if (showLogout && onLogoutClick != null) {
                 if (isLogoutLoading) {
                     Box(modifier = Modifier.padding(start = 8.dp)) {
@@ -71,12 +76,26 @@ fun CommonTopBar(
                         )
                     }
                 } else {
-                    IconButton(onClick = onLogoutClick) {
+                    IconButton(onClick = { showLogoutConfirm = true }) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            imageVector = Icons.AutoMirrored.Filled.Logout,
                             contentDescription = "Logout",
                         )
                     }
+                }
+
+                if (showLogoutConfirm) {
+                    confirmDialog(
+                        title = "Logout",
+                        message = "Are you sure you want to logout?",
+                        onConfirm = {
+                            showLogoutConfirm = false
+                            onLogoutClick()
+                        },
+                        onDismiss = { showLogoutConfirm = false },
+                        confirmButtonText = "Logout",
+                        dismissible = true,
+                    )
                 }
             } else if (showBackButton && onBackClick != null) {
                 IconButton(onClick = onBackClick) {
