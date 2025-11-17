@@ -96,9 +96,14 @@ import kotlin.math.abs
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun MyTagsScreen(navController: NavController) {
+fun MyTagsScreen(
+    navController: NavController,
+    myTagsViewModel: MyTagsViewModel =
+        viewModel(
+            factory = ViewModelFactory.getInstance(LocalContext.current),
+        ),
+) {
     val context = LocalContext.current
-    val myTagsViewModel: MyTagsViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val uiState by myTagsViewModel.uiState.collectAsState()
     val isEditMode by myTagsViewModel.isEditMode.collectAsState()
     val selectedTagsForBulkEdit by myTagsViewModel.selectedTagsForBulkEdit.collectAsState()
