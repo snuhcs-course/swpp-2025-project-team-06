@@ -95,7 +95,7 @@ fun ChipSearchBar(
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
-    placeholder: String = "Search your photo, #tag or both",
+    placeholder: String = "Search with \"#tag\"",
 ) {
     val colors =
         TextFieldDefaults.colors(
@@ -196,8 +196,8 @@ private fun InternalChipSearchInput(
                     )
                 }
                 is SearchContentElement.Text -> {
-                    val focusRequester = focusRequesters[item.id] ?: remember { FocusRequester() }
-                    val bringIntoViewRequester = bringIntoViewRequesters[item.id] ?: remember { BringIntoViewRequester() }
+                    val focusRequester = focusRequesters[item.id] // <-- null일 수 있음
+                    val bringIntoViewRequester = bringIntoViewRequesters[item.id] // <-- null일 수 있음
 
                     // 커서 위치 계산을 위해 TextLayoutResult를 저장
                     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -259,11 +259,27 @@ private fun InternalChipSearchInput(
 
                                 // 커서를 뷰로 스크롤
                                 scope.launch {
-                                    bringIntoViewRequester.bringIntoView(rectWithPadding)
+                                    bringIntoViewRequester?.bringIntoView(rectWithPadding)
                                 }
                             }
                         }
                     }
+
+                    val baseModifier =
+                        Modifier
+                            .then(
+                                if (isPlaceholder) {
+                                    Modifier.fillMaxWidth()
+                                } else {
+                                    Modifier.width(finalWidth)
+                                },
+                            ).onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    onFocus(item.id)
+                                } else {
+                                    onFocus(null)
+                                }
+                            }.padding(horizontal = 4.dp, vertical = 8.dp)
 
                     BasicTextField(
                         value = textValue,
@@ -273,21 +289,17 @@ private fun InternalChipSearchInput(
                         onTextLayout = { textLayoutResult = it },
                         modifier =
                             Modifier
+                                .then(baseModifier)
+                                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                                 .then(
-                                    if (isPlaceholder) {
-                                        Modifier.fillMaxWidth()
+                                    if (bringIntoViewRequester !=
+                                        null
+                                    ) {
+                                        Modifier.bringIntoViewRequester(bringIntoViewRequester)
                                     } else {
-                                        Modifier.width(finalWidth)
+                                        Modifier
                                     },
-                                ).focusRequester(focusRequester)
-                                .bringIntoViewRequester(bringIntoViewRequester)
-                                .onFocusChanged { focusState ->
-                                    if (focusState.isFocused) {
-                                        onFocus(item.id)
-                                    } else {
-                                        onFocus(null)
-                                    }
-                                }.padding(horizontal = 4.dp, vertical = 8.dp),
+                                ),
                         maxLines = 1, // 스크롤 방지
                         cursorBrush = cursorBrush,
                         textStyle = textStyle,

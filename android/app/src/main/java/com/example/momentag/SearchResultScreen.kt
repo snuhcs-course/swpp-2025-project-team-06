@@ -48,7 +48,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -123,8 +122,8 @@ fun SearchResultScreen(
     val showSearchHistoryDropdown by searchViewModel.showSearchHistoryDropdown.collectAsState()
     val allTags = (tagLoadingState as? TagLoadingState.Success)?.tags ?: emptyList<TagItem>()
     val listState = rememberLazyListState()
-    val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
-    val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
+    val focusRequesters = searchViewModel.focusRequesters
+    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
     val topSpacerHeight = 8.dp
@@ -232,31 +231,22 @@ fun SearchResultScreen(
         }
     }
 
-    LaunchedEffect(contentItems.size) {
-        val currentIds = contentItems.map { it.id }.toSet()
-
-        val iterator = focusRequesters.keys.iterator()
-        while (iterator.hasNext()) {
-            val id = iterator.next()
-            if (id !in currentIds) {
-                iterator.remove()
-                bringIntoViewRequesters.remove(id)
-            }
-        }
-
-        contentItems.forEach { item ->
-            if (!focusRequesters.containsKey(item.id)) {
-                focusRequesters[item.id] = FocusRequester()
-                bringIntoViewRequesters[item.id] = BringIntoViewRequester()
-            }
-        }
-    }
-
     var hasPerformedInitialSearch by rememberSaveable { mutableStateOf(false) }
+
+    val placeholderText =
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
+            initialQuery // 로딩 중(파싱 전)에는 initialQuery를 플레이스홀더로 사용
+        } else {
+            "Search with \"#tag\"" // 기본 플레이스홀더
+        }
 
     BackHandler(enabled = isSelectionMode) {
         searchViewModel.setSelectionMode(false)
         searchViewModel.resetSelection()
+    }
+
+    BackHandler(enabled = !isSelectionMode) {
+        onNavigateBack()
     }
 
     LaunchedEffect(isSelectionMode) {
@@ -279,11 +269,15 @@ fun SearchResultScreen(
     }
 
     // 초기 검색어가 있으면 자동으로 Semantic Search 실행
+    LaunchedEffect(initialQuery, hasPerformedInitialSearch) {
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
+            searchViewModel.search(initialQuery)
+        }
+    }
+
     LaunchedEffect(initialQuery, hasPerformedInitialSearch, tagLoadingState) {
-        // 태그 목록 로딩이 완료된 후에만 initialQuery를 파싱
         if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch && tagLoadingState is TagLoadingState.Success) {
             searchViewModel.selectHistoryItem(initialQuery)
-            searchViewModel.search(initialQuery)
             hasPerformedInitialSearch = true
         }
     }
@@ -450,6 +444,7 @@ fun SearchResultScreen(
         showErrorBanner = showErrorBanner,
         errorMessage = errorMessage,
         onDismissError = { showErrorBanner = false },
+        placeholder = placeholderText,
     )
 }
 
@@ -499,7 +494,9 @@ fun SearchResultScreenUi(
     showErrorBanner: Boolean,
     errorMessage: String?,
     onDismissError: () -> Unit,
+    placeholder: String,
 ) {
+    val focusManager = LocalFocusManager.current
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -555,6 +552,7 @@ fun SearchResultScreenUi(
             showErrorBanner = showErrorBanner,
             errorMessage = errorMessage,
             onDismissError = onDismissError,
+            placeholder = placeholder,
         )
     }
 }
@@ -602,14 +600,32 @@ private fun SearchResultContent(
     showErrorBanner: Boolean,
     errorMessage: String?,
     onDismissError: () -> Unit,
+    placeholder: String,
 ) {
     val context = LocalContext.current
-    Box(modifier = modifier) {
+    val focusManager = LocalFocusManager.current
+
+    Box(
+        modifier =
+            modifier
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) {
+                    focusManager.clearFocus()
+                },
+    ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        focusManager.clearFocus()
+                    },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -640,6 +656,7 @@ private fun SearchResultContent(
                     onChipClick = onChipClick,
                     onFocus = onFocus,
                     onTextChange = onTextChange,
+                    placeholder = placeholder,
                 )
                 IconButton(
                     onClick = {

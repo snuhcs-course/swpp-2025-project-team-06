@@ -8,6 +8,7 @@ import android.content.ContextWrapper
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -55,7 +56,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -86,10 +86,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -100,7 +100,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -116,6 +115,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -196,8 +198,8 @@ fun HomeScreen(navController: NavController) {
     val textStates = searchViewModel.textStates
     val contentItems = searchViewModel.contentItems
     val focusedElementId by searchViewModel.focusedElementId
-    val focusRequesters = remember { mutableStateMapOf<String, FocusRequester>() }
-    val bringIntoViewRequesters = remember { mutableStateMapOf<String, BringIntoViewRequester>() }
+    val focusRequesters = searchViewModel.focusRequesters
+    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
@@ -230,6 +232,22 @@ fun HomeScreen(navController: NavController) {
 
     val showSearchHistoryDropdown by searchViewModel.showSearchHistoryDropdown.collectAsState()
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    // SearchResultScreen에서 돌아올 때 등
+                    // HomeScreen이 다시 보일 때 검색창 내용을 지웁니다.
+                    searchViewModel.clearSearchContent()
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     LaunchedEffect(allPhotosGridState) {
         snapshotFlow {
             Pair(
@@ -256,6 +274,7 @@ fun HomeScreen(navController: NavController) {
 
     LaunchedEffect(searchViewModel.requestFocus) {
         searchViewModel.requestFocus.collect { id ->
+            Log.d("home cursor", "true1")
             hideCursor = true
 
             try {
@@ -263,6 +282,7 @@ fun HomeScreen(navController: NavController) {
                     .filter { it == true }
                     .first()
             } catch (e: Exception) {
+                Log.d("home cursor", "false1")
                 hideCursor = false
                 searchViewModel.resetIgnoreFocusLossFlag()
                 return@collect
@@ -291,6 +311,7 @@ fun HomeScreen(navController: NavController) {
 
             focusRequesters[id]?.requestFocus()
 
+            Log.d("home cursor", "false2")
             hideCursor = false
             searchViewModel.resetIgnoreFocusLossFlag()
         }
@@ -313,26 +334,6 @@ fun HomeScreen(navController: NavController) {
         }
 
         previousImeBottom = imeBottom
-    }
-
-    LaunchedEffect(contentItems.size) {
-        val currentIds = contentItems.map { it.id }.toSet()
-
-        val iterator = focusRequesters.keys.iterator()
-        while (iterator.hasNext()) {
-            val id = iterator.next()
-            if (id !in currentIds) {
-                iterator.remove()
-                bringIntoViewRequesters.remove(id)
-            }
-        }
-
-        contentItems.forEach { item ->
-            if (!focusRequesters.containsKey(item.id)) {
-                focusRequesters[item.id] = FocusRequester()
-                bringIntoViewRequesters[item.id] = BringIntoViewRequester()
-            }
-        }
     }
 
     val tagSuggestions by searchViewModel.tagSuggestions.collectAsState()
