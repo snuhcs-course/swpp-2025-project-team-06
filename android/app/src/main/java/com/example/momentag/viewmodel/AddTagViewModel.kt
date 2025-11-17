@@ -27,9 +27,14 @@ class AddTagViewModel(
     // 1. 중첩 클래스 및 sealed class 정의
     sealed class SaveState {
         object Idle : SaveState()
+
         object Loading : SaveState()
+
         object Success : SaveState()
-        data class Error(val message: String) : SaveState()
+
+        data class Error(
+            val message: String,
+        ) : SaveState()
     }
 
     // 2. Private MutableStateFlow

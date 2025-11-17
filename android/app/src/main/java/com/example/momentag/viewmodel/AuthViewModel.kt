@@ -32,17 +32,8 @@ class AuthViewModel(
     private val _logoutState = MutableStateFlow<LogoutState>(LogoutState.Idle)
 
     // 2. Public StateFlow (exposed state)
-    /**
-     * 로그인 상태 관찰
-     * TokenRepository의 isLoggedIn Flow를 노출
-     */
     val isLoggedIn: StateFlow<String?> = tokenRepository.isLoggedIn
-
-    /**
-     * 세션 로딩 상태 관찰
-     */
     val isSessionLoaded: StateFlow<Boolean> = tokenRepository.isSessionLoaded
-
     val loginState = _loginState.asStateFlow()
     val registerState = _registerState.asStateFlow()
     val refreshState = _refreshState.asStateFlow()

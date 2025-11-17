@@ -51,16 +51,28 @@ class HomeViewModel(
     // 2. 중첩 클래스 및 sealed class 정의
     sealed class HomeLoadingState {
         object Idle : HomeLoadingState()
+
         object Loading : HomeLoadingState()
-        data class Success(val tags: List<TagItem>) : HomeLoadingState()
-        data class Error(val message: String) : HomeLoadingState()
+
+        data class Success(
+            val tags: List<TagItem>,
+        ) : HomeLoadingState()
+
+        data class Error(
+            val message: String,
+        ) : HomeLoadingState()
     }
 
     sealed class HomeDeleteState {
         object Idle : HomeDeleteState()
+
         object Loading : HomeDeleteState()
+
         object Success : HomeDeleteState()
-        data class Error(val message: String) : HomeDeleteState()
+
+        data class Error(
+            val message: String,
+        ) : HomeDeleteState()
     }
 
     // 3. Private MutableStateFlow
@@ -116,12 +128,18 @@ class HomeViewModel(
         _shouldReturnToAllPhotos.value = value
     }
 
-    fun setAllPhotosScrollPosition(index: Int, offset: Int) {
+    fun setAllPhotosScrollPosition(
+        index: Int,
+        offset: Int,
+    ) {
         _allPhotosScrollIndex.value = index
         _allPhotosScrollOffset.value = offset
     }
 
-    fun setTagAlbumScrollPosition(index: Int, offset: Int) {
+    fun setTagAlbumScrollPosition(
+        index: Int,
+        offset: Int,
+    ) {
         _tagAlbumScrollIndex.value = index
         _tagAlbumScrollOffset.value = offset
     }
@@ -284,7 +302,6 @@ class HomeViewModel(
         sortAndPublishTags()
     }
 
-
     fun resetDeleteState() {
         _homeDeleteState.value = HomeDeleteState.Idle
     }
@@ -321,7 +338,7 @@ class HomeViewModel(
         _groupedPhotos.value = grouped
         imageBrowserRepository.setGallery(_allPhotos.value)
     }
-    
+
     private fun sortAndPublishTags() {
         val currentList = _rawTagList.value
 

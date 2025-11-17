@@ -34,9 +34,14 @@ class SelectImageViewModel(
     // 1. Sealed class 정의
     sealed class AddPhotosState {
         object Idle : AddPhotosState()
+
         object Loading : AddPhotosState()
+
         object Success : AddPhotosState()
-        data class Error(val message: String) : AddPhotosState()
+
+        data class Error(
+            val message: String,
+        ) : AddPhotosState()
     }
 
     // 2. Private MutableStateFlow

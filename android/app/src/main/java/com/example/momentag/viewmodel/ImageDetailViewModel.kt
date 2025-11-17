@@ -28,16 +28,26 @@ class ImageDetailViewModel(
     // 1. Sealed class 정의
     sealed class TagDeleteState {
         object Idle : TagDeleteState()
+
         object Loading : TagDeleteState()
+
         object Success : TagDeleteState()
-        data class Error(val message: String) : TagDeleteState()
+
+        data class Error(
+            val message: String,
+        ) : TagDeleteState()
     }
 
     sealed class TagAddState {
         object Idle : TagAddState()
+
         object Loading : TagAddState()
+
         object Success : TagAddState()
-        data class Error(val message: String) : TagAddState()
+
+        data class Error(
+            val message: String,
+        ) : TagAddState()
     }
 
     // 2. Private MutableStateFlow
@@ -55,6 +65,7 @@ class ImageDetailViewModel(
     val photoAddress = _photoAddress.asStateFlow()
 
     // 4. Public functions
+
     /**
      * photoId를 기반으로 ImageContext를 Repository에서 조회하여 설정
      * @param photoId 현재 보고 있는 사진의 ID

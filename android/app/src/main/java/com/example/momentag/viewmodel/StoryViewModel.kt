@@ -56,6 +56,7 @@ class StoryViewModel(
     val originalTags = _originalTags.asStateFlow()
 
     // 4. Public functions
+
     /**
      * Trigger story generation in the background (for pre-loading)
      * This is called from HomeScreen to prepare stories before user navigates to StoryScreen
@@ -69,6 +70,7 @@ class StoryViewModel(
     }
 
     // 5. Private functions (helpers)
+
     /**
      * Process story responses and update state
      * @param storyResponses List of story responses from API

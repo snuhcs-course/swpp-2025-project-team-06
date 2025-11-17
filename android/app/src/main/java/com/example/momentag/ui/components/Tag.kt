@@ -327,7 +327,6 @@ fun StoryTagChip(
                 .clickable(enabled = enabled) { onClick() },
         contentAlignment = Alignment.CenterStart,
     ) {
-
         TagContainer(
             modifier = Modifier,
             color = backgroundColor,

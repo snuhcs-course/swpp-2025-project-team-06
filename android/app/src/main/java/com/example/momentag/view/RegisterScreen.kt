@@ -1,7 +1,6 @@
 package com.example.momentag.view
 
 import android.util.Patterns
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

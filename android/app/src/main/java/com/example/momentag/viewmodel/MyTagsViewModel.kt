@@ -14,9 +14,16 @@ import kotlinx.coroutines.launch
 
 sealed interface TagActionState {
     object Idle : TagActionState
+
     object Loading : TagActionState
-    data class Success(val message: String) : TagActionState
-    data class Error(val message: String) : TagActionState
+
+    data class Success(
+        val message: String,
+    ) : TagActionState
+
+    data class Error(
+        val message: String,
+    ) : TagActionState
 }
 
 class MyTagsViewModel(
@@ -26,9 +33,14 @@ class MyTagsViewModel(
     // 1. Sealed class 정의
     sealed class SaveState {
         object Idle : SaveState()
+
         object Loading : SaveState()
+
         object Success : SaveState()
-        data class Error(val message: String) : SaveState()
+
+        data class Error(
+            val message: String,
+        ) : SaveState()
     }
 
     // 2. Private MutableStateFlow

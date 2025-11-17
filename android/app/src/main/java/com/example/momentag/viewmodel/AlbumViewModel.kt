@@ -25,37 +25,66 @@ class AlbumViewModel(
     // 1. 중첩 클래스 및 sealed class 정의
     sealed class AlbumLoadingState {
         object Idle : AlbumLoadingState()
+
         object Loading : AlbumLoadingState()
-        data class Success(val photos: List<Photo>) : AlbumLoadingState()
-        data class Error(val message: String) : AlbumLoadingState()
+
+        data class Success(
+            val photos: List<Photo>,
+        ) : AlbumLoadingState()
+
+        data class Error(
+            val message: String,
+        ) : AlbumLoadingState()
     }
 
     sealed class RecommendLoadingState {
         object Idle : RecommendLoadingState()
+
         object Loading : RecommendLoadingState()
-        data class Success(val photos: List<Photo>) : RecommendLoadingState()
-        data class Error(val message: String) : RecommendLoadingState()
+
+        data class Success(
+            val photos: List<Photo>,
+        ) : RecommendLoadingState()
+
+        data class Error(
+            val message: String,
+        ) : RecommendLoadingState()
     }
 
     sealed class TagDeleteState {
         object Idle : TagDeleteState()
+
         object Loading : TagDeleteState()
+
         object Success : TagDeleteState()
-        data class Error(val message: String) : TagDeleteState()
+
+        data class Error(
+            val message: String,
+        ) : TagDeleteState()
     }
 
     sealed class TagRenameState {
         object Idle : TagRenameState()
+
         object Loading : TagRenameState()
+
         object Success : TagRenameState()
-        data class Error(val message: String) : TagRenameState()
+
+        data class Error(
+            val message: String,
+        ) : TagRenameState()
     }
 
     sealed class TagAddState {
         object Idle : TagAddState()
+
         object Loading : TagAddState()
+
         object Success : TagAddState()
-        data class Error(val message: String) : TagAddState()
+
+        data class Error(
+            val message: String,
+        ) : TagAddState()
     }
 
     // 2. Private MutableStateFlow
