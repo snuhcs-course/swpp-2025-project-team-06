@@ -5,10 +5,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -21,12 +25,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,7 +95,7 @@ fun ChipSearchBar(
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
-    placeholder: String = "검색 또는 #태그 입력",
+    placeholder: String = "Search with \"#tag\"",
 ) {
     val colors =
         TextFieldDefaults.colors(
@@ -190,8 +196,8 @@ private fun InternalChipSearchInput(
                     )
                 }
                 is SearchContentElement.Text -> {
-                    val focusRequester = focusRequesters[item.id] ?: remember { FocusRequester() }
-                    val bringIntoViewRequester = bringIntoViewRequesters[item.id] ?: remember { BringIntoViewRequester() }
+                    val focusRequester = focusRequesters[item.id] // <-- null일 수 있음
+                    val bringIntoViewRequester = bringIntoViewRequesters[item.id] // <-- null일 수 있음
 
                     // 커서 위치 계산을 위해 TextLayoutResult를 저장
                     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -253,11 +259,27 @@ private fun InternalChipSearchInput(
 
                                 // 커서를 뷰로 스크롤
                                 scope.launch {
-                                    bringIntoViewRequester.bringIntoView(rectWithPadding)
+                                    bringIntoViewRequester?.bringIntoView(rectWithPadding)
                                 }
                             }
                         }
                     }
+
+                    val baseModifier =
+                        Modifier
+                            .then(
+                                if (isPlaceholder) {
+                                    Modifier.fillMaxWidth()
+                                } else {
+                                    Modifier.width(finalWidth)
+                                },
+                            ).onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    onFocus(item.id)
+                                } else {
+                                    onFocus(null)
+                                }
+                            }.padding(horizontal = 4.dp, vertical = 8.dp)
 
                     BasicTextField(
                         value = textValue,
@@ -267,21 +289,17 @@ private fun InternalChipSearchInput(
                         onTextLayout = { textLayoutResult = it },
                         modifier =
                             Modifier
+                                .then(baseModifier)
+                                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                                 .then(
-                                    if (isPlaceholder) {
-                                        Modifier.fillMaxWidth()
+                                    if (bringIntoViewRequester !=
+                                        null
+                                    ) {
+                                        Modifier.bringIntoViewRequester(bringIntoViewRequester)
                                     } else {
-                                        Modifier.width(finalWidth)
+                                        Modifier
                                     },
-                                ).focusRequester(focusRequester)
-                                .bringIntoViewRequester(bringIntoViewRequester)
-                                .onFocusChanged { focusState ->
-                                    if (focusState.isFocused) {
-                                        onFocus(item.id)
-                                    } else {
-                                        onFocus(null)
-                                    }
-                                }.padding(horizontal = 4.dp, vertical = 8.dp),
+                                ),
                         maxLines = 1, // 스크롤 방지
                         cursorBrush = cursorBrush,
                         textStyle = textStyle,
@@ -360,98 +378,92 @@ fun SuggestionChip(
     }
 }
 
-// 아래는 삭제 예정
-
 /**
- * 검색바 컴포넌트 (내부 상태 관리 버전)
- * HomeScreen, SearchResultScreen 등에서 재사용
- *
- * @param onSearch 검색 실행 콜백 (검색어를 파라미터로 받음)
- * @param modifier Modifier
- * @param placeholder 플레이스홀더 텍스트 (기본: "Search Anything...")
+ * 검색 기록 드롭다운에 표시될 개별 항목 UI
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchBar(
-    onSearch: (String) -> Unit,
+fun SearchHistoryItem(
+    query: String,
+    allTags: List<TagItem>,
+    parser: (String, List<TagItem>) -> List<SearchContentElement>,
+    onHistoryClick: (String) -> Unit,
+    onHistoryDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Search Photos",
 ) {
-    var searchText by remember { mutableStateOf("") }
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable { onHistoryClick(query) }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Icon(
+            imageVector = Icons.Default.History,
+            contentDescription = "History",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(modifier = Modifier.width(12.dp))
 
-    TextField(
-        value = searchText,
-        onValueChange = { searchText = it },
-        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-        modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        colors =
-            TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
-                unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.25f),
-                focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-            ),
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { onSearch(searchText) }),
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Search",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-    )
-}
+        FlowRow(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            val elements =
+                remember(query, allTags) {
+                    parser(query, allTags)
+                }
 
-/**
- * 검색바 컴포넌트 (외부 상태 관리 버전)
- * 검색어를 외부에서 제어해야 할 때 사용
- *
- * @param value 현재 검색어
- * @param onValueChange 검색어 변경 콜백
- * @param onSearch 검색 실행 콜백
- * @param modifier Modifier
- * @param placeholder 플레이스홀더 텍스트 (기본: "Search Anything...")
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SearchBarControlledCustom(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onSearch: () -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String = "Search Anything...",
-) {
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-        modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        colors =
-            TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
-                unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.25f),
-                focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-            ),
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-        leadingIcon = {
+            elements.forEach { element ->
+                when (element) {
+                    is SearchContentElement.Text -> {
+                        if (element.text.isNotEmpty()) {
+                            Text(
+                                text = element.text,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(vertical = 4.dp),
+                            )
+                        }
+                    }
+                    is SearchContentElement.Chip -> {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        shape = RoundedCornerShape(8.dp),
+                                    ).padding(horizontal = 10.dp, vertical = 4.dp),
+                        ) {
+                            Text(
+                                text = "#${element.tag.tagName}",
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        IconButton(
+            onClick = { onHistoryDelete(query) },
+            modifier = Modifier.size(24.dp),
+        ) {
             Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Search",
+                imageVector = Icons.Default.Close,
+                contentDescription = "Delete history item",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
             )
-        },
-    )
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package com.example.momentag
 
+import com.example.momentag.ui.components.TagVariant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull

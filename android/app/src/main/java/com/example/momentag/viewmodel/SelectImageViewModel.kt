@@ -10,12 +10,10 @@ import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * SelectImageViewModel
@@ -80,11 +78,8 @@ class SelectImageViewModel(
     fun getAllPhotos() {
         if (_isLoading.value) return
 
-        // Launch in IO dispatcher for better performance
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _isLoading.value = true
-            }
+        viewModelScope.launch {
+            _isLoading.value = true
             currentOffset = 0
             hasMorePages = true
 
@@ -101,28 +96,20 @@ class SelectImageViewModel(
                         val unselected = serverPhotos.filter { it.photoId !in selectedIds }
 
                         // Selected photos + remaining photos from server
-                        withContext(Dispatchers.Main) {
-                            _allPhotos.value = selected + unselected
-                        }
+                        _allPhotos.value = selected + unselected
                         currentOffset = pageSize
                         hasMorePages = serverPhotos.size == pageSize
                     }
                     else -> {
-                        withContext(Dispatchers.Main) {
-                            _allPhotos.value = emptyList()
-                        }
+                        _allPhotos.value = emptyList()
                         hasMorePages = false
                     }
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _allPhotos.value = emptyList()
-                }
+                _allPhotos.value = emptyList()
                 hasMorePages = false
             } finally {
-                withContext(Dispatchers.Main) {
-                    _isLoading.value = false
-                }
+                _isLoading.value = false
             }
         }
     }
@@ -131,10 +118,8 @@ class SelectImageViewModel(
         if (_isLoadingMore.value || !hasMorePages || _isLoading.value) return
 
         // Launch in IO dispatcher for better performance
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _isLoadingMore.value = true
-            }
+        viewModelScope.launch {
+            _isLoadingMore.value = true
 
             try {
                 when (val result = remoteRepository.getAllPhotos(limit = pageSize, offset = currentOffset)) {
@@ -148,9 +133,7 @@ class SelectImageViewModel(
                             // Remove duplicates before adding
                             val uniqueNewPhotos = newPhotos.filter { it.photoId !in existingIds }
 
-                            withContext(Dispatchers.Main) {
-                                _allPhotos.value = _allPhotos.value + uniqueNewPhotos
-                            }
+                            _allPhotos.value = _allPhotos.value + uniqueNewPhotos
 
                             currentOffset += pageSize
                             hasMorePages = newPhotos.size == pageSize
@@ -168,9 +151,7 @@ class SelectImageViewModel(
             } catch (e: Exception) {
                 hasMorePages = false
             } finally {
-                withContext(Dispatchers.Main) {
-                    _isLoadingMore.value = false
-                }
+                _isLoadingMore.value = false
             }
         }
     }
@@ -180,10 +161,8 @@ class SelectImageViewModel(
      */
     fun recommendPhoto() {
         // Launch in IO dispatcher for background execution (non-blocking)
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _recommendState.value = RecommendState.Loading
-            }
+        viewModelScope.launch {
+            _recommendState.value = RecommendState.Loading
 
             when (
                 val result =
@@ -193,32 +172,22 @@ class SelectImageViewModel(
             ) {
                 is RecommendRepository.RecommendResult.Success -> {
                     val photos = localRepository.toPhotos(result.data)
-                    withContext(Dispatchers.Main) {
-                        _recommendState.value = RecommendState.Success(photos = photos)
-                    }
+                    _recommendState.value = RecommendState.Success(photos = photos)
 
                     // Update recommended photos, filtering out already selected ones
                     updateRecommendedPhotos(photos)
                 }
                 is RecommendRepository.RecommendResult.Error -> {
-                    withContext(Dispatchers.Main) {
-                        _recommendState.value = RecommendState.Error("Something went wrong. Please try again")
-                    }
+                    _recommendState.value = RecommendState.Error("Something went wrong. Please try again")
                 }
                 is RecommendRepository.RecommendResult.Unauthorized -> {
-                    withContext(Dispatchers.Main) {
-                        _recommendState.value = RecommendState.Error("Your session expired. Please sign in again")
-                    }
+                    _recommendState.value = RecommendState.Error("Your session expired. Please sign in again")
                 }
                 is RecommendRepository.RecommendResult.NetworkError -> {
-                    withContext(Dispatchers.Main) {
-                        _recommendState.value = RecommendState.NetworkError("Connection lost. Check your internet and try again")
-                    }
+                    _recommendState.value = RecommendState.NetworkError("Connection lost. Check your internet and try again")
                 }
                 is RecommendRepository.RecommendResult.BadRequest -> {
-                    withContext(Dispatchers.Main) {
-                        _recommendState.value = RecommendState.Error("Something went wrong. Please try again")
-                    }
+                    _recommendState.value = RecommendState.Error("Something went wrong. Please try again")
                 }
             }
         }
@@ -336,46 +305,34 @@ class SelectImageViewModel(
         tagId: String,
         tagName: String,
     ) {
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _addPhotosState.value = AddPhotosState.Loading
-            }
+        viewModelScope.launch {
+            _addPhotosState.value = AddPhotosState.Loading
 
             val photos = selectedPhotos.value
 
             for (photo in photos) {
-                when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
+                when (remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
                     is RemoteRepository.Result.Success -> {
                         // Success, continue to next photo
                     }
                     is RemoteRepository.Result.Error -> {
-                        withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error("Something went wrong. Please try again")
-                        }
+                        _addPhotosState.value = AddPhotosState.Error("Something went wrong. Please try again")
                         return@launch
                     }
                     is RemoteRepository.Result.Unauthorized -> {
-                        withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error("Your session expired. Please sign in again")
-                        }
+                        _addPhotosState.value = AddPhotosState.Error("Your session expired. Please sign in again")
                         return@launch
                     }
                     is RemoteRepository.Result.BadRequest -> {
-                        withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error("Something went wrong. Please try again")
-                        }
+                        _addPhotosState.value = AddPhotosState.Error("Something went wrong. Please try again")
                         return@launch
                     }
                     is RemoteRepository.Result.NetworkError -> {
-                        withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error("Connection lost. Check your internet and try again")
-                        }
+                        _addPhotosState.value = AddPhotosState.Error("Connection lost. Check your internet and try again")
                         return@launch
                     }
                     is RemoteRepository.Result.Exception -> {
-                        withContext(Dispatchers.Main) {
-                            _addPhotosState.value = AddPhotosState.Error("Connection lost. Check your internet and try again")
-                        }
+                        _addPhotosState.value = AddPhotosState.Error("Connection lost. Check your internet and try again")
                         return@launch
                     }
                 }
@@ -384,9 +341,7 @@ class SelectImageViewModel(
             // Clear selection after success
             photoSelectionRepository.clear()
 
-            withContext(Dispatchers.Main) {
-                _addPhotosState.value = AddPhotosState.Success
-            }
+            _addPhotosState.value = AddPhotosState.Success
         }
     }
 }
