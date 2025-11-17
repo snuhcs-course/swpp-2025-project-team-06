@@ -2,16 +2,23 @@ from django.conf import settings
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.exceptions import UnexpectedResponse
 
-# --- 기본 설정 (변경 없음) ---
+# --- 기본 설정 ---
 QDRANT_URL = settings.QDRANT_CLUSTER_URL
 QDRANT_API_KEY = settings.QDRANT_API_KEY
 
+# 싱글톤 인스턴스
+_qdrant_client = None
+
 
 def get_qdrant_client():
-    return QdrantClient(
-        url=QDRANT_URL,
-        api_key=QDRANT_API_KEY,
-    )
+    # 싱글톤 Qdrant Client 인스턴스 반환
+    global _qdrant_client
+    if _qdrant_client is None:
+        _qdrant_client = QdrantClient(
+            url=QDRANT_URL,
+            api_key=QDRANT_API_KEY,
+        )
+    return _qdrant_client
 
 
 IMAGE_COLLECTION_NAME = "my_image_collection"
