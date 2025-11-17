@@ -22,89 +22,58 @@ class AlbumViewModel(
     private val photoSelectionRepository: PhotoSelectionRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
+    // 1. 중첩 클래스 및 sealed class 정의
     sealed class AlbumLoadingState {
         object Idle : AlbumLoadingState()
-
         object Loading : AlbumLoadingState()
-
-        data class Success(
-            val photos: List<Photo>,
-        ) : AlbumLoadingState()
-
-        data class Error(
-            val message: String,
-        ) : AlbumLoadingState()
+        data class Success(val photos: List<Photo>) : AlbumLoadingState()
+        data class Error(val message: String) : AlbumLoadingState()
     }
 
     sealed class RecommendLoadingState {
         object Idle : RecommendLoadingState()
-
         object Loading : RecommendLoadingState()
-
-        data class Success(
-            val photos: List<Photo>,
-        ) : RecommendLoadingState()
-
-        data class Error(
-            val message: String,
-        ) : RecommendLoadingState()
+        data class Success(val photos: List<Photo>) : RecommendLoadingState()
+        data class Error(val message: String) : RecommendLoadingState()
     }
 
     sealed class TagDeleteState {
         object Idle : TagDeleteState()
-
         object Loading : TagDeleteState()
-
         object Success : TagDeleteState()
-
-        data class Error(
-            val message: String,
-        ) : TagDeleteState()
+        data class Error(val message: String) : TagDeleteState()
     }
 
     sealed class TagRenameState {
         object Idle : TagRenameState()
-
         object Loading : TagRenameState()
-
         object Success : TagRenameState()
-
-        data class Error(
-            val message: String,
-        ) : TagRenameState()
+        data class Error(val message: String) : TagRenameState()
     }
 
     sealed class TagAddState {
         object Idle : TagAddState()
-
         object Loading : TagAddState()
-
         object Success : TagAddState()
-
-        data class Error(
-            val message: String,
-        ) : TagAddState()
+        data class Error(val message: String) : TagAddState()
     }
 
+    // 2. Private MutableStateFlow
     private val _albumLoadingState = MutableStateFlow<AlbumLoadingState>(AlbumLoadingState.Idle)
-    val albumLoadingState = _albumLoadingState.asStateFlow()
-
     private val _recommendLoadingState = MutableStateFlow<RecommendLoadingState>(RecommendLoadingState.Idle)
-    val recommendLoadingState = _recommendLoadingState.asStateFlow()
-
     private val _selectedRecommendPhotos = MutableStateFlow<List<Photo>>(emptyList())
-    val selectedRecommendPhotos = _selectedRecommendPhotos.asStateFlow()
-
     private val _selectedTagAlbumPhotos = MutableStateFlow<List<Photo>>(emptyList())
-    val selectedTagAlbumPhotos = _selectedTagAlbumPhotos.asStateFlow()
-
     private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
-    val tagDeleteState = _tagDeleteState.asStateFlow()
-
     private val _tagRenameState = MutableStateFlow<TagRenameState>(TagRenameState.Idle)
-    val tagRenameState = _tagRenameState.asStateFlow()
-
     private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
+
+    // 3. Public StateFlow (exposed state)
+    val albumLoadingState = _albumLoadingState.asStateFlow()
+    val recommendLoadingState = _recommendLoadingState.asStateFlow()
+    val selectedRecommendPhotos = _selectedRecommendPhotos.asStateFlow()
+    val selectedTagAlbumPhotos = _selectedTagAlbumPhotos.asStateFlow()
+    val tagDeleteState = _tagDeleteState.asStateFlow()
+    val tagRenameState = _tagRenameState.asStateFlow()
     val tagAddState = _tagAddState.asStateFlow()
 
     fun loadAlbum(

@@ -94,8 +94,10 @@ fun TagChip(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
+    // 5. Derived 상태 및 계산된 값
     val alpha = if (variant is TagVariant.Recommended) 0.5f else 1f
 
+    // 13. UI (TagContainer)
     TagContainer(modifier = modifier.alpha(alpha), color = color) {
         Text(
             text = text,
@@ -303,26 +305,28 @@ fun StoryTagChip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
+    // 5. Derived 상태 및 계산된 값
+    val backgroundColor =
+        when {
+            isSelected -> MaterialTheme.colorScheme.primary
+            !enabled -> MaterialTheme.colorScheme.surfaceVariant
+            else -> MaterialTheme.colorScheme.primaryContainer
+        }
+
+    val textColor =
+        when {
+            isSelected -> MaterialTheme.colorScheme.onPrimary
+            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            else -> MaterialTheme.colorScheme.onSurface
+        }
+
+    // 13. UI (Box)
     Box(
         modifier =
             modifier
                 .clickable(enabled = enabled) { onClick() },
         contentAlignment = Alignment.CenterStart,
     ) {
-        // 1) TagChip with dynamic color based on selection and enabled state
-        val backgroundColor =
-            when {
-                isSelected -> MaterialTheme.colorScheme.primary
-                !enabled -> MaterialTheme.colorScheme.surfaceVariant
-                else -> MaterialTheme.colorScheme.primaryContainer
-            }
-
-        val textColor =
-            when {
-                isSelected -> MaterialTheme.colorScheme.onPrimary
-                !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                else -> MaterialTheme.colorScheme.onSurface
-            }
 
         TagContainer(
             modifier = Modifier,
@@ -367,9 +371,11 @@ fun CustomTagChip(
     modifier: Modifier = Modifier,
     onExpanded: (() -> Unit)? = null,
 ) {
+    // 4. 로컬 상태 변수
     var isExpanded by remember { mutableStateOf(false) }
     var tagText by remember { mutableStateOf("") }
 
+    // 13. UI (AnimatedContent)
     AnimatedContent(
         targetState = isExpanded,
         label = "expand_collapse",

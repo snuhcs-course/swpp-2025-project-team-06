@@ -25,46 +25,36 @@ class ImageDetailViewModel(
     private val remoteRepository: RemoteRepository,
     private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
+    // 1. Sealed class 정의
     sealed class TagDeleteState {
         object Idle : TagDeleteState()
-
         object Loading : TagDeleteState()
-
         object Success : TagDeleteState()
-
-        data class Error(
-            val message: String,
-        ) : TagDeleteState()
+        data class Error(val message: String) : TagDeleteState()
     }
 
     sealed class TagAddState {
         object Idle : TagAddState()
-
         object Loading : TagAddState()
-
         object Success : TagAddState()
-
-        data class Error(
-            val message: String,
-        ) : TagAddState()
+        data class Error(val message: String) : TagAddState()
     }
 
+    // 2. Private MutableStateFlow
     private val _imageContext = MutableStateFlow<ImageContext?>(null)
-    val imageContext = _imageContext.asStateFlow()
-
-    private val _imageDetailTagState =
-        MutableStateFlow<ImageDetailTagState>(ImageDetailTagState.Idle)
-    val imageDetailTagState: StateFlow<ImageDetailTagState> = _imageDetailTagState.asStateFlow()
-
+    private val _imageDetailTagState = MutableStateFlow<ImageDetailTagState>(ImageDetailTagState.Idle)
     private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
-    val tagDeleteState = _tagDeleteState.asStateFlow()
-
     private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
-    val tagAddState = _tagAddState.asStateFlow()
-
     private val _photoAddress = MutableStateFlow<String?>(null)
+
+    // 3. Public StateFlow (exposed state)
+    val imageContext = _imageContext.asStateFlow()
+    val imageDetailTagState: StateFlow<ImageDetailTagState> = _imageDetailTagState.asStateFlow()
+    val tagDeleteState = _tagDeleteState.asStateFlow()
+    val tagAddState = _tagAddState.asStateFlow()
     val photoAddress = _photoAddress.asStateFlow()
 
+    // 4. Public functions
     /**
      * photoId를 기반으로 ImageContext를 Repository에서 조회하여 설정
      * @param photoId 현재 보고 있는 사진의 ID

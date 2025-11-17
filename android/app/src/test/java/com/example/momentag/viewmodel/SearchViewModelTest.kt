@@ -1180,19 +1180,19 @@ class SearchViewModelTest {
             assertTrue(viewModel.tagLoadingState.value is TagLoadingState.Success)
         }
 
-    // showSearchHistoryDropdown tests
+    // shouldShowSearchHistoryDropdown tests
     @Test
-    fun `showSearchHistoryDropdown starts as false`() =
+    fun `shouldShowSearchHistoryDropdown starts as false`() =
         runTest {
             // When - initial state
-            val showDropdown = viewModel.showSearchHistoryDropdown.value
+            val showDropdown = viewModel.shouldShowSearchHistoryDropdown.value
 
             // Then
             assertFalse(showDropdown)
         }
 
     @Test
-    fun `searchHistory affects showSearchHistoryDropdown availability`() =
+    fun `searchHistory affects shouldShowSearchHistoryDropdown availability`() =
         runTest {
             // Given - no history initially
             assertEquals(0, viewModel.searchHistory.value.size)

@@ -98,17 +98,19 @@ fun ZoomableImage(
     onScaleChanged: (isZoomed: Boolean) -> Unit,
     onSingleTap: () -> Unit = {},
 ) {
-    // 1. 상태 변수 선언
-    val scaleAnim = remember { Animatable(1f) }
+    // 1. 로컬 상태 변수
     var scale by remember { mutableFloatStateOf(1f) }
-
     var offset by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(IntSize.Zero) }
-
-    val scope = rememberCoroutineScope()
     var tapJob by remember { mutableStateOf<Job?>(null) }
 
-    // 2. 페이지 전환 시 모든 상태를 완벽하게 초기화
+    // 2. rememberCoroutineScope
+    val scope = rememberCoroutineScope()
+
+    // 3. Remember된 객체들
+    val scaleAnim = remember { Animatable(1f) }
+
+    // 4. LaunchedEffect - 페이지 전환 시 상태 초기화
     LaunchedEffect(model) {
         scale = 1f
         offset = Offset.Zero
@@ -258,75 +260,38 @@ fun ImageDetailScreen(
     imageId: String,
     onNavigateBack: () -> Unit,
 ) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
-    rememberCoroutineScope()
+    val view = LocalView.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var showWarningBanner by remember { mutableStateOf(false) }
-    var warningBannerMessage by remember { mutableStateOf("") }
-
-    // Screen-scoped ViewModel - fresh instance per screen
+    // 2. ViewModel 인스턴스
     val imageDetailViewModel: ImageDetailViewModel =
         viewModel(factory = ViewModelFactory.getInstance(context))
 
-    // Focus mode state
-    var isFocusMode by remember { mutableStateOf(false) }
-
-    // Hide/Show navigation bar based on focus mode
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        val window = (view.context as? Activity)?.window
-        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
-
-        LaunchedEffect(insetsController, isFocusMode) {
-            if (isFocusMode) {
-                insetsController?.hide(WindowInsetsCompat.Type.navigationBars())
-                insetsController?.systemBarsBehavior =
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            } else {
-                insetsController?.show(WindowInsetsCompat.Type.navigationBars())
-            }
-        }
-
-        DisposableEffect(insetsController) {
-            onDispose {
-                insetsController?.show(WindowInsetsCompat.Type.navigationBars())
-            }
-        }
-    }
-
-    // Observe ImageContext from ViewModel
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val imageContext by imageDetailViewModel.imageContext.collectAsState()
-
-    // Observe PhotoTagState from ViewModel
     val imageDetailTagState by imageDetailViewModel.imageDetailTagState.collectAsState()
     val tagDeleteState by imageDetailViewModel.tagDeleteState.collectAsState()
     val tagAddState by imageDetailViewModel.tagAddState.collectAsState()
-
-    // Observe the photo address from ViewModel
     val photoAddress by imageDetailViewModel.photoAddress.collectAsState()
 
-    // Load ImageContext from Repository when screen opens
-    LaunchedEffect(imageUri) {
-        imageUri?.let { uri ->
-            imageDetailViewModel.loadImageContextByUri(uri)
-        }
-    }
+    // 4. 로컬 상태 변수 (remember, mutableStateOf)
+    var isWarningBannerVisible by remember { mutableStateOf(false) }
+    var warningBannerMessage by remember { mutableStateOf("") }
+    var isFocusMode by remember { mutableStateOf(false) }
+    var isZoomed by remember { mutableStateOf(false) }
+    var isDeleteMode by remember { mutableStateOf(false) }
+    var hasPermission by remember { mutableStateOf(false) }
+    var dateTime: String? by remember { mutableStateOf(null) }
+    var latLong: DoubleArray? by remember { mutableStateOf(null) }
 
-    // Cleanup on dispose
-    DisposableEffect(Unit) {
-        onDispose {
-            imageDetailViewModel.clearImageContext()
-        }
-    }
-
-    // Extract photos from ImageContext or create single photo using backend imageId with provided imageUri
-    // Important: Do NOT derive backend photoId from local media URI; always use backend-provided imageId
+    // 5. Derived 상태 및 계산된 값
     val photos =
         imageContext?.images?.takeIf { it.isNotEmpty() } ?: imageUri?.let { uri ->
             listOf(
                 Photo(
-                    photoId = imageId, // backend photo_id must be used
+                    photoId = imageId,
                     contentUri = uri,
                     createdAt = "",
                 ),
@@ -335,44 +300,20 @@ fun ImageDetailScreen(
 
     val startIndex = imageContext?.currentIndex ?: 0
 
-    val pagerState =
-        rememberPagerState(
-            initialPage = startIndex.coerceIn(0, photos.size - 1),
-            pageCount = { photos.size },
-        )
-
-    // Scroll to correct page when imageContext loads
-    LaunchedEffect(imageContext?.currentIndex) {
-        imageContext?.currentIndex?.let { index ->
-            if (index in 0 until photos.size && pagerState.currentPage != index) {
-                pagerState.scrollToPage(index)
-            }
-        }
-    }
-
-    // Current photo based on pager state
-    val currentPhoto = photos.getOrNull(pagerState.currentPage)
-
-    // 현재 보고 있는 페이지의 확대/축소 상태를 기억할 변수
-    var isZoomed by remember { mutableStateOf(false) }
-
-    // 페이지가 변경되면 확대 상태를 초기화
-    LaunchedEffect(pagerState.currentPage) {
-        isZoomed = false
-    }
-
-    // Tags state - managed by ViewModel
-    var isDeleteMode by remember { mutableStateOf(false) }
-
-    // Extract tags from photoTagState
     val successState = imageDetailTagState as? ImageDetailTagState.Success
     val existingTags = successState?.existingTags ?: emptyList()
     val recommendedTags = successState?.recommendedTags ?: emptyList()
     val isExistingLoading = successState?.isExistingLoading ?: false
     val isRecommendedLoading = successState?.isRecommendedLoading ?: false
-
     val isError = imageDetailTagState is ImageDetailTagState.Error
     val errorMessage = (imageDetailTagState as? ImageDetailTagState.Error)?.message
+
+    // 6. Remember된 객체들
+    val pagerState =
+        rememberPagerState(
+            initialPage = startIndex.coerceIn(0, photos.size - 1),
+            pageCount = { photos.size },
+        )
 
     val sheetState =
         rememberStandardBottomSheetState(
@@ -382,8 +323,9 @@ fun ImageDetailScreen(
     rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
 
     val isSheetExpanded = sheetState.targetValue == SheetValue.Expanded
+    val currentPhoto = photos.getOrNull(pagerState.currentPage)
 
-    var hasPermission by remember { mutableStateOf(false) }
+    // 7. ActivityResultLauncher
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -394,6 +336,7 @@ fun ImageDetailScreen(
             },
         )
 
+    // 8. LaunchedEffect (초기화 및 부수 효과)
     LaunchedEffect(key1 = true) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val permission: String = Manifest.permission.ACCESS_MEDIA_LOCATION
@@ -401,64 +344,24 @@ fun ImageDetailScreen(
         }
     }
 
-    LaunchedEffect(tagDeleteState) {
-        when (tagDeleteState) {
-            is ImageDetailViewModel.TagDeleteState.Success -> {
-                Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
-                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                if (currentPhotoId.isNotEmpty()) {
-                    imageDetailViewModel.loadPhotoTags(currentPhotoId)
-                }
-
-                isDeleteMode = false
-                imageDetailViewModel.resetDeleteState()
-            }
-
-            is ImageDetailViewModel.TagDeleteState.Error -> {
-                warningBannerMessage = "An Error Occured. Please Try Again"
-                showWarningBanner = true
-                isDeleteMode = false
-                imageDetailViewModel.resetDeleteState()
-            }
-
-            else -> Unit
+    LaunchedEffect(imageUri) {
+        imageUri?.let { uri ->
+            imageDetailViewModel.loadImageContextByUri(uri)
         }
     }
 
-    LaunchedEffect(tagAddState) {
-        when (tagAddState) {
-            is ImageDetailViewModel.TagAddState.Success -> {
-                Toast.makeText(context, "Tag Added", Toast.LENGTH_SHORT).show()
-                // The viewmodel already reloads the tags, so we just reset the state here
-                imageDetailViewModel.resetAddState()
+    LaunchedEffect(imageContext?.currentIndex) {
+        imageContext?.currentIndex?.let { index ->
+            if (index in 0 until photos.size && pagerState.currentPage != index) {
+                pagerState.scrollToPage(index)
             }
-            is ImageDetailViewModel.TagAddState.Error -> {
-                warningBannerMessage = "An Error Occured. Please Try Again."
-                showWarningBanner = true
-                imageDetailViewModel.resetAddState()
-            }
-            else -> Unit
         }
     }
 
-    LaunchedEffect(isError, errorMessage) {
-        if (isError) {
-            warningBannerMessage = "An Error Occured While Loading Tags. Please Try Again."
-            showWarningBanner = true
-        }
+    LaunchedEffect(pagerState.currentPage) {
+        isZoomed = false
     }
 
-    LaunchedEffect(showWarningBanner) {
-        if (showWarningBanner) {
-            delay(2000)
-            showWarningBanner = false
-        }
-    }
-
-    var dateTime: String? by remember { mutableStateOf(null) }
-    var latLong: DoubleArray? by remember { mutableStateOf(null) }
-
-    // 페이지가 변경될 때마다 EXIF 데이터 및 태그 업데이트
     LaunchedEffect(pagerState.currentPage, hasPermission, imageContext) {
         val photo = photos.getOrNull(pagerState.currentPage)
 
@@ -487,6 +390,89 @@ fun ImageDetailScreen(
         }
     }
 
+    LaunchedEffect(tagDeleteState) {
+        when (tagDeleteState) {
+            is ImageDetailViewModel.TagDeleteState.Success -> {
+                Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
+                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                if (currentPhotoId.isNotEmpty()) {
+                    imageDetailViewModel.loadPhotoTags(currentPhotoId)
+                }
+
+                isDeleteMode = false
+                imageDetailViewModel.resetDeleteState()
+            }
+
+            is ImageDetailViewModel.TagDeleteState.Error -> {
+                warningBannerMessage = "An Error Occured. Please Try Again"
+                isWarningBannerVisible = true
+                isDeleteMode = false
+                imageDetailViewModel.resetDeleteState()
+            }
+
+            else -> Unit
+        }
+    }
+
+    LaunchedEffect(tagAddState) {
+        when (tagAddState) {
+            is ImageDetailViewModel.TagAddState.Success -> {
+                Toast.makeText(context, "Tag Added", Toast.LENGTH_SHORT).show()
+                imageDetailViewModel.resetAddState()
+            }
+            is ImageDetailViewModel.TagAddState.Error -> {
+                warningBannerMessage = "An Error Occured. Please Try Again."
+                isWarningBannerVisible = true
+                imageDetailViewModel.resetAddState()
+            }
+            else -> Unit
+        }
+    }
+
+    LaunchedEffect(isError, errorMessage) {
+        if (isError) {
+            warningBannerMessage = "An Error Occured While Loading Tags. Please Try Again."
+            isWarningBannerVisible = true
+        }
+    }
+
+    LaunchedEffect(isWarningBannerVisible) {
+        if (isWarningBannerVisible) {
+            delay(2000)
+            isWarningBannerVisible = false
+        }
+    }
+
+    // Window insets controller for focus mode
+    if (!view.isInEditMode) {
+        val window = (view.context as? Activity)?.window
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+
+        LaunchedEffect(insetsController, isFocusMode) {
+            if (isFocusMode) {
+                insetsController?.hide(WindowInsetsCompat.Type.navigationBars())
+                insetsController?.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController?.show(WindowInsetsCompat.Type.navigationBars())
+            }
+        }
+
+        // 9. DisposableEffect
+        DisposableEffect(insetsController) {
+            onDispose {
+                insetsController?.show(WindowInsetsCompat.Type.navigationBars())
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            imageDetailViewModel.clearImageContext()
+        }
+    }
+
+    // 10. BackHandler
     BackHandler(enabled = isDeleteMode) {
         isDeleteMode = false
     }
@@ -591,7 +577,7 @@ fun ImageDetailScreen(
                                     imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
                                 } else {
                                     warningBannerMessage = "No photo to delete tag from."
-                                    showWarningBanner = true
+                                    isWarningBannerVisible = true
                                 }
                             },
                             onAddTag = { tagName ->
@@ -600,7 +586,7 @@ fun ImageDetailScreen(
                                     imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
                                 } else {
                                     warningBannerMessage = "No photo to add tag to."
-                                    showWarningBanner = true
+                                    isWarningBannerVisible = true
                                 }
                             },
                         )
@@ -609,13 +595,13 @@ fun ImageDetailScreen(
             }
 
             // WarningBanner always at the bottom of the main content Box, on top of everything
-            if (showWarningBanner && !isFocusMode) {
+            if (isWarningBannerVisible && !isFocusMode) {
                 WarningBanner(
                     title = "Error",
                     message = warningBannerMessage,
-                    onActionClick = { showWarningBanner = false },
+                    onActionClick = { isWarningBannerVisible = false },
                     showActionButton = false,
-                    onDismiss = { showWarningBanner = false },
+                    onDismiss = { isWarningBannerVisible = false },
                     showDismissButton = true,
                     modifier =
                         Modifier

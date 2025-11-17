@@ -38,119 +38,93 @@ class HomeViewModel(
     private val photoSelectionRepository: PhotoSelectionRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
 ) : ViewModel() {
+    // 1. Companion object
     companion object {
-        // Flag to track if stories have been generated in this app session
         @Volatile
-        private var storiesGeneratedThisSession = false
+        private var hasGeneratedStoriesThisSession = false
 
         fun resetStoriesGeneratedFlag() {
-            storiesGeneratedThisSession = false
+            hasGeneratedStoriesThisSession = false
         }
     }
 
+    // 2. 중첩 클래스 및 sealed class 정의
     sealed class HomeLoadingState {
         object Idle : HomeLoadingState()
-
         object Loading : HomeLoadingState()
-
-        data class Success(
-            val tags: List<TagItem>,
-        ) : HomeLoadingState()
-
-        data class Error(
-            val message: String,
-        ) : HomeLoadingState()
+        data class Success(val tags: List<TagItem>) : HomeLoadingState()
+        data class Error(val message: String) : HomeLoadingState()
     }
 
     sealed class HomeDeleteState {
         object Idle : HomeDeleteState()
-
         object Loading : HomeDeleteState()
-
         object Success : HomeDeleteState()
-
-        data class Error(
-            val message: String,
-        ) : HomeDeleteState()
+        data class Error(val message: String) : HomeDeleteState()
     }
 
+    // 3. Private MutableStateFlow
     private val _isSelectionMode = MutableStateFlow(false)
-    val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+    private val _isShowingAllPhotos = MutableStateFlow(false)
+    private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
+    private val _rawTagList = MutableStateFlow<List<TagItem>>(emptyList())
+    private val _homeLoadingState = MutableStateFlow<HomeLoadingState>(HomeLoadingState.Idle)
+    private val _homeDeleteState = MutableStateFlow<HomeDeleteState>(HomeDeleteState.Idle)
+    private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
+    private val _isLoadingPhotos = MutableStateFlow(false)
+    private val _isLoadingMorePhotos = MutableStateFlow(false)
+    private val _shouldReturnToAllPhotos = MutableStateFlow(false)
+    private val _allPhotosScrollIndex = MutableStateFlow(0)
+    private val _allPhotosScrollOffset = MutableStateFlow(0)
+    private val _tagAlbumScrollIndex = MutableStateFlow(0)
+    private val _tagAlbumScrollOffset = MutableStateFlow(0)
+    private val _groupedPhotos = MutableStateFlow<List<DatedPhotoGroup>>(emptyList())
 
+    // 4. Public StateFlow (exposed state)
+    val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+    val isShowingAllPhotos: StateFlow<Boolean> = _isShowingAllPhotos.asStateFlow()
+    val sortOrder = _sortOrder.asStateFlow()
+    val rawTagList = _rawTagList.asStateFlow()
+    val homeLoadingState = _homeLoadingState.asStateFlow()
+    val homeDeleteState = _homeDeleteState.asStateFlow()
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+    val allPhotos = _allPhotos.asStateFlow()
+    val isLoadingPhotos = _isLoadingPhotos.asStateFlow()
+    val isLoadingMorePhotos = _isLoadingMorePhotos.asStateFlow()
+    val shouldReturnToAllPhotos: StateFlow<Boolean> = _shouldReturnToAllPhotos.asStateFlow()
+    val allPhotosScrollIndex: StateFlow<Int> = _allPhotosScrollIndex.asStateFlow()
+    val allPhotosScrollOffset: StateFlow<Int> = _allPhotosScrollOffset.asStateFlow()
+    val tagAlbumScrollIndex: StateFlow<Int> = _tagAlbumScrollIndex.asStateFlow()
+    val tagAlbumScrollOffset: StateFlow<Int> = _tagAlbumScrollOffset.asStateFlow()
+    val groupedPhotos = _groupedPhotos.asStateFlow()
+
+    // 5. Private 변수
+    private var currentOffset = 0
+    private val pageSize = 66
+    private var hasMorePhotos = true
+
+    // 6. Public 함수 (UI에서 호출하는 함수들)
     fun setSelectionMode(isOn: Boolean) {
         _isSelectionMode.value = isOn
     }
 
-    private val _showAllPhotos = MutableStateFlow(false)
-    val showAllPhotos: StateFlow<Boolean> = _showAllPhotos.asStateFlow()
-
-    fun setShowAllPhotos(isAllPhotos: Boolean) {
-        _showAllPhotos.value = isAllPhotos
+    fun setIsShowingAllPhotos(isAllPhotos: Boolean) {
+        _isShowingAllPhotos.value = isAllPhotos
     }
-
-    private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
-    val sortOrder = _sortOrder.asStateFlow()
-
-    private val _rawTagList = MutableStateFlow<List<TagItem>>(emptyList())
-    val rawTagList = _rawTagList.asStateFlow()
-
-    private val _homeLoadingState = MutableStateFlow<HomeLoadingState>(HomeLoadingState.Idle)
-    val homeLoadingState = _homeLoadingState.asStateFlow()
-
-    private val _homeDeleteState = MutableStateFlow<HomeDeleteState>(HomeDeleteState.Idle)
-    val homeDeleteState = _homeDeleteState.asStateFlow()
-
-    // Photo selection management (같은 패턴으로 SearchViewModel 처럼!)
-    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
-
-    // Server photos for All Photos view with pagination
-    private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
-    val allPhotos = _allPhotos.asStateFlow()
-
-    private val _isLoadingPhotos = MutableStateFlow(false)
-    val isLoadingPhotos = _isLoadingPhotos.asStateFlow()
-
-    private val _isLoadingMorePhotos = MutableStateFlow(false)
-    val isLoadingMorePhotos = _isLoadingMorePhotos.asStateFlow()
-
-    private val _shouldReturnToAllPhotos = MutableStateFlow(false)
-    val shouldReturnToAllPhotos: StateFlow<Boolean> = _shouldReturnToAllPhotos.asStateFlow()
 
     fun setShouldReturnToAllPhotos(value: Boolean) {
         _shouldReturnToAllPhotos.value = value
     }
 
-    private val _allPhotosScrollIndex = MutableStateFlow(0)
-    val allPhotosScrollIndex: StateFlow<Int> = _allPhotosScrollIndex.asStateFlow()
-
-    private val _allPhotosScrollOffset = MutableStateFlow(0)
-    val allPhotosScrollOffset: StateFlow<Int> = _allPhotosScrollOffset.asStateFlow()
-
-    fun setAllPhotosScrollPosition(
-        index: Int,
-        offset: Int,
-    ) {
+    fun setAllPhotosScrollPosition(index: Int, offset: Int) {
         _allPhotosScrollIndex.value = index
         _allPhotosScrollOffset.value = offset
     }
 
-    private val _tagAlbumScrollIndex = MutableStateFlow(0)
-    val tagAlbumScrollIndex: StateFlow<Int> = _tagAlbumScrollIndex.asStateFlow()
-
-    private val _tagAlbumScrollOffset = MutableStateFlow(0)
-    val tagAlbumScrollOffset: StateFlow<Int> = _tagAlbumScrollOffset.asStateFlow()
-
-    fun setTagAlbumScrollPosition(
-        index: Int,
-        offset: Int,
-    ) {
+    fun setTagAlbumScrollPosition(index: Int, offset: Int) {
         _tagAlbumScrollIndex.value = index
         _tagAlbumScrollOffset.value = offset
     }
-
-    private var currentOffset = 0
-    private val pageSize = 66
-    private var hasMorePhotos = true
 
     fun togglePhoto(photo: Photo) {
         photoSelectionRepository.togglePhoto(photo)
@@ -160,36 +134,8 @@ class HomeViewModel(
         photoSelectionRepository.clear()
     }
 
-    private fun formatISODate(isoDate: String): String =
-        try {
-            val datePart = isoDate.substring(0, 10) // [수정 후] (YYYY-MM-DD 가정)
-            datePart.replace('-', '.')
-        } catch (e: Exception) {
-            "Unknown Date"
-        }
-
-    private val _groupedPhotos = MutableStateFlow<List<DatedPhotoGroup>>(emptyList())
-    val groupedPhotos = _groupedPhotos.asStateFlow()
-
-    private fun updateGroupedPhotos() {
-        val grouped =
-            _allPhotos.value
-                .groupBy { formatISODate(it.createdAt) }
-                .map { (date, photos) ->
-                    DatedPhotoGroup(date, photos)
-                }
-        _groupedPhotos.value = grouped
-
-        imageBrowserRepository.setGallery(_allPhotos.value)
-    }
-
-    /**
-     * Get photos ready for sharing
-     * Returns list of content URIs to share via Android ShareSheet
-     */
     fun getPhotosToShare() = selectedPhotos.value
 
-    // 처음 로드 (초기화)
     fun loadAllPhotos() {
         viewModelScope.launch {
             _isLoadingPhotos.value = true
@@ -338,6 +284,44 @@ class HomeViewModel(
         sortAndPublishTags()
     }
 
+
+    fun resetDeleteState() {
+        _homeDeleteState.value = HomeDeleteState.Idle
+    }
+
+    fun preGenerateStoriesOnce() {
+        if (hasGeneratedStoriesThisSession) {
+            android.util.Log.d("HomeViewModel", "Stories already generated this session, skipping")
+            return
+        }
+
+        viewModelScope.launch {
+            recommendRepository.generateStories(20)
+            hasGeneratedStoriesThisSession = true
+            android.util.Log.d("HomeViewModel", "Story pre-generation triggered (once per session)")
+        }
+    }
+
+    // 7. Private 함수 (내부 헬퍼 함수들)
+    private fun formatISODate(isoDate: String): String =
+        try {
+            val datePart = isoDate.substring(0, 10)
+            datePart.replace('-', '.')
+        } catch (e: Exception) {
+            "Unknown Date"
+        }
+
+    private fun updateGroupedPhotos() {
+        val grouped =
+            _allPhotos.value
+                .groupBy { formatISODate(it.createdAt) }
+                .map { (date, photos) ->
+                    DatedPhotoGroup(date, photos)
+                }
+        _groupedPhotos.value = grouped
+        imageBrowserRepository.setGallery(_allPhotos.value)
+    }
+    
     private fun sortAndPublishTags() {
         val currentList = _rawTagList.value
 
@@ -372,27 +356,5 @@ class HomeViewModel(
                 TagSortOrder.COUNT_DESC -> currentList.sortedByDescending { it.photoCount }
             }
         _homeLoadingState.value = HomeLoadingState.Success(tags = sortedList)
-    }
-
-    fun resetDeleteState() {
-        _homeDeleteState.value = HomeDeleteState.Idle
-    }
-
-    /**
-     * Pre-generate stories once per app session
-     * This is called from HomeScreen on app launch
-     */
-    fun preGenerateStoriesOnce() {
-        // Check if already generated this session
-        if (storiesGeneratedThisSession) {
-            android.util.Log.d("HomeViewModel", "Stories already generated this session, skipping")
-            return
-        }
-
-        viewModelScope.launch {
-            recommendRepository.generateStories(20)
-            storiesGeneratedThisSession = true
-            android.util.Log.d("HomeViewModel", "Story pre-generation triggered (once per session)")
-        }
     }
 }

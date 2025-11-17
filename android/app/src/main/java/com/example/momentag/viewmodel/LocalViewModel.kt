@@ -18,24 +18,36 @@ class LocalViewModel(
     private val imageBrowserRepository: ImageBrowserRepository,
     private val albumUploadSuccessEvent: SharedFlow<Long>,
 ) : ViewModel() {
+    // 1. Private MutableStateFlow
     private val _image = MutableStateFlow<List<Uri>>(emptyList())
-    val image = _image.asStateFlow()
-
     private val _albums = MutableStateFlow<List<Album>>(emptyList())
-    val albums = _albums.asStateFlow()
+    private val _imagesInAlbum = MutableStateFlow<List<Photo>>(emptyList())
+    private val _selectedPhotosInAlbum = MutableStateFlow<Set<Photo>>(emptySet())
+    private val _selectedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
 
-    fun getAlbums() {
+    // 2. Public StateFlow (exposed state)
+    val image = _image.asStateFlow()
+    val albums = _albums.asStateFlow()
+    val imagesInAlbum = _imagesInAlbum.asStateFlow()
+    val selectedPhotosInAlbum = _selectedPhotosInAlbum.asStateFlow()
+    val selectedAlbumIds = _selectedAlbumIds.asStateFlow()
+
+    // 3. init 블록
+    init {
         viewModelScope.launch {
-            _albums.value = localRepository.getAlbums()
+            albumUploadSuccessEvent.collect { successfulAlbumId ->
+                if (successfulAlbumId == 0L) {
+                    clearPhotoSelection()
+                } else {
+                    _selectedAlbumIds.update { currentSet ->
+                        currentSet - successfulAlbumId
+                    }
+                }
+            }
         }
     }
 
-    private val _imagesInAlbum = MutableStateFlow<List<Photo>>(emptyList())
-    val imagesInAlbum = _imagesInAlbum.asStateFlow()
-
-    private val _selectedPhotosInAlbum = MutableStateFlow<Set<Photo>>(emptySet())
-    val selectedPhotosInAlbum = _selectedPhotosInAlbum.asStateFlow()
-
+    // 4. Public functions
     fun togglePhotoSelection(photo: Photo) {
         _selectedPhotosInAlbum.update { currentSet ->
             if (currentSet.any { it.photoId == photo.photoId }) {
@@ -48,6 +60,12 @@ class LocalViewModel(
 
     fun clearPhotoSelection() {
         _selectedPhotosInAlbum.value = emptySet()
+    }
+
+    fun getAlbums() {
+        viewModelScope.launch {
+            _albums.value = localRepository.getAlbums()
+        }
     }
 
     fun getImagesForAlbum(albumId: Long) {
@@ -101,23 +119,6 @@ class LocalViewModel(
                 )
             }
         imageBrowserRepository.setGallery(photos)
-    }
-
-    private val _selectedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
-    val selectedAlbumIds = _selectedAlbumIds.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            albumUploadSuccessEvent.collect { successfulAlbumId ->
-                if (successfulAlbumId == 0L) {
-                    clearPhotoSelection()
-                } else {
-                    _selectedAlbumIds.update { currentSet ->
-                        currentSet - successfulAlbumId
-                    }
-                }
-            }
-        }
     }
 
     fun clearAlbumSelection() {

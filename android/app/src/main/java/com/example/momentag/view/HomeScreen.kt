@@ -156,17 +156,20 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
 fun HomeScreen(navController: NavController) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val activity = LocalContext.current.findActivity()
     remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
-    var hasPermission by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
+    // 2. ViewModel 인스턴스
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val searchViewModel: SearchViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val logoutState by authViewModel.logoutState.collectAsState()
     val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
     val homeDeleteState by homeViewModel.homeDeleteState.collectAsState()
@@ -174,57 +177,53 @@ fun HomeScreen(navController: NavController) {
     val selectedPhotos by homeViewModel.selectedPhotos.collectAsState()
     val isLoadingPhotos by homeViewModel.isLoadingPhotos.collectAsState()
     val isLoadingMorePhotos by homeViewModel.isLoadingMorePhotos.collectAsState()
-    val showAllPhotos by homeViewModel.showAllPhotos.collectAsState()
+    val isShowingAllPhotos by homeViewModel.isShowingAllPhotos.collectAsState()
     val isSelectionMode by homeViewModel.isSelectionMode.collectAsState()
     val searchHistory by searchViewModel.searchHistory.collectAsState()
-
-    var onlyTag by remember { mutableStateOf(false) }
-    var isDeleteMode by remember { mutableStateOf(false) }
-    var isSelectionModeDelay by remember { mutableStateOf(false) }
-    var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
-
     val shouldReturnToAllPhotos by homeViewModel.shouldReturnToAllPhotos.collectAsState()
-
     val groupedPhotos by homeViewModel.groupedPhotos.collectAsState()
     val allPhotos by homeViewModel.allPhotos.collectAsState()
-
-    var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
-    var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
-
-    var showErrorBanner by remember { mutableStateOf(false) }
-    var errorBannerTitle by remember { mutableStateOf("Error") }
-    var errorBannerMessage by remember { mutableStateOf<String?>(null) }
-
-    val listState = rememberLazyListState()
-
-    val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
-
-    val topSpacerHeight = 8.dp
-
-    val textStates = searchViewModel.textStates
-    val contentItems = searchViewModel.contentItems
-    val focusedElementId by searchViewModel.focusedElementId
-    val focusRequesters = searchViewModel.focusRequesters
-    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
-    var searchBarWidth by remember { mutableStateOf(0) }
-    var searchBarRowHeight by remember { mutableStateOf(0) }
-    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
-
-    val currentFocusedElementId = rememberUpdatedState(focusedElementId)
-    val currentFocusManager = rememberUpdatedState(focusManager)
-
-    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
-    var previousImeBottom by remember { mutableStateOf(imeBottom) }
-
-    val activity = LocalContext.current.findActivity()
-    var backPressedTime by remember { mutableStateOf(0L) }
-    var hideCursor by remember { mutableStateOf(false) }
-
     val allPhotosInitialIndex by homeViewModel.allPhotosScrollIndex.collectAsState()
     val allPhotosInitialOffset by homeViewModel.allPhotosScrollOffset.collectAsState()
     val tagAlbumInitialIndex by homeViewModel.tagAlbumScrollIndex.collectAsState()
     val tagAlbumInitialOffset by homeViewModel.tagAlbumScrollOffset.collectAsState()
+    val shouldShowSearchHistoryDropdown by searchViewModel.shouldShowSearchHistoryDropdown.collectAsState()
+    val focusedElementId by searchViewModel.focusedElementId
+    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
 
+    // 4. 로컬 상태 변수 (remember, mutableStateOf)
+    var hasPermission by remember { mutableStateOf(false) }
+    var isOnlyTag by remember { mutableStateOf(false) }
+    var isDeleteMode by remember { mutableStateOf(false) }
+    var isSelectionModeDelay by remember { mutableStateOf(false) }
+    var currentTab by remember { mutableStateOf(BottomTab.HomeScreen) }
+    var isDeleteConfirmationDialogVisible by remember { mutableStateOf(false) }
+    var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var isErrorBannerVisible by remember { mutableStateOf(false) }
+    var errorBannerTitle by remember { mutableStateOf("Error") }
+    var errorBannerMessage by remember { mutableStateOf<String?>(null) }
+    var searchBarWidth by remember { mutableStateOf(0) }
+    var searchBarRowHeight by remember { mutableStateOf(0) }
+    var backPressedTime by remember { mutableStateOf(0L) }
+    var isCursorHidden by remember { mutableStateOf(false) }
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    var previousImeBottom by remember { mutableStateOf(imeBottom) }
+
+    // 5. Derived 상태 및 계산된 값
+    val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
+    val topSpacerHeight = 8.dp
+    val textStates = searchViewModel.textStates
+    val contentItems = searchViewModel.contentItems
+    val focusRequesters = searchViewModel.focusRequesters
+    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
+    val currentFocusedElementId = rememberUpdatedState(focusedElementId)
+    val currentFocusManager = rememberUpdatedState(focusManager)
+
+    // 6. rememberCoroutineScope
+    val scope = rememberCoroutineScope()
+
+    // 7. Remember된 객체들
+    val listState = rememberLazyListState()
     val allPhotosGridState =
         rememberLazyGridState(
             initialFirstVisibleItemIndex = allPhotosInitialIndex,
@@ -235,10 +234,6 @@ fun HomeScreen(navController: NavController) {
             initialFirstVisibleItemIndex = tagAlbumInitialIndex,
             initialFirstVisibleItemScrollOffset = tagAlbumInitialOffset,
         )
-
-    val showSearchHistoryDropdown by searchViewModel.showSearchHistoryDropdown.collectAsState()
-
-    val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
@@ -281,7 +276,7 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(searchViewModel.requestFocus) {
         searchViewModel.requestFocus.collect { id ->
             Log.d("home cursor", "true1")
-            hideCursor = true
+            isCursorHidden = true
 
             try {
                 snapshotFlow { focusRequesters.containsKey(id) }
@@ -289,7 +284,7 @@ fun HomeScreen(navController: NavController) {
                     .first()
             } catch (e: Exception) {
                 Log.d("home cursor", "false1")
-                hideCursor = false
+                isCursorHidden = false
                 searchViewModel.resetIgnoreFocusLossFlag()
                 return@collect
             }
@@ -318,7 +313,7 @@ fun HomeScreen(navController: NavController) {
             focusRequesters[id]?.requestFocus()
 
             Log.d("home cursor", "false2")
-            hideCursor = false
+            isCursorHidden = false
             searchViewModel.resetIgnoreFocusLossFlag()
         }
     }
@@ -394,7 +389,7 @@ fun HomeScreen(navController: NavController) {
     val areTagsEmpty = tagItems.isEmpty()
     val arePhotosEmpty = groupedPhotos.isEmpty()
 
-    val showEmptyTagGradient = !showAllPhotos && areTagsEmpty && isDataReady && !arePhotosEmpty
+    val showEmptyTagGradient = !isShowingAllPhotos && areTagsEmpty && isDataReady && !arePhotosEmpty
 
     LaunchedEffect(uiState.isLoading) {
         if (uiState.isLoading) {
@@ -413,8 +408,8 @@ fun HomeScreen(navController: NavController) {
 
     LaunchedEffect(Unit) {
         if (shouldReturnToAllPhotos) {
-            homeViewModel.setShowAllPhotos(true)
-            onlyTag = false
+            homeViewModel.setIsShowingAllPhotos(true)
+            isOnlyTag = false
             homeViewModel.setShouldReturnToAllPhotos(false) // flag reset
         }
     }
@@ -447,7 +442,7 @@ fun HomeScreen(navController: NavController) {
             is LogoutState.Error -> {
                 errorBannerTitle = "Logout Failed"
                 errorBannerMessage = (logoutState as LogoutState.Error).message ?: "Logout failed"
-                showErrorBanner = true
+                isErrorBannerVisible = true
             }
             else -> Unit
         }
@@ -474,10 +469,10 @@ fun HomeScreen(navController: NavController) {
             is HomeViewModel.HomeLoadingState.Error -> {
                 errorBannerTitle = "Failed to Load Tags"
                 errorBannerMessage = (homeLoadingState as HomeViewModel.HomeLoadingState.Error).message
-                showErrorBanner = true
+                isErrorBannerVisible = true
             }
             is HomeViewModel.HomeLoadingState.Success -> {
-                showErrorBanner = false // 로드 성공 시 배너 숨김
+                isErrorBannerVisible = false // 로드 성공 시 배너 숨김
             }
             else -> Unit // Loading, Idle
         }
@@ -491,12 +486,12 @@ fun HomeScreen(navController: NavController) {
                 searchViewModel.loadServerTags()
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
-                showErrorBanner = false
+                isErrorBannerVisible = false
             }
             is HomeViewModel.HomeDeleteState.Error -> {
                 errorBannerTitle = "Failed to Delete Tag"
                 errorBannerMessage = state.message
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
             }
@@ -521,21 +516,21 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    BackHandler(enabled = isSelectionMode && showAllPhotos) {
+    BackHandler(enabled = isSelectionMode && isShowingAllPhotos) {
         homeViewModel.setSelectionMode(false)
         homeViewModel.resetSelection()
     }
 
-    BackHandler(enabled = showDeleteConfirmationDialog) {
-        showDeleteConfirmationDialog = false
+    BackHandler(enabled = isDeleteConfirmationDialogVisible) {
+        isDeleteConfirmationDialogVisible = false
         tagToDeleteInfo = null
     }
 
-    BackHandler(enabled = !isSelectionMode && showAllPhotos) {
-        homeViewModel.setShowAllPhotos(false)
+    BackHandler(enabled = !isSelectionMode && isShowingAllPhotos) {
+        homeViewModel.setIsShowingAllPhotos(false)
     }
 
-    BackHandler(enabled = !isSelectionMode && !showAllPhotos && !showDeleteConfirmationDialog && !isDeleteMode) {
+    BackHandler(enabled = !isSelectionMode && !isShowingAllPhotos && !isDeleteConfirmationDialogVisible && !isDeleteMode) {
         val currentTime = System.currentTimeMillis()
         if (currentTime - backPressedTime < 2000) {
             activity?.finish()
@@ -545,7 +540,7 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    BackHandler(enabled = isDeleteMode && !showAllPhotos) {
+    BackHandler(enabled = isDeleteMode && !isShowingAllPhotos) {
         isDeleteMode = false
     }
 
@@ -560,7 +555,7 @@ fun HomeScreen(navController: NavController) {
                 onLogoutClick = { authViewModel.logout() },
                 isLogoutLoading = logoutState is LogoutState.Loading,
                 actions = {
-                    if (showAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
+                    if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
                         val isEnabled = selectedPhotos.isNotEmpty()
                         IconButton(
                             onClick = {
@@ -627,9 +622,9 @@ fun HomeScreen(navController: NavController) {
         },
         containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
-            // 태그 앨범 뷰(!showAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
+            // 태그 앨범 뷰(!isShowingAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
             // Only show when in selection mode and photos are selected
-            if (showAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
+            if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
                     text = "Add Tag (${selectedPhotos.size})",
@@ -713,7 +708,7 @@ fun HomeScreen(navController: NavController) {
                                     },
                             listState = listState,
                             isFocused = (focusedElementId != null),
-                            hideCursor = hideCursor,
+                            isCursorHidden = isCursorHidden,
                             contentItems = contentItems,
                             textStates = textStates,
                             focusRequesters = focusRequesters,
@@ -777,7 +772,7 @@ fun HomeScreen(navController: NavController) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // "태그 앨범" 뷰일 때만 정렬 버튼 표시
-                        if (!showAllPhotos) {
+                        if (!isShowingAllPhotos) {
                             IconButton(onClick = { scope.launch { sheetState.show() } }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
@@ -790,11 +785,11 @@ fun HomeScreen(navController: NavController) {
                             Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
                         }
                         ViewToggle(
-                            onlyTag = onlyTag,
-                            showAllPhotos = showAllPhotos,
+                            isOnlyTag = isOnlyTag,
+                            isShowingAllPhotos = isShowingAllPhotos,
                             onToggle = { tagOnly, allPhotos ->
-                                onlyTag = tagOnly
-                                homeViewModel.setShowAllPhotos(allPhotos)
+                                isOnlyTag = tagOnly
+                                homeViewModel.setIsShowingAllPhotos(allPhotos)
                                 if (isSelectionMode) {
                                     homeViewModel.setSelectionMode(false)
                                     homeViewModel.resetSelection() // draftRepository 초기화
@@ -821,8 +816,8 @@ fun HomeScreen(navController: NavController) {
                     } else {
                         MainContent(
                             modifier = Modifier.weight(1f),
-                            onlyTag = onlyTag, // Pass the actual state
-                            showAllPhotos = showAllPhotos, // Pass the actual state
+                            isOnlyTag = isOnlyTag, // Pass the actual state
+                            isShowingAllPhotos = isShowingAllPhotos, // Pass the actual state
                             tagItems = allTags, // allTags 전달 (이미 로드됨)
                             groupedPhotos = groupedPhotos,
                             navController = navController,
@@ -831,7 +826,7 @@ fun HomeScreen(navController: NavController) {
                                 val tagItem = allTags.find { it.tagId == tagId }
                                 if (tagItem != null) {
                                     tagToDeleteInfo = Pair(tagItem.tagId, tagItem.tagName)
-                                    showDeleteConfirmationDialog = true
+                                    isDeleteConfirmationDialogVisible = true
                                     isDeleteMode = false
                                 }
                             },
@@ -856,7 +851,7 @@ fun HomeScreen(navController: NavController) {
                         )
 
                         // 페이지네이션 로직을 MainContent 밖으로 이동
-                        if (showAllPhotos) {
+                        if (isShowingAllPhotos) {
                             LaunchedEffect(allPhotosGridState, isLoadingMorePhotos) {
                                 // 로딩 중일 때는 스크롤 감지 로직 자체를 실행하지 않도록
                                 if (!isLoadingMorePhotos) {
@@ -882,7 +877,7 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
 
-                    if (showAllPhotos && isLoadingMorePhotos) {
+                    if (isShowingAllPhotos && isLoadingMorePhotos) {
                         Box(
                             modifier =
                                 Modifier
@@ -915,7 +910,7 @@ fun HomeScreen(navController: NavController) {
                             Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
-                    AnimatedVisibility(visible = showErrorBanner && errorBannerMessage != null) {
+                    AnimatedVisibility(visible = isErrorBannerVisible && errorBannerMessage != null) {
                         Column {
                             Spacer(modifier = Modifier.height(8.dp))
                             WarningBanner(
@@ -928,9 +923,9 @@ fun HomeScreen(navController: NavController) {
                                         searchViewModel.loadServerTags()
                                         homeViewModel.loadAllPhotos()
                                     }
-                                    showErrorBanner = false
+                                    isErrorBannerVisible = false
                                 },
-                                onDismiss = { showErrorBanner = false },
+                                onDismiss = { isErrorBannerVisible = false },
                                 showActionButton = true,
                                 showDismissButton = true,
                                 modifier = Modifier.fillMaxWidth(),
@@ -942,7 +937,7 @@ fun HomeScreen(navController: NavController) {
 
                 // search history dropdown
                 AnimatedVisibility(
-                    visible = showSearchHistoryDropdown,
+                    visible = shouldShowSearchHistoryDropdown,
                     enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                     exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
                     modifier =
@@ -991,7 +986,7 @@ fun HomeScreen(navController: NavController) {
         }
     }
 
-    if (showDeleteConfirmationDialog && tagToDeleteInfo != null) {
+    if (isDeleteConfirmationDialogVisible && tagToDeleteInfo != null) {
         val (tagId, tagName) = tagToDeleteInfo!!
 
         confirmDialog(
@@ -1000,11 +995,11 @@ fun HomeScreen(navController: NavController) {
             confirmButtonText = "Delete Tag",
             onConfirm = {
                 homeViewModel.deleteTag(tagId)
-                showDeleteConfirmationDialog = false
+                isDeleteConfirmationDialogVisible = false
                 tagToDeleteInfo = null
             },
             onDismiss = {
-                showDeleteConfirmationDialog = false
+                isDeleteConfirmationDialogVisible = false
                 tagToDeleteInfo = null
             },
             dismissible = true,
@@ -1033,8 +1028,8 @@ fun HomeScreen(navController: NavController) {
 
 @Composable
 private fun ViewToggle(
-    onlyTag: Boolean,
-    showAllPhotos: Boolean,
+    isOnlyTag: Boolean,
+    isShowingAllPhotos: Boolean,
     onToggle: (tagOnly: Boolean, allPhotos: Boolean) -> Unit,
 ) {
     Row(
@@ -1054,7 +1049,7 @@ private fun ViewToggle(
                         Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (!onlyTag && !showAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                if (!isOnlyTag && !isShowingAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, false) }
                             .padding(8.dp),
                 ) {
@@ -1062,8 +1057,8 @@ private fun ViewToggle(
                         Icons.Default.CollectionsBookmark,
                         contentDescription = "Tag Albums",
                         tint =
-                            if (!onlyTag &&
-                                !showAllPhotos
+                            if (!isOnlyTag &&
+                                !isShowingAllPhotos
                             ) {
                                 MaterialTheme.colorScheme.surface
                             } else {
@@ -1078,14 +1073,14 @@ private fun ViewToggle(
                         Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(
-                                if (showAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                if (isShowingAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, true) }
                             .padding(8.dp),
                 ) {
                     Icon(
                         Icons.Default.Photo,
                         contentDescription = "All Photos",
-                        tint = if (showAllPhotos) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (isShowingAllPhotos) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -1098,8 +1093,8 @@ private fun ViewToggle(
 @Composable
 private fun MainContent(
     modifier: Modifier = Modifier,
-    onlyTag: Boolean,
-    showAllPhotos: Boolean,
+    isOnlyTag: Boolean,
+    isShowingAllPhotos: Boolean,
     tagItems: List<TagItem>,
     groupedPhotos: List<DatedPhotoGroup> = emptyList(),
     navController: NavController,
@@ -1127,7 +1122,7 @@ private fun MainContent(
         }
 
         // 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
-        showAllPhotos -> {
+        isShowingAllPhotos -> {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 state = allPhotosGridState,
@@ -1263,13 +1258,13 @@ private fun MainContent(
         }
 
         // 로직 3순위: 'Tag Album' 뷰 (사진이 반드시 있음)
-        !showAllPhotos && !arePhotosEmpty -> {
+        !isShowingAllPhotos && !arePhotosEmpty -> {
             if (areTagsEmpty && isDataReady) {
                 // 시나리오 2-b: 사진은 있으나, 태그가 없음
                 EmptyStateTags(navController = navController, modifier = modifier)
             } else {
                 // 시나리오 3: 사진도 있고, 태그도 있음 (또는 태그 로딩 중)
-                if (onlyTag) {
+                if (isOnlyTag) {
                     // 태그 Flow 뷰
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),

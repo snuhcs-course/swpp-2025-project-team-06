@@ -98,20 +98,15 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun SelectImageScreen(navController: NavController) {
-    var isRecommendationExpanded by remember { mutableStateOf(false) }
-
+    // 1. Context 및 Platform 관련 변수
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     LocalDensity.current
 
-    // 사용자가 조절 가능한 패널 높이
-    val minHeight = 200.dp
-    val maxHeight = (configuration.screenHeightDp * 0.6f).dp
-    var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
-
-    val context = LocalContext.current
-
+    // 2. ViewModel 인스턴스
     val selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val allPhotos by selectImageViewModel.allPhotos.collectAsState()
     val tagName by selectImageViewModel.tagName.collectAsState()
     val selectedPhotos by selectImageViewModel.selectedPhotos.collectAsState()
@@ -122,22 +117,28 @@ fun SelectImageScreen(navController: NavController) {
     val isSelectionMode by selectImageViewModel.isSelectionMode.collectAsState()
     val addPhotosState by selectImageViewModel.addPhotosState.collectAsState()
 
+    // 4. 로컬 상태 변수
+    var isRecommendationExpanded by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(true) }
     var currentTab by remember { mutableStateOf(BottomTab.MyTagsScreen) }
-
     val permission =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
-
     var hasPermission by remember {
         mutableStateOf(
             context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED,
         )
     }
 
+    // 5. Derived 상태 및 계산된 값
+    val minHeight = 200.dp
+    val maxHeight = (configuration.screenHeightDp * 0.6f).dp
+    var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
+
+    // 6. ActivityResultLauncher
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),

@@ -49,25 +49,25 @@ class SearchViewModel(
     private val tokenRepository: TokenRepository,
     private val remoteRepository: RemoteRepository,
 ) : ViewModel() {
+    // 1. Private MutableStateFlow
     private val _tagLoadingState = MutableStateFlow<TagLoadingState>(TagLoadingState.Idle)
-    val tagLoadingState = _tagLoadingState.asStateFlow()
-
     private val _searchState = MutableStateFlow<SemanticSearchState>(SemanticSearchState.Idle)
-    val searchState = _searchState.asStateFlow()
-
-    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
-
     private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
-    val searchHistory = _searchHistory.asStateFlow()
-
     private val _searchText = MutableStateFlow("")
-    val searchText: StateFlow<String> = _searchText.asStateFlow()
-
     private val _isSelectionMode = MutableStateFlow(false)
+
+    // 2. Public StateFlow (exposed state)
+    val tagLoadingState = _tagLoadingState.asStateFlow()
+    val searchState = _searchState.asStateFlow()
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+    val searchHistory = _searchHistory.asStateFlow()
+    val searchText: StateFlow<String> = _searchText.asStateFlow()
     val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
 
+    // 3. Private 변수
     private val isLoggedInFlow = tokenRepository.isLoggedIn
 
+    // 4. init 블록
     init {
         loadSearchHistory()
 
@@ -655,7 +655,7 @@ class SearchViewModel(
         }
     }
 
-    private val showSearchHistoryFlow =
+    private val shouldShowSearchHistoryFlow =
         snapshotFlow {
             val isFocused = focusedElementId.value != null
             val isOnlyOneElement = contentItems.size == 1
@@ -673,8 +673,8 @@ class SearchViewModel(
             }
         }
 
-    val showSearchHistoryDropdown: StateFlow<Boolean> =
-        showSearchHistoryFlow
+    val shouldShowSearchHistoryDropdown: StateFlow<Boolean> =
+        shouldShowSearchHistoryFlow
             .combine(_searchHistory) { shouldShowBasedOnFocus, historyList ->
                 shouldShowBasedOnFocus && historyList.isNotEmpty()
             }.stateIn(

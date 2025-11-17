@@ -32,11 +32,11 @@ fun SearchLoadingStateCustom(
     modifier: Modifier = Modifier,
 ) {
     // 5초 후에 경고 메시지 표시
-    var showWarning by remember { mutableStateOf(false) }
+    var isWarningVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         delay(5000) // 5초 대기
-        showWarning = true
+        isWarningVisible = true
     }
 
     Box(
@@ -60,7 +60,7 @@ fun SearchLoadingStateCustom(
         }
 
         // 🔹 하단 경고 배너
-        if (showWarning) {
+        if (isWarningVisible) {
             Box(
                 modifier =
                     Modifier

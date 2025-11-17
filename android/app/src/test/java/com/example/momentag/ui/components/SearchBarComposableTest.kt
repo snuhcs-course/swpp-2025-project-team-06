@@ -48,7 +48,7 @@ class SearchBarComposableTest {
             ChipSearchBar(
                 listState = listState,
                 isFocused = false,
-                hideCursor = false,
+                isCursorHidden = false,
                 contentItems = contentItems,
                 textStates = textStates,
                 focusRequesters = focusRequesters,
@@ -87,7 +87,7 @@ class SearchBarComposableTest {
             ChipSearchBar(
                 listState = listState,
                 isFocused = false,
-                hideCursor = false,
+                isCursorHidden = false,
                 contentItems = contentItems,
                 textStates = textStates,
                 focusRequesters = focusRequesters,
@@ -126,7 +126,7 @@ class SearchBarComposableTest {
             ChipSearchBar(
                 listState = listState,
                 isFocused = false,
-                hideCursor = false,
+                isCursorHidden = false,
                 contentItems = contentItems,
                 textStates = textStates,
                 focusRequesters = focusRequesters,
@@ -165,7 +165,7 @@ class SearchBarComposableTest {
             ChipSearchBar(
                 listState = listState,
                 isFocused = true,
-                hideCursor = false,
+                isCursorHidden = false,
                 contentItems = contentItems,
                 textStates = textStates,
                 focusRequesters = focusRequesters,
@@ -213,7 +213,7 @@ class SearchBarComposableTest {
             ChipSearchBar(
                 listState = listState,
                 isFocused = true,
-                hideCursor = false,
+                isCursorHidden = false,
                 contentItems = contentItems,
                 textStates = textStates,
                 focusRequesters = focusRequesters,
@@ -283,7 +283,7 @@ class SearchBarComposableTest {
             ChipSearchBar(
                 listState = listState,
                 isFocused = true,
-                hideCursor = false,
+                isCursorHidden = false,
                 contentItems = contentItems,
                 textStates = textStates,
                 focusRequesters = focusRequesters,
@@ -324,7 +324,7 @@ class SearchBarComposableTest {
             ChipSearchBar(
                 listState = listState,
                 isFocused = false,
-                hideCursor = false,
+                isCursorHidden = false,
                 contentItems = contentItems,
                 textStates = textStates,
                 focusRequesters = focusRequesters,

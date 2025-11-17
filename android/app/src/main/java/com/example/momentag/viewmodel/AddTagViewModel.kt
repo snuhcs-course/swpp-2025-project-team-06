@@ -24,16 +24,27 @@ class AddTagViewModel(
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
 ) : ViewModel() {
-    // Expose repository state as read-only flows
+    // 1. 중첩 클래스 및 sealed class 정의
+    sealed class SaveState {
+        object Idle : SaveState()
+        object Loading : SaveState()
+        object Success : SaveState()
+        data class Error(val message: String) : SaveState()
+    }
+
+    // 2. Private MutableStateFlow
+    private val _existingTags = MutableStateFlow<List<String>>(emptyList())
+    private val _isTagNameDuplicate = MutableStateFlow(false)
+    private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
+
+    // 3. Public StateFlow (exposed state)
     val tagName: StateFlow<String> = photoSelectionRepository.tagName
     val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
-
-    private val _existingTags = MutableStateFlow<List<String>>(emptyList())
     val existingTags = _existingTags.asStateFlow()
-
-    private val _isTagNameDuplicate = MutableStateFlow(false)
     val isTagNameDuplicate = _isTagNameDuplicate.asStateFlow()
+    val saveState = _saveState.asStateFlow()
 
+    // 4. init 블록
     init {
         // Load existing tags
         viewModelScope.launch {
@@ -54,21 +65,6 @@ class AddTagViewModel(
             }
         }
     }
-
-    sealed class SaveState {
-        object Idle : SaveState()
-
-        object Loading : SaveState()
-
-        object Success : SaveState()
-
-        data class Error(
-            val message: String,
-        ) : SaveState()
-    }
-
-    private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
-    val saveState = _saveState.asStateFlow()
 
     /**
      * Initialize the draft with data from another screen
@@ -136,20 +132,20 @@ class AddTagViewModel(
                 }
             }
 
-            var allSucceeded = true
+            var isAllSucceeded = true
             for (photo in selectedPhotos.value) {
                 when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
                     is RemoteRepository.Result.Success -> {
                     }
                     else -> {
                         _saveState.value = SaveState.Error(getErrorMessage(result))
-                        allSucceeded = false
+                        isAllSucceeded = false
                         break
                     }
                 }
             }
 
-            if (allSucceeded) {
+            if (isAllSucceeded) {
                 _saveState.value = SaveState.Success
             }
         }

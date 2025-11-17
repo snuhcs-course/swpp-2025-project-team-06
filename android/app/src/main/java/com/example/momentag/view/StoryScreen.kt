@@ -89,23 +89,27 @@ fun StoryTagSelectionScreen(
     navController: NavController,
     modifier: Modifier = Modifier,
 ) {
+    // 1. ViewModel에서 가져온 상태 (collectAsState)
     val storyState by viewModel.storyState.collectAsState()
     val selectedTags by viewModel.selectedTags.collectAsState()
     val submissionStates by viewModel.storyTagSubmissionStates.collectAsState()
     val viewedStories by viewModel.viewedStories.collectAsState()
     val editModeStory by viewModel.editModeStory.collectAsState()
 
-    val coroutineScope = rememberCoroutineScope()
+    // 2. 로컬 상태 변수
     var currentTab by remember { mutableStateOf(BottomTab.StoryScreen) }
 
-    // Load initial stories
+    // 3. rememberCoroutineScope
+    val coroutineScope = rememberCoroutineScope()
+
+    // 4. LaunchedEffect
     LaunchedEffect(Unit) {
         if (storyState is StoryState.Idle) {
             viewModel.loadStories(10)
         }
     }
 
-    // Stop polling when navigating away from screen
+    // 5. DisposableEffect
     DisposableEffect(Unit) {
         onDispose {
             viewModel.stopPolling()

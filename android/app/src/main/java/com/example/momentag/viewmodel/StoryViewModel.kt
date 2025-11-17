@@ -33,40 +33,29 @@ class StoryViewModel(
     private val remoteRepository: RemoteRepository,
     private val imageBrowserRepository: ImageBrowserRepository,
 ) : ViewModel() {
+    // 1. Private MutableStateFlow
     private val _storyState = MutableStateFlow<StoryState>(StoryState.Idle)
-    val storyState = _storyState.asStateFlow()
-
-    // Track selected tags per story: Map<storyId, Set<tagName>>
     private val _selectedTags = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
-    val selectedTags = _selectedTags.asStateFlow()
-
-    // Track submission state per story: Map<storyId, SubmissionState>
     private val _storyTagSubmissionStates = MutableStateFlow<Map<String, StoryTagSubmissionState>>(emptyMap())
-    val storyTagSubmissionStates = _storyTagSubmissionStates.asStateFlow()
-
-    // Track viewed/submitted stories (read-only stories)
     private val _viewedStories = MutableStateFlow<Set<String>>(emptySet())
-    val viewedStories = _viewedStories.asStateFlow()
-
-    // Track the single story currently in edit mode (only one at a time)
     private val _editModeStory = MutableStateFlow<String?>(null)
-    val editModeStory = _editModeStory.asStateFlow()
-
-    // Track original submitted tags for diff calculation: Map<storyId, List<Tag>>
-    // For new stories, this will be empty list
     private val _originalTags = MutableStateFlow<Map<String, List<Tag>>>(emptyMap())
-    val originalTags = _originalTags.asStateFlow()
 
-    // Cache for story tags to avoid duplicate API calls: Map<storyId, List<tagName>>
+    // 2. Private 변수
     private val tagCache = mutableMapOf<String, List<String>>()
-
-    // Track current stories list for pagination
     private val currentStories = mutableListOf<StoryModel>()
-
-    // Track polling jobs to allow cancellation
     private var loadStoriesJob: Job? = null
     private var loadMoreStoriesJob: Job? = null
 
+    // 3. Public StateFlow (exposed state)
+    val storyState = _storyState.asStateFlow()
+    val selectedTags = _selectedTags.asStateFlow()
+    val storyTagSubmissionStates = _storyTagSubmissionStates.asStateFlow()
+    val viewedStories = _viewedStories.asStateFlow()
+    val editModeStory = _editModeStory.asStateFlow()
+    val originalTags = _originalTags.asStateFlow()
+
+    // 4. Public functions
     /**
      * Trigger story generation in the background (for pre-loading)
      * This is called from HomeScreen to prepare stories before user navigates to StoryScreen
@@ -79,6 +68,7 @@ class StoryViewModel(
         }
     }
 
+    // 5. Private functions (helpers)
     /**
      * Process story responses and update state
      * @param storyResponses List of story responses from API
