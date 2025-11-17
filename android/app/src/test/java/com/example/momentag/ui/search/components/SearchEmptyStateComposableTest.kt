@@ -3,6 +3,9 @@ package com.example.momentag.ui.search.components
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import com.example.momentag.ui.components.SearchEmptyStateCustom
+import com.example.momentag.ui.components.SearchErrorStateFallbackCustom
+import com.example.momentag.ui.components.SearchIdleCustom
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

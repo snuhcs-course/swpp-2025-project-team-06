@@ -12,9 +12,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
-import com.example.momentag.MyTagsScreen
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.ui.theme.MomenTagTheme
+import com.example.momentag.view.MyTagsScreen
 import com.example.momentag.viewmodel.ViewModelFactory
 import org.junit.After
 import org.junit.Before

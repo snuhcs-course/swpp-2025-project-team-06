@@ -18,10 +18,10 @@ import androidx.compose.ui.test.performTextInput
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
-import com.example.momentag.AddTagScreen
 import com.example.momentag.model.Photo
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.ui.theme.MomenTagTheme
+import com.example.momentag.view.AddTagScreen
 import com.example.momentag.viewmodel.ViewModelFactory
 import org.junit.After
 import org.junit.Before

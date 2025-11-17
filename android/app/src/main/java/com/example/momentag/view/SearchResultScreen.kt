@@ -1,4 +1,4 @@
-package com.example.momentag
+package com.example.momentag.view
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -71,6 +71,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.SearchUiState
@@ -81,15 +82,18 @@ import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchContentElement
+import com.example.momentag.ui.components.SearchEmptyStateCustom
 import com.example.momentag.ui.components.SearchHistoryItem
+import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.search.components.SearchEmptyStateCustom
-import com.example.momentag.ui.search.components.SearchLoadingStateCustom
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
+import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.android.awaitFrame
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
@@ -130,7 +134,6 @@ fun SearchResultScreen(
 
     var hideCursor by remember { mutableStateOf(false) }
     // var isSelectionMode by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
 
     val focusManager = LocalFocusManager.current
@@ -171,7 +174,7 @@ fun SearchResultScreen(
     }
 
     LaunchedEffect(imeBottom) {
-        kotlinx.coroutines.android.awaitFrame()
+        awaitFrame()
 
         val isClosing = imeBottom < previousImeBottom && imeBottom > 0
         val isClosed = imeBottom == 0 && previousImeBottom > 0
@@ -197,7 +200,7 @@ fun SearchResultScreen(
                 return@collect
             }
 
-            kotlinx.coroutines.android.awaitFrame()
+            awaitFrame()
 
             val index = contentItems.indexOfFirst { it.id == id }
             if (index != -1) {
@@ -250,7 +253,7 @@ fun SearchResultScreen(
     }
 
     LaunchedEffect(isSelectionMode) {
-        kotlinx.coroutines.delay(200L) // 0.2초
+        delay(200L) // 0.2초
         isSelectionModeDelay = isSelectionMode
     }
 
@@ -496,7 +499,7 @@ fun SearchResultScreenUi(
     onDismissError: () -> Unit,
     placeholder: String,
 ) {
-    val focusManager = LocalFocusManager.current
+    LocalFocusManager.current
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,

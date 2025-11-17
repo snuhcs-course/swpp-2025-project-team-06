@@ -1,4 +1,4 @@
-package com.example.momentag
+package com.example.momentag.view
 
 import android.Manifest
 import android.app.Activity
@@ -112,6 +112,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -121,6 +122,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.R
+import com.example.momentag.Screen
 import com.example.momentag.model.LogoutState
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.BottomNavBar
@@ -132,6 +135,8 @@ import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
+import com.example.momentag.ui.components.tagX
+import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
 import com.example.momentag.viewmodel.HomeViewModel
@@ -141,6 +146,7 @@ import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.android.awaitFrame
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -152,7 +158,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val sharedPreferences = remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
+    remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
     var hasPermission by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -347,7 +353,7 @@ fun HomeScreen(navController: NavController) {
     }
 
     LaunchedEffect(isSelectionMode) {
-        kotlinx.coroutines.delay(200L) // 0.2초
+        delay(200L) // 0.2초
         isSelectionModeDelay = isSelectionMode
     }
 
@@ -400,7 +406,7 @@ fun HomeScreen(navController: NavController) {
 
     LaunchedEffect(bannerVisible) {
         if (bannerVisible) {
-            kotlinx.coroutines.delay(5000)
+            delay(5000)
             isUploadBannerDismissed = true
         }
     }
@@ -1395,7 +1401,7 @@ fun TagGridItem(
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            overflow = TextOverflow.Ellipsis,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
@@ -1465,7 +1471,7 @@ fun EmptyStateTags(
             text = "Organize your memories\nby keyword",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            textAlign = TextAlign.Center,
         )
 
         Spacer(modifier = Modifier.height(32.dp))

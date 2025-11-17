@@ -1,4 +1,4 @@
-package com.example.momentag
+package com.example.momentag.view
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.theme.imageCornerRadius
 

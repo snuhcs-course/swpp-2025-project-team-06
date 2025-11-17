@@ -1,4 +1,4 @@
-package com.example.momentag
+package com.example.momentag.view
 
 import android.Manifest
 import android.os.Build
@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.BackTopBar
@@ -73,6 +74,7 @@ import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.viewmodel.AddTagViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,7 +125,7 @@ fun AddTagScreen(navController: NavController) {
             }
             is AddTagViewModel.SaveState.Error -> {
                 showErrorBanner = true
-                kotlinx.coroutines.delay(2000) // 2초 후 자동 사라짐
+                delay(2000) // 2초 후 자동 사라짐
                 showErrorBanner = false
             }
             else -> { }

@@ -1,4 +1,4 @@
-package com.example.momentag
+package com.example.momentag.view
 
 import android.Manifest
 import android.app.Activity
@@ -10,7 +10,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -75,17 +74,16 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.example.momentag.ConfirmableRecommendedTag
-import com.example.momentag.CustomTagChip
 import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
-import com.example.momentag.tagXMode
 import com.example.momentag.ui.components.BackTopBar
+import com.example.momentag.ui.components.ConfirmableRecommendedTag
+import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.components.tagXMode
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
-import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -236,7 +234,7 @@ fun ZoomableImage(
 }
 
 // event.calculateCentroid()는 internal API이므로, 직접 구현해야 함.
-internal fun androidx.compose.ui.input.pointer.PointerEvent.calculateCentroid(useCurrentPosition: Boolean = true): Offset {
+internal fun PointerEvent.calculateCentroid(useCurrentPosition: Boolean = true): Offset {
     var totalX = 0.0f
     var totalY = 0.0f
     var count = 0
@@ -261,7 +259,7 @@ fun ImageDetailScreen(
     onNavigateBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showWarningBanner by remember { mutableStateOf(false) }
@@ -316,7 +314,7 @@ fun ImageDetailScreen(
     }
 
     // Cleanup on dispose
-    androidx.compose.runtime.DisposableEffect(Unit) {
+    DisposableEffect(Unit) {
         onDispose {
             imageDetailViewModel.clearImageContext()
         }
@@ -381,18 +379,9 @@ fun ImageDetailScreen(
             initialValue = SheetValue.PartiallyExpanded,
             skipHiddenState = true,
         )
-    val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
+    rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
 
     val isSheetExpanded = sheetState.targetValue == SheetValue.Expanded
-
-    val overlappingTagsAlpha by animateFloatAsState(
-        targetValue = if (isSheetExpanded) 0f else 1f,
-        label = "tagsAlpha",
-    )
-    val metadataAlpha by animateFloatAsState(
-        targetValue = if (isSheetExpanded) 1f else 0f,
-        label = "metadataAlpha",
-    )
 
     var hasPermission by remember { mutableStateOf(false) }
     val permissionLauncher =
@@ -413,7 +402,7 @@ fun ImageDetailScreen(
     }
 
     LaunchedEffect(tagDeleteState) {
-        when (val state = tagDeleteState) {
+        when (tagDeleteState) {
             is ImageDetailViewModel.TagDeleteState.Success -> {
                 Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
                 val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
@@ -437,7 +426,7 @@ fun ImageDetailScreen(
     }
 
     LaunchedEffect(tagAddState) {
-        when (val state = tagAddState) {
+        when (tagAddState) {
             is ImageDetailViewModel.TagAddState.Success -> {
                 Toast.makeText(context, "Tag Added", Toast.LENGTH_SHORT).show()
                 // The viewmodel already reloads the tags, so we just reset the state here
@@ -461,7 +450,7 @@ fun ImageDetailScreen(
 
     LaunchedEffect(showWarningBanner) {
         if (showWarningBanner) {
-            kotlinx.coroutines.delay(2000)
+            delay(2000)
             showWarningBanner = false
         }
     }
@@ -776,7 +765,7 @@ fun TagsSection(
                 scope.launch {
                     // Increase delay to ensure the UI has fully recomposed and measured
                     // the expanded chip before attempting to scroll to the end.
-                    kotlinx.coroutines.delay(400)
+                    delay(400)
                     scrollState.animateScrollTo(scrollState.maxValue)
                 }
             },

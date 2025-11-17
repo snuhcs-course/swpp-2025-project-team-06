@@ -1,4 +1,4 @@
-package com.example.momentag.ui.search.components
+package com.example.momentag.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.momentag.ui.components.WarningBanner
+import kotlinx.coroutines.delay
 
 /**
  * 로딩 화면 (곰돌이 + Loading 텍스트 + Progress Bar + 경고 메시지)
@@ -35,7 +35,7 @@ fun SearchLoadingStateCustom(
     var showWarning by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(5000) // 5초 대기
+        delay(5000) // 5초 대기
         showWarning = true
     }
 
