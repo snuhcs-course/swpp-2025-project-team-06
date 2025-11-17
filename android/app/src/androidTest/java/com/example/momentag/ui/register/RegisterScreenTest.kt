@@ -171,6 +171,9 @@ class RegisterScreenTest {
             .onFirst()
             .performTextInput("password456")
 
+        // 키보드를 닫기 위해 다른 곳 클릭 (포커스 이동)
+        composeRule.onNodeWithText("MomenTag").performClick()
+
         composeRule.waitForIdle()
 
         // 비밀번호 불일치 에러 메시지 확인

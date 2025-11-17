@@ -64,12 +64,11 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.room.ktx)
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.compose.animation)
     implementation(libs.material3)
     implementation(libs.material)
-    implementation(libs.androidx.rules)
 
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core)
@@ -82,7 +81,8 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
-    androidTestImplementation("org.mockito:mockito-android:5.5.0")
+    androidTestImplementation(libs.mockito.android)
+    androidTestImplementation(libs.androidx.rules)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
