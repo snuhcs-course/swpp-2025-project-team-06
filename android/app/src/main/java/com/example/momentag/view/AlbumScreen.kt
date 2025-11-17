@@ -1,4 +1,4 @@
-package com.example.momentag
+package com.example.momentag.view
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -82,14 +83,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
+import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AlbumViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -144,7 +148,7 @@ fun AlbumScreen(
 
     LaunchedEffect(showSelectPhotosBannerShare) {
         if (showSelectPhotosBannerShare) {
-            kotlinx.coroutines.delay(2000)
+            delay(2000)
             showSelectPhotosBannerShare = false
         }
     }
@@ -153,7 +157,7 @@ fun AlbumScreen(
 
     LaunchedEffect(showSelectPhotosBannerUntag) {
         if (showSelectPhotosBannerUntag) {
-            kotlinx.coroutines.delay(2000)
+            delay(2000)
             showSelectPhotosBannerUntag = false
         }
     }
@@ -168,7 +172,7 @@ fun AlbumScreen(
     }
 
     LaunchedEffect(isTagAlbumPhotoSelectionMode) {
-        kotlinx.coroutines.delay(200L) // 0.2초
+        delay(200L) // 0.2초
         isTagAlbumPhotoSelectionModeDelay = isTagAlbumPhotoSelectionMode
     }
 
@@ -831,7 +835,7 @@ private fun RecommendExpandedPanel(
                                     onCollapse()
                                 },
                                 colors =
-                                    androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error,
                                     ),
                                 shape = RoundedCornerShape(20.dp),

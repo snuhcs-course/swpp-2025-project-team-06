@@ -1,4 +1,4 @@
-package com.example.momentag
+package com.example.momentag.ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility

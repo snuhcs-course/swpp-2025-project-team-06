@@ -1,11 +1,13 @@
-package com.example.momentag
+package com.example.momentag.view
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -34,6 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -76,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
 import com.example.momentag.ui.components.BottomNavBar
@@ -87,6 +91,7 @@ import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -96,7 +101,7 @@ fun SelectImageScreen(navController: NavController) {
     var isRecommendationExpanded by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
-    val density = LocalDensity.current
+    LocalDensity.current
 
     // 사용자가 조절 가능한 패널 높이
     val minHeight = 200.dp
@@ -118,7 +123,6 @@ fun SelectImageScreen(navController: NavController) {
     val addPhotosState by selectImageViewModel.addPhotosState.collectAsState()
 
     var isSelectionModeDelay by remember { mutableStateOf(true) }
-    var showMenu by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(BottomTab.MyTagsScreen) }
 
     val permission =
@@ -130,7 +134,7 @@ fun SelectImageScreen(navController: NavController) {
 
     var hasPermission by remember {
         mutableStateOf(
-            context.checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED,
+            context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED,
         )
     }
 
@@ -151,7 +155,7 @@ fun SelectImageScreen(navController: NavController) {
     }
 
     LaunchedEffect(isSelectionMode) {
-        kotlinx.coroutines.delay(200L) // 0.2초
+        delay(200L) // 0.2초
         isSelectionModeDelay = isSelectionMode
     }
 
@@ -163,7 +167,7 @@ fun SelectImageScreen(navController: NavController) {
     // Delay AI recommendation to improve initial screen load performance
     LaunchedEffect(Unit) {
         // Wait for initial photos to load first
-        kotlinx.coroutines.delay(500L) // 0.5초 지연으로 화면 로딩 우선
+        delay(500L) // 0.5초 지연으로 화면 로딩 우선
         selectImageViewModel.recommendPhoto()
     }
 
@@ -371,8 +375,7 @@ fun SelectImageScreen(navController: NavController) {
                         // Loading indicator
                         if (isLoadingMore) {
                             item(span = {
-                                androidx.compose.foundation.lazy.grid
-                                    .GridItemSpan(3)
+                                GridItemSpan(3)
                             }) {
                                 Box(
                                     modifier =
@@ -398,21 +401,17 @@ fun SelectImageScreen(navController: NavController) {
                 visible = !isRecommendationExpanded,
                 enter =
                     fadeIn(
-                        androidx.compose.animation.core
-                            .tween(300),
+                        tween(300),
                     ) +
                         expandVertically(
-                            androidx.compose.animation.core
-                                .tween(300),
+                            tween(300),
                         ),
                 exit =
                     fadeOut(
-                        androidx.compose.animation.core
-                            .tween(300),
+                        tween(300),
                     ) +
                         shrinkVertically(
-                            androidx.compose.animation.core
-                                .tween(300),
+                            tween(300),
                         ),
                 modifier =
                     Modifier

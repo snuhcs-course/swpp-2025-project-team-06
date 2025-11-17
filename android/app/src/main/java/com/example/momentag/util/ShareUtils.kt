@@ -1,4 +1,4 @@
-package com.example.momentag
+package com.example.momentag.util
 
 import android.content.Context
 import android.content.Intent

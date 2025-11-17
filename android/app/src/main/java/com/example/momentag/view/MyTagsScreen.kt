@@ -1,4 +1,4 @@
-package com.example.momentag
+package com.example.momentag.view
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,24 +68,29 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.momentag.R
+import com.example.momentag.Screen
 import com.example.momentag.model.MyTagsUiState
 import com.example.momentag.model.TagCntData
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.RenameTagDialog
+import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.TagActionState
 import com.example.momentag.viewmodel.TagSortOrder
 import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -176,7 +182,7 @@ fun MyTagsScreen(navController: NavController) {
             }
             is MyTagsViewModel.SaveState.Error -> {
                 showErrorBanner = true
-                kotlinx.coroutines.delay(2000) // 2초 후 자동 사라짐
+                delay(2000) // 2초 후 자동 사라짐
                 showErrorBanner = false
             }
             else -> { }
@@ -272,7 +278,7 @@ fun MyTagsScreen(navController: NavController) {
                                 text = "Select a tag or create a new one",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                textAlign = TextAlign.Center,
                             )
                         }
                     }
@@ -434,7 +440,7 @@ fun MyTagsScreen(navController: NavController) {
                             onDeleteSelectedTags = { selectedTagIds ->
                                 // Delete each selected tag
                                 selectedTagIds.forEach { tagId ->
-                                    val tagName = state.tags.find { it.tagId == tagId }?.tagName ?: ""
+                                    state.tags.find { it.tagId == tagId }?.tagName ?: ""
                                     myTagsViewModel.deleteTag(tagId)
                                 }
                             },
@@ -601,8 +607,7 @@ private fun MyTagsContent(
                             indication = null,
                             interactionSource =
                                 remember {
-                                    androidx.compose.foundation.interaction
-                                        .MutableInteractionSource()
+                                    MutableInteractionSource()
                                 },
                         ) {
                             onExitEditMode()
@@ -736,7 +741,7 @@ private fun MyTagsContent(
                     text = "Organize your memories\nby keyword",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    textAlign = TextAlign.Center,
                 )
             }
         }

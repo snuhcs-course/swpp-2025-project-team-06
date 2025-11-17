@@ -20,7 +20,7 @@ import com.example.momentag.R
 import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.repository.LocalRepository
-import com.example.momentag.repository.PhotoInfoForUpload // [추가] 3단계에서 만든 클래스 재사용
+import com.example.momentag.repository.PhotoInfoForUpload
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.viewmodel.ViewModelFactory
 import com.google.gson.Gson
@@ -30,7 +30,6 @@ import kotlinx.coroutines.flow.update
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.lang.Exception
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

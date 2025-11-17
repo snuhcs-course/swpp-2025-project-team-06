@@ -1,5 +1,7 @@
-package com.example.momentag
+package com.example.momentag.view
 
+import android.util.Patterns
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,80 +52,112 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.momentag.model.LoginState
+import com.example.momentag.Screen
+import com.example.momentag.model.RegisterState
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 
+// TODO:Register보내고 돌아오는 거 기다릴 동안 Loading 화면 띄워 줘야 할 듯
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(navController: NavController) {
+fun RegisterScreen(navController: NavController) {
     val context = LocalContext.current
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val loginState by authViewModel.loginState.collectAsState()
+    val registerState by authViewModel.registerState.collectAsState()
 
+    var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordCheck by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var passwordCheckVisible by rememberSaveable { mutableStateOf(false) }
 
+    var isEmailError by remember { mutableStateOf(false) }
     var isUsernameError by remember { mutableStateOf(false) }
     var isPasswordError by remember { mutableStateOf(false) }
+    var isPasswordCheckError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var emailTouched by remember { mutableStateOf(false) }
     var usernameTouched by remember { mutableStateOf(false) }
     var passwordTouched by remember { mutableStateOf(false) }
+    var passwordCheckTouched by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var showErrorBanner by remember { mutableStateOf(false) }
 
+    BackHandler(enabled = true) {
+        navController.navigate(Screen.Login.route) {
+            popUpTo(Screen.Register.route) { inclusive = true }
+        }
+    }
+
+    // Email validation helper
+    fun isValidEmail(email: String): Boolean =
+        Patterns
+            .EMAIL_ADDRESS
+            .matcher(email)
+            .matches()
+
     val clearAllErrors = {
+        isEmailError = false
         isUsernameError = false
         isPasswordError = false
+        isPasswordCheckError = false
         errorMessage = null
         showErrorBanner = false
     }
 
-    LaunchedEffect(loginState) {
-        when (val state = loginState) {
-            is LoginState.Loading -> {
+    LaunchedEffect(registerState) {
+        when (val state = registerState) {
+            is RegisterState.Loading -> {
                 isLoading = true
                 showErrorBanner = false
             }
-            is LoginState.Success -> {
+            is RegisterState.Success -> {
                 isLoading = false
-                navController.navigate(Screen.Home.route) {
-                    popUpTo(Screen.Login.route) { inclusive = true }
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Register.route) { inclusive = true }
                 }
             }
-            is LoginState.BadRequest -> {
+            is RegisterState.BadRequest -> {
                 isLoading = false
                 errorMessage = state.message
+                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
+                isPasswordCheckError = true
                 showErrorBanner = true
-                authViewModel.resetLoginState()
+                authViewModel.resetRegisterState()
             }
-            is LoginState.Unauthorized -> {
+            is RegisterState.Conflict -> {
                 isLoading = false
                 errorMessage = state.message
+                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
+                isPasswordCheckError = true
                 showErrorBanner = true
-                authViewModel.resetLoginState()
+                authViewModel.resetRegisterState()
             }
-            is LoginState.NetworkError -> {
+            is RegisterState.NetworkError -> {
                 isLoading = false
                 errorMessage = state.message
+                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
+                isPasswordCheckError = true
                 showErrorBanner = true
-                authViewModel.resetLoginState()
+                authViewModel.resetRegisterState()
             }
-            is LoginState.Error -> {
+            is RegisterState.Error -> {
                 isLoading = false
                 errorMessage = state.message
+                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
+                isPasswordCheckError = true
                 showErrorBanner = true
-                authViewModel.resetLoginState()
+                authViewModel.resetRegisterState()
             }
             else -> {}
         }
@@ -133,7 +168,6 @@ fun LoginScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .imePadding()
                     .background(
                         brush =
                             Brush.verticalGradient(
@@ -144,13 +178,14 @@ fun LoginScreen(navController: NavController) {
                                     ),
                             ),
                     ).padding(paddingValues)
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = 24.dp)
+                    .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(24.dp))
             // MomenTag title
             Text(
-                text = "#MomenTag",
+                text = "MomenTag",
                 style = MaterialTheme.typography.displayLarge,
             )
 
@@ -164,25 +199,25 @@ fun LoginScreen(navController: NavController) {
                 verticalArrangement = Arrangement.Top,
             ) {
                 Spacer(modifier = Modifier.weight(0.5f))
-                // Login title
+                // Sign Up title
                 Text(
-                    text = "Login",
+                    text = "Sign Up",
                     style = MaterialTheme.typography.displayLarge,
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // "Don't have an account? Sign Up"
+                // "Already have an account? Login"
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Don't have an account? ", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Already have an account? ", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        text = "Sign Up",
+                        text = "Login",
                         modifier =
                             Modifier.clickable {
-                                navController.navigate(Screen.Register.route) {
-                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Register.route) { inclusive = true }
                                 }
                             },
                         style = TextStyle(color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold),
@@ -190,6 +225,76 @@ fun LoginScreen(navController: NavController) {
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+
+                // email input
+                Text(text = "Email", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    emailTouched = true
+                                    if (errorMessage != null) {
+                                        clearAllErrors()
+                                    } else {
+                                        isEmailError = false
+                                    }
+                                } else {
+                                    if (emailTouched && (email.isEmpty() || !isValidEmail(email))) {
+                                        isEmailError = true
+                                    }
+                                }
+                            },
+                    value = email,
+                    onValueChange = {
+                        email = it
+                        if (errorMessage != null) {
+                            clearAllErrors()
+                        } else {
+                            isEmailError = false
+                        }
+                    },
+                    placeholder = { Text("Email", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    isError = isEmailError || (emailTouched && email.isNotEmpty() && !isValidEmail(email)),
+                    colors =
+                        OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
+                        ),
+                )
+
+                // --- 추가: Email 로컬 에러 Box ---
+                Box(
+                    modifier =
+                        Modifier
+                            .height(20.dp)
+                            .fillMaxWidth()
+                            .padding(top = 4.dp, start = 4.dp),
+                ) {
+                    if (isEmailError && email.isEmpty()) {
+                        Text(
+                            text = "Please enter your email",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else if (emailTouched && email.isNotEmpty() && !isValidEmail(email)) {
+                        Text(
+                            text = "Please enter a valid email address",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+                // --- 추가 끝 ---
 
                 // username input
                 Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -305,8 +410,6 @@ fun LoginScreen(navController: NavController) {
                             errorContainerColor = MaterialTheme.colorScheme.surface,
                         ),
                 )
-
-                // --- 수정: 로컬 에러만 여기에 표시 ---
                 Box(
                     modifier =
                         Modifier
@@ -314,7 +417,7 @@ fun LoginScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(top = 4.dp, start = 4.dp),
                 ) {
-                    if (!showErrorBanner && isPasswordError && password.isEmpty()) {
+                    if (isPasswordError && password.isEmpty()) {
                         Text(
                             text = "Please enter your password",
                             color = MaterialTheme.colorScheme.error,
@@ -322,10 +425,93 @@ fun LoginScreen(navController: NavController) {
                         )
                     }
                 }
+
+                // password check input
+                Text(text = "Password Check", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    passwordCheckTouched = true
+                                    if (errorMessage != null) {
+                                        clearAllErrors()
+                                    } else {
+                                        isPasswordCheckError = false
+                                    }
+                                } else {
+                                    if (passwordCheckTouched && passwordCheck.isEmpty()) {
+                                        isPasswordCheckError = true
+                                    }
+                                }
+                            },
+                    value = passwordCheck,
+                    onValueChange = {
+                        passwordCheck = it
+                        if (errorMessage != null) {
+                            clearAllErrors()
+                        } else {
+                            isPasswordCheckError = false
+                        }
+                    },
+                    placeholder = { Text("Password Check", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    visualTransformation = if (passwordCheckVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        val image = if (passwordCheckVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                        val description = if (passwordCheckVisible) "Hide password" else "Show password"
+                        IconButton(onClick = { passwordCheckVisible = !passwordCheckVisible }) {
+                            Icon(imageVector = image, contentDescription = description)
+                        }
+                    },
+                    isError = isPasswordCheckError || (passwordCheck.isNotEmpty() && password != passwordCheck),
+                    colors =
+                        OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            errorContainerColor = MaterialTheme.colorScheme.surface,
+                        ),
+                )
+
+                // --- 수정: 중복 에러 로직 정리 및 로컬 에러만 표시 ---
+                Box(
+                    modifier =
+                        Modifier
+                            .height(20.dp)
+                            .fillMaxWidth()
+                            .padding(top = 4.dp, start = 4.dp),
+                ) {
+                    if (!showErrorBanner) { // 서버 에러(배너)가 없을 때만 로컬 에러 표시
+                        if (isPasswordCheckError && passwordCheck.isEmpty()) {
+                            Text(
+                                text = "Please check your password",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        } else if (passwordCheck.isNotEmpty() && password != passwordCheck) {
+                            Text(
+                                text = "Password does not match",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                }
+                // --- 수정 끝 (기존 Box, AnimatedVisibility, if 블록 모두 삭제 후 Box로 대체) ---
+
                 Spacer(modifier = Modifier.height(8.dp))
+
+                // --- 추가: WarningBanner를 버튼 바로 위로 이동 ---
                 AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
                     WarningBanner(
-                        title = "Login Failed",
+                        title = "Registration Failed",
                         message = errorMessage ?: "Unknown error",
                         onActionClick = { showErrorBanner = false },
                         showActionButton = false,
@@ -334,15 +520,26 @@ fun LoginScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp)) // 배너와 버튼 사이 간격
+                // --- 추가 끝 ---
+
+                // register button
                 Button(
                     onClick = {
+                        val emailEmpty = email.isEmpty()
+                        val emailInvalid = !isValidEmail(email)
                         val usernameEmpty = username.isEmpty()
                         val passwordEmpty = password.isEmpty()
+                        val passwordCheckEmpty = passwordCheck.isEmpty()
+                        isEmailError = emailEmpty || emailInvalid
                         isUsernameError = usernameEmpty
                         isPasswordError = passwordEmpty
-                        if (!usernameEmpty && !passwordEmpty) {
-                            authViewModel.login(username, password)
+                        isPasswordCheckError = passwordCheckEmpty
+
+                        if (password != passwordCheck) {
+                            isPasswordCheckError = true
+                        } else if (!emailEmpty && !emailInvalid && !usernameEmpty && !passwordEmpty && !passwordCheckEmpty) {
+                            authViewModel.register(email, username, password)
                         }
                     },
                     modifier =
@@ -358,13 +555,13 @@ fun LoginScreen(navController: NavController) {
                     enabled = !isLoading,
                 ) {
                     if (isLoading) {
-                        androidx.compose.material3.CircularProgressIndicator(
+                        CircularProgressIndicator(
                             modifier = Modifier.height(24.dp),
                             color = MaterialTheme.colorScheme.onPrimary,
                             strokeWidth = 2.dp,
                         )
                     } else {
-                        Text("Log In", style = MaterialTheme.typography.headlineSmall)
+                        Text(text = "Register", style = MaterialTheme.typography.headlineMedium)
                     }
                 }
                 Spacer(modifier = Modifier.weight(1f))
