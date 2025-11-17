@@ -55,6 +55,8 @@ class SearchViewModel(
     private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
     private val _searchText = MutableStateFlow("")
     private val _isSelectionMode = MutableStateFlow(false)
+    private val _requestFocus = MutableSharedFlow<String>()
+    private val _bringIntoView = MutableSharedFlow<String>()
 
     // 2. Public StateFlow (exposed state)
     val tagLoadingState = _tagLoadingState.asStateFlow()
@@ -63,11 +65,23 @@ class SearchViewModel(
     val searchHistory = _searchHistory.asStateFlow()
     val searchText: StateFlow<String> = _searchText.asStateFlow()
     val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+    val requestFocus = _requestFocus.asSharedFlow()
+    val bringIntoView = _bringIntoView.asSharedFlow()
 
     // 3. Private 변수
     private val isLoggedInFlow = tokenRepository.isLoggedIn
+    private val _focusedElementId = mutableStateOf<String?>(null)
+    private val _ignoreFocusLoss = mutableStateOf(false)
+    
+    // 4. Public 변수
+    val textStates = mutableStateMapOf<String, TextFieldValue>()
+    val contentItems = mutableStateListOf<SearchContentElement>()
+    val focusedElementId: androidx.compose.runtime.State<String?> = _focusedElementId
+    val ignoreFocusLoss: androidx.compose.runtime.State<Boolean> = _ignoreFocusLoss
+    val focusRequesters = mutableStateMapOf<String, FocusRequester>()
+    val bringIntoViewRequesters = mutableStateMapOf<String, BringIntoViewRequester>()
 
-    // 4. init 블록
+    // 5. init 블록
     init {
         loadSearchHistory()
 
@@ -79,6 +93,19 @@ class SearchViewModel(
             }
         }
     }
+
+    init {
+        if (contentItems.isEmpty()) {
+            val initialId = UUID.randomUUID().toString()
+            contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
+            textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
+
+            focusRequesters[initialId] = FocusRequester()
+            bringIntoViewRequesters[initialId] = BringIntoViewRequester()
+        }
+    }
+
+    
 
     fun loadServerTags() {
         viewModelScope.launch {
@@ -291,33 +318,6 @@ class SearchViewModel(
         }
 
         return elements
-    }
-
-    val textStates = mutableStateMapOf<String, TextFieldValue>()
-    val contentItems = mutableStateListOf<SearchContentElement>()
-    private val _focusedElementId = mutableStateOf<String?>(null)
-    val focusedElementId: androidx.compose.runtime.State<String?> = _focusedElementId
-    private val _ignoreFocusLoss = mutableStateOf(false)
-    val ignoreFocusLoss: androidx.compose.runtime.State<Boolean> = _ignoreFocusLoss
-
-    private val _requestFocus = MutableSharedFlow<String>()
-    val requestFocus = _requestFocus.asSharedFlow()
-
-    private val _bringIntoView = MutableSharedFlow<String>()
-    val bringIntoView = _bringIntoView.asSharedFlow()
-
-    val focusRequesters = mutableStateMapOf<String, FocusRequester>()
-    val bringIntoViewRequesters = mutableStateMapOf<String, BringIntoViewRequester>()
-
-    init {
-        if (contentItems.isEmpty()) {
-            val initialId = UUID.randomUUID().toString()
-            contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
-            textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
-
-            focusRequesters[initialId] = FocusRequester()
-            bringIntoViewRequesters[initialId] = BringIntoViewRequester()
-        }
     }
 
     private val currentTagQuery =
