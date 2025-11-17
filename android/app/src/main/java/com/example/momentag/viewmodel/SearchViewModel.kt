@@ -72,7 +72,7 @@ class SearchViewModel(
     private val isLoggedInFlow = tokenRepository.isLoggedIn
     private val _focusedElementId = mutableStateOf<String?>(null)
     private val _ignoreFocusLoss = mutableStateOf(false)
-    
+
     // 4. Public 변수
     val textStates = mutableStateMapOf<String, TextFieldValue>()
     val contentItems = mutableStateListOf<SearchContentElement>()
@@ -104,8 +104,6 @@ class SearchViewModel(
             bringIntoViewRequesters[initialId] = BringIntoViewRequester()
         }
     }
-
-    
 
     fun loadServerTags() {
         viewModelScope.launch {

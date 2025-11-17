@@ -31,7 +31,7 @@ class SelectImageViewModel(
     private val imageBrowserRepository: ImageBrowserRepository,
     private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
-    // 1. Sealed class 정의
+    // 1. state class 정의
     sealed class AddPhotosState {
         object Idle : AddPhotosState()
 

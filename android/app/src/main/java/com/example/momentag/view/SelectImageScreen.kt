@@ -132,6 +132,7 @@ fun SelectImageScreen(navController: NavController) {
             context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED,
         )
     }
+    val listState = selectImageViewModel.lazyGridState
 
     // 5. Derived 상태 및 계산된 값
     val minHeight = 200.dp
@@ -149,29 +150,7 @@ fun SelectImageScreen(navController: NavController) {
             },
         )
 
-    LaunchedEffect(key1 = true) {
-        if (!hasPermission) {
-            permissionLauncher.launch(permission)
-        }
-    }
-
-    LaunchedEffect(isSelectionMode) {
-        delay(200L) // 0.2초
-        isSelectionModeDelay = isSelectionMode
-    }
-
-    BackHandler(enabled = isSelectionMode) {
-        isSelectionModeDelay = false
-        selectImageViewModel.setSelectionMode(false)
-    }
-
-    // Delay AI recommendation to improve initial screen load performance
-    LaunchedEffect(Unit) {
-        // Wait for initial photos to load first
-        delay(500L) // 0.5초 지연으로 화면 로딩 우선
-        selectImageViewModel.recommendPhoto()
-    }
-
+    // 7. 콜백 함수 정의
     val onPhotoClick: (Photo) -> Unit = { photo ->
         selectImageViewModel.handlePhotoClick(
             photo = photo,
@@ -189,6 +168,25 @@ fun SelectImageScreen(navController: NavController) {
 
     val onRecommendedPhotoClick: (Photo) -> Unit = { photo ->
         selectImageViewModel.addPhotoFromRecommendation(photo)
+    }
+
+    // 8. LaunchedEffect
+    LaunchedEffect(key1 = true) {
+        if (!hasPermission) {
+            permissionLauncher.launch(permission)
+        }
+    }
+
+    LaunchedEffect(isSelectionMode) {
+        delay(200L) // 0.2초
+        isSelectionModeDelay = isSelectionMode
+    }
+
+    // Delay AI recommendation to improve initial screen load performance
+    LaunchedEffect(Unit) {
+        // Wait for initial photos to load first
+        delay(500L) // 0.5초 지연으로 화면 로딩 우선
+        selectImageViewModel.recommendPhoto()
     }
 
     // Re-recommend when AI recommendation is collapsed after adding photos
@@ -214,9 +212,6 @@ fun SelectImageScreen(navController: NavController) {
         }
     }
 
-    // LazyGrid state for pagination
-    val listState = selectImageViewModel.lazyGridState
-
     // Scroll detection for pagination
     LaunchedEffect(listState, isLoadingMore) {
         if (!isLoadingMore) {
@@ -239,6 +234,13 @@ fun SelectImageScreen(navController: NavController) {
         }
     }
 
+    // 9. BackHandler
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionModeDelay = false
+        selectImageViewModel.setSelectionMode(false)
+    }
+
+    // 10. UI 구성
     Scaffold(
         topBar = {
             CommonTopBar(

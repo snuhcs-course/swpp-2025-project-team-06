@@ -48,7 +48,7 @@ class HomeViewModel(
         }
     }
 
-    // 2. 중첩 클래스 및 sealed class 정의
+    // 2. state class 정의
     sealed class HomeLoadingState {
         object Idle : HomeLoadingState()
 

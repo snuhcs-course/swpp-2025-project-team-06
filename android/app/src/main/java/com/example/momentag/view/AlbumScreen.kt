@@ -133,15 +133,34 @@ fun AlbumScreen(
     var errorBannerTitle by remember { mutableStateOf("Error") }
     var errorBannerMessage by remember { mutableStateOf("An error occurred") }
     var isSelectPhotosBannerShareVisible by remember { mutableStateOf(false) }
+    var isSelectPhotosBannerUntagVisible by remember { mutableStateOf(false) }
 
     // 5. Derived 상태 및 계산된 값
     val minPanelHeight = 200.dp
     val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
     var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
 
-    // 6. rememberCoroutineScope
+    // 6. rememberCoroutineScope & ActivityResultLauncher
     val scope = rememberCoroutineScope()
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    hasPermission = true
+                }
+            },
+        )
+    val submitAndClearFocus = {
+        if (editableTagName.isNotBlank() && editableTagName != currentTagName) {
+            albumViewModel.renameTag(tagId, editableTagName)
+        } else if (editableTagName.isBlank()) { // If text is blank, revert to the last good name
+            editableTagName = currentTagName
+        }
 
+        keyboardController?.hide() // Hide keyboard
+        focusManager.clearFocus() // Remove focus (cursor)
+    }
     // 7. LaunchedEffect
     LaunchedEffect(isSelectPhotosBannerShareVisible) {
         if (isSelectPhotosBannerShareVisible) {
@@ -150,21 +169,10 @@ fun AlbumScreen(
         }
     }
 
-    var isSelectPhotosBannerUntagVisible by remember { mutableStateOf(false) }
-
     LaunchedEffect(isSelectPhotosBannerUntagVisible) {
         if (isSelectPhotosBannerUntagVisible) {
             delay(2000)
             isSelectPhotosBannerUntagVisible = false
-        }
-    }
-
-    BackHandler(enabled = isRecommendationExpanded || isTagAlbumPhotoSelectionMode) {
-        if (isRecommendationExpanded) {
-            isRecommendationExpanded = false
-        } else if (isTagAlbumPhotoSelectionMode) {
-            isTagAlbumPhotoSelectionMode = false
-            albumViewModel.resetTagAlbumPhotoSelection()
         }
     }
 
@@ -226,16 +234,6 @@ fun AlbumScreen(
         }
     }
 
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission(),
-            onResult = { isGranted ->
-                if (isGranted) {
-                    hasPermission = true
-                }
-            },
-        )
-
     LaunchedEffect(hasPermission, tagId) {
         if (hasPermission && imageLoadState is AlbumViewModel.AlbumLoadingState.Idle) {
             albumViewModel.loadAlbum(tagId, tagName)
@@ -269,15 +267,13 @@ fun AlbumScreen(
         }
     }
 
-    val submitAndClearFocus = {
-        if (editableTagName.isNotBlank() && editableTagName != currentTagName) {
-            albumViewModel.renameTag(tagId, editableTagName)
-        } else if (editableTagName.isBlank()) { // If text is blank, revert to the last good name
-            editableTagName = currentTagName
+    BackHandler(enabled = isRecommendationExpanded || isTagAlbumPhotoSelectionMode) {
+        if (isRecommendationExpanded) {
+            isRecommendationExpanded = false
+        } else if (isTagAlbumPhotoSelectionMode) {
+            isTagAlbumPhotoSelectionMode = false
+            albumViewModel.resetTagAlbumPhotoSelection()
         }
-
-        keyboardController?.hide() // Hide keyboard
-        focusManager.clearFocus() // Remove focus (cursor)
     }
 
     if (isDeleteConfirmationDialogVisible) {

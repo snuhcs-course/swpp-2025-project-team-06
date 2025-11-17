@@ -24,7 +24,7 @@ class AddTagViewModel(
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
 ) : ViewModel() {
-    // 1. 중첩 클래스 및 sealed class 정의
+    // 1. state 클래스 및 sealed class 정의
     sealed class SaveState {
         object Idle : SaveState()
 

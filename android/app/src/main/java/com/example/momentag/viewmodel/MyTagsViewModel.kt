@@ -30,7 +30,7 @@ class MyTagsViewModel(
     private val remoteRepository: RemoteRepository,
     private val photoSelectionRepository: PhotoSelectionRepository,
 ) : ViewModel() {
-    // 1. Sealed class 정의
+    // 1. state class 정의
     sealed class SaveState {
         object Idle : SaveState()
 

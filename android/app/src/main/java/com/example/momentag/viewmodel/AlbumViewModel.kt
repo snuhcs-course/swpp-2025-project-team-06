@@ -22,7 +22,7 @@ class AlbumViewModel(
     private val photoSelectionRepository: PhotoSelectionRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
-    // 1. 중첩 클래스 및 sealed class 정의
+    // 1. state class 정의
     sealed class AlbumLoadingState {
         object Idle : AlbumLoadingState()
 

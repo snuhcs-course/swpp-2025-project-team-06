@@ -25,7 +25,7 @@ class ImageDetailViewModel(
     private val remoteRepository: RemoteRepository,
     private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
-    // 1. Sealed class 정의
+    // 1. state class 정의
     sealed class TagDeleteState {
         object Idle : TagDeleteState()
 
