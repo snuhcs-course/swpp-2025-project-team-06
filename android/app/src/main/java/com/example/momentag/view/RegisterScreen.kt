@@ -1,7 +1,6 @@
 package com.example.momentag.view
 
 import android.util.Patterns
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,35 +61,35 @@ import com.example.momentag.viewmodel.ViewModelFactory
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
+
+    // 2. ViewModel 인스턴스
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val registerState by authViewModel.registerState.collectAsState()
 
+    // 4. 로컬 상태 변수
     var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordCheck by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordCheckVisible by rememberSaveable { mutableStateOf(false) }
-
     var isEmailError by remember { mutableStateOf(false) }
     var isUsernameError by remember { mutableStateOf(false) }
     var isPasswordError by remember { mutableStateOf(false) }
     var isPasswordCheckError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var emailTouched by remember { mutableStateOf(false) }
-    var usernameTouched by remember { mutableStateOf(false) }
-    var passwordTouched by remember { mutableStateOf(false) }
-    var passwordCheckTouched by remember { mutableStateOf(false) }
+    var isEmailTouched by remember { mutableStateOf(false) }
+    var isUsernameTouched by remember { mutableStateOf(false) }
+    var isPasswordTouched by remember { mutableStateOf(false) }
+    var isPasswordCheckTouched by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
-    var showErrorBanner by remember { mutableStateOf(false) }
+    var isErrorBannerVisible by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = true) {
-        navController.navigate(Screen.Login.route) {
-            popUpTo(Screen.Register.route) { inclusive = true }
-        }
-    }
-
+    // 9. 콜백 함수 정의
     // Email validation helper
     fun isValidEmail(email: String): Boolean =
         Patterns
@@ -104,14 +103,15 @@ fun RegisterScreen(navController: NavController) {
         isPasswordError = false
         isPasswordCheckError = false
         errorMessage = null
-        showErrorBanner = false
+        isErrorBannerVisible = false
     }
 
+    // 10. LaunchedEffect
     LaunchedEffect(registerState) {
         when (val state = registerState) {
             is RegisterState.Loading -> {
                 isLoading = true
-                showErrorBanner = false
+                isErrorBannerVisible = false
             }
             is RegisterState.Success -> {
                 isLoading = false
@@ -126,7 +126,7 @@ fun RegisterScreen(navController: NavController) {
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
             is RegisterState.Conflict -> {
@@ -136,7 +136,7 @@ fun RegisterScreen(navController: NavController) {
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
             is RegisterState.NetworkError -> {
@@ -146,7 +146,7 @@ fun RegisterScreen(navController: NavController) {
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
             is RegisterState.Error -> {
@@ -156,7 +156,7 @@ fun RegisterScreen(navController: NavController) {
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
             else -> {}
@@ -235,14 +235,14 @@ fun RegisterScreen(navController: NavController) {
                             .height(52.dp)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
-                                    emailTouched = true
+                                    isEmailTouched = true
                                     if (errorMessage != null) {
                                         clearAllErrors()
                                     } else {
                                         isEmailError = false
                                     }
                                 } else {
-                                    if (emailTouched && (email.isEmpty() || !isValidEmail(email))) {
+                                    if (isEmailTouched && (email.isEmpty() || !isValidEmail(email))) {
                                         isEmailError = true
                                     }
                                 }
@@ -259,7 +259,7 @@ fun RegisterScreen(navController: NavController) {
                     placeholder = { Text("Email", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    isError = isEmailError || (emailTouched && email.isNotEmpty() && !isValidEmail(email)),
+                    isError = isEmailError || (isEmailTouched && email.isNotEmpty() && !isValidEmail(email)),
                     colors =
                         OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -286,7 +286,7 @@ fun RegisterScreen(navController: NavController) {
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
-                    } else if (emailTouched && email.isNotEmpty() && !isValidEmail(email)) {
+                    } else if (isEmailTouched && email.isNotEmpty() && !isValidEmail(email)) {
                         Text(
                             text = "Please enter a valid email address",
                             color = MaterialTheme.colorScheme.error,
@@ -305,14 +305,14 @@ fun RegisterScreen(navController: NavController) {
                             .height(52.dp)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
-                                    usernameTouched = true
+                                    isUsernameTouched = true
                                     if (errorMessage != null) {
                                         clearAllErrors()
                                     } else {
                                         isUsernameError = false
                                     }
                                 } else {
-                                    if (usernameTouched && username.isEmpty()) {
+                                    if (isUsernameTouched && username.isEmpty()) {
                                         isUsernameError = true
                                     }
                                 }
@@ -366,14 +366,14 @@ fun RegisterScreen(navController: NavController) {
                             .height(52.dp)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
-                                    passwordTouched = true
+                                    isPasswordTouched = true
                                     if (errorMessage != null) {
                                         clearAllErrors()
                                     } else {
                                         isPasswordError = false
                                     }
                                 } else {
-                                    if (passwordTouched && password.isEmpty()) {
+                                    if (isPasswordTouched && password.isEmpty()) {
                                         isPasswordError = true
                                     }
                                 }
@@ -435,14 +435,14 @@ fun RegisterScreen(navController: NavController) {
                             .height(52.dp)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
-                                    passwordCheckTouched = true
+                                    isPasswordCheckTouched = true
                                     if (errorMessage != null) {
                                         clearAllErrors()
                                     } else {
                                         isPasswordCheckError = false
                                     }
                                 } else {
-                                    if (passwordCheckTouched && passwordCheck.isEmpty()) {
+                                    if (isPasswordCheckTouched && passwordCheck.isEmpty()) {
                                         isPasswordCheckError = true
                                     }
                                 }
@@ -488,7 +488,7 @@ fun RegisterScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(top = 4.dp, start = 4.dp),
                 ) {
-                    if (!showErrorBanner) { // 서버 에러(배너)가 없을 때만 로컬 에러 표시
+                    if (!isErrorBannerVisible) { // 서버 에러(배너)가 없을 때만 로컬 에러 표시
                         if (isPasswordCheckError && passwordCheck.isEmpty()) {
                             Text(
                                 text = "Please check your password",
@@ -509,14 +509,14 @@ fun RegisterScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // --- 추가: WarningBanner를 버튼 바로 위로 이동 ---
-                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         title = "Registration Failed",
                         message = errorMessage ?: "Unknown error",
-                        onActionClick = { showErrorBanner = false },
+                        onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,
                         showDismissButton = true,
-                        onDismiss = { showErrorBanner = false },
+                        onDismiss = { isErrorBannerVisible = false },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

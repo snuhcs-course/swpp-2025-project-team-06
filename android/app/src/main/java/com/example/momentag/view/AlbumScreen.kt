@@ -104,70 +104,75 @@ fun AlbumScreen(
     navController: NavController,
     onNavigateBack: () -> Unit,
 ) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
-    var hasPermission by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val config = LocalConfiguration.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
+    // 2. ViewModel 인스턴스
     val albumViewModel: AlbumViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val imageLoadState by albumViewModel.albumLoadingState.collectAsState()
     val tagDeleteState by albumViewModel.tagDeleteState.collectAsState()
     val tagRenameState by albumViewModel.tagRenameState.collectAsState()
     val tagAddState by albumViewModel.tagAddState.collectAsState()
     val selectedTagAlbumPhotos by albumViewModel.selectedTagAlbumPhotos.collectAsState()
 
-    // State for tag name text field
-    var currentTagName by remember(tagName) { mutableStateOf(tagName) } // actual name, updates on successful rename
-    var editableTagName by remember(tagName) { mutableStateOf(tagName) } // text field's current content
-
-    // State for focus tracking
+    // 4. 로컬 상태 변수
+    var hasPermission by remember { mutableStateOf(false) }
+    var currentTagName by remember(tagName) { mutableStateOf(tagName) }
+    var editableTagName by remember(tagName) { mutableStateOf(tagName) }
     var isFocused by remember { mutableStateOf(false) }
-
-    // Controllers for keyboard and focus
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-
     var isTagAlbumPhotoSelectionMode by remember { mutableStateOf(false) }
-    var isTagAlbumPhotoSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
-
-    var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
-
-    // === Edge-to-edge Overlay 상태를 상위로 끌어올림 ===
+    var isTagAlbumPhotoSelectionModeDelay by remember { mutableStateOf(false) }
+    var isDeleteConfirmationDialogVisible by remember { mutableStateOf(false) }
     var isRecommendationExpanded by remember { mutableStateOf(false) }
+    var isErrorBannerVisible by remember { mutableStateOf(false) }
+    var errorBannerTitle by remember { mutableStateOf("Error") }
+    var errorBannerMessage by remember { mutableStateOf("An error occurred") }
+    var isSelectPhotosBannerShareVisible by remember { mutableStateOf(false) }
+    var isSelectPhotosBannerUntagVisible by remember { mutableStateOf(false) }
 
-    // 추천 패널 높이 (드래그로 조절). min/max도 상위에서 계산해 공유
+    // 5. Derived 상태 및 계산된 값
     val minPanelHeight = 200.dp
     val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
     var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
 
-    var showErrorBanner by remember { mutableStateOf(false) }
-    var errorBannerTitle by remember { mutableStateOf("Error") }
-    var errorBannerMessage by remember { mutableStateOf("An error occurred") }
-    var showSelectPhotosBannerShare by remember { mutableStateOf(false) }
+    // 6. rememberCoroutineScope & ActivityResultLauncher
+    val scope = rememberCoroutineScope()
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    hasPermission = true
+                }
+            },
+        )
+    val submitAndClearFocus = {
+        if (editableTagName.isNotBlank() && editableTagName != currentTagName) {
+            albumViewModel.renameTag(tagId, editableTagName)
+        } else if (editableTagName.isBlank()) { // If text is blank, revert to the last good name
+            editableTagName = currentTagName
+        }
 
-    LaunchedEffect(showSelectPhotosBannerShare) {
-        if (showSelectPhotosBannerShare) {
+        keyboardController?.hide() // Hide keyboard
+        focusManager.clearFocus() // Remove focus (cursor)
+    }
+    // 7. LaunchedEffect
+    LaunchedEffect(isSelectPhotosBannerShareVisible) {
+        if (isSelectPhotosBannerShareVisible) {
             delay(2000)
-            showSelectPhotosBannerShare = false
+            isSelectPhotosBannerShareVisible = false
         }
     }
 
-    var showSelectPhotosBannerUntag by remember { mutableStateOf(false) }
-
-    LaunchedEffect(showSelectPhotosBannerUntag) {
-        if (showSelectPhotosBannerUntag) {
+    LaunchedEffect(isSelectPhotosBannerUntagVisible) {
+        if (isSelectPhotosBannerUntagVisible) {
             delay(2000)
-            showSelectPhotosBannerUntag = false
-        }
-    }
-
-    BackHandler(enabled = isRecommendationExpanded || isTagAlbumPhotoSelectionMode) {
-        if (isRecommendationExpanded) {
-            isRecommendationExpanded = false
-        } else if (isTagAlbumPhotoSelectionMode) {
-            isTagAlbumPhotoSelectionMode = false
-            albumViewModel.resetTagAlbumPhotoSelection()
+            isSelectPhotosBannerUntagVisible = false
         }
     }
 
@@ -181,12 +186,12 @@ fun AlbumScreen(
             is AlbumViewModel.TagDeleteState.Success -> {
                 Toast.makeText(context, "Photo removed from album", Toast.LENGTH_SHORT).show() // 성공: Toast
                 albumViewModel.resetDeleteState()
-                showErrorBanner = false
+                isErrorBannerVisible = false
             }
             is AlbumViewModel.TagDeleteState.Error -> {
                 errorBannerTitle = "Failed to Remove Photo"
                 errorBannerMessage = state.message
-                showErrorBanner = true // 실패: Banner
+                isErrorBannerVisible = true // 실패: Banner
                 albumViewModel.resetDeleteState()
             }
             else -> Unit // Idle, Loading
@@ -199,12 +204,12 @@ fun AlbumScreen(
                 Toast.makeText(context, "Tag renamed", Toast.LENGTH_SHORT).show() // 성공: Toast
                 currentTagName = editableTagName
                 albumViewModel.resetRenameState()
-                showErrorBanner = false
+                isErrorBannerVisible = false
             }
             is AlbumViewModel.TagRenameState.Error -> {
                 errorBannerTitle = "Failed to Rename Tag"
                 errorBannerMessage = state.message
-                showErrorBanner = true // 실패: Banner
+                isErrorBannerVisible = true // 실패: Banner
                 editableTagName = currentTagName
                 albumViewModel.resetRenameState()
             }
@@ -217,27 +222,17 @@ fun AlbumScreen(
             is AlbumViewModel.TagAddState.Success -> {
                 Toast.makeText(context, "Photos added to album", Toast.LENGTH_SHORT).show() // 성공: Toast
                 albumViewModel.resetAddState()
-                showErrorBanner = false
+                isErrorBannerVisible = false
             }
             is AlbumViewModel.TagAddState.Error -> {
                 errorBannerTitle = "Failed to Add Photos"
                 errorBannerMessage = state.message
-                showErrorBanner = true // 실패: Banner
+                isErrorBannerVisible = true // 실패: Banner
                 albumViewModel.resetAddState()
             }
             else -> Unit
         }
     }
-
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission(),
-            onResult = { isGranted ->
-                if (isGranted) {
-                    hasPermission = true
-                }
-            },
-        )
 
     LaunchedEffect(hasPermission, tagId) {
         if (hasPermission && imageLoadState is AlbumViewModel.AlbumLoadingState.Idle) {
@@ -272,20 +267,18 @@ fun AlbumScreen(
         }
     }
 
-    val submitAndClearFocus = {
-        if (editableTagName.isNotBlank() && editableTagName != currentTagName) {
-            albumViewModel.renameTag(tagId, editableTagName)
-        } else if (editableTagName.isBlank()) { // If text is blank, revert to the last good name
-            editableTagName = currentTagName
+    BackHandler(enabled = isRecommendationExpanded || isTagAlbumPhotoSelectionMode) {
+        if (isRecommendationExpanded) {
+            isRecommendationExpanded = false
+        } else if (isTagAlbumPhotoSelectionMode) {
+            isTagAlbumPhotoSelectionMode = false
+            albumViewModel.resetTagAlbumPhotoSelection()
         }
-
-        keyboardController?.hide() // Hide keyboard
-        focusManager.clearFocus() // Remove focus (cursor)
     }
 
-    if (showDeleteConfirmationDialog) {
+    if (isDeleteConfirmationDialogVisible) {
         AlertDialog(
-            onDismissRequest = { showDeleteConfirmationDialog = false },
+            onDismissRequest = { isDeleteConfirmationDialogVisible = false },
             title = {
                 Text(
                     text = "Remove Photos",
@@ -312,7 +305,7 @@ fun AlbumScreen(
                                 Toast.LENGTH_SHORT,
                             ).show()
 
-                        showDeleteConfirmationDialog = false
+                        isDeleteConfirmationDialogVisible = false
                         isTagAlbumPhotoSelectionMode = false
                         albumViewModel.resetTagAlbumPhotoSelection()
                     },
@@ -321,7 +314,7 @@ fun AlbumScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmationDialog = false }) {
+                TextButton(onClick = { isDeleteConfirmationDialogVisible = false }) {
                     Text("Cancel")
                 }
             },
@@ -373,7 +366,7 @@ fun AlbumScreen(
                                 )
                             }
                             IconButton(
-                                onClick = { showDeleteConfirmationDialog = true },
+                                onClick = { isDeleteConfirmationDialogVisible = true },
                                 enabled = isEnabled,
                                 colors =
                                     IconButtonDefaults.iconButtonColors(
@@ -477,39 +470,39 @@ fun AlbumScreen(
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
 
-                    AnimatedVisibility(visible = showSelectPhotosBannerShare) {
+                    AnimatedVisibility(visible = isSelectPhotosBannerShareVisible) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             title = "No Photos Selected",
                             message = "Please select photos to share.",
-                            onActionClick = { showSelectPhotosBannerShare = false },
+                            onActionClick = { isSelectPhotosBannerShareVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
-                            onDismiss = { showSelectPhotosBannerShare = false },
+                            onDismiss = { isSelectPhotosBannerShareVisible = false },
                         )
                     }
 
-                    AnimatedVisibility(visible = showSelectPhotosBannerUntag) {
+                    AnimatedVisibility(visible = isSelectPhotosBannerUntagVisible) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             title = "No Photos Selected",
                             message = "Please select photos to untag.",
-                            onActionClick = { showSelectPhotosBannerUntag = false },
+                            onActionClick = { isSelectPhotosBannerUntagVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
-                            onDismiss = { showSelectPhotosBannerUntag = false },
+                            onDismiss = { isSelectPhotosBannerUntagVisible = false },
                         )
                     }
 
-                    AnimatedVisibility(visible = showErrorBanner) {
+                    AnimatedVisibility(visible = isErrorBannerVisible) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             title = errorBannerTitle,
                             message = errorBannerMessage,
-                            onActionClick = { showErrorBanner = false },
+                            onActionClick = { isErrorBannerVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
-                            onDismiss = { showErrorBanner = false },
+                            onDismiss = { isErrorBannerVisible = false },
                         )
                     }
 

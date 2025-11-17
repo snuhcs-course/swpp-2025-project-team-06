@@ -24,9 +24,13 @@ class PhotoViewModel(
     private val localRepository: LocalRepository,
     private val albumUploadJobCount: StateFlow<Int>,
 ) : ViewModel() {
+    // 1. Private MutableStateFlow
     private val _uiState = MutableStateFlow(HomeScreenUiState())
+
+    // 2. Public StateFlow (exposed state)
     val uiState = _uiState.asStateFlow()
 
+    // 3. init 블록
     init {
         viewModelScope.launch {
             albumUploadJobCount.collect { count ->

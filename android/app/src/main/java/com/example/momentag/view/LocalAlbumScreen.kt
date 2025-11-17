@@ -73,21 +73,40 @@ fun LocalAlbumScreen(
     albumName: String,
     onNavigateBack: () -> Unit,
 ) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
+
+    // 2. ViewModel 인스턴스
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    var hasPermission by remember { mutableStateOf(false) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val photos by localViewModel.imagesInAlbum.collectAsState()
 
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
+    val photos by localViewModel.imagesInAlbum.collectAsState()
     val selectedPhotos by localViewModel.selectedPhotosInAlbum.collectAsState()
-    var isSelectionMode by remember { mutableStateOf(false) }
     val uploadState by photoViewModel.uiState.collectAsState()
 
-    var showErrorBanner by remember { mutableStateOf(false) }
+    // 4. 로컬 상태 변수
+    var hasPermission by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var isErrorBannerVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // 6. rememberCoroutineScope
+    val scope = rememberCoroutineScope()
+
+    // 8. ActivityResultLauncher
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    hasPermission = true
+                }
+            },
+        )
+
+    // 10. LaunchedEffect
     LaunchedEffect(uploadState.userMessage) {
         uploadState.userMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -98,26 +117,12 @@ fun LocalAlbumScreen(
     LaunchedEffect(uploadState.errorMessage) {
         if (uploadState.errorMessage != null) {
             errorMessage = uploadState.errorMessage
-            showErrorBanner = true
+            isErrorBannerVisible = true
         } else {
-            showErrorBanner = false
+            isErrorBannerVisible = false
         }
     }
 
-    BackHandler(enabled = isSelectionMode) {
-        isSelectionMode = false
-        localViewModel.clearPhotoSelection()
-    }
-
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission(),
-            onResult = { isGranted ->
-                if (isGranted) {
-                    hasPermission = true
-                }
-            },
-        )
     if (hasPermission) {
         LaunchedEffect(albumId) {
             localViewModel.getImagesForAlbum(albumId)
@@ -147,6 +152,13 @@ fun LocalAlbumScreen(
         }
     }
 
+    // 12. BackHandler
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionMode = false
+        localViewModel.clearPhotoSelection()
+    }
+
+    // 13. UI (Scaffold)
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -250,16 +262,16 @@ fun LocalAlbumScreen(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
 
-                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         title = "Upload Failed",
                         message = errorMessage ?: "An error occurred",
-                        onActionClick = { showErrorBanner = false },
+                        onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,
                         showDismissButton = true,
                         onDismiss = {
-                            showErrorBanner = false
+                            isErrorBannerVisible = false
                             photoViewModel.errorMessageShown()
                         },
                     )

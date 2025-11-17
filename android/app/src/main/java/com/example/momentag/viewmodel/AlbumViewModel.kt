@@ -22,6 +22,7 @@ class AlbumViewModel(
     private val photoSelectionRepository: PhotoSelectionRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
+    // 1. state class 정의
     sealed class AlbumLoadingState {
         object Idle : AlbumLoadingState()
 
@@ -86,25 +87,22 @@ class AlbumViewModel(
         ) : TagAddState()
     }
 
+    // 2. Private MutableStateFlow
     private val _albumLoadingState = MutableStateFlow<AlbumLoadingState>(AlbumLoadingState.Idle)
-    val albumLoadingState = _albumLoadingState.asStateFlow()
-
     private val _recommendLoadingState = MutableStateFlow<RecommendLoadingState>(RecommendLoadingState.Idle)
-    val recommendLoadingState = _recommendLoadingState.asStateFlow()
-
     private val _selectedRecommendPhotos = MutableStateFlow<List<Photo>>(emptyList())
-    val selectedRecommendPhotos = _selectedRecommendPhotos.asStateFlow()
-
     private val _selectedTagAlbumPhotos = MutableStateFlow<List<Photo>>(emptyList())
-    val selectedTagAlbumPhotos = _selectedTagAlbumPhotos.asStateFlow()
-
     private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
-    val tagDeleteState = _tagDeleteState.asStateFlow()
-
     private val _tagRenameState = MutableStateFlow<TagRenameState>(TagRenameState.Idle)
-    val tagRenameState = _tagRenameState.asStateFlow()
-
     private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
+
+    // 3. Public StateFlow (exposed state)
+    val albumLoadingState = _albumLoadingState.asStateFlow()
+    val recommendLoadingState = _recommendLoadingState.asStateFlow()
+    val selectedRecommendPhotos = _selectedRecommendPhotos.asStateFlow()
+    val selectedTagAlbumPhotos = _selectedTagAlbumPhotos.asStateFlow()
+    val tagDeleteState = _tagDeleteState.asStateFlow()
+    val tagRenameState = _tagRenameState.asStateFlow()
     val tagAddState = _tagAddState.asStateFlow()
 
     fun loadAlbum(

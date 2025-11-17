@@ -85,7 +85,7 @@ fun ChipSearchBar(
     modifier: Modifier = Modifier,
     listState: LazyListState,
     isFocused: Boolean,
-    hideCursor: Boolean,
+    isCursorHidden: Boolean,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -138,7 +138,7 @@ fun ChipSearchBar(
                     .weight(1f)
                     .padding(start = 8.dp),
             listState = listState,
-            hideCursor = hideCursor,
+            isCursorHidden = isCursorHidden,
             contentItems = contentItems,
             textStates = textStates,
             focusRequesters = focusRequesters,
@@ -161,7 +161,7 @@ fun ChipSearchBar(
 private fun InternalChipSearchInput(
     modifier: Modifier = Modifier,
     listState: LazyListState,
-    hideCursor: Boolean,
+    isCursorHidden: Boolean,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -230,7 +230,7 @@ private fun InternalChipSearchInput(
                     val finalWidth = (textWidthDp + totalHorizontalPadding).coerceAtLeast(minFieldWidth)
 
                     val cursorBrush =
-                        if (hideCursor) {
+                        if (isCursorHidden) {
                             SolidColor(Color.Transparent)
                         } else {
                             SolidColor(MaterialTheme.colorScheme.primary)

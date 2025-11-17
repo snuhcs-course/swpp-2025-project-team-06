@@ -77,34 +77,31 @@ fun LocalGalleryScreen(
     navController: NavController,
     onNavigateBack: () -> Unit,
 ) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
+
+    // 2. ViewModel 인스턴스
     val localViewModel: LocalViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
     val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
+    val selectedAlbumIds by localViewModel.selectedAlbumIds.collectAsState()
+    val uploadState by photoViewModel.uiState.collectAsState()
+    val albumSet by localViewModel.albums.collectAsState()
+
+    // 4. 로컬 상태 변수
     var hasPermission by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
-
-    val selectedAlbumIds by localViewModel.selectedAlbumIds.collectAsState()
-    val isSelectionMode = selectedAlbumIds.isNotEmpty()
-
-    val uploadState by photoViewModel.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
-
-    var showErrorBanner by remember { mutableStateOf(false) }
+    var isErrorBannerVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(uploadState.errorMessage) {
-        if (uploadState.errorMessage != null) {
-            errorMessage = uploadState.errorMessage
-            showErrorBanner = true
-        } else {
-            showErrorBanner = false
-        }
-    }
+    // 5. Derived 상태
+    val isSelectionMode = selectedAlbumIds.isNotEmpty()
 
-    BackHandler(enabled = isSelectionMode) {
-        localViewModel.clearAlbumSelection()
-    }
+    // 6. rememberCoroutineScope
+    val scope = rememberCoroutineScope()
 
+    // 8. ActivityResultLauncher
     val notificationPermissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -128,6 +125,16 @@ fun LocalGalleryScreen(
             },
         )
 
+    // 10. LaunchedEffect
+    LaunchedEffect(uploadState.errorMessage) {
+        if (uploadState.errorMessage != null) {
+            errorMessage = uploadState.errorMessage
+            isErrorBannerVisible = true
+        } else {
+            isErrorBannerVisible = false
+        }
+    }
+
     if (hasPermission) {
         LaunchedEffect(Unit) {
             localViewModel.getAlbums()
@@ -144,8 +151,12 @@ fun LocalGalleryScreen(
         permissionLauncher.launch(permission)
     }
 
-    val albumSet by localViewModel.albums.collectAsState()
+    // 12. BackHandler
+    BackHandler(enabled = isSelectionMode) {
+        localViewModel.clearAlbumSelection()
+    }
 
+    // 13. UI (Scaffold)
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -287,16 +298,16 @@ fun LocalGalleryScreen(
                     }
                 }
 
-                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         modifier = Modifier.fillMaxWidth(),
                         title = "Upload Failed",
                         message = errorMessage ?: "An error occurred",
-                        onActionClick = { showErrorBanner = false },
+                        onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,
                         showDismissButton = true,
                         onDismiss = {
-                            showErrorBanner = false
+                            isErrorBannerVisible = false
                             photoViewModel.errorMessageShown()
                         },
                     )

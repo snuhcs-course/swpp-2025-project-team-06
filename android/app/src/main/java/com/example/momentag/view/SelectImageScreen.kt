@@ -97,21 +97,16 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
-fun SelectImageScreen(
-    navController: NavController,
-    selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(LocalContext.current)),
-) {
-    var isRecommendationExpanded by remember { mutableStateOf(false) }
-
+fun SelectImageScreen(navController: NavController) {
+    // 1. Context 및 Platform 관련 변수
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     LocalDensity.current
 
-    // 사용자가 조절 가능한 패널 높이
-    val minHeight = 200.dp
-    val maxHeight = (configuration.screenHeightDp * 0.6f).dp
-    var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
+    // 2. ViewModel 인스턴스
+    val selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
-    val context = LocalContext.current
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val allPhotos by selectImageViewModel.allPhotos.collectAsState()
     val tagName by selectImageViewModel.tagName.collectAsState()
     val selectedPhotos by selectImageViewModel.selectedPhotos.collectAsState()
@@ -122,22 +117,29 @@ fun SelectImageScreen(
     val isSelectionMode by selectImageViewModel.isSelectionMode.collectAsState()
     val addPhotosState by selectImageViewModel.addPhotosState.collectAsState()
 
+    // 4. 로컬 상태 변수
+    var isRecommendationExpanded by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(true) }
     var currentTab by remember { mutableStateOf(BottomTab.MyTagsScreen) }
-
     val permission =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
-
     var hasPermission by remember {
         mutableStateOf(
             context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED,
         )
     }
+    val listState = selectImageViewModel.lazyGridState
 
+    // 5. Derived 상태 및 계산된 값
+    val minHeight = 200.dp
+    val maxHeight = (configuration.screenHeightDp * 0.6f).dp
+    var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
+
+    // 6. ActivityResultLauncher
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -148,29 +150,7 @@ fun SelectImageScreen(
             },
         )
 
-    LaunchedEffect(key1 = true) {
-        if (!hasPermission) {
-            permissionLauncher.launch(permission)
-        }
-    }
-
-    LaunchedEffect(isSelectionMode) {
-        delay(200L) // 0.2초
-        isSelectionModeDelay = isSelectionMode
-    }
-
-    BackHandler(enabled = isSelectionMode) {
-        isSelectionModeDelay = false
-        selectImageViewModel.setSelectionMode(false)
-    }
-
-    // Delay AI recommendation to improve initial screen load performance
-    LaunchedEffect(Unit) {
-        // Wait for initial photos to load first
-        delay(500L) // 0.5초 지연으로 화면 로딩 우선
-        selectImageViewModel.recommendPhoto()
-    }
-
+    // 7. 콜백 함수 정의
     val onPhotoClick: (Photo) -> Unit = { photo ->
         selectImageViewModel.handlePhotoClick(
             photo = photo,
@@ -188,6 +168,25 @@ fun SelectImageScreen(
 
     val onRecommendedPhotoClick: (Photo) -> Unit = { photo ->
         selectImageViewModel.addPhotoFromRecommendation(photo)
+    }
+
+    // 8. LaunchedEffect
+    LaunchedEffect(key1 = true) {
+        if (!hasPermission) {
+            permissionLauncher.launch(permission)
+        }
+    }
+
+    LaunchedEffect(isSelectionMode) {
+        delay(200L) // 0.2초
+        isSelectionModeDelay = isSelectionMode
+    }
+
+    // Delay AI recommendation to improve initial screen load performance
+    LaunchedEffect(Unit) {
+        // Wait for initial photos to load first
+        delay(500L) // 0.5초 지연으로 화면 로딩 우선
+        selectImageViewModel.recommendPhoto()
     }
 
     // Re-recommend when AI recommendation is collapsed after adding photos
@@ -213,9 +212,6 @@ fun SelectImageScreen(
         }
     }
 
-    // LazyGrid state for pagination
-    val listState = selectImageViewModel.lazyGridState
-
     // Scroll detection for pagination
     LaunchedEffect(listState, isLoadingMore) {
         if (!isLoadingMore) {
@@ -238,6 +234,13 @@ fun SelectImageScreen(
         }
     }
 
+    // 9. BackHandler
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionModeDelay = false
+        selectImageViewModel.setSelectionMode(false)
+    }
+
+    // 10. UI 구성
     Scaffold(
         topBar = {
             CommonTopBar(

@@ -79,19 +79,25 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTagScreen(navController: NavController) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    var hasPermission by remember { mutableStateOf(false) }
-    var isChanged by remember { mutableStateOf(true) }
-    var showErrorBanner by remember { mutableStateOf(false) }
 
+    // 2. ViewModel 인스턴스
     val addTagViewModel: AddTagViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val tagName by addTagViewModel.tagName.collectAsState()
     val selectedPhotos by addTagViewModel.selectedPhotos.collectAsState()
     val saveState by addTagViewModel.saveState.collectAsState()
     val isTagNameDuplicate by addTagViewModel.isTagNameDuplicate.collectAsState()
 
+    // 4. 로컬 상태 변수
+    var hasPermission by remember { mutableStateOf(false) }
+    var isChanged by remember { mutableStateOf(true) }
+    var isErrorBannerVisible by remember { mutableStateOf(false) }
+
+    // 5. ActivityResultLauncher
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -102,6 +108,13 @@ fun AddTagScreen(navController: NavController) {
             },
         )
 
+    // 6. 콜백 함수 정의
+    val onDeselectPhoto: (Photo) -> Unit = { photo ->
+        isChanged = true
+        addTagViewModel.removePhoto(photo)
+    }
+
+    // 7. LaunchedEffect
     LaunchedEffect(key1 = true) {
         val permission =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -112,11 +125,6 @@ fun AddTagScreen(navController: NavController) {
         permissionLauncher.launch(permission)
     }
 
-    BackHandler {
-        addTagViewModel.clearDraft()
-        navController.popBackStack()
-    }
-
     LaunchedEffect(saveState) {
         when (saveState) {
             is AddTagViewModel.SaveState.Success -> {
@@ -124,17 +132,18 @@ fun AddTagScreen(navController: NavController) {
                 navController.popBackStack()
             }
             is AddTagViewModel.SaveState.Error -> {
-                showErrorBanner = true
-                delay(2000) // 2초 후 자동 사라짐
-                showErrorBanner = false
+                isErrorBannerVisible = true
+                delay(2000)
+                isErrorBannerVisible = false
             }
             else -> { }
         }
     }
 
-    val onDeselectPhoto: (Photo) -> Unit = { photo ->
-        isChanged = true
-        addTagViewModel.removePhoto(photo)
+    // 8. BackHandler
+    BackHandler {
+        addTagViewModel.clearDraft()
+        navController.popBackStack()
     }
 
     Scaffold(
@@ -242,12 +251,12 @@ fun AddTagScreen(navController: NavController) {
                             .padding(horizontal = 24.dp, vertical = 8.dp),
                 ) {
                     // Error Banner - Floating above Done button
-                    if (showErrorBanner && saveState is AddTagViewModel.SaveState.Error) {
+                    if (isErrorBannerVisible && saveState is AddTagViewModel.SaveState.Error) {
                         WarningBanner(
                             title = "Couldn't save tag",
                             message = (saveState as AddTagViewModel.SaveState.Error).message,
                             onActionClick = { },
-                            onDismiss = { showErrorBanner = false },
+                            onDismiss = { isErrorBannerVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
                         )

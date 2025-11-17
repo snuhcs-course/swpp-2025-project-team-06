@@ -96,14 +96,15 @@ import kotlin.math.abs
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun MyTagsScreen(
-    navController: NavController,
-    myTagsViewModel: MyTagsViewModel =
-        viewModel(
-            factory = ViewModelFactory.getInstance(LocalContext.current),
-        ),
-) {
+fun MyTagsScreen(navController: NavController) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // 2. ViewModel 인스턴스
+    val myTagsViewModel: MyTagsViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val uiState by myTagsViewModel.uiState.collectAsState()
     val isEditMode by myTagsViewModel.isEditMode.collectAsState()
     val selectedTagsForBulkEdit by myTagsViewModel.selectedTagsForBulkEdit.collectAsState()
@@ -111,26 +112,24 @@ fun MyTagsScreen(
     val saveState by myTagsViewModel.saveState.collectAsState()
     val actionState by myTagsViewModel.tagActionState.collectAsState()
 
-    val scope = rememberCoroutineScope()
-    val sheetState = rememberModalBottomSheetState()
-    var showSortSheet by remember { mutableStateOf(false) }
-
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    // 4. 로컬 상태 변수
+    var isSortSheetVisible by remember { mutableStateOf(false) }
+    var isDeleteDialogVisible by remember { mutableStateOf(false) }
     var tagToDelete by remember { mutableStateOf<Pair<String, String>?>(null) }
-
-    var showEditDialog by remember { mutableStateOf(false) }
+    var isEditDialogVisible by remember { mutableStateOf(false) }
     var tagToEdit by remember { mutableStateOf<Pair<String, String>?>(null) }
     var editedTagName by remember { mutableStateOf("") }
-
-    var showAddTagConfirmDialog by remember { mutableStateOf(false) }
+    var isAddTagConfirmDialogVisible by remember { mutableStateOf(false) }
     var tagToAddPhotosTo by remember { mutableStateOf<TagCntData?>(null) }
-
-    var showErrorBanner by remember { mutableStateOf(false) }
+    var isErrorBannerVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isBulkDeleteConfirmVisible by remember { mutableStateOf(false) }
 
-    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
+    // 5. rememberCoroutineScope
+    val scope = rememberCoroutineScope()
 
-    val lifecycleOwner = LocalLifecycleOwner.current
+    // 6. Remember된 객체들
+    val sheetState = rememberModalBottomSheetState()
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
@@ -149,12 +148,12 @@ fun MyTagsScreen(
         when (val state = actionState) {
             is TagActionState.Success -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
-                showErrorBanner = false
+                isErrorBannerVisible = false
                 myTagsViewModel.clearActionState()
             }
             is TagActionState.Error -> {
                 errorMessage = state.message
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 myTagsViewModel.clearActionState()
             }
             is TagActionState.Idle -> {
@@ -186,9 +185,9 @@ fun MyTagsScreen(
                 myTagsViewModel.refreshTags()
             }
             is MyTagsViewModel.SaveState.Error -> {
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 delay(2000) // 2초 후 자동 사라짐
-                showErrorBanner = false
+                isErrorBannerVisible = false
             }
             else -> { }
         }
@@ -211,7 +210,7 @@ fun MyTagsScreen(
                             currentState.tags.isNotEmpty()
                         ) {
                             // Sort Button (always visible)
-                            IconButton(onClick = { showSortSheet = true }) {
+                            IconButton(onClick = { isSortSheetVisible = true }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
                                     contentDescription = "Sort",
@@ -223,7 +222,7 @@ fun MyTagsScreen(
                             IconButton(
                                 onClick = {
                                     if (isEditMode && hasSelectedTags) {
-                                        showBulkDeleteConfirm = true
+                                        isBulkDeleteConfirmVisible = true
                                     } else if (!isEditMode) {
                                         myTagsViewModel.toggleEditMode()
                                     }
@@ -254,12 +253,12 @@ fun MyTagsScreen(
                             .fillMaxWidth(),
                 ) {
                     // Error Banner
-                    if (showErrorBanner && saveState is MyTagsViewModel.SaveState.Error) {
+                    if (isErrorBannerVisible && saveState is MyTagsViewModel.SaveState.Error) {
                         WarningBanner(
                             title = "Save failed",
                             message = (saveState as MyTagsViewModel.SaveState.Error).message,
                             onActionClick = { },
-                            onDismiss = { showErrorBanner = false },
+                            onDismiss = { isErrorBannerVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
                         )
@@ -319,7 +318,7 @@ fun MyTagsScreen(
                         )
                     }
 
-                    AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                    AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                         WarningBanner(
                             modifier =
                                 Modifier
@@ -328,10 +327,10 @@ fun MyTagsScreen(
                                     .padding(bottom = 8.dp),
                             title = "Action Failed",
                             message = errorMessage ?: "Unknown error",
-                            onActionClick = { showErrorBanner = false },
+                            onActionClick = { isErrorBannerVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
-                            onDismiss = { showErrorBanner = false },
+                            onDismiss = { isErrorBannerVisible = false },
                         )
                     }
 
@@ -424,20 +423,20 @@ fun MyTagsScreen(
                             onToggleTagSelection = { tagId ->
                                 myTagsViewModel.toggleTagSelection(tagId)
                             },
-                            showBulkDeleteConfirm = showBulkDeleteConfirm,
-                            onShowBulkDeleteConfirmChange = { showBulkDeleteConfirm = it },
+                            isBulkDeleteConfirmVisible = isBulkDeleteConfirmVisible,
+                            onShowBulkDeleteConfirmChange = { isBulkDeleteConfirmVisible = it },
                             onEditTag = { tagId, tagName ->
                                 tagToEdit = Pair(tagId, tagName)
                                 editedTagName = tagName
-                                showEditDialog = true
+                                isEditDialogVisible = true
                             },
                             onDeleteTag = { tagId, tagName ->
                                 tagToDelete = Pair(tagId, tagName)
-                                showDeleteDialog = true
+                                isDeleteDialogVisible = true
                             },
                             onConfirmAddTag = { tagData ->
                                 tagToAddPhotosTo = tagData
-                                showAddTagConfirmDialog = true
+                                isAddTagConfirmDialogVisible = true
                             },
                             onRefresh = { myTagsViewModel.refreshTags() },
                             onEnterEditMode = { myTagsViewModel.toggleEditMode() },
@@ -481,24 +480,24 @@ fun MyTagsScreen(
         }
     }
 
-    if (showDeleteDialog && tagToDelete != null) {
+    if (isDeleteDialogVisible && tagToDelete != null) {
         confirmDialog(
             title = "Delete Tag",
             message = "Are you sure you want to delete '${tagToDelete?.second}' tag?",
             confirmButtonText = "Delete",
             onConfirm = {
                 tagToDelete?.first?.let { myTagsViewModel.deleteTag(it) }
-                showDeleteDialog = false
+                isDeleteDialogVisible = false
                 tagToDelete = null
             },
             onDismiss = {
-                showDeleteDialog = false
+                isDeleteDialogVisible = false
                 tagToDelete = null
             },
             dismissible = true,
         )
     }
-    if (showEditDialog && tagToEdit != null) {
+    if (isEditDialogVisible && tagToEdit != null) {
         RenameTagDialog(
             title = "Edit Tag Name",
             message = "Enter the new tag name",
@@ -509,12 +508,12 @@ fun MyTagsScreen(
                         myTagsViewModel.renameTag(tagId, newName)
                     }
                 }
-                showEditDialog = false
+                isEditDialogVisible = false
                 tagToEdit = null
                 editedTagName = ""
             },
             onDismiss = {
-                showEditDialog = false
+                isEditDialogVisible = false
                 tagToEdit = null
                 editedTagName = ""
             },
@@ -522,7 +521,7 @@ fun MyTagsScreen(
         )
     }
 
-    if (showAddTagConfirmDialog && tagToAddPhotosTo != null) {
+    if (isAddTagConfirmDialogVisible && tagToAddPhotosTo != null) {
         confirmDialog(
             title = "Add to Tag",
             message = "Are you sure you want to add the selected photos to '${tagToAddPhotosTo?.tagName}'?",
@@ -531,20 +530,20 @@ fun MyTagsScreen(
                 tagToAddPhotosTo?.tagId?.let {
                     myTagsViewModel.savePhotosToExistingTag(it)
                 }
-                showAddTagConfirmDialog = false
+                isAddTagConfirmDialogVisible = false
                 tagToAddPhotosTo = null
             },
             onDismiss = {
-                showAddTagConfirmDialog = false
+                isAddTagConfirmDialogVisible = false
                 tagToAddPhotosTo = null
             },
             dismissible = true,
         )
     }
 
-    if (showSortSheet) {
+    if (isSortSheetVisible) {
         ModalBottomSheet(
-            onDismissRequest = { showSortSheet = false },
+            onDismissRequest = { isSortSheetVisible = false },
             sheetState = sheetState,
         ) {
             SortOptionsSheet(
@@ -553,7 +552,7 @@ fun MyTagsScreen(
                     myTagsViewModel.setSortOrder(newOrder)
                     scope.launch {
                         sheetState.hide()
-                        showSortSheet = false
+                        isSortSheetVisible = false
                     }
                 },
             )
@@ -569,7 +568,7 @@ private fun MyTagsContent(
     isEditMode: Boolean = false,
     selectedTagsForBulkEdit: Set<String>,
     onToggleTagSelection: (String) -> Unit,
-    showBulkDeleteConfirm: Boolean,
+    isBulkDeleteConfirmVisible: Boolean,
     onShowBulkDeleteConfirmChange: (Boolean) -> Unit,
     onEditTag: (String, String) -> Unit = { _, _ -> },
     onDeleteTag: (String, String) -> Unit = { _, _ -> },
@@ -698,7 +697,7 @@ private fun MyTagsContent(
             }
 
             // Bulk delete confirmation dialog
-            if (showBulkDeleteConfirm && selectedTagsForBulkEdit.isNotEmpty()) {
+            if (isBulkDeleteConfirmVisible && selectedTagsForBulkEdit.isNotEmpty()) {
                 confirmDialog(
                     title = "Delete Tags",
                     message = "Are you sure you want to delete ${selectedTagsForBulkEdit.size} tag(s)?",

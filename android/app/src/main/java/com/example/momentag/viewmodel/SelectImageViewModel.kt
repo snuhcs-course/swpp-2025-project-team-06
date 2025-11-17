@@ -31,6 +31,7 @@ class SelectImageViewModel(
     private val imageBrowserRepository: ImageBrowserRepository,
     private val recommendRepository: RecommendRepository,
 ) : ViewModel() {
+    // 1. state class 정의
     sealed class AddPhotosState {
         object Idle : AddPhotosState()
 
@@ -43,38 +44,34 @@ class SelectImageViewModel(
         ) : AddPhotosState()
     }
 
-    // Expose repository state as read-only flows
-    val tagName: StateFlow<String> = photoSelectionRepository.tagName
-    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
-    val existingTagId: StateFlow<String?> = photoSelectionRepository.existingTagId
-
+    // 2. Private MutableStateFlow
     private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
-    val allPhotos: StateFlow<List<Photo>> = _allPhotos.asStateFlow()
-
     private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
     private val _isLoadingMore = MutableStateFlow(false)
-    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
-
     private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
-    val recommendState: StateFlow<RecommendState> = _recommendState.asStateFlow()
-
     private val _isSelectionMode = MutableStateFlow(true)
-    val isSelectionMode = _isSelectionMode.asStateFlow()
-
     private val _recommendedPhotos = MutableStateFlow<List<Photo>>(emptyList())
-    val recommendedPhotos: StateFlow<List<Photo>> = _recommendedPhotos.asStateFlow()
-
     private val _addPhotosState = MutableStateFlow<AddPhotosState>(AddPhotosState.Idle)
-    val addPhotosState: StateFlow<AddPhotosState> = _addPhotosState.asStateFlow()
 
-    val lazyGridState = LazyGridState()
-
+    // 3. Private 변수
     private var currentOffset = 0
     private val pageSize = 100
     private var hasMorePages = true
 
+    // 4. Public StateFlow (exposed state)
+    val tagName: StateFlow<String> = photoSelectionRepository.tagName
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+    val existingTagId: StateFlow<String?> = photoSelectionRepository.existingTagId
+    val allPhotos: StateFlow<List<Photo>> = _allPhotos.asStateFlow()
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+    val recommendState: StateFlow<RecommendState> = _recommendState.asStateFlow()
+    val isSelectionMode = _isSelectionMode.asStateFlow()
+    val recommendedPhotos: StateFlow<List<Photo>> = _recommendedPhotos.asStateFlow()
+    val addPhotosState: StateFlow<AddPhotosState> = _addPhotosState.asStateFlow()
+    val lazyGridState = LazyGridState()
+
+    // 5. Public functions
     fun getAllPhotos() {
         if (_isLoading.value) return
 

@@ -162,24 +162,24 @@ class SearchLoadingStateTest {
     @Test
     fun `SearchLoadingStateCustom should not show warning initially`() {
         // Given
-        val showWarning = false
+        val isWarningVisible = false
 
         // When & Then
-        assertFalse(showWarning)
+        assertFalse(isWarningVisible)
     }
 
     @Test
     fun `SearchLoadingStateCustom should show warning after delay`() {
         // Given
-        var showWarning = false
+        var isWarningVisible = false
         val delayMillis = 5000L
 
         // When (simulating delay)
         Thread.sleep(delayMillis)
-        showWarning = true
+        isWarningVisible = true
 
         // Then
-        assertTrue(showWarning)
+        assertTrue(isWarningVisible)
         assertEquals(5000L, delayMillis)
     }
 
@@ -271,38 +271,38 @@ class SearchLoadingStateTest {
     // ==================== State Management Tests ====================
 
     @Test
-    fun `SearchLoadingStateCustom should manage showWarning state`() {
+    fun `SearchLoadingStateCustom should manage isWarningVisible state`() {
         // Given
-        var showWarning = false
+        var isWarningVisible = false
 
         // When
-        showWarning = true
+        isWarningVisible = true
 
         // Then
-        assertTrue(showWarning)
+        assertTrue(isWarningVisible)
     }
 
     @Test
     fun `SearchLoadingStateCustom should toggle warning state`() {
         // Given
-        var showWarning = false
+        var isWarningVisible = false
 
         // When - toggle multiple times
-        showWarning = !showWarning
-        assertTrue(showWarning)
+        isWarningVisible = !isWarningVisible
+        assertTrue(isWarningVisible)
 
-        showWarning = !showWarning
-        assertFalse(showWarning)
+        isWarningVisible = !isWarningVisible
+        assertFalse(isWarningVisible)
 
-        showWarning = !showWarning
-        assertTrue(showWarning)
+        isWarningVisible = !isWarningVisible
+        assertTrue(isWarningVisible)
 
         // Then
-        assertTrue(showWarning)
+        assertTrue(isWarningVisible)
     }
 
     @Test
-    fun `SearchLoadingStateCustom should use mutableStateOf for showWarning`() {
+    fun `SearchLoadingStateCustom should use mutableStateOf for isWarningVisible`() {
         // Given
         val usesMutableState = true
 
@@ -404,16 +404,16 @@ class SearchLoadingStateTest {
     @Test
     fun `SearchLoadingStateCustom should handle complete loading flow`() {
         // Given
-        var showWarning = false
+        var isWarningVisible = false
         var refreshCalled = false
         val onRefresh: () -> Unit = { refreshCalled = true }
 
         // When - initial state
-        assertFalse(showWarning)
+        assertFalse(isWarningVisible)
 
         // When - after delay
-        showWarning = true
-        assertTrue(showWarning)
+        isWarningVisible = true
+        assertTrue(isWarningVisible)
 
         // When - user clicks refresh
         onRefresh()
@@ -438,12 +438,12 @@ class SearchLoadingStateTest {
     @Test
     fun `SearchLoadingStateCustom should handle refresh without warning shown`() {
         // Given
-        var showWarning = false
+        var isWarningVisible = false
         var refreshCalled = false
         val onRefresh: () -> Unit = { refreshCalled = true }
 
         // When - refresh before warning appears
-        assertFalse(showWarning)
+        assertFalse(isWarningVisible)
         onRefresh()
 
         // Then
@@ -453,13 +453,13 @@ class SearchLoadingStateTest {
     @Test
     fun `SearchLoadingStateCustom should handle refresh after warning shown`() {
         // Given
-        var showWarning = false
+        var isWarningVisible = false
         var refreshCalled = false
         val onRefresh: () -> Unit = { refreshCalled = true }
 
         // When - warning appears
-        showWarning = true
-        assertTrue(showWarning)
+        isWarningVisible = true
+        assertTrue(isWarningVisible)
 
         // When - user clicks refresh
         onRefresh()
@@ -473,21 +473,21 @@ class SearchLoadingStateTest {
         // Given
         data class LoadingState(
             var attempt: Int = 1,
-            var showWarning: Boolean = false,
+            var isWarningVisible: Boolean = false,
         )
         val state = LoadingState()
 
         // When - first attempt
         assertEquals(1, state.attempt)
-        assertFalse(state.showWarning)
+        assertFalse(state.isWarningVisible)
 
         // When - warning shown, refresh clicked
-        state.showWarning = true
+        state.isWarningVisible = true
         state.attempt++
 
         // When - second attempt
         assertEquals(2, state.attempt)
-        state.showWarning = false
+        state.isWarningVisible = false
 
         // Then
         assertEquals(2, state.attempt)
@@ -508,14 +508,14 @@ class SearchLoadingStateTest {
     fun `SearchLoadingStateCustom should handle warning state transitions`() {
         // Given
         val states = mutableListOf<Boolean>()
-        var showWarning = false
+        var isWarningVisible = false
 
         // When
-        states.add(showWarning) // false
-        showWarning = true
-        states.add(showWarning) // true
-        showWarning = false
-        states.add(showWarning) // false
+        states.add(isWarningVisible) // false
+        isWarningVisible = true
+        states.add(isWarningVisible) // true
+        isWarningVisible = false
+        states.add(isWarningVisible) // false
 
         // Then
         assertEquals(listOf(false, true, false), states)
@@ -611,18 +611,18 @@ class SearchLoadingStateTest {
     @Test
     fun `SearchLoadingStateCustom should handle long loading times`() {
         // Given
-        var showWarning = false
+        var isWarningVisible = false
         val delayMillis = 5000L
 
         // When - simulate long loading
         val startTime = System.currentTimeMillis()
         Thread.sleep(delayMillis)
         val endTime = System.currentTimeMillis()
-        showWarning = true
+        isWarningVisible = true
 
         // Then
         assertTrue(endTime - startTime >= delayMillis)
-        assertTrue(showWarning)
+        assertTrue(isWarningVisible)
     }
 
     @Test
@@ -650,17 +650,17 @@ class SearchLoadingStateTest {
     @Test
     fun `SearchLoadingStateCustom should conditionally render warning banner`() {
         // Given
-        var showWarning = false
+        var isWarningVisible = false
 
         // When - warning not shown
-        assertFalse(showWarning)
+        assertFalse(isWarningVisible)
 
         // When - warning shown
-        showWarning = true
-        assertTrue(showWarning)
+        isWarningVisible = true
+        assertTrue(isWarningVisible)
 
         // Then
-        val warningRendered = showWarning
+        val warningRendered = isWarningVisible
         assertTrue(warningRendered)
     }
 
@@ -668,14 +668,14 @@ class SearchLoadingStateTest {
     fun `SearchLoadingStateCustom warning should appear only once`() {
         // Given
         var warningShownCount = 0
-        var showWarning = false
+        var isWarningVisible = false
 
         // When - initial state
-        if (showWarning) warningShownCount++
+        if (isWarningVisible) warningShownCount++
 
         // When - after delay
-        showWarning = true
-        if (showWarning) warningShownCount++
+        isWarningVisible = true
+        if (isWarningVisible) warningShownCount++
 
         // Then
         assertEquals(1, warningShownCount)

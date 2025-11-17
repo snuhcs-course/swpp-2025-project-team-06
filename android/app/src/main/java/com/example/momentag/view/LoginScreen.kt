@@ -59,34 +59,41 @@ import com.example.momentag.viewmodel.ViewModelFactory
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
+
+    // 2. ViewModel 인스턴스
     val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val loginState by authViewModel.loginState.collectAsState()
 
+    // 4. 로컬 상태 변수
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
-
     var isUsernameError by remember { mutableStateOf(false) }
     var isPasswordError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var usernameTouched by remember { mutableStateOf(false) }
-    var passwordTouched by remember { mutableStateOf(false) }
+    var isUsernameTouched by remember { mutableStateOf(false) }
+    var isPasswordTouched by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
-    var showErrorBanner by remember { mutableStateOf(false) }
+    var isErrorBannerVisible by remember { mutableStateOf(false) }
 
+    // 9. 콜백 함수 정의
     val clearAllErrors = {
         isUsernameError = false
         isPasswordError = false
         errorMessage = null
-        showErrorBanner = false
+        isErrorBannerVisible = false
     }
 
+    // 10. LaunchedEffect
     LaunchedEffect(loginState) {
         when (val state = loginState) {
             is LoginState.Loading -> {
                 isLoading = true
-                showErrorBanner = false
+                isErrorBannerVisible = false
             }
             is LoginState.Success -> {
                 isLoading = false
@@ -99,7 +106,7 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Unauthorized -> {
@@ -107,7 +114,7 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
             is LoginState.NetworkError -> {
@@ -115,7 +122,7 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
             is LoginState.Error -> {
@@ -123,7 +130,7 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = state.message
                 isUsernameError = true
                 isPasswordError = true
-                showErrorBanner = true
+                isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
             else -> {}
@@ -202,14 +209,14 @@ fun LoginScreen(navController: NavController) {
                             .height(52.dp)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
-                                    usernameTouched = true
+                                    isUsernameTouched = true
                                     if (errorMessage != null) {
                                         clearAllErrors()
                                     } else {
                                         isUsernameError = false
                                     }
                                 } else {
-                                    if (usernameTouched && username.isEmpty()) {
+                                    if (isUsernameTouched && username.isEmpty()) {
                                         isUsernameError = true
                                     }
                                 }
@@ -263,14 +270,14 @@ fun LoginScreen(navController: NavController) {
                             .height(52.dp)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
-                                    passwordTouched = true
+                                    isPasswordTouched = true
                                     if (errorMessage != null) {
                                         clearAllErrors()
                                     } else {
                                         isPasswordError = false
                                     }
                                 } else {
-                                    if (passwordTouched && password.isEmpty()) {
+                                    if (isPasswordTouched && password.isEmpty()) {
                                         isPasswordError = true
                                     }
                                 }
@@ -316,7 +323,7 @@ fun LoginScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(top = 4.dp, start = 4.dp),
                 ) {
-                    if (!showErrorBanner && isPasswordError && password.isEmpty()) {
+                    if (!isErrorBannerVisible && isPasswordError && password.isEmpty()) {
                         Text(
                             text = "Please enter your password",
                             color = MaterialTheme.colorScheme.error,
@@ -325,14 +332,14 @@ fun LoginScreen(navController: NavController) {
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+                AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         title = "Login Failed",
                         message = errorMessage ?: "Unknown error",
-                        onActionClick = { showErrorBanner = false },
+                        onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,
                         showDismissButton = true,
-                        onDismiss = { showErrorBanner = false },
+                        onDismiss = { isErrorBannerVisible = false },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

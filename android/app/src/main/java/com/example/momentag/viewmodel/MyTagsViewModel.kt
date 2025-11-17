@@ -30,25 +30,7 @@ class MyTagsViewModel(
     private val remoteRepository: RemoteRepository,
     private val photoSelectionRepository: PhotoSelectionRepository,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow<MyTagsUiState>(MyTagsUiState.Loading)
-    val uiState: StateFlow<MyTagsUiState> = _uiState.asStateFlow()
-
-    private val _isEditMode = MutableStateFlow(false)
-    val isEditMode: StateFlow<Boolean> = _isEditMode.asStateFlow()
-
-    private val _selectedTagsForBulkEdit = MutableStateFlow<Set<String>>(emptySet())
-    val selectedTagsForBulkEdit: StateFlow<Set<String>> = _selectedTagsForBulkEdit.asStateFlow()
-
-    private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
-    val sortOrder: StateFlow<TagSortOrder> = _sortOrder.asStateFlow()
-
-    private val _tagActionState = MutableStateFlow<TagActionState>(TagActionState.Idle)
-    val tagActionState: StateFlow<TagActionState> = _tagActionState.asStateFlow()
-
-    private var allTags: List<TagCntData> = emptyList()
-
-    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
-
+    // 1. state class 정의
     sealed class SaveState {
         object Idle : SaveState()
 
@@ -61,13 +43,32 @@ class MyTagsViewModel(
         ) : SaveState()
     }
 
+    // 2. Private MutableStateFlow
+    private val _uiState = MutableStateFlow<MyTagsUiState>(MyTagsUiState.Loading)
+    private val _isEditMode = MutableStateFlow(false)
+    private val _selectedTagsForBulkEdit = MutableStateFlow<Set<String>>(emptySet())
+    private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
+    private val _tagActionState = MutableStateFlow<TagActionState>(TagActionState.Idle)
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
+
+    // 3. Private 변수
+    private var allTags: List<TagCntData> = emptyList()
+
+    // 4. Public StateFlow (exposed state)
+    val uiState: StateFlow<MyTagsUiState> = _uiState.asStateFlow()
+    val isEditMode: StateFlow<Boolean> = _isEditMode.asStateFlow()
+    val selectedTagsForBulkEdit: StateFlow<Set<String>> = _selectedTagsForBulkEdit.asStateFlow()
+    val sortOrder: StateFlow<TagSortOrder> = _sortOrder.asStateFlow()
+    val tagActionState: StateFlow<TagActionState> = _tagActionState.asStateFlow()
+    val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
     val saveState = _saveState.asStateFlow()
 
+    // 5. init 블록
     init {
         loadTags()
     }
 
+    // 6. Public functions
     fun toggleEditMode() {
         _isEditMode.value = !_isEditMode.value
         // Clear selections when toggling edit mode
@@ -140,18 +141,6 @@ class MyTagsViewModel(
     fun setSortOrder(order: TagSortOrder) {
         _sortOrder.value = order
         applySorting()
-    }
-
-    private fun applySorting() {
-        val sortedTags =
-            when (_sortOrder.value) {
-                TagSortOrder.NAME_ASC -> allTags.sortedBy { it.tagName }
-                TagSortOrder.NAME_DESC -> allTags.sortedByDescending { it.tagName }
-                TagSortOrder.CREATED_DESC -> allTags // 서버에서 최근순으로 옴
-                TagSortOrder.COUNT_DESC -> allTags.sortedByDescending { it.count }
-                TagSortOrder.COUNT_ASC -> allTags.sortedBy { it.count }
-            }
-        _uiState.value = MyTagsUiState.Success(sortedTags)
     }
 
     fun refreshTags() {
@@ -237,20 +226,20 @@ class MyTagsViewModel(
         viewModelScope.launch {
             _saveState.value = SaveState.Loading
 
-            var allSucceeded = true
+            var isAllSucceeded = true
             for (photo in selectedPhotos.value) {
                 when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
                     is RemoteRepository.Result.Success -> {
                     }
                     else -> {
                         _saveState.value = SaveState.Error(getErrorMessage(result))
-                        allSucceeded = false
+                        isAllSucceeded = false
                         break
                     }
                 }
             }
 
-            if (allSucceeded) {
+            if (isAllSucceeded) {
                 _saveState.value = SaveState.Success
             }
         }
@@ -268,5 +257,18 @@ class MyTagsViewModel(
 
     fun clearActionState() {
         _tagActionState.value = TagActionState.Idle
+    }
+
+    // 7. Private functions (helpers)
+    private fun applySorting() {
+        val sortedTags =
+            when (_sortOrder.value) {
+                TagSortOrder.NAME_ASC -> allTags.sortedBy { it.tagName }
+                TagSortOrder.NAME_DESC -> allTags.sortedByDescending { it.tagName }
+                TagSortOrder.CREATED_DESC -> allTags // 서버에서 최근순으로 옴
+                TagSortOrder.COUNT_DESC -> allTags.sortedByDescending { it.count }
+                TagSortOrder.COUNT_ASC -> allTags.sortedBy { it.count }
+            }
+        _uiState.value = MyTagsUiState.Success(sortedTags)
     }
 }

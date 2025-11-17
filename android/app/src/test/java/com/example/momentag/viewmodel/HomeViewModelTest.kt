@@ -126,18 +126,18 @@ class HomeViewModelTest {
 
     // Show all photos tests
     @Test
-    fun `setShowAllPhotos updates showAllPhotos state`() {
+    fun `setIsShowingAllPhotos updates isShowingAllPhotos state`() {
         // When
-        viewModel.setShowAllPhotos(true)
+        viewModel.setIsShowingAllPhotos(true)
 
         // Then
-        assertTrue(viewModel.showAllPhotos.value)
+        assertTrue(viewModel.isShowingAllPhotos.value)
 
         // When
-        viewModel.setShowAllPhotos(false)
+        viewModel.setIsShowingAllPhotos(false)
 
         // Then
-        assertFalse(viewModel.showAllPhotos.value)
+        assertFalse(viewModel.isShowingAllPhotos.value)
     }
 
     // Tag loading tests

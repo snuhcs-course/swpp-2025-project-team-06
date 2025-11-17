@@ -25,21 +25,21 @@ import kotlin.uuid.ExperimentalUuidApi
 class AuthViewModel(
     private val tokenRepository: TokenRepository,
 ) : ViewModel() {
-    /**
-     * 로그인 상태 관찰
-     * TokenRepository의 isLoggedIn Flow를 노출
-     */
-    val isLoggedIn: StateFlow<String?> = tokenRepository.isLoggedIn
-
-    /**
-     * 세션 로딩 상태 관찰
-     */
-    val isSessionLoaded: StateFlow<Boolean> = tokenRepository.isSessionLoaded
-
-    // login
+    // 1. Private MutableStateFlow
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
-    val loginState = _loginState.asStateFlow()
+    private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
+    private val _refreshState = MutableStateFlow<RefreshState>(RefreshState.Idle)
+    private val _logoutState = MutableStateFlow<LogoutState>(LogoutState.Idle)
 
+    // 2. Public StateFlow (exposed state)
+    val isLoggedIn: StateFlow<String?> = tokenRepository.isLoggedIn
+    val isSessionLoaded: StateFlow<Boolean> = tokenRepository.isSessionLoaded
+    val loginState = _loginState.asStateFlow()
+    val registerState = _registerState.asStateFlow()
+    val refreshState = _refreshState.asStateFlow()
+    val logoutState = _logoutState.asStateFlow()
+
+    // 3. Public functions
     fun login(
         username: String,
         password: String,
@@ -69,10 +69,6 @@ class AuthViewModel(
     fun resetLoginState() {
         _loginState.value = LoginState.Idle
     }
-
-    // register
-    private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
-    val registerState = _registerState.asStateFlow()
 
     fun register(
         email: String,
@@ -105,10 +101,6 @@ class AuthViewModel(
         _registerState.value = RegisterState.Idle
     }
 
-    // refresh tokens
-    private val _refreshState = MutableStateFlow<RefreshState>(RefreshState.Idle)
-    val refreshState = _refreshState.asStateFlow()
-
     fun refreshTokens() {
         viewModelScope.launch {
             // TokenRepository에 비즈니스 로직 위임
@@ -132,10 +124,6 @@ class AuthViewModel(
     fun resetRefreshState() {
         _refreshState.value = RefreshState.Idle
     }
-
-    // logout
-    private val _logoutState = MutableStateFlow<LogoutState>(LogoutState.Idle)
-    val logoutState = _logoutState.asStateFlow()
 
     fun logout() {
         viewModelScope.launch {

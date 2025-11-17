@@ -27,6 +27,7 @@ import kotlin.uuid.ExperimentalUuidApi
 class ViewModelFactory private constructor(
     private val context: Context,
 ) : ViewModelProvider.Factory {
+    // 1. Companion object
     companion object {
         @Volatile
         private var instance: ViewModelFactory? = null
@@ -40,16 +41,21 @@ class ViewModelFactory private constructor(
             }
     }
 
+    // 2. Public 속성
     val albumUploadJobCount = MutableStateFlow(0)
-
     val albumUploadSuccessEvent = MutableSharedFlow<Long>()
+    val remoteRepository by lazy {
+        RemoteRepository(RetrofitInstance.getApiService(context.applicationContext))
+    }
+    val localRepository by lazy {
+        LocalRepository(context.applicationContext)
+    }
 
-    // 싱글톤으로 관리되는 SessionStore (앱 전체에서 하나만 존재)
+    // 3. Private 속성 (Repositories)
     private val sessionStore by lazy {
         SessionManager.getInstance(context.applicationContext)
     }
 
-    // TokenRepository (인증 비즈니스 로직)
     private val tokenRepository by lazy {
         TokenRepository(
             RetrofitInstance.getApiService(context.applicationContext),
@@ -57,38 +63,25 @@ class ViewModelFactory private constructor(
         )
     }
 
-    // RemoteRepository (Feature API)
-    val remoteRepository by lazy {
-        RemoteRepository(RetrofitInstance.getApiService(context.applicationContext))
-    }
-
-    // LocalRepository (MediaStore 접근)
-    val localRepository by lazy {
-        LocalRepository(context.applicationContext)
-    }
-
-    // SearchRepository (검색 비즈니스 로직)
     private val searchRepository by lazy {
         com.example.momentag.repository.SearchRepository(
             RetrofitInstance.getApiService(context.applicationContext),
         )
     }
 
-    // RecommendRepository (추천 비즈니스 로직)
     private val recommendRepository by lazy {
         RecommendRepository(RetrofitInstance.getApiService(context.applicationContext))
     }
 
-    // ImageBrowserRepository (이미지 브라우징 세션 관리)
     private val imageBrowserRepository by lazy {
         ImageBrowserRepository()
     }
 
-    // PhotoSelectionRepository (사진 선택 상태 관리 - 태그 생성, 공유 등)
     private val photoSelectionRepository by lazy {
         PhotoSelectionRepository()
     }
 
+    // 4. Override 함수
     @OptIn(ExperimentalUuidApi::class)
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =

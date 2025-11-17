@@ -109,42 +109,45 @@ fun SearchResultScreen(
     navController: NavController,
     onNavigateBack: () -> Unit,
 ) {
+    // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+
+    // 2. ViewModel 인스턴스
     val searchViewModel: SearchViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
 
+    // 3. ViewModel에서 가져온 상태 (collectAsState)
     val semanticSearchState by searchViewModel.searchState.collectAsState()
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
     val searchHistory by searchViewModel.searchHistory.collectAsState()
-
     val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
     val tagLoadingState by searchViewModel.tagLoadingState.collectAsState()
-
-    val contentItems = searchViewModel.contentItems
-    val textStates = searchViewModel.textStates
     val focusedElementId by searchViewModel.focusedElementId
     val tagSuggestions by searchViewModel.tagSuggestions.collectAsState()
-    val showSearchHistoryDropdown by searchViewModel.showSearchHistoryDropdown.collectAsState()
-    val allTags = (tagLoadingState as? TagLoadingState.Success)?.tags ?: emptyList<TagItem>()
-    val listState = rememberLazyListState()
-    val focusRequesters = searchViewModel.focusRequesters
-    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
+    val shouldShowSearchHistoryDropdown by searchViewModel.shouldShowSearchHistoryDropdown.collectAsState()
+    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
+
+    // 4. 로컬 상태 변수
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
+    var isCursorHidden by remember { mutableStateOf(false) }
+    var isSelectionModeDelay by remember { mutableStateOf(false) }
+    var previousImeBottom by remember { mutableStateOf(imeBottom) }
+
+    // 5. Derived 상태 및 계산된 값
+    val allTags = (tagLoadingState as? TagLoadingState.Success)?.tags ?: emptyList<TagItem>()
     val topSpacerHeight = 8.dp
-
-    var hideCursor by remember { mutableStateOf(false) }
-    // var isSelectionMode by remember { mutableStateOf(false) }
-    var isSelectionModeDelay by remember { mutableStateOf(false) } // for dropdown animation
-
-    val focusManager = LocalFocusManager.current
-    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
+    val contentItems = searchViewModel.contentItems
+    val textStates = searchViewModel.textStates
+    val focusRequesters = searchViewModel.focusRequesters
+    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
     val currentFocusedElementId = rememberUpdatedState(focusedElementId)
     val currentFocusManager = rememberUpdatedState(focusManager)
 
-    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
-    var previousImeBottom by remember { mutableStateOf(imeBottom) }
-
-    val lifecycleOwner = LocalLifecycleOwner.current
+    // 6. Remember된 객체들
+    val listState = rememberLazyListState()
 
     LaunchedEffect(tagLoadingState) {
         if (tagLoadingState is TagLoadingState.Error) {
@@ -162,7 +165,7 @@ fun SearchResultScreen(
             LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
                     searchViewModel.loadServerTags()
-                    hideCursor = false
+                    isCursorHidden = false
                 }
             }
 
@@ -188,14 +191,14 @@ fun SearchResultScreen(
 
     LaunchedEffect(searchViewModel.requestFocus) {
         searchViewModel.requestFocus.collect { id ->
-            hideCursor = true
+            isCursorHidden = true
 
             try {
                 snapshotFlow { focusRequesters.containsKey(id) }
                     .filter { it == true }
                     .first()
             } catch (e: Exception) {
-                hideCursor = false
+                isCursorHidden = false
                 searchViewModel.resetIgnoreFocusLossFlag()
                 return@collect
             }
@@ -223,7 +226,7 @@ fun SearchResultScreen(
 
             focusRequesters[id]?.requestFocus()
 
-            hideCursor = false
+            isCursorHidden = false
             searchViewModel.resetIgnoreFocusLossFlag()
         }
     }
@@ -314,17 +317,17 @@ fun SearchResultScreen(
             }
         }
 
-    var showErrorBanner by remember { mutableStateOf(false) }
+    var isErrorBannerVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState) {
         if (uiState is SearchUiState.Error) {
             errorMessage = uiState.message
-            showErrorBanner = true
+            isErrorBannerVisible = true
         } else {
             // 로딩이 성공하거나, Idle 상태가 되면 배너를 숨깁니다.
             if (uiState is SearchUiState.Success || uiState is SearchUiState.Loading || uiState is SearchUiState.Idle) {
-                showErrorBanner = false
+                isErrorBannerVisible = false
             }
         }
     }
@@ -374,9 +377,9 @@ fun SearchResultScreen(
         focusRequesters = focusRequesters,
         bringIntoViewRequesters = bringIntoViewRequesters,
         focusedElementId = focusedElementId,
-        hideCursor = hideCursor,
+        isCursorHidden = isCursorHidden,
         tagSuggestions = tagSuggestions,
-        showSearchHistoryDropdown = showSearchHistoryDropdown,
+        shouldShowSearchHistoryDropdown = shouldShowSearchHistoryDropdown,
         allTags = allTags,
         parser = searchViewModel::parseQueryToElements,
         onPerformSearch = performSearch,
@@ -426,7 +429,7 @@ fun SearchResultScreen(
         },
         onRetry = {
             performSearch()
-            showErrorBanner = false
+            isErrorBannerVisible = false
         },
         navController = navController,
         topBarActions =
@@ -444,9 +447,9 @@ fun SearchResultScreen(
         onHistoryDelete = { query ->
             searchViewModel.removeSearchHistory(query)
         },
-        showErrorBanner = showErrorBanner,
+        isErrorBannerVisible = isErrorBannerVisible,
         errorMessage = errorMessage,
-        onDismissError = { showErrorBanner = false },
+        onDismissError = { isErrorBannerVisible = false },
         placeholder = placeholderText,
     )
 }
@@ -464,9 +467,9 @@ fun SearchResultScreenUi(
     focusRequesters: Map<String, FocusRequester>,
     bringIntoViewRequesters: Map<String, BringIntoViewRequester>,
     focusedElementId: String?,
-    hideCursor: Boolean,
+    isCursorHidden: Boolean,
     tagSuggestions: List<TagItem>,
-    showSearchHistoryDropdown: Boolean,
+    shouldShowSearchHistoryDropdown: Boolean,
     allTags: List<TagItem>,
     parser: (String, List<TagItem>) -> List<SearchContentElement>,
     onPerformSearch: () -> Unit,
@@ -494,7 +497,7 @@ fun SearchResultScreenUi(
     searchHistory: List<String>,
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (String) -> Unit,
-    showErrorBanner: Boolean,
+    isErrorBannerVisible: Boolean,
     errorMessage: String?,
     onDismissError: () -> Unit,
     placeholder: String,
@@ -524,9 +527,9 @@ fun SearchResultScreenUi(
             focusRequesters = focusRequesters,
             bringIntoViewRequesters = bringIntoViewRequesters,
             focusedElementId = focusedElementId,
-            hideCursor = hideCursor,
+            isCursorHidden = isCursorHidden,
             tagSuggestions = tagSuggestions,
-            showSearchHistoryDropdown = showSearchHistoryDropdown,
+            shouldShowSearchHistoryDropdown = shouldShowSearchHistoryDropdown,
             allTags = allTags,
             parser = parser,
             onPerformSearch = onPerformSearch,
@@ -552,7 +555,7 @@ fun SearchResultScreenUi(
             searchHistory = searchHistory,
             onHistoryClick = onHistoryClick,
             onHistoryDelete = onHistoryDelete,
-            showErrorBanner = showErrorBanner,
+            isErrorBannerVisible = isErrorBannerVisible,
             errorMessage = errorMessage,
             onDismissError = onDismissError,
             placeholder = placeholder,
@@ -572,9 +575,9 @@ private fun SearchResultContent(
     focusRequesters: Map<String, FocusRequester>,
     bringIntoViewRequesters: Map<String, BringIntoViewRequester>,
     focusedElementId: String?,
-    hideCursor: Boolean,
+    isCursorHidden: Boolean,
     tagSuggestions: List<TagItem>,
-    showSearchHistoryDropdown: Boolean,
+    shouldShowSearchHistoryDropdown: Boolean,
     allTags: List<TagItem>,
     parser: (String, List<TagItem>) -> List<SearchContentElement>,
     onPerformSearch: () -> Unit,
@@ -600,7 +603,7 @@ private fun SearchResultContent(
     searchHistory: List<String>,
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (String) -> Unit,
-    showErrorBanner: Boolean,
+    isErrorBannerVisible: Boolean,
     errorMessage: String?,
     onDismissError: () -> Unit,
     placeholder: String,
@@ -649,7 +652,7 @@ private fun SearchResultContent(
                             .onSizeChanged { onSearchBarWidthChange(it.width) },
                     listState = listState,
                     isFocused = (focusedElementId != null),
-                    hideCursor = hideCursor,
+                    isCursorHidden = isCursorHidden,
                     contentItems = contentItems,
                     textStates = textStates,
                     focusRequesters = focusRequesters,
@@ -722,7 +725,7 @@ private fun SearchResultContent(
                 navController = navController,
             )
 
-            AnimatedVisibility(visible = showErrorBanner && errorMessage != null) {
+            AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                 WarningBanner(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     title = "Search Failed",
@@ -739,7 +742,7 @@ private fun SearchResultContent(
 
         // search history dropdown
         AnimatedVisibility(
-            visible = showSearchHistoryDropdown,
+            visible = shouldShowSearchHistoryDropdown,
             enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
             exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
             modifier =

@@ -65,7 +65,7 @@ fun CommonTopBar(
             )
         },
         navigationIcon = {
-            var showLogoutConfirm by remember { mutableStateOf(false) }
+            var isLogoutConfirmVisible by remember { mutableStateOf(false) }
             if (showLogout && onLogoutClick != null) {
                 if (isLogoutLoading) {
                     Box(modifier = Modifier.padding(start = 8.dp)) {
@@ -75,7 +75,7 @@ fun CommonTopBar(
                         )
                     }
                 } else {
-                    IconButton(onClick = { showLogoutConfirm = true }) {
+                    IconButton(onClick = { isLogoutConfirmVisible = true }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Logout,
                             contentDescription = "Logout",
@@ -83,15 +83,15 @@ fun CommonTopBar(
                     }
                 }
 
-                if (showLogoutConfirm) {
+                if (isLogoutConfirmVisible) {
                     confirmDialog(
                         title = "Logout",
                         message = "Are you sure you want to logout?",
                         onConfirm = {
-                            showLogoutConfirm = false
+                            isLogoutConfirmVisible = false
                             onLogoutClick()
                         },
-                        onDismiss = { showLogoutConfirm = false },
+                        onDismiss = { isLogoutConfirmVisible = false },
                         confirmButtonText = "Logout",
                         dismissible = true,
                     )
