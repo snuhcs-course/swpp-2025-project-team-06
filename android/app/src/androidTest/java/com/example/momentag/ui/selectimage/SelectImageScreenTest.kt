@@ -1,4 +1,4 @@
-package com.example.momentag.ui.tag
+package com.example.momentag.ui.selectimage
 
 import android.net.Uri
 import androidx.activity.ComponentActivity
