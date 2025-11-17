@@ -97,7 +97,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
-fun SelectImageScreen(navController: NavController) {
+fun SelectImageScreen(
+    navController: NavController,
+    selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(LocalContext.current)),
+) {
     var isRecommendationExpanded by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
@@ -109,9 +112,6 @@ fun SelectImageScreen(navController: NavController) {
     var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
 
     val context = LocalContext.current
-
-    val selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-
     val allPhotos by selectImageViewModel.allPhotos.collectAsState()
     val tagName by selectImageViewModel.tagName.collectAsState()
     val selectedPhotos by selectImageViewModel.selectedPhotos.collectAsState()

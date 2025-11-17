@@ -98,9 +98,10 @@ import kotlin.math.abs
 @Composable
 fun MyTagsScreen(
     navController: NavController,
-    myTagsViewModel: MyTagsViewModel = viewModel(
-        factory = ViewModelFactory.getInstance(LocalContext.current)
-    )
+    myTagsViewModel: MyTagsViewModel =
+        viewModel(
+            factory = ViewModelFactory.getInstance(LocalContext.current),
+        ),
 ) {
     val context = LocalContext.current
     val uiState by myTagsViewModel.uiState.collectAsState()

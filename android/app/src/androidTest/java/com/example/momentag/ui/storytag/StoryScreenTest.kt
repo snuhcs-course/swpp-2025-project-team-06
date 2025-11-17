@@ -2,8 +2,17 @@ package com.example.momentag.ui.storytag
 
 import android.net.Uri
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.navigation.compose.rememberNavController
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -26,14 +35,13 @@ import org.mockito.Mockito
 
 @RunWith(AndroidJUnit4::class)
 class StoryScreenTest {
-
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private lateinit var viewModel: StoryViewModel
 
     @Before
-    fun setUp() {
+    fun setup() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
 
         // ApiService 는 interface 라서 mock 가능 (final class 아님)
@@ -111,7 +119,7 @@ class StoryScreenTest {
     // ---------- 1. 초기 화면 상태 ----------
 
     @Test
-    fun scenario_1_1_initialScreenShowsFirstStoryAndHintAndDoneDisabled() {
+    fun storyScreen_initialState_showsFirstStoryAndHintAndDoneDisabled() {
         val stories = createSampleStories()
         setContentWithStories(stories)
 
@@ -128,7 +136,7 @@ class StoryScreenTest {
     // ---------- 2. 태그 선택 시 Done 활성화 ----------
 
     @Test
-    fun scenario_2_1_tagClickEnablesDoneAndUpdatesSelectedTags() {
+    fun storyScreen_tagClick_enablesDoneAndUpdatesSelectedTags() {
         val stories = createSampleStories()
         setContentWithStories(stories)
 
@@ -146,14 +154,8 @@ class StoryScreenTest {
         assertTrue(selected.contains("#Tag1A"))
     }
 
-    /**
-     * 같은 태그를 다시 한 번 눌렀을 때
-     * - 선택이 해제되고
-     * - Done 버튼이 다시 비활성화되고
-     * - ViewModel 의 selectedTags 도 비어 있는지 확인
-     */
     @Test
-    fun scenario_2_2_tagToggleTwiceDisablesDoneAndClearsSelection() {
+    fun storyScreen_tagToggleTwice_disablesDoneAndClearsSelection() {
         val stories = createSampleStories()
         setContentWithStories(stories)
 
@@ -175,7 +177,7 @@ class StoryScreenTest {
     // ---------- 3. 스와이프 시 다음 스토리 + 힌트 숨김 + viewed 처리 ----------
 
     @Test
-    fun scenario_3_1_swipeUpShowsNextStoryMarksPreviousViewedAndHidesHint() {
+    fun storyScreen_swipeUp_showsNextStoryMarksPreviousViewedAndHidesHint() {
         val stories = createSampleStories()
         setContentWithStories(stories)
 
@@ -206,14 +208,8 @@ class StoryScreenTest {
 
     // ---------- 4. 이미 본 스토리(read-only) 에서는 Edit 버튼만 보임 ----------
 
-    /**
-     * story1 을 이미 본 것으로 표시한 뒤 화면을 띄우면
-     * - 태그 칩은 그대로 보이고
-     * - 아래 버튼은 "Done" 이 아니라 "Edit" 이어야 한다
-     * (TagSelectionCard 의 read-only 모드)
-     */
     @Test
-    fun scenario_4_1_readOnlyModeShowsEditButtonAndHidesDone() {
+    fun storyScreen_readOnlyMode_showsEditButtonAndHidesDone() {
         val stories = createSampleStories()
 
         // 먼저 viewedStories 에 story1 을 넣어 둔다

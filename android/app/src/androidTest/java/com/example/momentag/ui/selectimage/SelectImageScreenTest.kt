@@ -14,12 +14,12 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.navigation.compose.rememberNavController
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.example.momentag.view.SelectImageScreen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
+import com.example.momentag.view.SelectImageScreen
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,10 +29,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-
 @RunWith(AndroidJUnit4::class)
 class SelectImageScreenTest {
-
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
@@ -43,7 +41,7 @@ class SelectImageScreenTest {
         val factory = ViewModelFactory.getInstance(composeRule.activity)
         vm = ViewModelProvider(composeRule.activity, factory)[SelectImageViewModel::class.java]
 
-        // 모든 상태 초기화 (UI는 절대 수정 안 함)
+        // 모든 상태 초기화
         setFlow("_allPhotos", emptyList<Photo>())
         setFlow("_isLoading", false)
         setFlow("_isLoadingMore", false)
@@ -57,20 +55,25 @@ class SelectImageScreenTest {
 
     private fun setContent() {
         composeRule.setContent {
-            SelectImageScreen(navController = rememberNavController())
+            SelectImageScreen(
+                navController = rememberNavController(),
+                selectImageViewModel = vm,
+            )
         }
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> setFlow(name: String, value: T) {
+    private fun <T> setFlow(
+        name: String,
+        value: T,
+    ) {
         val field = SelectImageViewModel::class.java.getDeclaredField(name)
         field.isAccessible = true
         val flow = field.get(vm) as MutableStateFlow<T>
         flow.value = value
     }
 
-    private fun hasProgress(): SemanticsMatcher =
-        SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
+    private fun hasProgress(): SemanticsMatcher = SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
 
     private fun waitForProgress() {
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -83,7 +86,7 @@ class SelectImageScreenTest {
     // ----------------------------------------------------------
 
     @Test
-    fun showsTitleAndButton() {
+    fun selectImageScreen_initialState_showsTitleAndButton() {
         setContent()
         composeRule.onNodeWithText("Select Photos").assertIsDisplayed()
         composeRule.onNodeWithText("Add to Tag").assertIsDisplayed()
@@ -94,7 +97,7 @@ class SelectImageScreenTest {
     // ----------------------------------------------------------
 
     @Test
-    fun initialLoadingStateShowsProgressIndicator() {
+    fun selectImageScreen_initialLoading_showsProgressIndicator() {
         setFlow("_isLoading", true)
         setContent()
 
@@ -109,11 +112,12 @@ class SelectImageScreenTest {
     // ----------------------------------------------------------
 
     @Test
-    fun photosDisplayedInGrid() {
-        val p = listOf(
-            Photo("p1", Uri.parse("content://1"), "2024-01-01"),
-            Photo("p2", Uri.parse("content://2"), "2024-01-02"),
-        )
+    fun selectImageScreen_photos_displayedInGrid() {
+        val p =
+            listOf(
+                Photo("p1", Uri.parse("content://1"), "2024-01-01"),
+                Photo("p2", Uri.parse("content://2"), "2024-01-02"),
+            )
         setFlow("_allPhotos", p)
         setContent()
 
@@ -130,7 +134,7 @@ class SelectImageScreenTest {
     // ----------------------------------------------------------
 
     @Test
-    fun photoSelectionShowsCounter() {
+    fun selectImageScreen_photoSelection_showsCounter() {
         val p = listOf(Photo("p1", Uri.parse("content://1"), "2024"))
         setFlow("_allPhotos", p)
         setContent()
@@ -146,7 +150,7 @@ class SelectImageScreenTest {
     // ----------------------------------------------------------
 
     @Test
-    fun photoSelectionToggle() {
+    fun selectImageScreen_photoSelection_toggle() {
         val p = listOf(Photo("p1", Uri.parse("content://1"), "2024"))
         setFlow("_allPhotos", p)
         setContent()
@@ -167,7 +171,7 @@ class SelectImageScreenTest {
     // ----------------------------------------------------------
 
     @Test
-    fun doneButtonEnabledOnlyWhenSelected() {
+    fun selectImageScreen_doneButton_enabledOnlyWhenSelected() {
         val p = listOf(Photo("p1", Uri.parse("content://1"), "2024"))
         setFlow("_allPhotos", p)
         setContent()
@@ -186,7 +190,7 @@ class SelectImageScreenTest {
     // ----------------------------------------------------------
 
     @Test
-    fun recommendChipIdle() {
+    fun selectImageScreen_recommendChip_idle() {
         setFlow("_recommendState", RecommendState.Idle)
         setContent()
 
@@ -198,7 +202,7 @@ class SelectImageScreenTest {
     // ----------------------------------------------------------
 
     @Test
-    fun recommendChipLoading() {
+    fun selectImageScreen_recommendChip_loading() {
         setFlow("_recommendState", RecommendState.Loading)
         setContent()
 
@@ -210,11 +214,12 @@ class SelectImageScreenTest {
     // ----------------------------------------------------------
 
     @Test
-    fun recommendPhotosExpandable() {
-        val rec = listOf(
-            Photo("r1", Uri.parse("content://10"), "2024"),
-            Photo("r2", Uri.parse("content://11"), "2024"),
-        )
+    fun selectImageScreen_recommendPhotos_expandable() {
+        val rec =
+            listOf(
+                Photo("r1", Uri.parse("content://10"), "2024"),
+                Photo("r2", Uri.parse("content://11"), "2024"),
+            )
 
         setFlow("_recommendState", RecommendState.Success(rec))
         setFlow("_recommendedPhotos", rec)
@@ -231,6 +236,11 @@ class SelectImageScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(1, vm.selectedPhotos.value.size)
-        assertEquals("r1", vm.selectedPhotos.value.first().photoId)
+        assertEquals(
+            "r1",
+            vm.selectedPhotos.value
+                .first()
+                .photoId,
+        )
     }
 }
