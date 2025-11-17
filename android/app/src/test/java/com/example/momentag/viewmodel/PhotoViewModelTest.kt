@@ -1,415 +1,310 @@
 package com.example.momentag.viewmodel
 
-import com.example.momentag.model.PhotoUploadData
+import android.content.Context
+import android.net.Uri
+import androidx.work.WorkManager
+import androidx.work.WorkRequest
+import com.example.momentag.model.Photo
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
+import io.mockk.clearAllMocks
+import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
-import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PhotoViewModelTest {
+    @get:Rule
+    val mainCoroutineRule = MainCoroutineRule()
+
+    private lateinit var viewModel: PhotoViewModel
     private lateinit var remoteRepository: RemoteRepository
     private lateinit var localRepository: LocalRepository
-    private lateinit var viewModel: PhotoViewModel
-
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private lateinit var albumUploadJobCount: MutableStateFlow<Int>
+    private lateinit var context: Context
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
-        remoteRepository = mockk(relaxed = true)
-        localRepository = mockk(relaxed = true)
-        viewModel = PhotoViewModel(remoteRepository, localRepository)
+        mockkStatic(Uri::class)
+        mockkStatic(WorkManager::class)
+        remoteRepository = mockk()
+        localRepository = mockk()
+        albumUploadJobCount = MutableStateFlow(0)
+        context = mockk(relaxed = true)
+
+        // Mock WorkManager
+        val workManager = mockk<WorkManager>(relaxed = true)
+        every { WorkManager.getInstance(any()) } returns workManager
+
+        viewModel = PhotoViewModel(remoteRepository, localRepository, albumUploadJobCount)
     }
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        clearAllMocks()
+        unmockkStatic(Uri::class)
+        unmockkStatic(WorkManager::class)
     }
 
-    // ========== Initial State Tests ==========
+    private fun createMockUri(path: String): Uri {
+        val uri = mockk<Uri>(relaxed = true)
+        every { uri.toString() } returns path
+        every { uri.lastPathSegment } returns path.substringAfterLast("/")
+        return uri
+    }
 
+    private fun createPhoto(id: String = "123"): Photo {
+        val uri = createMockUri("content://media/external/images/media/$id")
+        every { Uri.parse("content://media/external/images/media/$id") } returns uri
+        return Photo(
+            photoId = id,
+            contentUri = uri,
+            createdAt = "2025-01-01",
+        )
+    }
+
+    // Upload job count observation tests
     @Test
-    fun `initial state is correct`() =
+    fun `uiState isLoading tracks albumUploadJobCount`() =
         runTest {
-            // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertNull(state.userMessage)
-            assertFalse(state.isUploadSuccess)
-        }
+            // Initial state
+            assertFalse(viewModel.uiState.value.isLoading)
 
-    // ========== uploadPhotos Success Tests ==========
-
-    @Test
-    fun `uploadPhotos success with 202 code updates state correctly`() =
-        runTest {
-            // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.Success(202)
-
-            // When
-            viewModel.uploadPhotos()
-
-            // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertTrue(state.isUploadSuccess)
-            assertEquals("Success", state.userMessage)
-            coVerify { localRepository.getPhotoUploadRequest() }
-            coVerify { remoteRepository.uploadPhotos(mockRequest) }
-        }
-
-    @Test
-    fun `uploadPhotos success with other code updates state with code message`() =
-        runTest {
-            // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.Success(200)
-
-            // When
-            viewModel.uploadPhotos()
+            // When job count increases
+            albumUploadJobCount.value = 1
+            advanceUntilIdle()
 
             // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertFalse(state.isUploadSuccess)
-            assertEquals("Upload successful (Code: 200)", state.userMessage)
-        }
+            assertTrue(viewModel.uiState.value.isLoading)
 
-    @Test
-    fun `uploadPhotos sets loading state immediately`() =
-        runTest {
-            // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(any()) } coAnswers {
-                // Check state during upload
-                val loadingState = viewModel.uiState.value
-                assertTrue(loadingState.isLoading)
-                assertNull(loadingState.userMessage)
-                assertFalse(loadingState.isUploadSuccess)
-                RemoteRepository.Result.Success(202)
-            }
+            // When job count goes back to 0
+            albumUploadJobCount.value = 0
+            advanceUntilIdle()
 
-            // When
-            viewModel.uploadPhotos()
-
-            // Then - after completion, loading is false
+            // Then
             assertFalse(viewModel.uiState.value.isLoading)
         }
 
-    // ========== uploadPhotos Error Tests ==========
-
+    // uploadPhotosForAlbums tests
     @Test
-    fun `uploadPhotos BadRequest updates state with error message`() =
+    fun `uploadPhotosForAlbums with empty set does nothing`() =
         runTest {
             // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.BadRequest("Bad request")
+            val emptySet = emptySet<Long>()
 
             // When
-            viewModel.uploadPhotos()
+            viewModel.uploadPhotosForAlbums(emptySet, context)
+            advanceUntilIdle()
 
             // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertFalse(state.isUploadSuccess)
-            assertEquals("Request form mismatch", state.userMessage)
+            verify(exactly = 0) { WorkManager.getInstance(any<Context>()).enqueue(any<WorkRequest>()) }
+            assertNull(viewModel.uiState.value.userMessage)
         }
 
     @Test
-    fun `uploadPhotos Unauthorized updates state with error message`() =
+    fun `uploadPhotosForAlbums with single album enqueues work and sets message`() =
         runTest {
             // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.Unauthorized("Unauthorized")
+            val albumIds = setOf(1L)
+            val workManager = mockk<WorkManager>(relaxed = true)
+            every { WorkManager.getInstance(context) } returns workManager
 
             // When
-            viewModel.uploadPhotos()
+            viewModel.uploadPhotosForAlbums(albumIds, context)
+            advanceUntilIdle()
 
             // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertFalse(state.isUploadSuccess)
-            assertEquals("The refresh token is expired", state.userMessage)
+            verify(exactly = 1) { workManager.enqueue(any<WorkRequest>()) }
+            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
         }
 
     @Test
-    fun `uploadPhotos Error updates state with error code`() =
+    fun `uploadPhotosForAlbums with multiple albums enqueues multiple works`() =
         runTest {
             // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.Error(500, "Server error")
+            val albumIds = setOf(1L, 2L, 3L)
+            val workManager = mockk<WorkManager>(relaxed = true)
+            every { WorkManager.getInstance(context) } returns workManager
 
             // When
-            viewModel.uploadPhotos()
+            viewModel.uploadPhotosForAlbums(albumIds, context)
+            advanceUntilIdle()
 
             // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertFalse(state.isUploadSuccess)
-            assertEquals("Unexpected error: 500", state.userMessage)
+            verify(exactly = 3) { workManager.enqueue(any<WorkRequest>()) }
+            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
+        }
+
+    // uploadSelectedPhotos tests
+    @Test
+    fun `uploadSelectedPhotos with empty set does nothing`() =
+        runTest {
+            // Given
+            val emptySet = emptySet<Photo>()
+
+            // When
+            viewModel.uploadSelectedPhotos(emptySet, context)
+            advanceUntilIdle()
+
+            // Then
+            verify(exactly = 0) { WorkManager.getInstance(any<Context>()).enqueue(any<WorkRequest>()) }
+            assertNull(viewModel.uiState.value.userMessage)
         }
 
     @Test
-    fun `uploadPhotos Exception updates state with exception message`() =
+    fun `uploadSelectedPhotos with invalid photo IDs sets error message`() =
         runTest {
             // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            val exception = Exception("Test exception")
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.Exception(exception)
+            val photos = setOf(createPhoto("invalid-id"), createPhoto("another-invalid"))
 
             // When
-            viewModel.uploadPhotos()
+            viewModel.uploadSelectedPhotos(photos, context)
+            advanceUntilIdle()
 
             // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertFalse(state.isUploadSuccess)
-            assertEquals("Unknown error: Test exception", state.userMessage)
+            verify(exactly = 0) { WorkManager.getInstance(any<Context>()).enqueue(any<WorkRequest>()) }
+            assertEquals("No photo IDs to upload.", viewModel.uiState.value.errorMessage)
         }
 
     @Test
-    fun `uploadPhotos NetworkError updates state with network error message`() =
+    fun `uploadSelectedPhotos with valid photo IDs enqueues work and sets message`() =
         runTest {
             // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.NetworkError("Network error")
+            val photos = setOf(createPhoto("123"), createPhoto("456"))
+            val workManager = mockk<WorkManager>(relaxed = true)
+            every { WorkManager.getInstance(context) } returns workManager
 
             // When
-            viewModel.uploadPhotos()
+            viewModel.uploadSelectedPhotos(photos, context)
+            advanceUntilIdle()
 
             // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertFalse(state.isUploadSuccess)
-            assertEquals("Network error", state.userMessage)
-        }
-
-    // ========== uploadPhotos Exception Handling Tests ==========
-
-    @Test
-    fun `uploadPhotos handles IOException with network error message`() =
-        runTest {
-            // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } throws IOException("Connection timeout")
-
-            // When
-            viewModel.uploadPhotos()
-
-            // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertFalse(state.isUploadSuccess)
-            assertEquals("Network error", state.userMessage)
+            verify(exactly = 1) { workManager.enqueue(any<WorkRequest>()) }
+            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
         }
 
     @Test
-    fun `uploadPhotos handles generic Exception with unknown error message`() =
+    fun `uploadSelectedPhotos with mixed valid and invalid IDs uploads only valid ones`() =
         runTest {
             // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } throws Exception("Unexpected error")
+            val photos = setOf(createPhoto("123"), createPhoto("invalid"), createPhoto("456"))
+            val workManager = mockk<WorkManager>(relaxed = true)
+            every { WorkManager.getInstance(context) } returns workManager
 
             // When
-            viewModel.uploadPhotos()
+            viewModel.uploadSelectedPhotos(photos, context)
+            advanceUntilIdle()
 
             // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertFalse(state.isUploadSuccess)
-            assertEquals("Unknown error: Unexpected error", state.userMessage)
+            verify(exactly = 1) { workManager.enqueue(any<WorkRequest>()) }
+            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
         }
 
+    // Message clearing tests
     @Test
-    fun `uploadPhotos handles Exception with null message`() =
+    fun `infoMessageShown clears user message`() =
         runTest {
-            // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } throws Exception(null as String?)
+            // Given - set a user message first
+            val albumIds = setOf(1L)
+            val workManager = mockk<WorkManager>(relaxed = true)
+            every { WorkManager.getInstance(context) } returns workManager
+            viewModel.uploadPhotosForAlbums(albumIds, context)
+            advanceUntilIdle()
+            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
 
             // When
-            viewModel.uploadPhotos()
-
-            // Then
-            val state = viewModel.uiState.value
-            assertFalse(state.isLoading)
-            assertFalse(state.isUploadSuccess)
-            assertEquals("Unknown error: null", state.userMessage)
-        }
-
-    // ========== userMessageShown Tests ==========
-
-    @Test
-    fun `userMessageShown resets userMessage to null`() =
-        runTest {
-            // Given - set a message first
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.Success(202)
-            viewModel.uploadPhotos()
-
-            // Verify message is set
-            assertEquals("Success", viewModel.uiState.value.userMessage)
-
-            // When
-            viewModel.userMessageShown()
+            viewModel.infoMessageShown()
+            advanceUntilIdle()
 
             // Then
             assertNull(viewModel.uiState.value.userMessage)
-            // Other states remain unchanged
-            assertTrue(viewModel.uiState.value.isUploadSuccess)
+        }
+
+    @Test
+    fun `errorMessageShown clears error message`() =
+        runTest {
+            // Given - set an error message first
+            val photos = setOf(createPhoto("invalid"))
+            viewModel.uploadSelectedPhotos(photos, context)
+            advanceUntilIdle()
+            assertEquals("No photo IDs to upload.", viewModel.uiState.value.errorMessage)
+
+            // When
+            viewModel.errorMessageShown()
+            advanceUntilIdle()
+
+            // Then
+            assertNull(viewModel.uiState.value.errorMessage)
+        }
+
+    @Test
+    fun `multiple album uploads update message correctly`() =
+        runTest {
+            // Given
+            val workManager = mockk<WorkManager>(relaxed = true)
+            every { WorkManager.getInstance(context) } returns workManager
+
+            // When - first upload
+            viewModel.uploadPhotosForAlbums(setOf(1L), context)
+            advanceUntilIdle()
+
+            // Then
+            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
+
+            // When - clear message
+            viewModel.infoMessageShown()
+            advanceUntilIdle()
+
+            // Then
+            assertNull(viewModel.uiState.value.userMessage)
+
+            // When - second upload
+            viewModel.uploadPhotosForAlbums(setOf(2L), context)
+            advanceUntilIdle()
+
+            // Then
+            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
+        }
+
+    @Test
+    fun `loading state updates with multiple job count changes`() =
+        runTest {
+            // Initial state
             assertFalse(viewModel.uiState.value.isLoading)
-        }
 
-    @Test
-    fun `userMessageShown can be called multiple times`() =
-        runTest {
-            // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.BadRequest("Bad request")
-            viewModel.uploadPhotos()
+            // When multiple jobs start
+            albumUploadJobCount.value = 3
+            advanceUntilIdle()
 
-            // When - call multiple times
-            viewModel.userMessageShown()
-            viewModel.userMessageShown()
-            viewModel.userMessageShown()
+            // Then
+            assertTrue(viewModel.uiState.value.isLoading)
 
-            // Then - still null
-            assertNull(viewModel.uiState.value.userMessage)
-        }
+            // When some jobs complete but not all
+            albumUploadJobCount.value = 1
+            advanceUntilIdle()
 
-    // ========== Integration Tests ==========
+            // Then - still loading
+            assertTrue(viewModel.uiState.value.isLoading)
 
-    @Test
-    fun `upload flow - success then show message then reset`() =
-        runTest {
-            // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.Success(202)
+            // When all jobs complete
+            albumUploadJobCount.value = 0
+            advanceUntilIdle()
 
-            // When - upload
-            viewModel.uploadPhotos()
-
-            // Then - success state
-            var state = viewModel.uiState.value
-            assertTrue(state.isUploadSuccess)
-            assertEquals("Success", state.userMessage)
-            assertFalse(state.isLoading)
-
-            // When - message shown
-            viewModel.userMessageShown()
-
-            // Then - message cleared
-            state = viewModel.uiState.value
-            assertNull(state.userMessage)
-            assertTrue(state.isUploadSuccess) // isUploadSuccess remains
-            assertFalse(state.isLoading)
-        }
-
-    @Test
-    fun `upload flow - error then show message then upload again`() =
-        runTest {
-            // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.NetworkError("Network error")
-
-            // When - first upload fails
-            viewModel.uploadPhotos()
-
-            // Then - error state
-            var state = viewModel.uiState.value
-            assertEquals("Network error", state.userMessage)
-            assertFalse(state.isUploadSuccess)
-
-            // When - message shown
-            viewModel.userMessageShown()
-
-            // Then - message cleared
-            assertNull(viewModel.uiState.value.userMessage)
-
-            // When - upload again successfully
-            coEvery { remoteRepository.uploadPhotos(mockRequest) } returns
-                RemoteRepository.Result.Success(202)
-            viewModel.uploadPhotos()
-
-            // Then - success state
-            state = viewModel.uiState.value
-            assertEquals("Success", state.userMessage)
-            assertTrue(state.isUploadSuccess)
-        }
-
-    @Test
-    fun `state transitions maintain correct values`() =
-        runTest {
-            // Given
-            val mockRequest = mockk<PhotoUploadData>()
-            coEvery { localRepository.getPhotoUploadRequest() } returns mockRequest
-
-            // Test different result types maintain state correctly
-            val testCases =
-                listOf(
-                    RemoteRepository.Result.Success(202) to "Success",
-                    RemoteRepository.Result.BadRequest<Int>("Bad request") to "Request form mismatch",
-                    RemoteRepository.Result.Unauthorized<Int>("Unauthorized") to "The refresh token is expired",
-                    RemoteRepository.Result.NetworkError<Int>("Network error") to "Network error",
-                )
-
-            testCases.forEach { (result, expectedMessage) ->
-                // Given
-                coEvery { remoteRepository.uploadPhotos(mockRequest) } returns result
-
-                // When
-                viewModel.uploadPhotos()
-
-                // Then
-                val state = viewModel.uiState.value
-                assertEquals(expectedMessage, state.userMessage)
-                assertFalse(state.isLoading)
-
-                // Reset for next test
-                viewModel.userMessageShown()
-            }
+            // Then - not loading
+            assertFalse(viewModel.uiState.value.isLoading)
         }
 }

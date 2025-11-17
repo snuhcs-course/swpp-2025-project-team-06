@@ -90,6 +90,7 @@ fun ImageGridUriItem(
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .clip(RoundedCornerShape(cornerRadius))
                         .background(
                             if (isSelected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f) else Color.Transparent,
                         ),

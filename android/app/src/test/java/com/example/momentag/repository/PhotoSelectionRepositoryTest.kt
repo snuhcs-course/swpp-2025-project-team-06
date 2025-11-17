@@ -20,11 +20,7 @@ class PhotoSelectionRepositoryTest {
     }
 
     // Helper function
-    private fun createPhoto(id: String = "photo1") =
-        Photo(
-            photoId = id,
-            contentUri = mockk(),
-        )
+    private fun createPhoto(id: String = "photo1") = Photo(photoId = id, contentUri = mockk(), createdAt = "2024-01-01T00:00:00Z")
 
     // ========== Initial State Tests ==========
 
@@ -194,8 +190,8 @@ class PhotoSelectionRepositoryTest {
     @Test
     fun `addPhoto does not add photo with same photoId`() {
         // Given
-        val photo1 = Photo(photoId = "photo1", contentUri = mockk())
-        val photo2 = Photo(photoId = "photo1", contentUri = mockk()) // Same ID, different instance
+        val photo1 = Photo(photoId = "photo1", contentUri = mockk(), createdAt = "2024-01-01T00:00:00Z")
+        val photo2 = Photo(photoId = "photo1", contentUri = mockk(), createdAt = "2024-01-01T00:00:00Z") // Same ID, different instance
         repository.addPhoto(photo1)
 
         // When
@@ -257,8 +253,8 @@ class PhotoSelectionRepositoryTest {
     @Test
     fun `removePhoto matches by photoId`() {
         // Given
-        val photo1 = Photo(photoId = "photo1", contentUri = mockk())
-        val photo2 = Photo(photoId = "photo1", contentUri = mockk()) // Same ID, different instance
+        val photo1 = Photo(photoId = "photo1", contentUri = mockk(), createdAt = "2024-01-01T00:00:00Z")
+        val photo2 = Photo(photoId = "photo1", contentUri = mockk(), createdAt = "2024-01-01T00:00:00Z") // Same ID, different instance
         repository.addPhoto(photo1)
 
         // When

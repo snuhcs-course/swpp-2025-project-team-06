@@ -88,6 +88,7 @@ fun AddTagScreen(navController: NavController) {
     val tagName by addTagViewModel.tagName.collectAsState()
     val selectedPhotos by addTagViewModel.selectedPhotos.collectAsState()
     val saveState by addTagViewModel.saveState.collectAsState()
+    val isTagNameDuplicate by addTagViewModel.isTagNameDuplicate.collectAsState()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -204,6 +205,7 @@ fun AddTagScreen(navController: NavController) {
                     TagNameSection(
                         tagName = tagName,
                         onTagNameChange = { addTagViewModel.updateTagName(it) },
+                        isDuplicate = isTagNameDuplicate,
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -318,6 +320,7 @@ fun AddTagScreen(navController: NavController) {
 private fun TagNameSection(
     tagName: String,
     onTagNameChange: (String) -> Unit,
+    isDuplicate: Boolean,
 ) {
     val focusManager = LocalFocusManager.current
     Column {
@@ -350,6 +353,14 @@ private fun TagNameSection(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         )
+        if (isDuplicate) {
+            Text(
+                text = "The tag '$tagName' already exists. This will add photos to it.",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
 }
 

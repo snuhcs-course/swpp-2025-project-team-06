@@ -28,6 +28,33 @@ class AddTagViewModel(
     val tagName: StateFlow<String> = photoSelectionRepository.tagName
     val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
 
+    private val _existingTags = MutableStateFlow<List<String>>(emptyList())
+    val existingTags = _existingTags.asStateFlow()
+
+    private val _isTagNameDuplicate = MutableStateFlow(false)
+    val isTagNameDuplicate = _isTagNameDuplicate.asStateFlow()
+
+    init {
+        // Load existing tags
+        viewModelScope.launch {
+            when (val result = remoteRepository.getAllTags()) {
+                is RemoteRepository.Result.Success -> {
+                    _existingTags.value = result.data.map { it.tagName }
+                }
+                else -> {
+                    // Ignore errors for now
+                }
+            }
+        }
+
+        // Check for duplicate tag name
+        viewModelScope.launch {
+            tagName.collect { name ->
+                _isTagNameDuplicate.value = name.isNotBlank() && _existingTags.value.contains(name)
+            }
+        }
+    }
+
     sealed class SaveState {
         object Idle : SaveState()
 

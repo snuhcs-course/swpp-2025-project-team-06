@@ -18,6 +18,7 @@ class ImageContextTest {
         return Photo(
             photoId = id,
             contentUri = mockUri,
+            createdAt = "2024-01-01T00:00:00Z",
         )
     }
 
@@ -197,11 +198,12 @@ class ImageContextTest {
         // When & Then
         val values = ImageContext.ContextType.values()
 
-        assertEquals(4, values.size)
+        assertEquals(5, values.size)
         assertTrue(values.contains(ImageContext.ContextType.ALBUM))
         assertTrue(values.contains(ImageContext.ContextType.TAG_ALBUM))
         assertTrue(values.contains(ImageContext.ContextType.SEARCH_RESULT))
         assertTrue(values.contains(ImageContext.ContextType.GALLERY))
+        assertTrue(values.contains(ImageContext.ContextType.STORY))
     }
 
     @Test
