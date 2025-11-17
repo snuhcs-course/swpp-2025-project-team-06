@@ -1,18 +1,24 @@
+import threading
+
 from django.conf import settings
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.exceptions import UnexpectedResponse
 
 # 싱글톤 인스턴스
 _qdrant_client = None
+_qdrant_lock = threading.Lock()
 
 def get_qdrant_client():
-    # 싱글톤 Qdrant Client 인스턴스 반환
+    # 싱글톤 Qdrant Client 인스턴스 반환 (Thread-safe)
     global _qdrant_client
     if _qdrant_client is None:
-        _qdrant_client = QdrantClient(
-            url=settings.QDRANT_CLUSTER_URL,
-            api_key=settings.QDRANT_API_KEY,
-        )
+        with _qdrant_lock:
+            # Double-checked locking pattern
+            if _qdrant_client is None:
+                _qdrant_client = QdrantClient(
+                    url=settings.QDRANT_CLUSTER_URL,
+                    api_key=settings.QDRANT_API_KEY,
+                )
     return _qdrant_client
 
 
