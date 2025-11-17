@@ -17,7 +17,7 @@ import androidx.compose.ui.test.performClick
 import androidx.navigation.compose.rememberNavController
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.example.momentag.SelectImageScreen
+import com.example.momentag.view.SelectImageScreen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.RecommendState
 import com.example.momentag.viewmodel.SelectImageViewModel
