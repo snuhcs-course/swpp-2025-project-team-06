@@ -66,7 +66,7 @@ class SelectImageViewModel
             ) : RecommendState()
         }
 
-    // 2. Private MutableStateFlow
+        // 2. Private MutableStateFlow
         private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
         private val _isLoading = MutableStateFlow(false)
         private val _isLoadingMore = MutableStateFlow(false)

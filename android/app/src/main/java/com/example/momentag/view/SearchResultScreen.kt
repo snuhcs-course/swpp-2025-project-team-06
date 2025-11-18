@@ -299,7 +299,10 @@ fun SearchResultScreen(
                                 photo = photo,
                             )
                         }
-                    SearchViewModel.SearchUiState.Success(searchResults, (semanticSearchState as SearchViewModel.SemanticSearchState.Success).query)
+                    SearchViewModel.SearchUiState.Success(
+                        searchResults,
+                        (semanticSearchState as SearchViewModel.SemanticSearchState.Success).query,
+                    )
                 }
                 is SearchViewModel.SemanticSearchState.Empty -> {
                     SearchViewModel.SearchUiState.Empty((semanticSearchState as SearchViewModel.SemanticSearchState.Empty).query)
@@ -322,7 +325,10 @@ fun SearchResultScreen(
             isErrorBannerVisible = true
         } else {
             // 로딩이 성공하거나, Idle 상태가 되면 배너를 숨깁니다.
-            if (uiState is SearchViewModel.SearchUiState.Success || uiState is SearchViewModel.SearchUiState.Loading || uiState is SearchViewModel.SearchUiState.Idle) {
+            if (uiState is SearchViewModel.SearchUiState.Success ||
+                uiState is SearchViewModel.SearchUiState.Loading ||
+                uiState is SearchViewModel.SearchUiState.Idle
+            ) {
                 isErrorBannerVisible = false
             }
         }
