@@ -4,7 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.ImageContext
-import com.example.momentag.model.ImageDetailTagState
+import com.example.momentag.model.Tag
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
@@ -31,6 +31,18 @@ class ImageDetailViewModel
         private val recommendRepository: RecommendRepository,
     ) : ViewModel() {
         // 1. state class 정의
+        sealed class TagAddState {
+            object Idle : TagAddState()
+
+            object Loading : TagAddState()
+
+            object Success : TagAddState()
+
+            data class Error(
+                val message: String,
+            ) : TagAddState()
+        }
+
         sealed class TagDeleteState {
             object Idle : TagDeleteState()
 
@@ -43,16 +55,20 @@ class ImageDetailViewModel
             ) : TagDeleteState()
         }
 
-        sealed class TagAddState {
-            object Idle : TagAddState()
-
-            object Loading : TagAddState()
-
-            object Success : TagAddState()
+        sealed class ImageDetailTagState {
+            data object Idle : ImageDetailTagState()
 
             data class Error(
                 val message: String,
-            ) : TagAddState()
+            ) : ImageDetailTagState()
+
+            // 데이터 상태: 기존 태그와 추천 태그 목록을 각각 관리
+            data class Success(
+                val existingTags: List<Tag> = emptyList(),
+                val recommendedTags: List<String> = emptyList(),
+                val isExistingLoading: Boolean = true, // 기존 태그 로딩 중 여부
+                val isRecommendedLoading: Boolean = true, // 추천 태그 로딩 중 여부
+            ) : ImageDetailTagState()
         }
 
         // 2. Private MutableStateFlow

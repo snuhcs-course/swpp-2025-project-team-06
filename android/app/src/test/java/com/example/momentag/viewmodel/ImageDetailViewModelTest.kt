@@ -2,7 +2,6 @@ package com.example.momentag.viewmodel
 
 import android.net.Uri
 import com.example.momentag.model.ImageContext
-import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.PhotoDetailResponse
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.Tag
@@ -108,7 +107,7 @@ class ImageDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.imageDetailTagState.value is ImageDetailTagState.Idle)
+            assertTrue(viewModel.imageDetailTagState.value is ImageDetailViewModel.ImageDetailTagState.Idle)
             assertNull(viewModel.photoAddress.value)
         }
 
@@ -130,8 +129,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(tags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(tags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertEquals("123 Main St", viewModel.photoAddress.value)
         }
 
@@ -150,8 +149,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals(errorMessage, (state as ImageDetailTagState.Error).message)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals(errorMessage, (state as ImageDetailViewModel.ImageDetailTagState.Error).message)
         }
 
     // Delete tag tests
@@ -269,7 +268,7 @@ class ImageDetailViewModelTest {
 
         // Then
         assertNull(viewModel.imageContext.value)
-        assertTrue(viewModel.imageDetailTagState.value is ImageDetailTagState.Idle)
+        assertTrue(viewModel.imageDetailTagState.value is ImageDetailViewModel.ImageDetailTagState.Idle)
     }
 
     // Additional loadPhotoTags error case tests
@@ -288,8 +287,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals(errorMessage, (state as ImageDetailTagState.Error).message)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals(errorMessage, (state as ImageDetailViewModel.ImageDetailTagState.Error).message)
         }
 
     @Test
@@ -307,8 +306,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals(errorMessage, (state as ImageDetailTagState.Error).message)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals(errorMessage, (state as ImageDetailViewModel.ImageDetailTagState.Error).message)
         }
 
     @Test
@@ -326,8 +325,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals(errorMessage, (state as ImageDetailTagState.Error).message)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals(errorMessage, (state as ImageDetailViewModel.ImageDetailTagState.Error).message)
         }
 
     @Test
@@ -345,8 +344,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals("Unexpected error", (state as ImageDetailTagState.Error).message)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals("Unexpected error", (state as ImageDetailViewModel.ImageDetailTagState.Error).message)
         }
 
     @Test
@@ -371,7 +370,7 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
         }
 
     @Test
@@ -389,8 +388,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(emptyList<Tag>(), (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(emptyList<Tag>(), (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertEquals(emptyList<String>(), state.recommendedTags)
             assertNull(viewModel.photoAddress.value)
         }
@@ -415,8 +414,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             // Should only show first recommended tag that's not in existing tags
             assertEquals(listOf("New Tag"), state.recommendedTags)
             assertFalse(state.isRecommendedLoading)
@@ -441,8 +440,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertEquals(emptyList<String>(), state.recommendedTags)
             assertFalse(state.isRecommendedLoading)
         }
@@ -466,8 +465,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertFalse(state.isRecommendedLoading)
         }
 
@@ -490,8 +489,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertFalse(state.isRecommendedLoading)
         }
 
@@ -514,8 +513,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertFalse(state.isRecommendedLoading)
         }
 

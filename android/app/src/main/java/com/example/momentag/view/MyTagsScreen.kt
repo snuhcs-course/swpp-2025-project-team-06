@@ -77,7 +77,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
-import com.example.momentag.model.MyTagsUiState
 import com.example.momentag.model.TagCntData
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -90,7 +89,6 @@ import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.MyTagsViewModel
-import com.example.momentag.viewmodel.TagActionState
 import com.example.momentag.viewmodel.TagSortOrder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -148,19 +146,19 @@ fun MyTagsScreen(navController: NavController) {
 
     LaunchedEffect(actionState) {
         when (val state = actionState) {
-            is TagActionState.Success -> {
+            is MyTagsViewModel.TagActionState.Success -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
                 isErrorBannerVisible = false
                 myTagsViewModel.clearActionState()
             }
-            is TagActionState.Error -> {
+            is MyTagsViewModel.TagActionState.Error -> {
                 errorMessage = state.message
                 isErrorBannerVisible = true
                 myTagsViewModel.clearActionState()
             }
-            is TagActionState.Idle -> {
+            is MyTagsViewModel.TagActionState.Idle -> {
             }
-            is TagActionState.Loading -> {
+            is MyTagsViewModel.TagActionState.Loading -> {
                 // TODO: 필요시 로딩 인디케이터 표시 (현재는 Dialog가 닫히므로 생략)
             }
         }
@@ -208,7 +206,7 @@ fun MyTagsScreen(navController: NavController) {
                     },
                     actions = {
                         if (myTagsViewModel.isSelectedPhotosEmpty() &&
-                            currentState is MyTagsUiState.Success &&
+                            currentState is MyTagsViewModel.MyTagsUiState.Success &&
                             currentState.tags.isNotEmpty()
                         ) {
                             // Sort Button (always visible)
@@ -388,7 +386,7 @@ fun MyTagsScreen(navController: NavController) {
                         ).padding(paddingValues),
             ) {
                 when (val state = uiState) {
-                    is MyTagsUiState.Loading -> {
+                    is MyTagsViewModel.MyTagsUiState.Loading -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center,
@@ -397,7 +395,7 @@ fun MyTagsScreen(navController: NavController) {
                         }
                     }
 
-                    is MyTagsUiState.Error -> {
+                    is MyTagsViewModel.MyTagsUiState.Error -> {
                         Box(
                             modifier =
                                 Modifier
@@ -415,7 +413,7 @@ fun MyTagsScreen(navController: NavController) {
                         }
                     }
 
-                    is MyTagsUiState.Success -> {
+                    is MyTagsViewModel.MyTagsUiState.Success -> {
                         MyTagsContent(
                             tags = state.tags,
                             navController = navController,

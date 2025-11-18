@@ -3,9 +3,7 @@ package com.example.momentag.viewmodel
 import android.net.Uri
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoResponse
-import com.example.momentag.model.SemanticSearchState
 import com.example.momentag.model.TagItem
-import com.example.momentag.model.TagLoadingState
 import com.example.momentag.model.TagResponse
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
@@ -142,7 +140,7 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Error)
+            assertTrue(state is SearchViewModel.SemanticSearchState.Error)
         }
 
     @Test
@@ -163,8 +161,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Success)
-            assertEquals(photos, (state as SemanticSearchState.Success).photos)
+            assertTrue(state is SearchViewModel.SemanticSearchState.Success)
+            assertEquals(photos, (state as SearchViewModel.SemanticSearchState.Success).photos)
             assertEquals(query, state.query)
             verify { imageBrowserRepository.setSearchResults(photos, query) }
         }
@@ -184,7 +182,7 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Empty)
+            assertTrue(state is SearchViewModel.SemanticSearchState.Empty)
             verify { imageBrowserRepository.clear() }
         }
 
@@ -203,7 +201,7 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Error)
+            assertTrue(state is SearchViewModel.SemanticSearchState.Error)
         }
 
     @Test
@@ -222,7 +220,7 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.NetworkError)
+            assertTrue(state is SearchViewModel.SemanticSearchState.NetworkError)
         }
 
     // Selection mode tests
@@ -317,7 +315,7 @@ class SearchViewModelTest {
         viewModel.resetSearchState()
 
         // Then
-        assertTrue(viewModel.searchState.value is SemanticSearchState.Idle)
+        assertTrue(viewModel.searchState.value is SearchViewModel.SemanticSearchState.Idle)
         verify { imageBrowserRepository.clear() }
     }
 
@@ -369,8 +367,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.tagLoadingState.value
-            assertTrue(state is TagLoadingState.Success)
-            assertEquals(2, (state as TagLoadingState.Success).tags.size)
+            assertTrue(state is SearchViewModel.TagLoadingState.Success)
+            assertEquals(2, (state as SearchViewModel.TagLoadingState.Success).tags.size)
             assertEquals("sunset", state.tags[0].tagName)
             assertEquals("beach", state.tags[1].tagName)
         }
@@ -389,8 +387,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.tagLoadingState.value
-            assertTrue(state is TagLoadingState.Error)
-            assertEquals(errorMessage, (state as TagLoadingState.Error).message)
+            assertTrue(state is SearchViewModel.TagLoadingState.Error)
+            assertEquals(errorMessage, (state as SearchViewModel.TagLoadingState.Error).message)
         }
 
     @Test
@@ -406,7 +404,7 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.tagLoadingState.value
-            assertTrue(state is TagLoadingState.Error)
+            assertTrue(state is SearchViewModel.TagLoadingState.Error)
         }
 
     @Test
@@ -423,8 +421,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.tagLoadingState.value
-            assertTrue(state is TagLoadingState.Error)
-            assertEquals(errorMessage, (state as TagLoadingState.Error).message)
+            assertTrue(state is SearchViewModel.TagLoadingState.Error)
+            assertEquals(errorMessage, (state as SearchViewModel.TagLoadingState.Error).message)
         }
 
     @Test
@@ -441,7 +439,7 @@ class SearchViewModelTest {
         viewModel.resetTagLoadingState()
 
         // Then
-        assertTrue(viewModel.tagLoadingState.value is TagLoadingState.Idle)
+        assertTrue(viewModel.tagLoadingState.value is SearchViewModel.TagLoadingState.Idle)
     }
 
     // parseQueryToElements tests
@@ -673,8 +671,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Error)
-            assertEquals(errorMessage, (state as SemanticSearchState.Error).message)
+            assertTrue(state is SearchViewModel.SemanticSearchState.Error)
+            assertEquals(errorMessage, (state as SearchViewModel.SemanticSearchState.Error).message)
         }
 
     @Test
@@ -693,8 +691,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Error)
-            assertEquals(errorMessage, (state as SemanticSearchState.Error).message)
+            assertTrue(state is SearchViewModel.SemanticSearchState.Error)
+            assertEquals(errorMessage, (state as SearchViewModel.SemanticSearchState.Error).message)
         }
 
     @Test
@@ -709,8 +707,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.searchState.value
-            assertTrue(state is SemanticSearchState.Error)
-            assertEquals("Query cannot be empty", (state as SemanticSearchState.Error).message)
+            assertTrue(state is SearchViewModel.SemanticSearchState.Error)
+            assertEquals("Query cannot be empty", (state as SearchViewModel.SemanticSearchState.Error).message)
         }
 
     @Test
@@ -749,8 +747,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.tagLoadingState.value
-            assertTrue(state is TagLoadingState.Error)
-            assertEquals(errorMessage, (state as TagLoadingState.Error).message)
+            assertTrue(state is SearchViewModel.TagLoadingState.Error)
+            assertEquals(errorMessage, (state as SearchViewModel.TagLoadingState.Error).message)
         }
 
     @Test
@@ -767,8 +765,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.tagLoadingState.value
-            assertTrue(state is TagLoadingState.Error)
-            assertEquals("Test exception", (state as TagLoadingState.Error).message)
+            assertTrue(state is SearchViewModel.TagLoadingState.Error)
+            assertEquals("Test exception", (state as SearchViewModel.TagLoadingState.Error).message)
         }
 
     @Test
@@ -785,8 +783,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.tagLoadingState.value
-            assertTrue(state is TagLoadingState.Error)
-            assertEquals("Unknown error", (state as TagLoadingState.Error).message)
+            assertTrue(state is SearchViewModel.TagLoadingState.Error)
+            assertEquals("Unknown error", (state as SearchViewModel.TagLoadingState.Error).message)
         }
 
     // getPhotosToShare test
@@ -1177,7 +1175,7 @@ class SearchViewModelTest {
             advanceUntilIdle()
 
             // Then - verify tags are loaded (suggestions are still empty without hash query)
-            assertTrue(viewModel.tagLoadingState.value is TagLoadingState.Success)
+            assertTrue(viewModel.tagLoadingState.value is SearchViewModel.TagLoadingState.Success)
         }
 
     // shouldShowSearchHistoryDropdown tests
