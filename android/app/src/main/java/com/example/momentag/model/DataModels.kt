@@ -95,6 +95,20 @@ data class PhotoDetailResponse(
     val tags: List<Tag>,
 )
 
+data class ImageContext(
+    val images: List<Photo>,
+    val currentIndex: Int,
+    val contextType: ContextType,
+) {
+    enum class ContextType {
+        ALBUM, // 로컬 앨범
+        TAG_ALBUM, // 태그 앨범
+        SEARCH_RESULT, // 검색 결과
+        GALLERY, // 전체 갤러리
+        STORY, // 스토리
+    }
+}
+
 // ========== Photo-Tag Models ==========
 
 data class PhotoTag(
