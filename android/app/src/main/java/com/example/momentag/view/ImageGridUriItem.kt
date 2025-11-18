@@ -24,10 +24,10 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
-import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.imageCornerRadius
 
 /**
  * 이미지 그리드 아이템 - 일반 모드와 선택 모드를 모두 지원

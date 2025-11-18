@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
  * "top app bar navigation" or "warning banner leading icon").
  */
 object StandardIcon {
-
     /**
      * Draws an [ImageVector] icon with the provided size role and semantic intent.
      */
@@ -78,12 +77,11 @@ object StandardIcon {
     fun style(
         sizeRole: IconSizeRole,
         intent: IconIntent,
-    ): IconStyle {
-        return IconStyle(
+    ): IconStyle =
+        IconStyle(
             size = sizeRole.size,
             tint = intent.resolveTint(),
         )
-    }
 }
 
 /**
@@ -99,7 +97,9 @@ data class IconStyle internal constructor(
  * Icons already in the app use ten distinct sizes. These roles map one-to-one with those use cases
  * so features can opt into a single semantic value rather than sprinkling `Modifier.size(x.dp)` everywhere.
  */
-enum class IconSizeRole(val size: Dp) {
+enum class IconSizeRole(
+    val size: Dp,
+) {
     /**
      * 12.dp – inline dismiss chips such as the delete icon in `Tag.kt`.
      */

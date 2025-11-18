@@ -14,13 +14,14 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -117,8 +118,8 @@ fun TagChip(
                     modifier = Modifier.size(16.dp),
                 ) {
                     StandardIcon.Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Dismiss Tag",
+                        imageVector = Icons.AutoMirrored.Filled.LabelOff,
+                        contentDescription = "UnTag",
                         sizeRole = IconSizeRole.InlineAction,
                     )
                 }
@@ -131,8 +132,8 @@ fun TagChip(
                         modifier = Modifier.size(16.dp),
                     ) {
                         StandardIcon.Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Dismiss Tag",
+                            imageVector = Icons.AutoMirrored.Filled.LabelOff,
+                            contentDescription = "UnTag",
                             sizeRole = IconSizeRole.InlineAction,
                         )
                     }
@@ -204,6 +205,10 @@ fun TagChipWithCount(
     showCheckbox: Boolean = false,
     isChecked: Boolean = false,
 ) {
+    var textOverflow by remember { mutableStateOf(false) }
+
+    // reasonable maximum width for the tag text before ellipsizing
+    val maxTextWidth = 180.dp
     Row(
         modifier =
             modifier
@@ -245,10 +250,12 @@ fun TagChipWithCount(
 
         Text(
             text = tagName,
+            modifier = Modifier.widthIn(max = maxTextWidth),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            onTextLayout = { textLayoutResult -> textOverflow = textLayoutResult.hasVisualOverflow },
         )
 
         // Edit 모드가 아닐 때만 카운트 표시
@@ -297,8 +304,8 @@ fun TagChipWithCount(
                 modifier = Modifier.size(20.dp),
             ) {
                 StandardIcon.Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete Tag",
+                    imageVector = Icons.AutoMirrored.Filled.LabelOff,
+                    contentDescription = "UnTag",
                     sizeRole = IconSizeRole.InlineAction,
                     intent = IconIntent.Inverse,
                 )

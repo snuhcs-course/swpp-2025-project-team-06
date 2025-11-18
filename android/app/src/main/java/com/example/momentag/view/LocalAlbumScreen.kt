@@ -215,11 +215,11 @@ fun LocalAlbumScreen(
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                        StandardIcon.Icon(
-                            imageVector = Icons.Default.Upload,
-                            contentDescription = "Upload",
-                            sizeRole = IconSizeRole.DefaultAction,
-                        )
+                            StandardIcon.Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = "Upload",
+                                sizeRole = IconSizeRole.DefaultAction,
+                            )
                         }
                     },
                     onClick = {

@@ -60,9 +60,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.example.momentag.ui.theme.IconIntent
-import com.example.momentag.ui.theme.IconSizeRole
-import com.example.momentag.ui.theme.StandardIcon
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -73,6 +70,9 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.viewmodel.AddTagViewModel
 import kotlinx.coroutines.delay

@@ -135,13 +135,13 @@ import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.ui.components.tagX
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
 import com.example.momentag.viewmodel.HomeViewModel
-import com.example.momentag.ui.theme.IconIntent
-import com.example.momentag.ui.theme.IconSizeRole
-import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.TagSortOrder
@@ -776,11 +776,11 @@ fun HomeScreen(navController: NavController) {
                         // "태그 앨범" 뷰일 때만 정렬 버튼 표시
                         if (!isShowingAllPhotos) {
                             IconButton(onClick = { scope.launch { sheetState.show() } }) {
-                            StandardIcon.Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = "Sort Tag Albums",
-                                intent = IconIntent.Muted,
-                            )
+                                StandardIcon.Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = "Sort Tag Albums",
+                                    intent = IconIntent.Muted,
+                                )
                             }
                         } else {
                             // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer

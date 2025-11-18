@@ -30,12 +30,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FiberNew
+import androidx.compose.material.icons.filled.LabelOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -84,10 +85,10 @@ import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.RenameTagDialog
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.TagActionState
 import com.example.momentag.viewmodel.TagSortOrder
@@ -236,8 +237,8 @@ fun MyTagsScreen(navController: NavController) {
                                         else -> IconIntent.Neutral
                                     }
                                 StandardIcon.Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete",
+                                    imageVector = Icons.AutoMirrored.Filled.LabelOff,
+                                    contentDescription = "Untag",
                                     intent = deleteIntent,
                                 )
                             }

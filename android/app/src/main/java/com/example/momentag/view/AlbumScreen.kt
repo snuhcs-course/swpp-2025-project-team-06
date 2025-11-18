@@ -38,11 +38,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.LabelOff
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -378,7 +379,7 @@ fun AlbumScreen(
                                     ),
                             ) {
                                 StandardIcon.Icon(
-                                    imageVector = Icons.Default.Delete,
+                                    imageVector = Icons.AutoMirrored.Filled.LabelOff,
                                     contentDescription = "Untag",
                                     sizeRole = IconSizeRole.DefaultAction,
                                     intent = if (isEnabled) IconIntent.Error else IconIntent.Disabled,

@@ -398,16 +398,16 @@ private fun AlbumGridItem(
                             CircleShape,
                         ),
                 contentAlignment = Alignment.Center,
-                ) {
-                    if (isSelected) {
-                        StandardIcon.Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Selected",
-                            sizeRole = IconSizeRole.InlineAction,
-                            intent = IconIntent.OnPrimaryContainer,
-                        )
-                    }
+            ) {
+                if (isSelected) {
+                    StandardIcon.Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        sizeRole = IconSizeRole.InlineAction,
+                        intent = IconIntent.OnPrimaryContainer,
+                    )
                 }
             }
+        }
     }
 }
