@@ -81,7 +81,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
-import com.example.momentag.model.RecommendState
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
@@ -570,7 +569,7 @@ private fun PhotoSelectableItem(
 
 @Composable
 private fun RecommendChip(
-    recommendState: RecommendState,
+    recommendState: SelectImageViewModel.RecommendState,
     onExpand: () -> Unit,
 ) {
     Row(
@@ -587,7 +586,7 @@ private fun RecommendChip(
         horizontalArrangement = Arrangement.Center,
     ) {
         when (recommendState) {
-            is RecommendState.Loading -> {
+            is SelectImageViewModel.RecommendState.Loading -> {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp,
@@ -600,7 +599,7 @@ private fun RecommendChip(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            is RecommendState.Success -> {
+            is SelectImageViewModel.RecommendState.Success -> {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "AI",
@@ -614,7 +613,7 @@ private fun RecommendChip(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            is RecommendState.Error, is RecommendState.NetworkError -> {
+            is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "Error",
@@ -655,7 +654,7 @@ private fun RecommendChip(
 
 @Composable
 private fun RecommendExpandedPanel(
-    recommendState: RecommendState,
+    recommendState: SelectImageViewModel.RecommendState,
     recommendedPhotos: List<Photo>,
     onPhotoClick: (Photo) -> Unit,
     onRetry: () -> Unit,
@@ -731,13 +730,13 @@ private fun RecommendExpandedPanel(
                     // 왼쪽: AI Recommend 텍스트
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         when (recommendState) {
-                            is RecommendState.Loading -> {
+                            is SelectImageViewModel.RecommendState.Loading -> {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp,
                                 )
                             }
-                            is RecommendState.Success -> {
+                            is SelectImageViewModel.RecommendState.Success -> {
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = "AI",
@@ -780,7 +779,7 @@ private fun RecommendExpandedPanel(
 
                 // Grid
                 when (recommendState) {
-                    is RecommendState.Loading -> {
+                    is SelectImageViewModel.RecommendState.Loading -> {
                         Box(
                             modifier =
                                 Modifier
@@ -794,7 +793,7 @@ private fun RecommendExpandedPanel(
                             )
                         }
                     }
-                    is RecommendState.Success -> {
+                    is SelectImageViewModel.RecommendState.Success -> {
                         if (recommendedPhotos.isEmpty()) {
                             Box(
                                 modifier =
@@ -833,7 +832,7 @@ private fun RecommendExpandedPanel(
                             }
                         }
                     }
-                    is RecommendState.Error, is RecommendState.NetworkError -> {
+                    is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
                         Box(
                             modifier =
                                 Modifier
@@ -842,10 +841,10 @@ private fun RecommendExpandedPanel(
                             contentAlignment = Alignment.BottomCenter,
                         ) {
                             val (title, message) =
-                                if (recommendState is RecommendState.Error) {
+                                if (recommendState is SelectImageViewModel.RecommendState.Error) {
                                     "Couldn't load suggestions" to recommendState.message
                                 } else {
-                                    "Connection lost" to (recommendState as RecommendState.NetworkError).message
+                                    "Connection lost" to (recommendState as SelectImageViewModel.RecommendState.NetworkError).message
                                 }
 
                             WarningBanner(
@@ -859,7 +858,7 @@ private fun RecommendExpandedPanel(
                             )
                         }
                     }
-                    is RecommendState.Idle -> {
+                    is SelectImageViewModel.RecommendState.Idle -> {
                         Box(
                             modifier =
                                 Modifier

@@ -4,7 +4,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
-import com.example.momentag.model.RecommendState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoSelectionRepository
@@ -49,7 +48,25 @@ class SelectImageViewModel
             ) : AddPhotosState()
         }
 
-        // 2. Private MutableStateFlow
+        sealed class RecommendState {
+            object Idle : RecommendState()
+
+            object Loading : RecommendState()
+
+            data class Success(
+                val photos: List<Photo>,
+            ) : RecommendState()
+
+            data class Error(
+                val message: String,
+            ) : RecommendState()
+
+            data class NetworkError(
+                val message: String,
+            ) : RecommendState()
+        }
+
+    // 2. Private MutableStateFlow
         private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
         private val _isLoading = MutableStateFlow(false)
         private val _isLoadingMore = MutableStateFlow(false)

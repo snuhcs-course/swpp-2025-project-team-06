@@ -18,7 +18,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.momentag.model.Photo
-import com.example.momentag.model.RecommendState
 import com.example.momentag.view.SelectImageScreen
 import com.example.momentag.viewmodel.SelectImageViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
@@ -46,7 +45,7 @@ class SelectImageScreenTest {
         setFlow("_isLoading", false)
         setFlow("_isLoadingMore", false)
         setFlow("_isSelectionMode", true)
-        setFlow("_recommendState", RecommendState.Idle)
+        setFlow("_recommendState", SelectImageViewModel.RecommendState.Idle)
         setFlow("_recommendedPhotos", emptyList<Photo>())
         setFlow("_addPhotosState", SelectImageViewModel.AddPhotosState.Idle)
 
@@ -191,7 +190,7 @@ class SelectImageScreenTest {
 
     @Test
     fun selectImageScreen_recommendChip_idle() {
-        setFlow("_recommendState", RecommendState.Idle)
+        setFlow("_recommendState", SelectImageViewModel.RecommendState.Idle)
         setContent()
 
         composeRule.onNodeWithText("Getting ready...").assertIsDisplayed()
@@ -203,7 +202,7 @@ class SelectImageScreenTest {
 
     @Test
     fun selectImageScreen_recommendChip_loading() {
-        setFlow("_recommendState", RecommendState.Loading)
+        setFlow("_recommendState", SelectImageViewModel.RecommendState.Loading)
         setContent()
 
         composeRule.onNodeWithText("Finding suggestions...").assertIsDisplayed()
@@ -221,7 +220,7 @@ class SelectImageScreenTest {
                 Photo("r2", Uri.parse("content://11"), "2024"),
             )
 
-        setFlow("_recommendState", RecommendState.Success(rec))
+        setFlow("_recommendState", SelectImageViewModel.RecommendState.Success(rec))
         setFlow("_recommendedPhotos", rec)
         setContent()
 
