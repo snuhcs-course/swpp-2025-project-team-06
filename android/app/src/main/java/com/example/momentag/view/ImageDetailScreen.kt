@@ -322,7 +322,7 @@ fun ImageDetailScreen(
         )
     rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
 
-    val isSheetExpanded = sheetState.targetValue == SheetValue.Expanded
+    sheetState.targetValue == SheetValue.Expanded
     val currentPhoto = photos.getOrNull(pagerState.currentPage)
 
     // 7. ActivityResultLauncher

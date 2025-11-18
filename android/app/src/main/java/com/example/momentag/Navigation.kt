@@ -29,7 +29,7 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 @Composable
-fun appNavigation(tokenRepository: TokenRepository) {
+fun AppNavigation(tokenRepository: TokenRepository) {
     val navController = rememberNavController()
 
     val isLoaded by tokenRepository.isSessionLoaded.collectAsState()
