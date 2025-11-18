@@ -14,7 +14,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.ui.theme.MomenTagTheme
-import com.example.momentag.view.SearchResultScreenUi
 import com.example.momentag.viewmodel.ViewModelFactory
 import org.junit.After
 import org.junit.Before

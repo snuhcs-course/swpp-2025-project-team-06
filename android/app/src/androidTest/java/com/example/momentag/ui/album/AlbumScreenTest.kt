@@ -3,7 +3,6 @@ package com.example.momentag.ui.album
 import android.Manifest
 import android.os.Build
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -12,11 +11,11 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -82,6 +81,7 @@ class AlbumScreenTest {
     }
 
     // --- Helper function to handle loading/timeout/error conditions ---
+
     /**
      * Waits up to 5 seconds for album content (+ Add Photos) or an error banner to appear.
      * Returns true if content loaded successfully, false otherwise.
@@ -131,7 +131,10 @@ class AlbumScreenTest {
         if (loaded) {
             // Then: Verify Success path elements
             composeTestRule.onNodeWithText("+ Add Photos").assertIsDisplayed().assertHasClickAction()
-            composeTestRule.onNode(hasText("AI", substring = true, ignoreCase = true) or hasText("Preparing", substring = true, ignoreCase = true)).assertIsDisplayed()
+            composeTestRule
+                .onNode(
+                    hasText("AI", substring = true, ignoreCase = true) or hasText("Preparing", substring = true, ignoreCase = true),
+                ).assertIsDisplayed()
         } else {
             // Then: Verify Error path elements (content hidden, error banner shown)
             composeTestRule.onNodeWithText("+ Add Photos").assertDoesNotExist()
@@ -190,7 +193,7 @@ class AlbumScreenTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.waitUntil(
-            timeoutMillis = 3.seconds.inWholeMilliseconds
+            timeoutMillis = 3.seconds.inWholeMilliseconds,
         ) {
             composeTestRule.onNodeWithText(testTagName).isDisplayed()
         }
@@ -209,7 +212,7 @@ class AlbumScreenTest {
 
         // Then: Wait for async rename operation to complete and error banner to show
         composeTestRule.waitUntil(
-            timeoutMillis = 5.seconds.inWholeMilliseconds
+            timeoutMillis = 5.seconds.inWholeMilliseconds,
         ) {
             try {
                 composeTestRule.onNodeWithText("Failed to Rename Tag", substring = true).assertExists()
@@ -262,8 +265,16 @@ class AlbumScreenTest {
             composeTestRule.waitForIdle()
 
             // Then: Share/Untag buttons become enabled
-            composeTestRule.onNodeWithContentDescription("Share").assertIsDisplayed().assertIsEnabled().assertHasClickAction()
-            composeTestRule.onNodeWithContentDescription("Untag").assertIsDisplayed().assertIsEnabled().assertHasClickAction()
+            composeTestRule
+                .onNodeWithContentDescription("Share")
+                .assertIsDisplayed()
+                .assertIsEnabled()
+                .assertHasClickAction()
+            composeTestRule
+                .onNodeWithContentDescription("Untag")
+                .assertIsDisplayed()
+                .assertIsEnabled()
+                .assertHasClickAction()
         }
     }
 

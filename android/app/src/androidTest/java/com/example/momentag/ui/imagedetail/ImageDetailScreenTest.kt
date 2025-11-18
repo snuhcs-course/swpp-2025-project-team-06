@@ -6,13 +6,11 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTouchInput
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.momentag.model.ImageContext
@@ -120,7 +118,8 @@ class ImageDetailScreenTest {
             SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
 
         // ProgressIndicator가 2개 있는지 확인
-        composeRule.onAllNodes(hasProgress)
+        composeRule
+            .onAllNodes(hasProgress)
             .assertCountEquals(2)
     }
 
@@ -182,9 +181,9 @@ class ImageDetailScreenTest {
         // [수정] setContent()를 테스트 함수 시작 부분으로 이동
         setContent()
 
-
         // 1. 첫 번째 이미지 확인 (Index 0)
-        composeRule.onNodeWithContentDescription("Detail image")
+        composeRule
+            .onNodeWithContentDescription("Detail image")
             .assertIsDisplayed()
 
         // 초기 로딩 후 첫 번째 사진의 태그가 로드되는지 확인
