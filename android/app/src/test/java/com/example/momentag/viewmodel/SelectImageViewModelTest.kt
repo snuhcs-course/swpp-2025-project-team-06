@@ -3,7 +3,6 @@ package com.example.momentag.viewmodel
 import android.net.Uri
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoResponse
-import com.example.momentag.model.RecommendState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoSelectionRepository
@@ -157,8 +156,8 @@ class SelectImageViewModelTest {
 
             // Then
             val state = newViewModel.recommendState.value
-            assertTrue(state is RecommendState.Success)
-            assertEquals(photos, (state as RecommendState.Success).photos)
+            assertTrue(state is SelectImageViewModel.RecommendState.Success)
+            assertEquals(photos, (state as SelectImageViewModel.RecommendState.Success).photos)
         }
 
     // Photo selection tests
@@ -343,7 +342,7 @@ class SelectImageViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.recommendState.value is RecommendState.Error)
+            assertTrue(viewModel.recommendState.value is SelectImageViewModel.RecommendState.Error)
         }
 
     @Test
@@ -359,7 +358,7 @@ class SelectImageViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.recommendState.value is RecommendState.NetworkError)
+            assertTrue(viewModel.recommendState.value is SelectImageViewModel.RecommendState.NetworkError)
         }
 
     @Test
@@ -375,7 +374,7 @@ class SelectImageViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.recommendState.value is RecommendState.Error)
+            assertTrue(viewModel.recommendState.value is SelectImageViewModel.RecommendState.Error)
         }
 
     @Test
@@ -391,7 +390,7 @@ class SelectImageViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.recommendState.value is RecommendState.Error)
+            assertTrue(viewModel.recommendState.value is SelectImageViewModel.RecommendState.Error)
         }
 
     @Test

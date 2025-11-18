@@ -74,7 +74,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
 import com.example.momentag.ui.components.BackTopBar
@@ -299,13 +298,13 @@ fun ImageDetailScreen(
 
     val startIndex = imageContext?.currentIndex ?: 0
 
-    val successState = imageDetailTagState as? ImageDetailTagState.Success
+    val successState = imageDetailTagState as? ImageDetailViewModel.ImageDetailTagState.Success
     val existingTags = successState?.existingTags ?: emptyList()
     val recommendedTags = successState?.recommendedTags ?: emptyList()
     val isExistingLoading = successState?.isExistingLoading ?: false
     val isRecommendedLoading = successState?.isRecommendedLoading ?: false
-    val isError = imageDetailTagState is ImageDetailTagState.Error
-    val errorMessage = (imageDetailTagState as? ImageDetailTagState.Error)?.message
+    val isError = imageDetailTagState is ImageDetailViewModel.ImageDetailTagState.Error
+    val errorMessage = (imageDetailTagState as? ImageDetailViewModel.ImageDetailTagState.Error)?.message
 
     // 6. Remember된 객체들
     val pagerState =

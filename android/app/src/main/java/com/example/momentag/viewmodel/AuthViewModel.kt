@@ -2,10 +2,6 @@ package com.example.momentag.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.momentag.model.LoginState
-import com.example.momentag.model.LogoutState
-import com.example.momentag.model.RefreshState
-import com.example.momentag.model.RegisterState
 import com.example.momentag.repository.TokenRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,13 +26,92 @@ class AuthViewModel
     constructor(
         private val tokenRepository: TokenRepository,
     ) : ViewModel() {
-        // 1. Private MutableStateFlow
+        // 1. state class 정의
+        sealed class LoginState {
+            object Idle : LoginState()
+
+            object Loading : LoginState()
+
+            object Success : LoginState()
+
+            data class BadRequest(
+                val message: String,
+            ) : LoginState()
+
+            data class Unauthorized(
+                val message: String,
+            ) : LoginState()
+
+            data class NetworkError(
+                val message: String,
+            ) : LoginState()
+
+            data class Error(
+                val message: String,
+            ) : LoginState()
+        }
+
+        sealed class RegisterState {
+            object Idle : RegisterState()
+
+            object Loading : RegisterState()
+
+            data class Success(
+                val id: Int,
+            ) : RegisterState()
+
+            data class BadRequest(
+                val message: String,
+            ) : RegisterState()
+
+            data class Conflict(
+                val message: String,
+            ) : RegisterState()
+
+            data class NetworkError(
+                val message: String,
+            ) : RegisterState()
+
+            data class Error(
+                val message: String,
+            ) : RegisterState()
+        }
+
+        sealed class RefreshState {
+            object Idle : RefreshState()
+
+            object Success : RefreshState()
+
+            object Unauthorized : RefreshState()
+
+            data class Error(
+                val message: String,
+            ) : RefreshState()
+
+            data class NetworkError(
+                val message: String,
+            ) : RefreshState()
+        }
+
+        sealed class LogoutState {
+            object Idle : LogoutState()
+
+            data object Loading : LogoutState()
+
+            data object Success : LogoutState()
+
+            data class Error(
+                val message: String? = null,
+            ) : LogoutState()
+        }
+
+        // 2. Private MutableStateFlow
         private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
         private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
         private val _refreshState = MutableStateFlow<RefreshState>(RefreshState.Idle)
         private val _logoutState = MutableStateFlow<LogoutState>(LogoutState.Idle)
 
-        // 2. Public StateFlow (exposed state)
+        // 3. Public StateFlow (exposed state)
         val isLoggedIn: StateFlow<String?> = tokenRepository.isLoggedIn
         val isSessionLoaded: StateFlow<Boolean> = tokenRepository.isSessionLoaded
         val loginState = _loginState.asStateFlow()
@@ -44,7 +119,7 @@ class AuthViewModel
         val refreshState = _refreshState.asStateFlow()
         val logoutState = _logoutState.asStateFlow()
 
-        // 3. Public functions
+        // 4. Public functions
         fun login(
             username: String,
             password: String,
