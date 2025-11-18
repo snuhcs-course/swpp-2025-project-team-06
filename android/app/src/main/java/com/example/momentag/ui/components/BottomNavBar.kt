@@ -9,12 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.IconBlueprints
 
 @Composable
 fun BottomNavBar(
@@ -78,7 +77,13 @@ private fun BottomNavItem(
     isSelected: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val iconBlueprint =
+        if (isSelected) {
+            IconBlueprints.DefaultPrimary
+        } else {
+            IconBlueprints.DefaultOnSurface
+        }
+    val iconStyle = iconBlueprint.asStyle()
 
     Column(
         modifier =
@@ -87,18 +92,16 @@ private fun BottomNavItem(
                 .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
+        iconBlueprint.Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(24.dp),
         )
 
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = text,
-            color = tint,
+            color = iconStyle.tint,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

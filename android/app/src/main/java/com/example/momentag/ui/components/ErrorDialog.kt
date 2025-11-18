@@ -16,7 +16,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +34,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.StandardIcon
 
 /**
  * 재사용 가능한 에러 다이얼로그 컴포넌트
@@ -244,10 +245,10 @@ fun ErrorOverlay(
                                 .padding(8.dp)
                                 .size(32.dp),
                     ) {
-                        Icon(
+                        StandardIcon.Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color.Gray,
+                            intent = IconIntent.Muted,
                         )
                     }
                 }
@@ -352,10 +353,10 @@ fun confirmDialog(
                                     .padding(8.dp)
                                     .size(32.dp),
                         ) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color.Gray,
+                                intent = IconIntent.Muted,
                             )
                         }
                     }
@@ -495,10 +496,10 @@ fun RenameTagDialog(
                                 .padding(8.dp)
                                 .size(32.dp),
                     ) {
-                        Icon(
+                        StandardIcon.Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color.Gray,
+                            intent = IconIntent.Muted,
                         )
                     }
                 }

@@ -28,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -61,6 +60,9 @@ import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.model.TagItem
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import kotlinx.coroutines.launch
 
 sealed class SearchContentElement {
@@ -126,10 +128,10 @@ fun ChipSearchBar(
                 .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        StandardIcon.Icon(
             imageVector = Icons.Default.Search,
             contentDescription = "Search",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            intent = IconIntent.Muted,
         )
 
         InternalChipSearchInput(
@@ -399,11 +401,11 @@ fun SearchHistoryItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Icon(
+        StandardIcon.Icon(
             imageVector = Icons.Default.History,
             contentDescription = "History",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp),
+            sizeRole = IconSizeRole.Navigation,
+            intent = IconIntent.Muted,
         )
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -458,11 +460,11 @@ fun SearchHistoryItem(
             onClick = { onHistoryDelete(query) },
             modifier = Modifier.size(24.dp),
         ) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Delete history item",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
+                sizeRole = IconSizeRole.InlineAction,
+                intent = IconIntent.Muted,
             )
         }
     }
