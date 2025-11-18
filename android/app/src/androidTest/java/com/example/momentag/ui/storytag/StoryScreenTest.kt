@@ -17,7 +17,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.momentag.model.StoryModel
-import com.example.momentag.model.StoryState
 import com.example.momentag.network.ApiService
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
@@ -72,9 +71,9 @@ class StoryScreenTest {
         val field = StoryViewModel::class.java.getDeclaredField("_storyState")
         field.isAccessible = true
         @Suppress("UNCHECKED_CAST")
-        val flow = field.get(viewModel) as MutableStateFlow<StoryState>
+        val flow = field.get(viewModel) as MutableStateFlow<StoryViewModel.StoryState>
         flow.value =
-            StoryState.Success(
+            StoryViewModel.StoryState.Success(
                 stories = stories,
                 currentIndex = currentIndex,
                 hasMore = hasMore,

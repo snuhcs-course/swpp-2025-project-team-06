@@ -6,7 +6,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import com.example.momentag.model.StoryTagSubmissionState
+import com.example.momentag.viewmodel.StoryViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -71,7 +71,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페", "#친구"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -94,7 +94,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -118,7 +118,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = tags,
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -143,7 +143,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -169,7 +169,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = { tag -> toggledTag = tag },
@@ -196,7 +196,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페", "#친구"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = { tag -> clickedTags.add(tag) },
@@ -225,7 +225,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페", "#친구"),
                 selectedTags = setOf("#카페"),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -250,7 +250,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -273,7 +273,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페"),
                 selectedTags = setOf("#카페"),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -297,7 +297,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페"),
                 selectedTags = setOf("#카페"),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -324,7 +324,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -352,7 +352,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페", "＋"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -375,7 +375,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("＋"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -398,7 +398,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("add"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -423,7 +423,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = "Done",
                 enabled = true,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = {},
             )
         }
@@ -440,7 +440,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = buttonText,
                 enabled = true,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = {},
             )
         }
@@ -457,7 +457,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = "Done",
                 enabled = true,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = { clicked = true },
             )
         }
@@ -477,7 +477,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = "Done",
                 enabled = true,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = { clickCount++ },
             )
         }
@@ -500,7 +500,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = "Done",
                 enabled = false,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = {},
             )
         }
@@ -517,7 +517,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = "Done",
                 enabled = false,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = { clicked = true },
             )
         }
@@ -537,7 +537,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = "Done",
                 enabled = false,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = { clickCount++ },
             )
         }
@@ -561,7 +561,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = "Done",
                 enabled = false,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = { clicked = true },
             )
         }
@@ -581,7 +581,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = "Done",
                 enabled = true,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = { clicked = true },
             )
         }
@@ -650,7 +650,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페", "#친구"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = { tag -> selectedTag = tag },
@@ -682,7 +682,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페", "#친구"),
                 selectedTags = setOf("#카페"),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -709,7 +709,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페", "#친구", "＋"),
                 selectedTags = setOf("#카페"),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -738,7 +738,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = emptyList(),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -763,7 +763,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = manyTags,
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -788,7 +788,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf(longTag),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -812,7 +812,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = tags,
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -838,7 +838,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = tags,
                 selectedTags = tags.toSet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -861,7 +861,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = "",
                 enabled = true,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = {},
             )
         }
@@ -878,7 +878,7 @@ class StoryScreenComposableTest {
             GradientPillButton(
                 text = longText,
                 enabled = true,
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 onClick = {},
             )
         }
@@ -896,7 +896,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -921,7 +921,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = koreanTags,
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
@@ -960,7 +960,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페", "#친구", "#디저트"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = { tag -> receivedTags.add(tag) },
@@ -990,7 +990,7 @@ class StoryScreenComposableTest {
             TagSelectionCard(
                 tags = listOf("#카페"),
                 selectedTags = emptySet(),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},
