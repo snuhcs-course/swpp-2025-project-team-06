@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,6 +39,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 
 /**
  * 태그 변형(Variant)
@@ -114,7 +116,11 @@ fun TagChip(
                     onClick = variant.onDismiss,
                     modifier = Modifier.size(16.dp),
                 ) {
-                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Dismiss Tag")
+                    StandardIcon.Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Dismiss Tag",
+                        sizeRole = IconSizeRole.InlineAction,
+                    )
                 }
             }
 
@@ -124,7 +130,11 @@ fun TagChip(
                         onClick = variant.onDismiss,
                         modifier = Modifier.size(16.dp),
                     ) {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Dismiss Tag")
+                        StandardIcon.Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Dismiss Tag",
+                            sizeRole = IconSizeRole.InlineAction,
+                        )
                     }
                 }
             }
@@ -223,11 +233,11 @@ fun TagChipWithCount(
                 onClick = onEdit,
                 modifier = Modifier.size(20.dp),
             ) {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Edit Tag",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(16.dp),
+                    sizeRole = IconSizeRole.InlineAction,
+                    intent = IconIntent.Inverse,
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
@@ -262,11 +272,11 @@ fun TagChipWithCount(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isChecked) {
-                        Icon(
+                        StandardIcon.Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Checked",
-                            tint = color,
-                            modifier = Modifier.size(12.dp),
+                            sizeRole = IconSizeRole.ChipAction,
+                            tintOverride = color,
                         )
                     }
                 }
@@ -286,11 +296,11 @@ fun TagChipWithCount(
                 onClick = onDelete,
                 modifier = Modifier.size(20.dp),
             ) {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete Tag",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(16.dp),
+                    sizeRole = IconSizeRole.InlineAction,
+                    intent = IconIntent.Inverse,
                 )
             }
         }
@@ -353,11 +363,11 @@ fun StoryTagChip(
                         .background(Color(0xFF4CAF50)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Selected",
-                    tint = Color.White,
-                    modifier = Modifier.size(12.dp),
+                    sizeRole = IconSizeRole.ChipAction,
+                    tintOverride = Color.White,
                 )
             }
         }
@@ -423,16 +433,17 @@ fun CustomTagChip(
                     modifier = Modifier.size(24.dp),
                     enabled = tagText.isNotBlank(),
                 ) {
-                    Icon(
+                    val confirmTint =
+                        if (tagText.isNotBlank()) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        }
+                    StandardIcon.Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Confirm",
-                        tint =
-                            if (tagText.isNotBlank()) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                            },
-                        modifier = Modifier.size(16.dp),
+                        sizeRole = IconSizeRole.InlineAction,
+                        tintOverride = confirmTint,
                     )
                 }
 
@@ -474,11 +485,11 @@ fun CustomTagChip(
                     },
                     modifier = Modifier.size(24.dp),
                 ) {
-                    Icon(
+                    StandardIcon.Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Cancel",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp),
+                        sizeRole = IconSizeRole.InlineAction,
+                        intent = IconIntent.Muted,
                     )
                 }
             }

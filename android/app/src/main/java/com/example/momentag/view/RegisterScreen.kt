@@ -24,7 +24,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -54,6 +53,7 @@ import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.model.RegisterState
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
 
 // TODO:Register보내고 돌아오는 거 기다릴 동안 Loading 화면 띄워 줘야 할 듯
@@ -394,7 +394,7 @@ fun RegisterScreen(navController: NavController) {
                         val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                         val description = if (passwordVisible) "Hide password" else "Show password"
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(imageVector = image, contentDescription = description)
+                            StandardIcon.Icon(imageVector = image, contentDescription = description)
                         }
                     },
                     isError = isPasswordError,
@@ -463,7 +463,7 @@ fun RegisterScreen(navController: NavController) {
                         val image = if (passwordCheckVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                         val description = if (passwordCheckVisible) "Hide password" else "Show password"
                         IconButton(onClick = { passwordCheckVisible = !passwordCheckVisible }) {
-                            Icon(imageVector = image, contentDescription = description)
+                            StandardIcon.Icon(imageVector = image, contentDescription = description)
                         }
                     },
                     isError = isPasswordCheckError || (passwordCheck.isNotEmpty() && password != passwordCheck),

@@ -37,7 +37,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -66,6 +65,9 @@ import com.example.momentag.Screen
 import com.example.momentag.model.Album
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import kotlinx.coroutines.launch
@@ -164,7 +166,11 @@ fun LocalGalleryScreen(
                     title = { Text("${selectedAlbumIds.size} selected") },
                     navigationIcon = {
                         IconButton(onClick = { localViewModel.clearAlbumSelection() }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                            StandardIcon.Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                sizeRole = IconSizeRole.Navigation,
+                            )
                         }
                     },
                     actions = {
@@ -175,9 +181,16 @@ fun LocalGalleryScreen(
                                 localViewModel.selectAllAlbums(albumSet)
                             }
                         }) {
-                            Icon(
-                                if (selectedAlbumIds.size == albumSet.size) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                            val selectAllIcon =
+                                if (selectedAlbumIds.size == albumSet.size) {
+                                    Icons.Default.CheckBox
+                                } else {
+                                    Icons.Default.CheckBoxOutlineBlank
+                                }
+                            StandardIcon.Icon(
+                                imageVector = selectAllIcon,
                                 contentDescription = "Select All",
+                                intent = if (selectedAlbumIds.size == albumSet.size) IconIntent.Primary else IconIntent.Muted,
                             )
                         }
                     },
@@ -206,9 +219,10 @@ fun LocalGalleryScreen(
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.Upload,
                                 contentDescription = "Upload",
+                                intent = IconIntent.Inverse,
                             )
                         }
                     },
@@ -384,16 +398,16 @@ private fun AlbumGridItem(
                             CircleShape,
                         ),
                 contentAlignment = Alignment.Center,
-            ) {
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(16.dp),
-                    )
+                ) {
+                    if (isSelected) {
+                        StandardIcon.Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Selected",
+                            sizeRole = IconSizeRole.InlineAction,
+                            intent = IconIntent.OnPrimaryContainer,
+                        )
+                    }
                 }
             }
-        }
     }
 }

@@ -32,7 +32,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -60,6 +59,9 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.Screen
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import kotlinx.coroutines.launch
@@ -174,16 +176,18 @@ fun LocalAlbumScreen(
                             isSelectionMode = false
                             localViewModel.clearPhotoSelection()
                         }) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Cancel Selection",
+                                sizeRole = IconSizeRole.DefaultAction,
                             )
                         }
                     } else {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
+                                sizeRole = IconSizeRole.Navigation,
                             )
                         }
                     }
@@ -211,10 +215,11 @@ fun LocalAlbumScreen(
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                            Icon(
-                                imageVector = Icons.Default.Upload,
-                                contentDescription = "Upload",
-                            )
+                        StandardIcon.Icon(
+                            imageVector = Icons.Default.Upload,
+                            contentDescription = "Upload",
+                            sizeRole = IconSizeRole.DefaultAction,
+                        )
                         }
                     },
                     onClick = {
@@ -354,11 +359,11 @@ fun LocalAlbumScreen(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (isSelected) {
-                                        Icon(
+                                        StandardIcon.Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.size(16.dp),
+                                            sizeRole = IconSizeRole.InlineAction,
+                                            intent = IconIntent.OnPrimaryContainer,
                                         )
                                     }
                                 }

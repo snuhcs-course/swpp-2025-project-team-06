@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,6 +25,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 
 /**
  * 재사용 가능한 경고 배너 컴포넌트
@@ -59,12 +61,16 @@ fun WarningBanner(
 ) {
     val bgColor = backgroundColor ?: MaterialTheme.colorScheme.errorContainer
     val contentColor =
-        if (backgroundColor ==
-            null
-        ) {
+        if (backgroundColor == null) {
             MaterialTheme.colorScheme.onErrorContainer
         } else {
             MaterialTheme.colorScheme.inverseOnSurface
+        }
+    val iconIntent =
+        if (backgroundColor == null) {
+            IconIntent.OnErrorContainer
+        } else {
+            IconIntent.InverseSurface
         }
 
     Row(
@@ -78,11 +84,11 @@ fun WarningBanner(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 왼쪽 아이콘
-        Icon(
+        StandardIcon.Icon(
             imageVector = icon,
             contentDescription = "Warning Icon",
-            tint = contentColor,
-            modifier = Modifier.size(24.dp),
+            sizeRole = IconSizeRole.DefaultAction,
+            intent = iconIntent,
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -109,11 +115,11 @@ fun WarningBanner(
                 onClick = onActionClick,
                 modifier = Modifier.size(40.dp),
             ) {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = actionIcon,
                     contentDescription = "Action",
-                    tint = contentColor,
-                    modifier = Modifier.size(28.dp),
+                    sizeRole = IconSizeRole.BannerAction,
+                    intent = iconIntent,
                 )
             }
         }
@@ -124,11 +130,11 @@ fun WarningBanner(
                 onClick = onDismiss,
                 modifier = Modifier.size(40.dp),
             ) {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Close",
-                    tint = contentColor,
-                    modifier = Modifier.size(20.dp),
+                    sizeRole = IconSizeRole.Navigation,
+                    intent = iconIntent,
                 )
             }
         }

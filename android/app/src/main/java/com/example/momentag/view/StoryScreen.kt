@@ -40,7 +40,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -78,6 +77,9 @@ import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.StoryTagChip
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -467,11 +469,11 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.KeyboardArrowUp,
                 contentDescription = null,
-                tint = onSurfaceColor.copy(alpha = 0.7f),
-                modifier = Modifier.size(24.dp),
+                sizeRole = IconSizeRole.DefaultAction,
+                tintOverride = onSurfaceColor.copy(alpha = 0.7f),
             )
             Text(
                 text = "Scroll for next moments",
@@ -674,11 +676,11 @@ internal fun GradientPillButton(
                 )
             }
             isSuccess -> {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Success",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp),
+                    sizeRole = IconSizeRole.DefaultAction,
+                    intent = IconIntent.Inverse,
                 )
             }
             isError -> {

@@ -37,7 +37,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +56,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -87,6 +87,8 @@ import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.util.ShareUtils
@@ -354,9 +356,10 @@ fun SearchResultScreen(
                         disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                     ),
             ) {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.Share,
                     contentDescription = "Share",
+                    intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                 )
             }
         }
@@ -676,10 +679,10 @@ private fun SearchResultContent(
                                 shape = RoundedCornerShape(12.dp),
                             ),
                 ) {
-                    Icon(
+                    StandardIcon.Icon(
                         imageVector = Icons.Default.FilterList,
                         contentDescription = "Filter",
-                        tint = MaterialTheme.colorScheme.onPrimary,
+                        intent = IconIntent.Inverse,
                     )
                 }
             }

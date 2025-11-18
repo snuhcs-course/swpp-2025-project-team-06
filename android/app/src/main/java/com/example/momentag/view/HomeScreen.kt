@@ -75,7 +75,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -140,6 +139,9 @@ import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
 import com.example.momentag.viewmodel.HomeViewModel
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.TagSortOrder
@@ -577,9 +579,10 @@ fun HomeScreen(navController: NavController) {
                                     disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                                 ),
                         ) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.Share,
                                 contentDescription = "Share",
+                                intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                             )
                         }
                     }
@@ -732,10 +735,10 @@ fun HomeScreen(navController: NavController) {
                                         shape = RoundedCornerShape(12.dp),
                                     ),
                         ) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.FilterList,
                                 contentDescription = "Filter",
-                                tint = MaterialTheme.colorScheme.onPrimary,
+                                intent = IconIntent.Inverse,
                             )
                         }
                     }
@@ -773,11 +776,11 @@ fun HomeScreen(navController: NavController) {
                         // "태그 앨범" 뷰일 때만 정렬 버튼 표시
                         if (!isShowingAllPhotos) {
                             IconButton(onClick = { scope.launch { sheetState.show() } }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Sort,
-                                    contentDescription = "Sort Tag Albums",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                            StandardIcon.Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = "Sort Tag Albums",
+                                intent = IconIntent.Muted,
+                            )
                             }
                         } else {
                             // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
@@ -1052,18 +1055,12 @@ private fun ViewToggle(
                             ).clickable { onToggle(false, false) }
                             .padding(8.dp),
                 ) {
-                    Icon(
-                        Icons.Default.CollectionsBookmark,
+                    val isTagAlbumsSelected = !isOnlyTag && !isShowingAllPhotos
+                    StandardIcon.Icon(
+                        imageVector = Icons.Default.CollectionsBookmark,
                         contentDescription = "Tag Albums",
-                        tint =
-                            if (!isOnlyTag &&
-                                !isShowingAllPhotos
-                            ) {
-                                MaterialTheme.colorScheme.surface
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        modifier = Modifier.size(20.dp),
+                        sizeRole = IconSizeRole.Navigation,
+                        intent = if (isTagAlbumsSelected) IconIntent.Surface else IconIntent.Muted,
                     )
                 }
                 // All Photos (Grid)
@@ -1076,11 +1073,11 @@ private fun ViewToggle(
                             ).clickable { onToggle(false, true) }
                             .padding(8.dp),
                 ) {
-                    Icon(
-                        Icons.Default.Photo,
+                    StandardIcon.Icon(
+                        imageVector = Icons.Default.Photo,
                         contentDescription = "All Photos",
-                        tint = if (isShowingAllPhotos) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        sizeRole = IconSizeRole.Navigation,
+                        intent = if (isShowingAllPhotos) IconIntent.Surface else IconIntent.Muted,
                     )
                 }
             }
@@ -1222,11 +1219,11 @@ private fun MainContent(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (isSelected) {
-                                        Icon(
+                                        StandardIcon.Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.size(16.dp),
+                                            sizeRole = IconSizeRole.InlineAction,
+                                            intent = IconIntent.OnPrimaryContainer,
                                         )
                                     }
                                 }
@@ -1417,11 +1414,11 @@ fun TagGridItem(
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), RoundedCornerShape(50))
                         .size(24.dp),
             ) {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = "Delete Tag",
-                    tint = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.size(16.dp),
+                    sizeRole = IconSizeRole.InlineAction,
+                    intent = IconIntent.Surface,
                 )
             }
         }
@@ -1622,10 +1619,11 @@ private fun SortOptionItem(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        val optionIntent = if (isSelected) IconIntent.Primary else IconIntent.Muted
+        StandardIcon.Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            intent = optionIntent,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
@@ -1635,10 +1633,10 @@ private fun SortOptionItem(
             modifier = Modifier.weight(1f),
         )
         if (isSelected) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Selected",
-                tint = MaterialTheme.colorScheme.primary,
+                intent = IconIntent.Primary,
             )
         }
     }

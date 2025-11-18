@@ -49,7 +49,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -86,6 +85,9 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
@@ -556,11 +558,11 @@ private fun PhotoSelectableItem(
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
-                    Icon(
+                    StandardIcon.Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(16.dp),
+                        sizeRole = IconSizeRole.InlineAction,
+                        intent = IconIntent.OnPrimaryContainer,
                     )
                 }
             }
@@ -601,11 +603,11 @@ private fun RecommendChip(
                 )
             }
             is RecommendState.Success -> {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "AI",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp),
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Primary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -615,11 +617,11 @@ private fun RecommendChip(
                 )
             }
             is RecommendState.Error, is RecommendState.NetworkError -> {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "Error",
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(18.dp),
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Error,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -644,11 +646,10 @@ private fun RecommendChip(
         }
 
         Spacer(modifier = Modifier.width(4.dp))
-        Icon(
+        StandardIcon.Icon(
             imageVector = Icons.Default.ExpandLess,
             contentDescription = "Expand",
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(18.dp),
+            sizeRole = IconSizeRole.StatusIndicator,
         )
     }
 }
@@ -738,19 +739,19 @@ private fun RecommendExpandedPanel(
                                 )
                             }
                             is RecommendState.Success -> {
-                                Icon(
+                                StandardIcon.Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = "AI",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp),
+                                    sizeRole = IconSizeRole.Navigation,
+                                    intent = IconIntent.Primary,
                                 )
                             }
                             else -> {
-                                Icon(
+                                StandardIcon.Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = "AI",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp),
+                                    sizeRole = IconSizeRole.Navigation,
+                                    intent = IconIntent.Primary,
                                 )
                             }
                         }
@@ -764,10 +765,10 @@ private fun RecommendExpandedPanel(
 
                     // 오른쪽: 닫기 버튼
                     IconButton(onClick = onCollapse) {
-                        Icon(
+                        StandardIcon.Icon(
                             imageVector = Icons.Default.ExpandMore,
                             contentDescription = "Collapse",
-                            modifier = Modifier.size(24.dp),
+                            sizeRole = IconSizeRole.DefaultAction,
                         )
                     }
                 }

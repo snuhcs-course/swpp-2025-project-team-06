@@ -40,7 +40,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -85,6 +84,9 @@ import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.RenameTagDialog
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.TagActionState
@@ -210,10 +212,10 @@ fun MyTagsScreen(navController: NavController) {
                         ) {
                             // Sort Button (always visible)
                             IconButton(onClick = { isSortSheetVisible = true }) {
-                                Icon(
+                                StandardIcon.Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
                                     contentDescription = "Sort",
-                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    sizeRole = IconSizeRole.DefaultAction,
                                 )
                             }
                             // Delete Button (always visible, enters edit mode on click)
@@ -227,17 +229,16 @@ fun MyTagsScreen(navController: NavController) {
                                     }
                                 },
                             ) {
-                                Icon(
+                                val deleteIntent =
+                                    when {
+                                        isEditMode && hasSelectedTags -> IconIntent.Error
+                                        isEditMode -> IconIntent.Disabled
+                                        else -> IconIntent.Neutral
+                                    }
+                                StandardIcon.Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = "Delete",
-                                    tint =
-                                        if (isEditMode && hasSelectedTags) {
-                                            MaterialTheme.colorScheme.error
-                                        } else if (isEditMode) {
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        },
+                                    intent = deleteIntent,
                                 )
                             }
                         }
@@ -824,10 +825,11 @@ private fun SortOptionItem(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        val optionIntent = if (isSelected) IconIntent.Primary else IconIntent.Muted
+        StandardIcon.Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            intent = optionIntent,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
@@ -837,10 +839,10 @@ private fun SortOptionItem(
             modifier = Modifier.weight(1f),
         )
         if (isSelected) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Selected",
-                tint = MaterialTheme.colorScheme.primary,
+                intent = IconIntent.Primary,
             )
         }
     }

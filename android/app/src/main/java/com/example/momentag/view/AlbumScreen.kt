@@ -50,7 +50,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -88,6 +87,9 @@ import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.util.ShareUtils
@@ -359,9 +361,11 @@ fun AlbumScreen(
                                     ),
                                 modifier = Modifier.width(36.dp),
                             ) {
-                                Icon(
+                                StandardIcon.Icon(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = "Share",
+                                    sizeRole = IconSizeRole.DefaultAction,
+                                    intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                                 )
                             }
                             IconButton(
@@ -373,9 +377,11 @@ fun AlbumScreen(
                                         disabledContentColor = Color(0xFFD32F2F).copy(alpha = 0.38f),
                                     ),
                             ) {
-                                Icon(
+                                StandardIcon.Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = "Untag",
+                                    sizeRole = IconSizeRole.DefaultAction,
+                                    intent = if (isEnabled) IconIntent.Error else IconIntent.Disabled,
                                 )
                             }
                         }
@@ -453,11 +459,11 @@ fun AlbumScreen(
                                             ),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Icon(
+                                    StandardIcon.Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Clear text",
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                        modifier = Modifier.size(16.dp),
+                                        sizeRole = IconSizeRole.InlineAction,
+                                        tintOverride = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                     )
                                 }
                             }
@@ -682,11 +688,11 @@ private fun RecommendChip(
                 )
             }
             is AlbumViewModel.RecommendLoadingState.Success -> {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "AI",
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Primary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -696,11 +702,11 @@ private fun RecommendChip(
                 )
             }
             is AlbumViewModel.RecommendLoadingState.Error -> {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Error",
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.error,
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Error,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -724,11 +730,10 @@ private fun RecommendChip(
             }
         }
         Spacer(modifier = Modifier.width(4.dp))
-        Icon(
+        StandardIcon.Icon(
             imageVector = Icons.Default.ExpandLess,
             contentDescription = "Expand",
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(18.dp),
+            sizeRole = IconSizeRole.StatusIndicator,
         )
     }
 }
@@ -841,11 +846,11 @@ private fun RecommendExpandedPanel(
                         }
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = "AI",
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.primary,
+                                sizeRole = IconSizeRole.Navigation,
+                                intent = IconIntent.Primary,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
@@ -857,10 +862,10 @@ private fun RecommendExpandedPanel(
                     }
 
                     IconButton(onClick = onCollapse) {
-                        Icon(
+                        StandardIcon.Icon(
                             imageVector = Icons.Default.ExpandMore,
                             contentDescription = "Collapse",
-                            modifier = Modifier.size(24.dp),
+                            sizeRole = IconSizeRole.DefaultAction,
                         )
                     }
                 }
