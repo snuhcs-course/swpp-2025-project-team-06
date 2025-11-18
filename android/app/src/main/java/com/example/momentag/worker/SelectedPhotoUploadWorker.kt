@@ -12,6 +12,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
@@ -25,10 +26,8 @@ import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoInfoForUpload
 import com.example.momentag.repository.RemoteRepository
 import com.google.gson.Gson
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -47,293 +46,266 @@ private data class PhotoMetadataHolder(
     val lng: Double,
 )
 
-class SelectedPhotoUploadWorker(
-    appContext: Context,
-    params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    interface SelectedPhotoUploadWorkerEntryPoint {
-        fun localRepository(): LocalRepository
+@HiltWorker
+class SelectedPhotoUploadWorker
+    @AssistedInject
+    constructor(
+        @Assisted appContext: Context,
+        @Assisted params: WorkerParameters,
+        private val localRepository: LocalRepository,
+        private val remoteRepository: RemoteRepository,
+        private val gson: Gson,
+        @AlbumUploadJobCountQualifier private val albumUploadJobCount: MutableStateFlow<Int>,
+        @AlbumUploadSuccessEventQualifier private val albumUploadSuccessEvent: MutableSharedFlow<Long>,
+    ) : CoroutineWorker(appContext, params) {
+        private val notificationManager =
+            appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        fun remoteRepository(): RemoteRepository
+        companion object {
+            const val KEY_PHOTO_IDS = "PHOTO_IDS"
+            const val KEY_PROGRESS = "PROGRESS"
 
-        fun gson(): Gson
+            private const val NOTIFICATION_ID = 12345
+            private const val CHANNEL_ID = "AlbumUploadChannel"
 
-        @AlbumUploadJobCountQualifier
-        fun albumUploadJobCount(): MutableStateFlow<Int>
-
-        @AlbumUploadSuccessEventQualifier
-        fun albumUploadSuccessEvent(): MutableSharedFlow<Long>
-    }
-
-    private val localRepository: LocalRepository
-    private val remoteRepository: RemoteRepository
-    private val albumUploadJobCount: MutableStateFlow<Int>
-    private val albumUploadSuccessEvent: MutableSharedFlow<Long>
-    private val gson: Gson
-
-    init {
-        val entryPoint =
-            EntryPointAccessors.fromApplication(
-                applicationContext,
-                SelectedPhotoUploadWorkerEntryPoint::class.java,
-            )
-        localRepository = entryPoint.localRepository()
-        remoteRepository = entryPoint.remoteRepository()
-        albumUploadJobCount = entryPoint.albumUploadJobCount()
-        albumUploadSuccessEvent = entryPoint.albumUploadSuccessEvent()
-        gson = entryPoint.gson()
-    }
-
-    private val notificationManager =
-        appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-    companion object {
-        const val KEY_PHOTO_IDS = "PHOTO_IDS"
-        const val KEY_PROGRESS = "PROGRESS"
-
-        private const val NOTIFICATION_ID = 12345
-        private const val CHANNEL_ID = "AlbumUploadChannel"
-
-        private const val RESULT_NOTIFICATION_ID = 12346
-    }
-
-    private fun createForegroundInfo(progress: String): ForegroundInfo {
-        createNotificationChannel()
-
-        val notification = createNotification(progress, true)
-
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-            )
-        } else {
-            ForegroundInfo(NOTIFICATION_ID, notification)
+            private const val RESULT_NOTIFICATION_ID = 12346
         }
-    }
 
-    private fun createNotification(
-        text: String,
-        ongoing: Boolean,
-    ): Notification =
-        NotificationCompat
-            .Builder(applicationContext, CHANNEL_ID)
-            .setContentTitle("MomenTag Album Upload")
-            .setContentText(text)
-            .setSmallIcon(R.mipmap.ic_launcher_foreground)
-            .setOngoing(ongoing)
-            .setAutoCancel(!ongoing)
-            .build()
+        private fun createForegroundInfo(progress: String): ForegroundInfo {
+            createNotificationChannel()
 
-    private fun updateNotification(
-        title: String,
-        text: String,
-        id: Int,
-        ongoing: Boolean,
-    ) {
-        val notification =
+            val notification = createNotification(progress, true)
+
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ForegroundInfo(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                )
+            } else {
+                ForegroundInfo(NOTIFICATION_ID, notification)
+            }
+        }
+
+        private fun createNotification(
+            text: String,
+            ongoing: Boolean,
+        ): Notification =
             NotificationCompat
                 .Builder(applicationContext, CHANNEL_ID)
-                .setContentTitle(title)
+                .setContentTitle("MomenTag Album Upload")
                 .setContentText(text)
                 .setSmallIcon(R.mipmap.ic_launcher_foreground)
                 .setOngoing(ongoing)
                 .setAutoCancel(!ongoing)
                 .build()
-        notificationManager.notify(id, notification)
-    }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel =
-                NotificationChannel(
-                    CHANNEL_ID,
-                    "MomenTag Uploads",
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = "Shows album photo upload progress"
-                }
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
-    override suspend fun doWork(): Result {
-        val photoIds = inputData.getLongArray(KEY_PHOTO_IDS)
-        if (photoIds == null || photoIds.isEmpty()) {
-            return Result.failure()
+        private fun updateNotification(
+            title: String,
+            text: String,
+            id: Int,
+            ongoing: Boolean,
+        ) {
+            val notification =
+                NotificationCompat
+                    .Builder(applicationContext, CHANNEL_ID)
+                    .setContentTitle(title)
+                    .setContentText(text)
+                    .setSmallIcon(R.mipmap.ic_launcher_foreground)
+                    .setOngoing(ongoing)
+                    .setAutoCancel(!ongoing)
+                    .build()
+            notificationManager.notify(id, notification)
         }
 
-        val initialProgress = "Preparing upload..."
-        setForeground(createForegroundInfo(initialProgress))
+        private fun createNotificationChannel() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel =
+                    NotificationChannel(
+                        CHANNEL_ID,
+                        "MomenTag Uploads",
+                        NotificationManager.IMPORTANCE_LOW,
+                    ).apply {
+                        description = "Shows album photo upload progress"
+                    }
+                notificationManager.createNotificationChannel(channel)
+            }
+        }
 
-        albumUploadJobCount.update { it + 1 }
-
-        try {
-            val success = processPhotosInChunks(photoIds, 8)
-
-            if (success) {
-                albumUploadSuccessEvent.emit(0L)
-                updateNotification("Upload Complete", "Album upload completed successfully.", RESULT_NOTIFICATION_ID, false)
-                return Result.success()
-            } else {
-                updateNotification("Upload Failed", "Failed to upload some files.", RESULT_NOTIFICATION_ID, false)
+        override suspend fun doWork(): Result {
+            val photoIds = inputData.getLongArray(KEY_PHOTO_IDS)
+            if (photoIds == null || photoIds.isEmpty()) {
                 return Result.failure()
             }
-        } catch (e: Exception) {
-            updateNotification("Upload Error", "An unknown error occurred.", RESULT_NOTIFICATION_ID, false)
-            return Result.failure()
-        } finally {
-            albumUploadJobCount.update { it - 1 }
-        }
-    }
 
-    private suspend fun processPhotosInChunks(
-        photoIds: LongArray,
-        chunkSize: Int,
-    ): Boolean {
-        val totalPhotos = photoIds.size
-        if (totalPhotos == 0) return true
+            val initialProgress = "Preparing upload..."
+            setForeground(createForegroundInfo(initialProgress))
 
-        val totalChunks = (totalPhotos + chunkSize - 1) / chunkSize
-        var chunkCount = 0
+            albumUploadJobCount.update { it + 1 }
 
-        photoIds.asSequence().chunked(chunkSize).forEach { chunkIds ->
-            val currentChunk = mutableListOf<PhotoInfoForUpload>()
+            try {
+                val success = processPhotosInChunks(photoIds, 8)
 
-            chunkIds.forEach { id ->
-                val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-
-                val (filename, createdAt, lat, lng) = getMetadataForPhoto(id, contentUri)
-
-                val meta =
-                    PhotoMeta(
-                        filename = filename,
-                        photo_path_id = id.toInt(),
-                        created_at = createdAt,
-                        lat = lat,
-                        lng = lng,
-                    )
-                currentChunk.add(PhotoInfoForUpload(contentUri, meta))
+                if (success) {
+                    albumUploadSuccessEvent.emit(0L)
+                    updateNotification("Upload Complete", "Album upload completed successfully.", RESULT_NOTIFICATION_ID, false)
+                    return Result.success()
+                } else {
+                    updateNotification("Upload Failed", "Failed to upload some files.", RESULT_NOTIFICATION_ID, false)
+                    return Result.failure()
+                }
+            } catch (e: Exception) {
+                updateNotification("Upload Error", "An unknown error occurred.", RESULT_NOTIFICATION_ID, false)
+                return Result.failure()
+            } finally {
+                albumUploadJobCount.update { it - 1 }
             }
-
-            chunkCount++
-            val progressText = "Uploading chunk ($chunkCount / $totalChunks)..."
-            setProgress(workDataOf(KEY_PROGRESS to progressText))
-            updateNotification("Uploading Photos", progressText, NOTIFICATION_ID, true)
-
-            val uploadData = createUploadDataFromChunk(currentChunk)
-            val response = remoteRepository.uploadPhotos(uploadData)
-
-            if (response !is RemoteRepository.Result.Success) {
-                return false
-            }
-            currentChunk.clear()
         }
 
-        return true
-    }
+        private suspend fun processPhotosInChunks(
+            photoIds: LongArray,
+            chunkSize: Int,
+        ): Boolean {
+            val totalPhotos = photoIds.size
+            if (totalPhotos == 0) return true
 
-    private fun getMetadataForPhoto(
-        id: Long,
-        contentUri: Uri,
-    ): PhotoMetadataHolder {
-        var filename = "unknown.jpg"
-        var finalLat = 0.0
-        var finalLng = 0.0
+            val totalChunks = (totalPhotos + chunkSize - 1) / chunkSize
+            var chunkCount = 0
 
-        // 1. dateValue를 0L (Epoch)로 기본값 설정
-        var dateValue = 0L
+            photoIds.asSequence().chunked(chunkSize).forEach { chunkIds ->
+                val currentChunk = mutableListOf<PhotoInfoForUpload>()
 
-        val projection =
-            arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
+                chunkIds.forEach { id ->
+                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
 
-        try {
-            // 쿼리 실패에 대비해 try-catch 추가
-            applicationContext.contentResolver.query(contentUri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    filename = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)) ?: "unknown.jpg"
+                    val (filename, createdAt, lat, lng) = getMetadataForPhoto(id, contentUri)
 
-                    // 2. dateValue를 여기서 덮어씀
-                    dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
-                    if (dateValue == 0L) {
-                        val dateAddedSeconds = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
-                        if (dateAddedSeconds > 0L) {
-                            dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                    val meta =
+                        PhotoMeta(
+                            filename = filename,
+                            photo_path_id = id.toInt(),
+                            created_at = createdAt,
+                            lat = lat,
+                            lng = lng,
+                        )
+                    currentChunk.add(PhotoInfoForUpload(contentUri, meta))
+                }
+
+                chunkCount++
+                val progressText = "Uploading chunk ($chunkCount / $totalChunks)..."
+                setProgress(workDataOf(KEY_PROGRESS to progressText))
+                updateNotification("Uploading Photos", progressText, NOTIFICATION_ID, true)
+
+                val uploadData = createUploadDataFromChunk(currentChunk)
+                val response = remoteRepository.uploadPhotos(uploadData)
+
+                if (response !is RemoteRepository.Result.Success) {
+                    return false
+                }
+                currentChunk.clear()
+            }
+
+            return true
+        }
+
+        private fun getMetadataForPhoto(
+            id: Long,
+            contentUri: Uri,
+        ): PhotoMetadataHolder {
+            var filename = "unknown.jpg"
+            var finalLat = 0.0
+            var finalLng = 0.0
+
+            // 1. dateValue를 0L (Epoch)로 기본값 설정
+            var dateValue = 0L
+
+            val projection =
+                arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
+
+            try {
+                // 쿼리 실패에 대비해 try-catch 추가
+                applicationContext.contentResolver.query(contentUri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        filename = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)) ?: "unknown.jpg"
+
+                        // 2. dateValue를 여기서 덮어씀
+                        dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
+                        if (dateValue == 0L) {
+                            val dateAddedSeconds = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
+                            if (dateAddedSeconds > 0L) {
+                                dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                Log.e("SelectedPhotoUploadWorker", "Failed to query ContentResolver for $id. Using default date (Epoch).", e)
             }
-        } catch (e: Exception) {
-            Log.e("SelectedPhotoUploadWorker", "Failed to query ContentResolver for $id. Using default date (Epoch).", e)
-        }
 
-        // 3. createdAt 포맷을 *항상* 실행 (cursor.use 밖에서)
-        val createdAt =
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
-                .format(Date(dateValue))
-
-        try {
-            applicationContext.contentResolver.openInputStream(contentUri)?.use { inputStream ->
-                val exif = ExifInterface(inputStream)
-                val latOutput = FloatArray(2)
-                if (exif.getLatLong(latOutput)) {
-                    finalLat = latOutput[0].toDouble()
-                    finalLng = latOutput[1].toDouble()
-                }
-            }
-        } catch (e: Exception) {
-        }
-
-        return PhotoMetadataHolder(filename, createdAt, finalLat, finalLng)
-    }
-
-    private fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
-        val photoParts = mutableListOf<MultipartBody.Part>()
-        val metadataList = mutableListOf<PhotoMeta>()
-
-        chunk.forEach { photoInfo ->
+            // 3. createdAt 포맷을 *항상* 실행 (cursor.use 밖에서)
+            val createdAt =
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                    .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
+                    .format(Date(dateValue))
 
             try {
-                val resizedBytes =
-                    localRepository.resizeImage(
-                        photoInfo.uri,
-                        maxWidth = 224,
-                        maxHeight = 224,
-                        quality = 85,
-                    )
-
-                // 3. 리사이즈 성공 시에만 처리 (실패 시 원본 전송 안 함)
-                if (resizedBytes != null && resizedBytes.isNotEmpty()) {
-                    val mime = "image/jpeg"
-                    val requestBody = resizedBytes.toRequestBody(mime.toMediaTypeOrNull())
-                    val filenameWithoutExtension = photoInfo.meta.filename.substringBeforeLast(".", photoInfo.meta.filename)
-                    val newFilename = "$filenameWithoutExtension.jpg"
-                    val part = MultipartBody.Part.createFormData("photo", newFilename, requestBody)
-
-                    photoParts.add(part)
-                    metadataList.add(photoInfo.meta)
-                } else {
-                    Log.w(
-                        "AlbumUploadWorker",
-                        "Resize failed for ${photoInfo.meta.filename} (unsupported format? corrupted?). SKIPPING file.",
-                    )
+                applicationContext.contentResolver.openInputStream(contentUri)?.use { inputStream ->
+                    val exif = ExifInterface(inputStream)
+                    val latOutput = FloatArray(2)
+                    if (exif.getLatLong(latOutput)) {
+                        finalLat = latOutput[0].toDouble()
+                        finalLng = latOutput[1].toDouble()
+                    }
                 }
-            } catch (t: Throwable) {
-                Log.e(
-                    "AlbumUploadWorker",
-                    "CRITICAL: Failed to process photo. SKIPPING file: ${photoInfo.meta.filename}",
-                    t,
-                )
+            } catch (e: Exception) {
             }
+
+            return PhotoMetadataHolder(filename, createdAt, finalLat, finalLng)
         }
 
-        val metadataJson = gson.toJson(metadataList)
-        val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
+        private fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
+            val photoParts = mutableListOf<MultipartBody.Part>()
+            val metadataList = mutableListOf<PhotoMeta>()
 
-        return PhotoUploadData(photoParts, metadataBody)
+            chunk.forEach { photoInfo ->
+
+                try {
+                    val resizedBytes =
+                        localRepository.resizeImage(
+                            photoInfo.uri,
+                            maxWidth = 224,
+                            maxHeight = 224,
+                            quality = 85,
+                        )
+
+                    // 3. 리사이즈 성공 시에만 처리 (실패 시 원본 전송 안 함)
+                    if (resizedBytes != null && resizedBytes.isNotEmpty()) {
+                        val mime = "image/jpeg"
+                        val requestBody = resizedBytes.toRequestBody(mime.toMediaTypeOrNull())
+                        val filenameWithoutExtension = photoInfo.meta.filename.substringBeforeLast(".", photoInfo.meta.filename)
+                        val newFilename = "$filenameWithoutExtension.jpg"
+                        val part = MultipartBody.Part.createFormData("photo", newFilename, requestBody)
+
+                        photoParts.add(part)
+                        metadataList.add(photoInfo.meta)
+                    } else {
+                        Log.w(
+                            "AlbumUploadWorker",
+                            "Resize failed for ${photoInfo.meta.filename} (unsupported format? corrupted?). SKIPPING file.",
+                        )
+                    }
+                } catch (t: Throwable) {
+                    Log.e(
+                        "AlbumUploadWorker",
+                        "CRITICAL: Failed to process photo. SKIPPING file: ${photoInfo.meta.filename}",
+                        t,
+                    )
+                }
+            }
+
+            val metadataJson = gson.toJson(metadataList)
+            val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
+
+            return PhotoUploadData(photoParts, metadataBody)
+        }
     }
-}
