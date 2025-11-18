@@ -1,11 +1,5 @@
 package com.example.momentag.model
 
-// TODO : tag name 보내지 않기
-data class TagAlbum(
-    val tagName: String,
-    val photos: List<String>,
-)
-
 sealed interface RecommendState {
     object Idle : RecommendState
 

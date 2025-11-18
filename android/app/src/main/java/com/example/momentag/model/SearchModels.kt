@@ -1,14 +1,6 @@
 package com.example.momentag.model
 
 /**
- * 검색 결과 아이템
- */
-data class SearchResultItem(
-    val query: String,
-    val photo: Photo,
-)
-
-/**
  * 검색 UI 상태
  */
 sealed class SearchUiState {

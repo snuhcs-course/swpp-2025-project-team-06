@@ -5,11 +5,38 @@ import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 
+// ========== Tag Models ==========
+
 data class Tag(
     @SerializedName("tag")
     val tagName: String,
     @SerializedName("tag_id")
     val tagId: String,
+)
+
+data class TagName(
+    @SerializedName("tag")
+    val name: String,
+)
+
+data class TagId(
+    @SerializedName("tag_id")
+    val id: String,
+)
+
+data class TagItem(
+    val tagName: String,
+    val coverImageId: Long?,
+    val tagId: String,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val photoCount: Int,
+)
+
+data class TagCntData(
+    val tagId: String,
+    val tagName: String,
+    val count: Int,
 )
 
 data class TagResponse(
@@ -27,48 +54,7 @@ data class TagResponse(
     val photoCount: Int,
 )
 
-data class TagItem(
-    val tagName: String,
-    val coverImageId: Long?,
-    val tagId: String,
-    val createdAt: String?,
-    val updatedAt: String?,
-    val photoCount: Int,
-)
-
-data class TagName(
-    @SerializedName("tag")
-    val name: String,
-)
-
-data class TagId(
-    @SerializedName("tag_id")
-    val id: String,
-)
-
-data class TagCntData(
-    val tagId: String,
-    val tagName: String,
-    val count: Int,
-)
-
-data class PhotoDetailResponse(
-    @SerializedName("photo_path_id") val photoPathId: Long,
-    @SerializedName("address") val address: String?,
-    val tags: List<Tag>,
-)
-
-data class PhotoResponse(
-    @SerializedName("photo_id") val photoId: String,
-    @SerializedName("photo_path_id") val photoPathId: Long,
-    @SerializedName("created_at") val createdAt: String,
-)
-
-data class StoryResponse(
-    @SerializedName("photo_id") val photoId: String,
-    @SerializedName("photo_path_id") val photoPathId: Long,
-    val tags: List<String>,
-)
+// ========== Photo Models ==========
 
 data class Photo(
     val photoId: String,
@@ -79,51 +65,6 @@ data class Photo(
 data class Photos(
     val photos: List<Photo>,
 )
-
-data class PhotoTag(
-    val ptId: Long,
-)
-
-data class Album(
-    val albumId: Long,
-    val albumName: String,
-    val thumbnailUri: Uri,
-)
-
-data class PhotoToPhotoRequest(
-    val photos: List<String>,
-)
-
-data class LoginRequest(
-    val username: String,
-    val password: String,
-)
-
-data class RegisterRequest(
-    val email: String,
-    val username: String,
-    val password: String,
-)
-
-data class RegisterResponse(
-    val id: Int,
-    // Todo: Uuid로 안 받고 Int로 받음
-)
-
-data class LoginResponse(
-    val access_token: String,
-    val refresh_token: String,
-)
-
-data class RefreshRequest(
-    val refresh_token: String,
-)
-
-data class RefreshResponse(
-    val access_token: String,
-)
-
-// ========== Upload Models ==========
 
 data class PhotoMeta(
     val filename: String,
@@ -138,7 +79,50 @@ data class PhotoUploadData(
     val metadata: RequestBody,
 )
 
+data class PhotoToPhotoRequest(
+    val photos: List<String>,
+)
+
+data class PhotoResponse(
+    @SerializedName("photo_id") val photoId: String,
+    @SerializedName("photo_path_id") val photoPathId: Long,
+    @SerializedName("created_at") val createdAt: String,
+)
+
+data class PhotoDetailResponse(
+    @SerializedName("photo_path_id") val photoPathId: Long,
+    @SerializedName("address") val address: String?,
+    val tags: List<Tag>,
+)
+
+// ========== Photo-Tag Models ==========
+
+data class PhotoTag(
+    val ptId: Long,
+)
+
+// ========== Album Models ==========
+
+data class Album(
+    val albumId: Long,
+    val albumName: String,
+    val thumbnailUri: Uri,
+)
+
+data class TagAlbum(
+    val tagName: String,
+    val photos: List<String>,
+)
+
+// ========== Search Models ==========
+
+data class SearchResultItem(
+    val query: String,
+    val photo: Photo,
+)
+
 // ========== Story Models =================
+
 data class StoryModel(
     val id: String,
     val photoId: String,
@@ -146,4 +130,40 @@ data class StoryModel(
     val date: String,
     val location: String,
     val suggestedTags: List<String>,
+)
+
+data class StoryResponse(
+    @SerializedName("photo_id") val photoId: String,
+    @SerializedName("photo_path_id") val photoPathId: Long,
+    val tags: List<String>,
+)
+
+// ========== Auth Models ==========
+
+data class LoginRequest(
+    val username: String,
+    val password: String,
+)
+
+data class LoginResponse(
+    val access_token: String,
+    val refresh_token: String,
+)
+
+data class RegisterRequest(
+    val email: String,
+    val username: String,
+    val password: String,
+)
+
+data class RegisterResponse(
+    val id: Int,
+)
+
+data class RefreshRequest(
+    val refresh_token: String,
+)
+
+data class RefreshResponse(
+    val access_token: String,
 )
