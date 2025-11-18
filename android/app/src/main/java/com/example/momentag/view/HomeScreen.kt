@@ -155,20 +155,20 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    // 1. Context 및 Platform 관련 변수
+    // 1. Context and platform-related variables
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val activity = LocalContext.current.findActivity()
     remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
 
-    // 2. ViewModel 인스턴스
+    // 2. ViewModel instances
     val authViewModel: AuthViewModel = hiltViewModel()
     val photoViewModel: PhotoViewModel = hiltViewModel()
     val homeViewModel: HomeViewModel = hiltViewModel()
     val searchViewModel: SearchViewModel = hiltViewModel()
 
-    // 3. ViewModel에서 가져온 상태 (collectAsState)
+    // 3. State from ViewModels (collectAsState)
     val logoutState by authViewModel.logoutState.collectAsState()
     val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
     val homeDeleteState by homeViewModel.homeDeleteState.collectAsState()
@@ -190,7 +190,7 @@ fun HomeScreen(navController: NavController) {
     val focusedElementId by searchViewModel.focusedElementId
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
 
-    // 4. 로컬 상태 변수 (remember, mutableStateOf)
+    // 4. Local state variables (remember, mutableStateOf)
     var hasPermission by remember { mutableStateOf(false) }
     var isOnlyTag by remember { mutableStateOf(false) }
     var isDeleteMode by remember { mutableStateOf(false) }
@@ -208,7 +208,7 @@ fun HomeScreen(navController: NavController) {
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
 
-    // 5. Derived 상태 및 계산된 값
+    // 5. Derived state and computed values
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
     val topSpacerHeight = 8.dp
     val textStates = searchViewModel.textStates
@@ -221,7 +221,7 @@ fun HomeScreen(navController: NavController) {
     // 6. rememberCoroutineScope
     val scope = rememberCoroutineScope()
 
-    // 7. Remember된 객체들
+    // 7. Remembered objects
     val listState = rememberLazyListState()
     val allPhotosGridState =
         rememberLazyGridState(
@@ -237,8 +237,8 @@ fun HomeScreen(navController: NavController) {
         val observer =
             LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
-                    // SearchResultScreen에서 돌아올 때 등
-                    // HomeScreen이 다시 보일 때 검색창 내용을 지웁니다.
+                    // When returning from SearchResultScreen, etc.
+                    // Clear search bar content when HomeScreen becomes visible again.
                     searchViewModel.clearSearchContent()
                 }
             }
@@ -347,7 +347,7 @@ fun HomeScreen(navController: NavController) {
     }
 
     LaunchedEffect(isSelectionMode) {
-        delay(200L) // 0.2초
+        delay(200L) // 0.2 seconds
         isSelectionModeDelay = isSelectionMode
     }
 
@@ -419,7 +419,7 @@ fun HomeScreen(navController: NavController) {
             onResult = { isGranted -> if (isGranted) hasPermission = true },
         )
 
-    // 권한 요청 및 이미지 로드
+    // Request permissions and load images
     LaunchedEffect(Unit) {
         val permission = requiredImagePermission()
         permissionLauncher.launch(permission)
@@ -428,19 +428,19 @@ fun HomeScreen(navController: NavController) {
         homeViewModel.preGenerateStoriesOnce()
     }
 
-    // 성공 시 로그인 화면으로 이동(백스택 초기화)
+    // Navigate to login screen on successful logout (clear backstack)
     LaunchedEffect(logoutState) {
         when (logoutState) {
             is LogoutState.Success -> {
-                Toast.makeText(context, "로그아웃되었습니다", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.success_logout), Toast.LENGTH_SHORT).show()
                 navController.navigate(Screen.Login.route) {
                     popUpTo(0)
                     launchSingleTop = true
                 }
             }
             is LogoutState.Error -> {
-                errorBannerTitle = "Logout Failed"
-                errorBannerMessage = (logoutState as LogoutState.Error).message ?: "Logout failed"
+                errorBannerTitle = context.getString(R.string.error_title_logout_failed)
+                errorBannerMessage = (logoutState as LogoutState.Error).message ?: context.getString(R.string.error_message_logout)
                 isErrorBannerVisible = true
             }
             else -> Unit
@@ -452,7 +452,7 @@ fun HomeScreen(navController: NavController) {
         if (hasPermission) {
             homeViewModel.loadServerTags()
             searchViewModel.loadServerTags()
-            homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
+            homeViewModel.loadAllPhotos() // Fetch all photos from server
         }
     }
 
@@ -466,12 +466,12 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(homeLoadingState) {
         when (homeLoadingState) {
             is HomeViewModel.HomeLoadingState.Error -> {
-                errorBannerTitle = "Failed to Load Tags"
-                errorBannerMessage = (homeLoadingState as HomeViewModel.HomeLoadingState.Error).message
+                errorBannerTitle = context.getString(R.string.error_title_load_failed)
+                errorBannerMessage = context.getString(R.string.error_message_load_tags)
                 isErrorBannerVisible = true
             }
             is HomeViewModel.HomeLoadingState.Success -> {
-                isErrorBannerVisible = false // 로드 성공 시 배너 숨김
+                isErrorBannerVisible = false // Hide banner on successful load
             }
             else -> Unit // Loading, Idle
         }
@@ -480,7 +480,7 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(homeDeleteState) {
         when (val state = homeDeleteState) {
             is HomeViewModel.HomeDeleteState.Success -> {
-                Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.success_tag_deleted), Toast.LENGTH_SHORT).show()
                 homeViewModel.loadServerTags()
                 searchViewModel.loadServerTags()
                 isDeleteMode = false
@@ -488,8 +488,8 @@ fun HomeScreen(navController: NavController) {
                 isErrorBannerVisible = false
             }
             is HomeViewModel.HomeDeleteState.Error -> {
-                errorBannerTitle = "Failed to Delete Tag"
-                errorBannerMessage = state.message
+                errorBannerTitle = context.getString(R.string.error_title_delete_failed)
+                errorBannerMessage = context.getString(R.string.error_message_delete_tag)
                 isErrorBannerVisible = true
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
@@ -621,16 +621,15 @@ fun HomeScreen(navController: NavController) {
         },
         containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
-            // 태그 앨범 뷰(!isShowingAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
+            // Don't show Create Tag button in tag album view (!isShowingAllPhotos)
             // Only show when in selection mode and photos are selected
             if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
                     text = "Add Tag (${selectedPhotos.size})",
                     onClick = {
-                        // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
-                        // SearchResultScreen과 동일한 패턴
-                        // isSelectionMode = false
+                        // selectedPhotos are already saved in draftTagRepository
+                        // Same pattern as SearchResultScreen
                         navController.navigate(Screen.MyTags.route)
                     },
                 )
@@ -646,7 +645,7 @@ fun HomeScreen(navController: NavController) {
                     isDeleteMode = false
                     homeViewModel.loadServerTags()
                     searchViewModel.loadServerTags()
-                    homeViewModel.loadAllPhotos() // 서버 사진도 새로고침
+                    homeViewModel.loadAllPhotos() // Refresh server photos too
                 }
             },
             modifier =
@@ -740,7 +739,7 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
 
-                    // 태그 추천 목록 (LazyRow)
+                    // Tag recommendation list (LazyRow)
                     if (tagSuggestions.isNotEmpty()) {
                         LazyRow(
                             modifier =
@@ -770,7 +769,7 @@ fun HomeScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // "태그 앨범" 뷰일 때만 정렬 버튼 표시
+                        // Show sort button only in "Tag Albums" view
                         if (!isShowingAllPhotos) {
                             IconButton(onClick = { scope.launch { sheetState.show() } }) {
                                 Icon(
@@ -780,8 +779,8 @@ fun HomeScreen(navController: NavController) {
                                 )
                             }
                         } else {
-                            // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
-                            Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
+                            // Empty spacer to occupy space in "All Photos" view
+                            Spacer(modifier = Modifier.size(48.dp)) // Same size as IconButton
                         }
                         ViewToggle(
                             isOnlyTag = isOnlyTag,
@@ -791,7 +790,7 @@ fun HomeScreen(navController: NavController) {
                                 homeViewModel.setIsShowingAllPhotos(allPhotos)
                                 if (isSelectionMode) {
                                     homeViewModel.setSelectionMode(false)
-                                    homeViewModel.resetSelection() // draftRepository 초기화
+                                    homeViewModel.resetSelection() // Reset draftRepository
                                 }
                             },
                         )
