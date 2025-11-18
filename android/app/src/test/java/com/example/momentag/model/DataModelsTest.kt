@@ -282,20 +282,6 @@ class DataModelsTest {
         assertEquals(tagId, tag.id)
     }
 
-    // ========== PhotoTag Tests ==========
-
-    @Test
-    fun `PhotoTag should be created with ptId`() {
-        // Given
-        val ptId = 555L
-
-        // When
-        val photoTag = PhotoTag(ptId = ptId)
-
-        // Then
-        assertEquals(ptId, photoTag.ptId)
-    }
-
     // ========== Album Tests ==========
 
     @Test

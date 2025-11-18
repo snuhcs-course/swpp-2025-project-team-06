@@ -1,48 +1,5 @@
 package com.example.momentag.model
 
-// UI state by screen
-data class HomeScreenUiState(
-    val isLoading: Boolean = false,
-    val userMessage: String? = null,
-    val errorMessage: String? = null,
-    val isUploadSuccess: Boolean = false,
-)
-
-sealed interface StoryState {
-    object Idle : StoryState
-
-    object Loading : StoryState
-
-    data class Success(
-        val stories: List<StoryModel>,
-        val currentIndex: Int = 0,
-        val hasMore: Boolean = true,
-    ) : StoryState
-
-    data class Error(
-        val message: String,
-    ) : StoryState
-
-    data class NetworkError(
-        val message: String,
-    ) : StoryState
-}
-
-sealed class PhotoTagState {
-    object Idle : PhotoTagState()
-
-    object Loading : PhotoTagState()
-
-    data class Success(
-        val existingTags: List<Tag>,
-        val recommendedTags: List<String>,
-    ) : PhotoTagState()
-
-    data class Error(
-        val message: String,
-    ) : PhotoTagState()
-}
-
 sealed interface ImageDetailTagState {
     // 공통 상태: 초기 상태, 에러 상태
     data object Idle : ImageDetailTagState
@@ -72,9 +29,27 @@ sealed class MyTagsUiState {
     ) : MyTagsUiState()
 }
 
-/**
- * Represents the state of tag submission for a story
- */
+
+sealed interface StoryState {
+    object Idle : StoryState
+
+    object Loading : StoryState
+
+    data class Success(
+        val stories: List<StoryModel>,
+        val currentIndex: Int = 0,
+        val hasMore: Boolean = true,
+    ) : StoryState
+
+    data class Error(
+        val message: String,
+    ) : StoryState
+
+    data class NetworkError(
+        val message: String,
+    ) : StoryState
+}
+
 sealed class StoryTagSubmissionState {
     object Idle : StoryTagSubmissionState()
 

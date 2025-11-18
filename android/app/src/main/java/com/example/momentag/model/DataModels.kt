@@ -109,12 +109,6 @@ data class ImageContext(
     }
 }
 
-// ========== Photo-Tag Models ==========
-
-data class PhotoTag(
-    val ptId: Long,
-)
-
 // ========== Album Models ==========
 
 data class Album(
