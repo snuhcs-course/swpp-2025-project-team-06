@@ -4,8 +4,6 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
@@ -13,7 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.momentag.data.SessionManager
+import com.example.momentag.repository.TokenRepository
 import com.example.momentag.ui.storytag.StoryTagSelectionScreen
 import com.example.momentag.view.AddTagScreen
 import com.example.momentag.view.AlbumScreen
@@ -31,13 +29,11 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 @Composable
-fun appNavigation() {
+fun appNavigation(tokenRepository: TokenRepository) {
     val navController = rememberNavController()
-    val context = LocalContext.current
-    val sessionManager = remember { SessionManager.getInstance(context) }
 
-    val isLoaded by sessionManager.isLoaded.collectAsState()
-    val accessToken by sessionManager.accessTokenFlow.collectAsState()
+    val isLoaded by tokenRepository.isSessionLoaded.collectAsState()
+    val accessToken by tokenRepository.isLoggedIn.collectAsState()
 
     if (!isLoaded) {
         // show loading screen or wait for data to load

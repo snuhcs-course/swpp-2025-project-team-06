@@ -40,19 +40,6 @@ class SessionManager
         companion object {
             private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
             private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
-
-            // Legacy getInstance for backward compatibility during migration
-            // This will be removed in Phase 6
-            @Volatile
-            private var instance: SessionManager? = null
-
-            @Deprecated("Use Hilt injection instead", ReplaceWith("Inject SessionStore in constructor"))
-            fun getInstance(context: Context): SessionManager =
-                instance
-                    ?: synchronized(this) {
-                        instance
-                            ?: SessionManager(context.applicationContext).also { instance = it }
-                    }
         }
 
         // memory cache on StateFlow
