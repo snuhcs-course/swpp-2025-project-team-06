@@ -72,7 +72,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.exifinterface.media.ExifInterface
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.Photo
@@ -83,7 +83,6 @@ import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.tagXMode
 import com.example.momentag.viewmodel.ImageDetailViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -267,7 +266,7 @@ fun ImageDetailScreen(
 
     // 2. ViewModel 인스턴스
     val imageDetailViewModel: ImageDetailViewModel =
-        viewModel(factory = ViewModelFactory.getInstance(context))
+        hiltViewModel()
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val imageContext by imageDetailViewModel.imageContext.collectAsState()

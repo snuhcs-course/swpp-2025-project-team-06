@@ -48,13 +48,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.model.LoginState
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +62,7 @@ fun LoginScreen(navController: NavController) {
     val context = LocalContext.current
 
     // 2. ViewModel 인스턴스
-    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val authViewModel: AuthViewModel = hiltViewModel()
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val loginState by authViewModel.loginState.collectAsState()

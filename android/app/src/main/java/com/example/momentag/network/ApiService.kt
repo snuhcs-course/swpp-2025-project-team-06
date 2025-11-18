@@ -1,8 +1,5 @@
 package com.example.momentag.network
 
-import android.content.Context
-import com.example.momentag.R
-import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
 import com.example.momentag.model.PhotoDetailResponse
@@ -18,11 +15,8 @@ import com.example.momentag.model.TagId
 import com.example.momentag.model.TagName
 import com.example.momentag.model.TagResponse
 import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
 import okhttp3.RequestBody
 import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -32,14 +26,6 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
-import java.io.InputStream
-import java.security.KeyStore
-import java.security.cert.CertificateFactory
-import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.SSLSocketFactory
-import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.X509TrustManager
 import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
@@ -163,73 +149,3 @@ interface ApiService {
  * - AuthInterceptor: 모든 요청에 AccessToken 자동 추가
  * - TokenAuthenticator: 401 시 자동 리프레시 → 재시도
  */
-object RetrofitInstance {
-    private var apiService: ApiService? = null
-
-    private fun createCustomTrustManager(context: Context): X509TrustManager {
-        val resourceId =
-            context.resources.getIdentifier(
-                "myclass",
-                "raw",
-                context.packageName,
-            )
-        val certInputStream: InputStream = context.resources.openRawResource(resourceId)
-
-        val certificateFactory = CertificateFactory.getInstance("X.509")
-        val certificate = certificateFactory.generateCertificate(certInputStream)
-        certInputStream.close()
-
-        val keyStoreType = KeyStore.getDefaultType()
-        val keyStore = KeyStore.getInstance(keyStoreType)
-        keyStore.load(null, null)
-        keyStore.setCertificateEntry("ca", certificate)
-
-        val tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm()
-        val tmf = TrustManagerFactory.getInstance(tmfAlgorithm)
-        tmf.init(keyStore)
-
-        return tmf.trustManagers[0] as X509TrustManager
-    }
-
-    private fun createCustomSslSocketFactory(trustManager: X509TrustManager): SSLSocketFactory {
-        val sslContext = SSLContext.getInstance("TLS")
-        sslContext.init(null, arrayOf(trustManager), null)
-        return sslContext.socketFactory
-    }
-
-    fun getApiService(context: Context): ApiService {
-        if (apiService == null) {
-            val sessionStore = SessionManager.getInstance(context.applicationContext)
-            val authInterceptor = AuthInterceptor(sessionStore)
-            val tokenAuthenticator = TokenAuthenticator(context.applicationContext, sessionStore)
-
-            val customTrustManager = createCustomTrustManager(context.applicationContext)
-            val customSslSocketFactory = createCustomSslSocketFactory(customTrustManager)
-
-            val okHttpClient =
-                SslHelper
-                    .configureToTrustCertificate(
-                        OkHttpClient.Builder(),
-                        context.applicationContext,
-                    ).addInterceptor(authInterceptor)
-                    .authenticator(tokenAuthenticator)
-                    .sslSocketFactory(customSslSocketFactory, customTrustManager)
-                    .hostnameVerifier { _, _ -> true }
-                    .connectTimeout(30, TimeUnit.SECONDS)
-                    .readTimeout(30, TimeUnit.SECONDS)
-                    .writeTimeout(30, TimeUnit.SECONDS)
-                    .build()
-
-            val retrofit =
-                Retrofit
-                    .Builder()
-                    .baseUrl(context.getString(R.string.API_BASE_URL))
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-
-            apiService = retrofit.create(ApiService::class.java)
-        }
-        return apiService!!
-    }
-}

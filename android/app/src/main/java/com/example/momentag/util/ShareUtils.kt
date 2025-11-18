@@ -10,7 +10,7 @@ import com.example.momentag.model.Photo
  * Example usage in a Composable:
  * ```
  * val context = LocalContext.current
- * val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+ * val homeViewModel: HomeViewModel = hiltViewModel()
  * val selectedPhotos by homeViewModel.selectedPhotos.collectAsState()
  *
  * Button(
