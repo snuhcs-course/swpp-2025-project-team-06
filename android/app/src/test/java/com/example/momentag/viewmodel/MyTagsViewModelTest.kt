@@ -1,6 +1,5 @@
 package com.example.momentag.viewmodel
 
-import com.example.momentag.model.MyTagsUiState
 import com.example.momentag.model.TagResponse
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RemoteRepository
@@ -81,8 +80,8 @@ class MyTagsViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Success)
-            assertEquals(2, (state as MyTagsUiState.Success).tags.size)
+            assertTrue(state is MyTagsViewModel.MyTagsUiState.Success)
+            assertEquals(2, (state as MyTagsViewModel.MyTagsUiState.Success).tags.size)
         }
 
     @Test
@@ -98,7 +97,7 @@ class MyTagsViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
+            assertTrue(state is MyTagsViewModel.MyTagsUiState.Error)
         }
 
     // Sort order tests
@@ -120,7 +119,7 @@ class MyTagsViewModelTest {
 
             // Then
             assertEquals(TagSortOrder.NAME_ASC, viewModel.sortOrder.value)
-            val state = viewModel.uiState.value as MyTagsUiState.Success
+            val state = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
             assertEquals("A Tag", state.tags[0].tagName)
             assertEquals("B Tag", state.tags[1].tagName)
         }
@@ -142,7 +141,7 @@ class MyTagsViewModelTest {
             viewModel.setSortOrder(TagSortOrder.COUNT_DESC)
 
             // Then
-            val state = viewModel.uiState.value as MyTagsUiState.Success
+            val state = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
             assertEquals(10, state.tags[0].count)
             assertEquals(3, state.tags[1].count)
         }
@@ -207,7 +206,7 @@ class MyTagsViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.tagActionState.value is TagActionState.Success)
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Success)
             coVerify { remoteRepository.getAllTags() }
         }
 
@@ -226,7 +225,7 @@ class MyTagsViewModelTest {
 
             // Then
             val state = viewModel.tagActionState.value
-            assertTrue(state is TagActionState.Error)
+            assertTrue(state is MyTagsViewModel.TagActionState.Error)
         }
 
     // Rename tag tests
@@ -248,7 +247,7 @@ class MyTagsViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.tagActionState.value is TagActionState.Success)
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Success)
         }
 
     // Refresh tags test
@@ -280,7 +279,7 @@ class MyTagsViewModelTest {
             viewModel.clearActionState()
 
             // Then
-            assertTrue(viewModel.tagActionState.value is TagActionState.Idle)
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Idle)
         }
 
     @Test
@@ -298,8 +297,8 @@ class MyTagsViewModelTest {
 
             // Then
             val state = viewModel.tagActionState.value
-            assertTrue(state is TagActionState.Error)
-            assertEquals(errorMessage, (state as TagActionState.Error).message)
+            assertTrue(state is MyTagsViewModel.TagActionState.Error)
+            assertEquals(errorMessage, (state as MyTagsViewModel.TagActionState.Error).message)
         }
 
     @Test
@@ -367,8 +366,8 @@ class MyTagsViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
-            assertEquals("Unauthorized: Unauthorized", (state as MyTagsUiState.Error).message)
+            assertTrue(state is MyTagsViewModel.MyTagsUiState.Error)
+            assertEquals("Unauthorized: Unauthorized", (state as MyTagsViewModel.MyTagsUiState.Error).message)
         }
 
     @Test
@@ -383,8 +382,8 @@ class MyTagsViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
-            assertEquals("Bad Request: Bad Request", (state as MyTagsUiState.Error).message)
+            assertTrue(state is MyTagsViewModel.MyTagsUiState.Error)
+            assertEquals("Bad Request: Bad Request", (state as MyTagsViewModel.MyTagsUiState.Error).message)
         }
 
     @Test
@@ -399,8 +398,8 @@ class MyTagsViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
-            assertEquals("Network Error: Network Error", (state as MyTagsUiState.Error).message)
+            assertTrue(state is MyTagsViewModel.MyTagsUiState.Error)
+            assertEquals("Network Error: Network Error", (state as MyTagsViewModel.MyTagsUiState.Error).message)
         }
 
     @Test
@@ -416,8 +415,8 @@ class MyTagsViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
-            assertEquals("Exception: Test Exception", (state as MyTagsUiState.Error).message)
+            assertTrue(state is MyTagsViewModel.MyTagsUiState.Error)
+            assertEquals("Exception: Test Exception", (state as MyTagsViewModel.MyTagsUiState.Error).message)
         }
 
     @Test

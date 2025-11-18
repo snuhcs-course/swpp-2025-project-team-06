@@ -12,9 +12,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
-import com.example.momentag.model.SemanticSearchState
+import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.TagItem
-import com.example.momentag.model.TagLoadingState
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoSelectionRepository
@@ -54,7 +53,64 @@ class SearchViewModel
         private val tokenRepository: TokenRepository,
         private val remoteRepository: RemoteRepository,
     ) : ViewModel() {
-        // 1. Private MutableStateFlow
+        // 1. state class 정의
+        sealed class SearchUiState {
+            object Idle : SearchUiState()
+
+            object Loading : SearchUiState()
+
+            data class Success(
+                val results: List<SearchResultItem>,
+                val query: String,
+            ) : SearchUiState()
+
+            data class Empty(
+                val query: String,
+            ) : SearchUiState()
+
+            data class Error(
+                val message: String,
+            ) : SearchUiState()
+        }
+
+        sealed class SemanticSearchState {
+            object Idle : SemanticSearchState()
+
+            object Loading : SemanticSearchState()
+
+            data class Success(
+                val photos: List<Photo>,
+                val query: String,
+            ) : SemanticSearchState()
+
+            data class Empty(
+                val query: String,
+            ) : SemanticSearchState()
+
+            data class NetworkError(
+                val message: String,
+            ) : SemanticSearchState()
+
+            data class Error(
+                val message: String,
+            ) : SemanticSearchState()
+        }
+
+        sealed class TagLoadingState {
+            object Idle : TagLoadingState()
+
+            object Loading : TagLoadingState()
+
+            data class Success(
+                val tags: List<TagItem>,
+            ) : TagLoadingState()
+
+            data class Error(
+                val message: String,
+            ) : TagLoadingState()
+        }
+
+        // 2. Private MutableStateFlow
         private val _tagLoadingState = MutableStateFlow<TagLoadingState>(TagLoadingState.Idle)
         private val _searchState = MutableStateFlow<SemanticSearchState>(SemanticSearchState.Idle)
         private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
@@ -63,7 +119,7 @@ class SearchViewModel
         private val _requestFocus = MutableSharedFlow<String>()
         private val _bringIntoView = MutableSharedFlow<String>()
 
-        // 2. Public StateFlow (exposed state)
+        // 3. Public StateFlow (exposed state)
         val tagLoadingState = _tagLoadingState.asStateFlow()
         val searchState = _searchState.asStateFlow()
         val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
@@ -73,12 +129,12 @@ class SearchViewModel
         val requestFocus = _requestFocus.asSharedFlow()
         val bringIntoView = _bringIntoView.asSharedFlow()
 
-        // 3. Private 변수
+        // 4. Private 변수
         private val isLoggedInFlow = tokenRepository.isLoggedIn
         private val _focusedElementId = mutableStateOf<String?>(null)
         private val _ignoreFocusLoss = mutableStateOf(false)
 
-        // 4. Public 변수
+        // 5. Public 변수
         val textStates = mutableStateMapOf<String, TextFieldValue>()
         val contentItems = mutableStateListOf<SearchContentElement>()
         val focusedElementId: androidx.compose.runtime.State<String?> = _focusedElementId
@@ -86,7 +142,7 @@ class SearchViewModel
         val focusRequesters = mutableStateMapOf<String, FocusRequester>()
         val bringIntoViewRequesters = mutableStateMapOf<String, BringIntoViewRequester>()
 
-        // 5. init 블록
+        // 6. init 블록
         init {
             loadSearchHistory()
 

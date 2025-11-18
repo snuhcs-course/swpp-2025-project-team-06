@@ -1,9 +1,5 @@
 package com.example.momentag.viewmodel
 
-import com.example.momentag.model.LoginState
-import com.example.momentag.model.LogoutState
-import com.example.momentag.model.RefreshState
-import com.example.momentag.model.RegisterState
 import com.example.momentag.repository.TokenRepository
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
@@ -60,7 +56,7 @@ class AuthViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.loginState.value is LoginState.Success)
+            assertTrue(viewModel.loginState.value is AuthViewModel.LoginState.Success)
             coVerify { tokenRepository.login(username, password) }
         }
 
@@ -80,8 +76,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.loginState.value
-            assertTrue(state is LoginState.BadRequest)
-            assertEquals(errorMessage, (state as LoginState.BadRequest).message)
+            assertTrue(state is AuthViewModel.LoginState.BadRequest)
+            assertEquals(errorMessage, (state as AuthViewModel.LoginState.BadRequest).message)
         }
 
     @Test
@@ -100,8 +96,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.loginState.value
-            assertTrue(state is LoginState.Unauthorized)
-            assertEquals(errorMessage, (state as LoginState.Unauthorized).message)
+            assertTrue(state is AuthViewModel.LoginState.Unauthorized)
+            assertEquals(errorMessage, (state as AuthViewModel.LoginState.Unauthorized).message)
         }
 
     @Test
@@ -120,8 +116,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.loginState.value
-            assertTrue(state is LoginState.NetworkError)
-            assertEquals(errorMessage, (state as LoginState.NetworkError).message)
+            assertTrue(state is AuthViewModel.LoginState.NetworkError)
+            assertEquals(errorMessage, (state as AuthViewModel.LoginState.NetworkError).message)
         }
 
     @Test
@@ -140,8 +136,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.loginState.value
-            assertTrue(state is LoginState.Error)
-            assertEquals(errorMessage, (state as LoginState.Error).message)
+            assertTrue(state is AuthViewModel.LoginState.Error)
+            assertEquals(errorMessage, (state as AuthViewModel.LoginState.Error).message)
         }
 
     @Test
@@ -159,7 +155,7 @@ class AuthViewModelTest {
             viewModel.resetLoginState()
 
             // Then
-            assertTrue(viewModel.loginState.value is LoginState.Idle)
+            assertTrue(viewModel.loginState.value is AuthViewModel.LoginState.Idle)
         }
 
     // Register tests
@@ -180,8 +176,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.Success)
-            assertEquals(123, (state as RegisterState.Success).id)
+            assertTrue(state is AuthViewModel.RegisterState.Success)
+            assertEquals(123, (state as AuthViewModel.RegisterState.Success).id)
         }
 
     @Test
@@ -201,8 +197,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.BadRequest)
-            assertEquals(errorMessage, (state as RegisterState.BadRequest).message)
+            assertTrue(state is AuthViewModel.RegisterState.BadRequest)
+            assertEquals(errorMessage, (state as AuthViewModel.RegisterState.BadRequest).message)
         }
 
     @Test
@@ -222,8 +218,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.Conflict)
-            assertEquals(errorMessage, (state as RegisterState.Conflict).message)
+            assertTrue(state is AuthViewModel.RegisterState.Conflict)
+            assertEquals(errorMessage, (state as AuthViewModel.RegisterState.Conflict).message)
         }
 
     @Test
@@ -243,8 +239,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.NetworkError)
-            assertEquals(errorMessage, (state as RegisterState.NetworkError).message)
+            assertTrue(state is AuthViewModel.RegisterState.NetworkError)
+            assertEquals(errorMessage, (state as AuthViewModel.RegisterState.NetworkError).message)
         }
 
     @Test
@@ -264,8 +260,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.Error)
-            assertEquals(errorMessage, (state as RegisterState.Error).message)
+            assertTrue(state is AuthViewModel.RegisterState.Error)
+            assertEquals(errorMessage, (state as AuthViewModel.RegisterState.Error).message)
         }
 
     @Test
@@ -284,7 +280,7 @@ class AuthViewModelTest {
             viewModel.resetRegisterState()
 
             // Then
-            assertTrue(viewModel.registerState.value is RegisterState.Idle)
+            assertTrue(viewModel.registerState.value is AuthViewModel.RegisterState.Idle)
         }
 
     // Refresh tests
@@ -300,7 +296,7 @@ class AuthViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.refreshState.value is RefreshState.Success)
+            assertTrue(viewModel.refreshState.value is AuthViewModel.RefreshState.Success)
         }
 
     @Test
@@ -315,7 +311,7 @@ class AuthViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.refreshState.value is RefreshState.Unauthorized)
+            assertTrue(viewModel.refreshState.value is AuthViewModel.RefreshState.Unauthorized)
         }
 
     @Test
@@ -332,8 +328,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.refreshState.value
-            assertTrue(state is RefreshState.NetworkError)
-            assertEquals(errorMessage, (state as RefreshState.NetworkError).message)
+            assertTrue(state is AuthViewModel.RefreshState.NetworkError)
+            assertEquals(errorMessage, (state as AuthViewModel.RefreshState.NetworkError).message)
         }
 
     @Test
@@ -350,8 +346,8 @@ class AuthViewModelTest {
 
             // Then
             val state = viewModel.refreshState.value
-            assertTrue(state is RefreshState.Error)
-            assertEquals(errorMessage, (state as RefreshState.Error).message)
+            assertTrue(state is AuthViewModel.RefreshState.Error)
+            assertEquals(errorMessage, (state as AuthViewModel.RefreshState.Error).message)
         }
 
     @Test
@@ -367,7 +363,7 @@ class AuthViewModelTest {
             viewModel.resetRefreshState()
 
             // Then
-            assertTrue(viewModel.refreshState.value is RefreshState.Idle)
+            assertTrue(viewModel.refreshState.value is AuthViewModel.RefreshState.Idle)
         }
 
     // Logout tests
@@ -382,7 +378,7 @@ class AuthViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.logoutState.value is LogoutState.Success)
+            assertTrue(viewModel.logoutState.value is AuthViewModel.LogoutState.Success)
             coVerify { tokenRepository.logout() }
         }
 
@@ -398,7 +394,7 @@ class AuthViewModelTest {
             viewModel.resetLogoutState()
 
             // Then
-            assertTrue(viewModel.logoutState.value is LogoutState.Idle)
+            assertTrue(viewModel.logoutState.value is AuthViewModel.LogoutState.Idle)
         }
 
     // StateFlow exposure tests

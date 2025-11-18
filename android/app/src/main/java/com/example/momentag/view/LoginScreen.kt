@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.momentag.Screen
-import com.example.momentag.model.LoginState
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
@@ -87,17 +86,17 @@ fun LoginScreen(navController: NavController) {
     // 10. LaunchedEffect
     LaunchedEffect(loginState) {
         when (val state = loginState) {
-            is LoginState.Loading -> {
+            is AuthViewModel.LoginState.Loading -> {
                 isLoading = true
                 isErrorBannerVisible = false
             }
-            is LoginState.Success -> {
+            is AuthViewModel.LoginState.Success -> {
                 isLoading = false
                 navController.navigate(Screen.Home.route) {
                     popUpTo(Screen.Login.route) { inclusive = true }
                 }
             }
-            is LoginState.BadRequest -> {
+            is AuthViewModel.LoginState.BadRequest -> {
                 isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
@@ -105,7 +104,7 @@ fun LoginScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
-            is LoginState.Unauthorized -> {
+            is AuthViewModel.LoginState.Unauthorized -> {
                 isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
@@ -113,7 +112,7 @@ fun LoginScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
-            is LoginState.NetworkError -> {
+            is AuthViewModel.LoginState.NetworkError -> {
                 isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
@@ -121,7 +120,7 @@ fun LoginScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
-            is LoginState.Error -> {
+            is AuthViewModel.LoginState.Error -> {
                 isLoading = false
                 errorMessage = state.message
                 isUsernameError = true

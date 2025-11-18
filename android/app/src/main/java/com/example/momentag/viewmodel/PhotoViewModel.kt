@@ -7,7 +7,6 @@ import androidx.work.Data
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
-import com.example.momentag.model.HomeScreenUiState
 import com.example.momentag.model.Photo
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
@@ -29,6 +28,14 @@ class PhotoViewModel
         private val localRepository: LocalRepository,
         private val albumUploadJobCount: StateFlow<Int>,
     ) : ViewModel() {
+        // 1. state data class 정의
+        data class HomeScreenUiState(
+            val isLoading: Boolean = false,
+            val userMessage: String? = null,
+            val errorMessage: String? = null,
+            val isUploadSuccess: Boolean = false,
+        )
+
         // 1. Private MutableStateFlow
         private val _uiState = MutableStateFlow(HomeScreenUiState())
 

@@ -3,8 +3,8 @@ package com.example.momentag.viewmodel
 import android.net.Uri
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoDetailResponse
+import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.StoryResponse
-import com.example.momentag.model.StoryState
 import com.example.momentag.model.Tag
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
@@ -115,7 +115,7 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
@@ -126,8 +126,8 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
-            assertEquals(1, (state as StoryState.Success).stories.size)
+            assertTrue(state is StoryViewModel.StoryState.Success)
+            assertEquals(1, (state as StoryViewModel.StoryState.Success).stories.size)
         }
 
     @Test
@@ -144,7 +144,7 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.NetworkError)
+            assertTrue(state is StoryViewModel.StoryState.NetworkError)
         }
 
     // Toggle tag tests
@@ -180,7 +180,7 @@ class StoryViewModelTest {
                 RecommendRepository.StoryResult.Success(storyResponses)
             coEvery {
                 localRepository.toPhotos(
-                    match<List<com.example.momentag.model.PhotoResponse>> {
+                    match<List<PhotoResponse>> {
                         it.size == 2 && it[0].photoId == "photo1" && it[1].photoId == "photo2"
                     },
                 )
@@ -196,8 +196,8 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
-            assertEquals(1, (state as StoryState.Success).currentIndex)
+            assertTrue(state is StoryViewModel.StoryState.Success)
+            assertEquals(1, (state as StoryViewModel.StoryState.Success).currentIndex)
         }
 
     // Mark story as viewed test
@@ -221,9 +221,7 @@ class StoryViewModelTest {
             val storyId = "story1"
             val photoId = "photo1"
             val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail =
-                com.example.momentag.model
-                    .PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
+            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
             coEvery { remoteRepository.getPhotoDetail(photoId) } returns
                 RemoteRepository.Result.Success(photoDetail)
 
@@ -243,9 +241,7 @@ class StoryViewModelTest {
             val storyId = "story1"
             val photoId = "photo1"
             val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail =
-                com.example.momentag.model
-                    .PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
+            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
             coEvery { remoteRepository.getPhotoDetail(photoId) } returns
                 RemoteRepository.Result.Success(photoDetail)
             viewModel.enterEditMode(storyId, photoId)
@@ -271,9 +267,7 @@ class StoryViewModelTest {
             val storyId = "story1"
             val photoId = "photo1"
             val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail =
-                com.example.momentag.model
-                    .PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
+            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
             coEvery { remoteRepository.getPhotoDetail(photoId) } returns
                 RemoteRepository.Result.Success(photoDetail)
             viewModel.enterEditMode(storyId, photoId)
@@ -298,7 +292,7 @@ class StoryViewModelTest {
             viewModel.resetState()
 
             // Then
-            assertTrue(viewModel.storyState.value is StoryState.Idle)
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Idle)
             assertTrue(viewModel.selectedTags.value.isEmpty())
             assertTrue(viewModel.viewedStories.value.isEmpty())
             assertNull(viewModel.editModeStory.value)
@@ -331,7 +325,7 @@ class StoryViewModelTest {
                     RecommendRepository.StoryResult.Success(storyResponses)
                 }
             }
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
@@ -342,7 +336,7 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
+            assertTrue(state is StoryViewModel.StoryState.Success)
             assertTrue(callCount >= 3)
         }
 
@@ -359,8 +353,8 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Error)
-            assertEquals("Please login again", (state as StoryState.Error).message)
+            assertTrue(state is StoryViewModel.StoryState.Error)
+            assertEquals("Please login again", (state as StoryViewModel.StoryState.Error).message)
         }
 
     @Test
@@ -377,8 +371,8 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Error)
-            assertEquals(errorMessage, (state as StoryState.Error).message)
+            assertTrue(state is StoryViewModel.StoryState.Error)
+            assertEquals(errorMessage, (state as StoryViewModel.StoryState.Error).message)
         }
 
     @Test
@@ -395,8 +389,8 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Error)
-            assertEquals(errorMessage, (state as StoryState.Error).message)
+            assertTrue(state is StoryViewModel.StoryState.Error)
+            assertEquals(errorMessage, (state as StoryViewModel.StoryState.Error).message)
         }
 
     @Test
@@ -406,7 +400,7 @@ class StoryViewModelTest {
             val storyResponses = listOf(createStoryResponse())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns emptyList()
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns emptyList()
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
 
             // When
@@ -415,8 +409,8 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
-            assertEquals(0, (state as StoryState.Success).stories.size)
+            assertTrue(state is StoryViewModel.StoryState.Success)
+            assertEquals(0, (state as StoryViewModel.StoryState.Success).stories.size)
         }
 
     @Test
@@ -428,7 +422,7 @@ class StoryViewModelTest {
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.NotReady<List<StoryResponse>>("Stories not ready") andThen
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
@@ -440,7 +434,7 @@ class StoryViewModelTest {
 
             // Then - no error should occur
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
+            assertTrue(state is StoryViewModel.StoryState.Success)
         }
 
     // loadMoreStories tests
@@ -454,7 +448,7 @@ class StoryViewModelTest {
                 RecommendRepository.StoryResult.Success(initialStoryResponses)
             coEvery {
                 localRepository.toPhotos(
-                    match<List<com.example.momentag.model.PhotoResponse>> {
+                    match<List<PhotoResponse>> {
                         it.size == 1 && it[0].photoId == "photo1"
                     },
                 )
@@ -472,7 +466,7 @@ class StoryViewModelTest {
                 RecommendRepository.StoryResult.Success(moreStoryResponses)
             coEvery {
                 localRepository.toPhotos(
-                    match<List<com.example.momentag.model.PhotoResponse>> {
+                    match<List<PhotoResponse>> {
                         it.size == 1 && it[0].photoId == "photo2"
                     },
                 )
@@ -482,8 +476,8 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
-            assertEquals(2, (state as StoryState.Success).stories.size)
+            assertTrue(state is StoryViewModel.StoryState.Success)
+            assertEquals(2, (state as StoryViewModel.StoryState.Success).stories.size)
             assertEquals("photo1", state.stories[0].photoId)
             assertEquals("photo2", state.stories[1].photoId)
         }
@@ -496,7 +490,7 @@ class StoryViewModelTest {
             val initialPhotos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(initialStoryResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns initialPhotos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns initialPhotos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
@@ -517,7 +511,7 @@ class StoryViewModelTest {
             }
             coEvery {
                 localRepository.toPhotos(
-                    match<List<com.example.momentag.model.PhotoResponse>> {
+                    match<List<PhotoResponse>> {
                         it.size == 1 && it[0].photoId == "photo2"
                     },
                 )
@@ -527,7 +521,7 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
+            assertTrue(state is StoryViewModel.StoryState.Success)
             assertTrue(callCount >= 3)
         }
 
@@ -539,7 +533,7 @@ class StoryViewModelTest {
             val initialPhotos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(initialStoryResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns initialPhotos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns initialPhotos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
@@ -554,8 +548,8 @@ class StoryViewModelTest {
 
             // Then - state should remain Success with original stories
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
-            assertEquals(1, (state as StoryState.Success).stories.size)
+            assertTrue(state is StoryViewModel.StoryState.Success)
+            assertEquals(1, (state as StoryViewModel.StoryState.Success).stories.size)
         }
 
     @Test
@@ -566,7 +560,7 @@ class StoryViewModelTest {
             val initialPhotos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(initialStoryResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns initialPhotos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns initialPhotos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
@@ -579,7 +573,7 @@ class StoryViewModelTest {
                 RecommendRepository.StoryResult.Success(moreStoryResponses)
             coEvery {
                 localRepository.toPhotos(
-                    match<List<com.example.momentag.model.PhotoResponse>> {
+                    match<List<PhotoResponse>> {
                         it.size == 1 && it[0].photoId == "photo2"
                     },
                 )
@@ -589,8 +583,8 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
-            assertEquals(1, (state as StoryState.Success).stories.size)
+            assertTrue(state is StoryViewModel.StoryState.Success)
+            assertEquals(1, (state as StoryViewModel.StoryState.Success).stories.size)
             assertFalse(state.hasMore)
         }
 
@@ -619,7 +613,7 @@ class StoryViewModelTest {
                 RecommendRepository.StoryResult.Success(initialStoryResponses)
             coEvery {
                 localRepository.toPhotos(
-                    match<List<com.example.momentag.model.PhotoResponse>> {
+                    match<List<PhotoResponse>> {
                         it.size == 1 && it[0].photoId == "photo1"
                     },
                 )
@@ -635,7 +629,7 @@ class StoryViewModelTest {
                 RecommendRepository.StoryResult.Success(moreStoryResponses)
             coEvery {
                 localRepository.toPhotos(
-                    match<List<com.example.momentag.model.PhotoResponse>> {
+                    match<List<PhotoResponse>> {
                         it.size == 1 && it[0].photoId == "photo2"
                     },
                 )
@@ -646,7 +640,7 @@ class StoryViewModelTest {
 
             // Then - no error should occur and state should have both stories
             val state = viewModel.storyState.value
-            assertTrue(state is StoryState.Success)
+            assertTrue(state is StoryViewModel.StoryState.Success)
         }
 
     // loadTagsForStory tests
@@ -658,14 +652,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
 
             // When
@@ -691,14 +685,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
 
             // Load tags once
@@ -727,14 +721,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val story = state.stories[0]
 
             // When - story already has tags from StoryResponse
@@ -753,14 +747,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
 
             // When
@@ -794,14 +788,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
             val customTag = "customTag"
 
@@ -809,7 +803,7 @@ class StoryViewModelTest {
             viewModel.addCustomTagToStory(storyId, customTag)
 
             // Then
-            val updatedState = viewModel.storyState.value as StoryState.Success
+            val updatedState = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val updatedStory = updatedState.stories[0]
             assertTrue(updatedStory.suggestedTags.contains(customTag))
             assertTrue(viewModel.getSelectedTags(storyId).contains(customTag))
@@ -822,7 +816,7 @@ class StoryViewModelTest {
         viewModel.addCustomTagToStory("story1", "customTag")
 
         // Then - state should remain Idle
-        assertTrue(viewModel.storyState.value is StoryState.Idle)
+        assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Idle)
     }
 
     // resetSubmissionState test
@@ -856,7 +850,7 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertEquals(com.example.momentag.model.StoryTagSubmissionState.Idle, submissionState)
+            assertEquals(StoryViewModel.StoryTagSubmissionState.Idle, submissionState)
         }
 
     // setStoryBrowsingSession test
@@ -929,14 +923,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
 
             // Select some tags
@@ -963,7 +957,7 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertEquals(com.example.momentag.model.StoryTagSubmissionState.Success, submissionState)
+            assertEquals(StoryViewModel.StoryTagSubmissionState.Success, submissionState)
         }
 
     @Test
@@ -975,14 +969,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto(photoId))
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
 
             // Enter edit mode with existing tags
@@ -1006,7 +1000,7 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertEquals(com.example.momentag.model.StoryTagSubmissionState.Success, submissionState)
+            assertEquals(StoryViewModel.StoryTagSubmissionState.Success, submissionState)
             coVerify { remoteRepository.removeTagFromPhoto(photoId, "tag1") }
         }
 
@@ -1019,14 +1013,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto(photoId))
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
 
             // Enter edit mode with existing tags
@@ -1050,7 +1044,7 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
         }
 
     @Test
@@ -1062,14 +1056,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto(photoId))
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
 
             // Enter edit mode with existing tags
@@ -1093,8 +1087,8 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
-            assertEquals("Please login again", (submissionState as com.example.momentag.model.StoryTagSubmissionState.Error).message)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
+            assertEquals("Please login again", (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message)
         }
 
     @Test
@@ -1106,14 +1100,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto(photoId))
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
 
             // Enter edit mode with existing tags
@@ -1137,10 +1131,10 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
             assertEquals(
                 "Network error. Please try again.",
-                (submissionState as com.example.momentag.model.StoryTagSubmissionState.Error).message,
+                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
             )
         }
 
@@ -1153,14 +1147,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto(photoId))
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
 
             // Enter edit mode with existing tags
@@ -1184,10 +1178,10 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
             assertEquals(
                 "An error occurred. Please try again.",
-                (submissionState as com.example.momentag.model.StoryTagSubmissionState.Error).message,
+                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
             )
         }
 
@@ -1199,14 +1193,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
             viewModel.toggleTag(storyId, "newTag1")
 
@@ -1220,7 +1214,7 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
         }
 
     @Test
@@ -1231,14 +1225,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
             viewModel.toggleTag(storyId, "newTag1")
 
@@ -1252,8 +1246,8 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
-            assertEquals("Please login again", (submissionState as com.example.momentag.model.StoryTagSubmissionState.Error).message)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
+            assertEquals("Please login again", (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message)
         }
 
     @Test
@@ -1264,14 +1258,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
             viewModel.toggleTag(storyId, "newTag1")
 
@@ -1285,10 +1279,10 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
             assertEquals(
                 "Network error. Please try again.",
-                (submissionState as com.example.momentag.model.StoryTagSubmissionState.Error).message,
+                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
             )
         }
 
@@ -1300,14 +1294,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
             viewModel.toggleTag(storyId, "newTag1")
 
@@ -1321,10 +1315,10 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
             assertEquals(
                 "An error occurred. Please try again.",
-                (submissionState as com.example.momentag.model.StoryTagSubmissionState.Error).message,
+                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
             )
         }
 
@@ -1336,14 +1330,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
             viewModel.toggleTag(storyId, "newTag1")
 
@@ -1362,7 +1356,7 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
         }
 
     @Test
@@ -1373,14 +1367,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
             viewModel.toggleTag(storyId, "newTag1")
 
@@ -1399,8 +1393,8 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
-            assertEquals("Please login again", (submissionState as com.example.momentag.model.StoryTagSubmissionState.Error).message)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
+            assertEquals("Please login again", (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message)
         }
 
     @Test
@@ -1411,14 +1405,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
             viewModel.toggleTag(storyId, "newTag1")
 
@@ -1437,10 +1431,10 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
             assertEquals(
                 "Network error. Please try again.",
-                (submissionState as com.example.momentag.model.StoryTagSubmissionState.Error).message,
+                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
             )
         }
 
@@ -1452,14 +1446,14 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
             viewModel.loadStories(10)
             advanceUntilIdle()
 
-            val state = viewModel.storyState.value as StoryState.Success
+            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
             val storyId = state.stories[0].id
             viewModel.toggleTag(storyId, "newTag1")
 
@@ -1478,10 +1472,10 @@ class StoryViewModelTest {
 
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is com.example.momentag.model.StoryTagSubmissionState.Error)
+            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
             assertEquals(
                 "An error occurred. Please try again.",
-                (submissionState as com.example.momentag.model.StoryTagSubmissionState.Error).message,
+                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
             )
         }
 
@@ -1505,7 +1499,7 @@ class StoryViewModelTest {
             val photos = listOf(createPhoto())
             coEvery { recommendRepository.getStories() } returns
                 RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<com.example.momentag.model.PhotoResponse>>()) } returns photos
+            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
             every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
             every { localRepository.getPhotoLocation(any()) } returns "Test Location"
             coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)

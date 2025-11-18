@@ -123,7 +123,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
-import com.example.momentag.model.LogoutState
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -434,16 +433,16 @@ fun HomeScreen(navController: NavController) {
     // 성공 시 로그인 화면으로 이동(백스택 초기화)
     LaunchedEffect(logoutState) {
         when (logoutState) {
-            is LogoutState.Success -> {
+            is AuthViewModel.LogoutState.Success -> {
                 Toast.makeText(context, "로그아웃되었습니다", Toast.LENGTH_SHORT).show()
                 navController.navigate(Screen.Login.route) {
                     popUpTo(0)
                     launchSingleTop = true
                 }
             }
-            is LogoutState.Error -> {
+            is AuthViewModel.LogoutState.Error -> {
                 errorBannerTitle = "Logout Failed"
-                errorBannerMessage = (logoutState as LogoutState.Error).message ?: "Logout failed"
+                errorBannerMessage = (logoutState as AuthViewModel.LogoutState.Error).message ?: "Logout failed"
                 isErrorBannerVisible = true
             }
             else -> Unit
@@ -555,7 +554,7 @@ fun HomeScreen(navController: NavController) {
                 },
                 showLogout = true,
                 onLogoutClick = { authViewModel.logout() },
-                isLogoutLoading = logoutState is LogoutState.Loading,
+                isLogoutLoading = logoutState is AuthViewModel.LogoutState.Loading,
                 actions = {
                     if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
                         val isEnabled = selectedPhotos.isNotEmpty()

@@ -50,7 +50,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.momentag.Screen
-import com.example.momentag.model.RegisterState
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
@@ -105,17 +104,17 @@ fun RegisterScreen(navController: NavController) {
     // 10. LaunchedEffect
     LaunchedEffect(registerState) {
         when (val state = registerState) {
-            is RegisterState.Loading -> {
+            is AuthViewModel.RegisterState.Loading -> {
                 isLoading = true
                 isErrorBannerVisible = false
             }
-            is RegisterState.Success -> {
+            is AuthViewModel.RegisterState.Success -> {
                 isLoading = false
                 navController.navigate(Screen.Login.route) {
                     popUpTo(Screen.Register.route) { inclusive = true }
                 }
             }
-            is RegisterState.BadRequest -> {
+            is AuthViewModel.RegisterState.BadRequest -> {
                 isLoading = false
                 errorMessage = state.message
                 isEmailError = true
@@ -125,7 +124,7 @@ fun RegisterScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
-            is RegisterState.Conflict -> {
+            is AuthViewModel.RegisterState.Conflict -> {
                 isLoading = false
                 errorMessage = state.message
                 isEmailError = true
@@ -135,7 +134,7 @@ fun RegisterScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
-            is RegisterState.NetworkError -> {
+            is AuthViewModel.RegisterState.NetworkError -> {
                 isLoading = false
                 errorMessage = state.message
                 isEmailError = true
@@ -145,7 +144,7 @@ fun RegisterScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
-            is RegisterState.Error -> {
+            is AuthViewModel.RegisterState.Error -> {
                 isLoading = false
                 errorMessage = state.message
                 isEmailError = true

@@ -2,7 +2,6 @@ package com.example.momentag.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.momentag.model.MyTagsUiState
 import com.example.momentag.model.Photo
 import com.example.momentag.model.TagCntData
 import com.example.momentag.repository.PhotoSelectionRepository
@@ -14,20 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed interface TagActionState {
-    object Idle : TagActionState
-
-    object Loading : TagActionState
-
-    data class Success(
-        val message: String,
-    ) : TagActionState
-
-    data class Error(
-        val message: String,
-    ) : TagActionState
-}
-
 @HiltViewModel
 class MyTagsViewModel
     @Inject
@@ -36,6 +21,32 @@ class MyTagsViewModel
         private val photoSelectionRepository: PhotoSelectionRepository,
     ) : ViewModel() {
         // 1. state class 정의
+        sealed class MyTagsUiState {
+            object Loading : MyTagsUiState()
+
+            data class Success(
+                val tags: List<TagCntData>,
+            ) : MyTagsUiState()
+
+            data class Error(
+                val message: String,
+            ) : MyTagsUiState()
+        }
+
+        sealed class TagActionState {
+            object Idle : TagActionState()
+
+            object Loading : TagActionState()
+
+            data class Success(
+                val message: String,
+            ) : TagActionState()
+
+            data class Error(
+                val message: String,
+            ) : TagActionState()
+        }
+
         sealed class SaveState {
             object Idle : SaveState()
 

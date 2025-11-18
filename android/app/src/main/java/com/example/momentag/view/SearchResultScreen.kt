@@ -73,10 +73,7 @@ import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
-import com.example.momentag.model.SearchUiState
-import com.example.momentag.model.SemanticSearchState
 import com.example.momentag.model.TagItem
-import com.example.momentag.model.TagLoadingState
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
@@ -136,7 +133,7 @@ fun SearchResultScreen(
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
 
     // 5. Derived 상태 및 계산된 값
-    val allTags = (tagLoadingState as? TagLoadingState.Success)?.tags ?: emptyList<TagItem>()
+    val allTags = (tagLoadingState as? SearchViewModel.TagLoadingState.Success)?.tags ?: emptyList<TagItem>()
     val topSpacerHeight = Dimen.ItemSpacingSmall
     val contentItems = searchViewModel.contentItems
     val textStates = searchViewModel.textStates
@@ -149,8 +146,8 @@ fun SearchResultScreen(
     val listState = rememberLazyListState()
 
     LaunchedEffect(tagLoadingState) {
-        if (tagLoadingState is TagLoadingState.Error) {
-            val errorMessage = (tagLoadingState as TagLoadingState.Error).message ?: "Unknown error"
+        if (tagLoadingState is SearchViewModel.TagLoadingState.Error) {
+            val errorMessage = (tagLoadingState as SearchViewModel.TagLoadingState.Error).message ?: "Unknown error"
 
             // TODO : change to error box
             Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
@@ -281,7 +278,7 @@ fun SearchResultScreen(
     }
 
     LaunchedEffect(initialQuery, hasPerformedInitialSearch, tagLoadingState) {
-        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch && tagLoadingState is TagLoadingState.Success) {
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch && tagLoadingState is SearchViewModel.TagLoadingState.Success) {
             searchViewModel.selectHistoryItem(initialQuery)
             hasPerformedInitialSearch = true
         }
@@ -291,27 +288,30 @@ fun SearchResultScreen(
     val uiState =
         remember(semanticSearchState) {
             when (semanticSearchState) {
-                is SemanticSearchState.Idle -> SearchUiState.Idle
-                is SemanticSearchState.Loading -> SearchUiState.Loading
-                is SemanticSearchState.Success -> {
-                    val photos = (semanticSearchState as SemanticSearchState.Success).photos
+                is SearchViewModel.SemanticSearchState.Idle -> SearchViewModel.SearchUiState.Idle
+                is SearchViewModel.SemanticSearchState.Loading -> SearchViewModel.SearchUiState.Loading
+                is SearchViewModel.SemanticSearchState.Success -> {
+                    val photos = (semanticSearchState as SearchViewModel.SemanticSearchState.Success).photos
                     val searchResults =
                         photos.map { photo ->
                             SearchResultItem(
-                                query = (semanticSearchState as SemanticSearchState.Success).query,
+                                query = (semanticSearchState as SearchViewModel.SemanticSearchState.Success).query,
                                 photo = photo,
                             )
                         }
-                    SearchUiState.Success(searchResults, (semanticSearchState as SemanticSearchState.Success).query)
+                    SearchViewModel.SearchUiState.Success(
+                        searchResults,
+                        (semanticSearchState as SearchViewModel.SemanticSearchState.Success).query,
+                    )
                 }
-                is SemanticSearchState.Empty -> {
-                    SearchUiState.Empty((semanticSearchState as SemanticSearchState.Empty).query)
+                is SearchViewModel.SemanticSearchState.Empty -> {
+                    SearchViewModel.SearchUiState.Empty((semanticSearchState as SearchViewModel.SemanticSearchState.Empty).query)
                 }
-                is SemanticSearchState.NetworkError -> {
-                    SearchUiState.Error((semanticSearchState as SemanticSearchState.NetworkError).message)
+                is SearchViewModel.SemanticSearchState.NetworkError -> {
+                    SearchViewModel.SearchUiState.Error((semanticSearchState as SearchViewModel.SemanticSearchState.NetworkError).message)
                 }
-                is SemanticSearchState.Error -> {
-                    SearchUiState.Error((semanticSearchState as SemanticSearchState.Error).message)
+                is SearchViewModel.SemanticSearchState.Error -> {
+                    SearchViewModel.SearchUiState.Error((semanticSearchState as SearchViewModel.SemanticSearchState.Error).message)
                 }
             }
         }
@@ -320,12 +320,15 @@ fun SearchResultScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState) {
-        if (uiState is SearchUiState.Error) {
+        if (uiState is SearchViewModel.SearchUiState.Error) {
             errorMessage = uiState.message
             isErrorBannerVisible = true
         } else {
             // 로딩이 성공하거나, Idle 상태가 되면 배너를 숨깁니다.
-            if (uiState is SearchUiState.Success || uiState is SearchUiState.Loading || uiState is SearchUiState.Idle) {
+            if (uiState is SearchViewModel.SearchUiState.Success ||
+                uiState is SearchViewModel.SearchUiState.Loading ||
+                uiState is SearchViewModel.SearchUiState.Idle
+            ) {
                 isErrorBannerVisible = false
             }
         }
@@ -420,7 +423,7 @@ fun SearchResultScreen(
         },
         onCreateTagClick = {
             // Get the current search results
-            val currentState = uiState as? SearchUiState.Success
+            val currentState = uiState as? SearchViewModel.SearchUiState.Success
             if (currentState != null) {
                 // photo selection already stored in draftRepository
                 // isSelectionMode = false
@@ -433,7 +436,7 @@ fun SearchResultScreen(
         },
         navController = navController,
         topBarActions =
-            if (uiState is SearchUiState.Success) {
+            if (uiState is SearchViewModel.SearchUiState.Success) {
                 topBarActions
             } else {
                 {}
@@ -483,7 +486,7 @@ fun SearchResultScreenUi(
     topSpacerHeight: Dp,
     searchBarWidth: Int,
     onSearchBarWidthChange: (Int) -> Unit,
-    uiState: SearchUiState,
+    uiState: SearchViewModel.SearchUiState,
     isSelectionMode: Boolean,
     selectedPhotos: List<Photo>,
     onBackClick: () -> Unit,
@@ -591,7 +594,7 @@ private fun SearchResultContent(
     topSpacerHeight: Dp,
     searchBarWidth: Int,
     onSearchBarWidthChange: (Int) -> Unit,
-    uiState: SearchUiState,
+    uiState: SearchViewModel.SearchUiState,
     isSelectionMode: Boolean,
     selectedPhotos: List<Photo>,
     onToggleSelectionMode: () -> Unit,
@@ -777,7 +780,7 @@ private fun SearchResultContent(
         }
 
         // Bottom overlay: Photo count + Create Tag button
-        if (uiState is SearchUiState.Success) {
+        if (uiState is SearchViewModel.SearchUiState.Success) {
             Box(
                 modifier =
                     Modifier
@@ -810,7 +813,7 @@ private fun SearchResultContent(
 @Composable
 private fun SearchResultsFromState(
     modifier: Modifier = Modifier,
-    uiState: SearchUiState,
+    uiState: SearchViewModel.SearchUiState,
     isSelectionMode: Boolean,
     selectedPhotos: List<Photo>,
     onToggleImageSelection: (Photo) -> Unit,
@@ -820,25 +823,25 @@ private fun SearchResultsFromState(
 ) {
     Box(modifier = modifier) {
         when (uiState) {
-            is SearchUiState.Idle -> {
+            is SearchViewModel.SearchUiState.Idle -> {
                 Box(modifier = Modifier.fillMaxSize()) // ?
             }
 
-            is SearchUiState.Loading -> {
+            is SearchViewModel.SearchUiState.Loading -> {
                 SearchLoadingStateCustom(
                     modifier = modifier,
                     onRefresh = onRetry,
                 )
             }
 
-            is SearchUiState.Empty -> {
+            is SearchViewModel.SearchUiState.Empty -> {
                 SearchEmptyStateCustom(
                     query = uiState.query,
                     modifier = modifier,
                 )
             }
 
-            is SearchUiState.Success -> {
+            is SearchViewModel.SearchUiState.Success -> {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = modifier,
@@ -865,7 +868,7 @@ private fun SearchResultsFromState(
                 }
             }
 
-            is SearchUiState.Error -> {
+            is SearchViewModel.SearchUiState.Error -> {
                 Box(modifier = Modifier.fillMaxHeight())
             }
         }

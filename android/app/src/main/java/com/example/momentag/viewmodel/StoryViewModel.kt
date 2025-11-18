@@ -4,8 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.StoryModel
 import com.example.momentag.model.StoryResponse
-import com.example.momentag.model.StoryState
-import com.example.momentag.model.StoryTagSubmissionState
 import com.example.momentag.model.Tag
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
@@ -38,6 +36,39 @@ class StoryViewModel
         private val remoteRepository: RemoteRepository,
         private val imageBrowserRepository: ImageBrowserRepository,
     ) : ViewModel() {
+        // 1. state class 정의
+        sealed class StoryState {
+            object Idle : StoryState()
+
+            object Loading : StoryState()
+
+            data class Success(
+                val stories: List<StoryModel>,
+                val currentIndex: Int = 0,
+                val hasMore: Boolean = true,
+            ) : StoryState()
+
+            data class Error(
+                val message: String,
+            ) : StoryState()
+
+            data class NetworkError(
+                val message: String,
+            ) : StoryState()
+        }
+
+        sealed class StoryTagSubmissionState {
+            object Idle : StoryTagSubmissionState()
+
+            object Loading : StoryTagSubmissionState()
+
+            object Success : StoryTagSubmissionState()
+
+            data class Error(
+                val message: String,
+            ) : StoryTagSubmissionState()
+        }
+
         // 1. Private MutableStateFlow
         private val _storyState = MutableStateFlow<StoryState>(StoryState.Idle)
         private val _selectedTags = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
