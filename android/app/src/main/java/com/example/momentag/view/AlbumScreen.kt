@@ -78,11 +78,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
@@ -183,14 +185,14 @@ fun AlbumScreen(
     LaunchedEffect(tagDeleteState) {
         when (val state = tagDeleteState) {
             is AlbumViewModel.TagDeleteState.Success -> {
-                Toast.makeText(context, "Photo removed from album", Toast.LENGTH_SHORT).show() // 성공: Toast
+                Toast.makeText(context, context.getString(R.string.album_photo_removed), Toast.LENGTH_SHORT).show() // Success: Toast
                 albumViewModel.resetDeleteState()
                 isErrorBannerVisible = false
             }
             is AlbumViewModel.TagDeleteState.Error -> {
-                errorBannerTitle = "Failed to Remove Photo"
+                errorBannerTitle = context.getString(R.string.album_failed_remove_photo)
                 errorBannerMessage = state.message
-                isErrorBannerVisible = true // 실패: Banner
+                isErrorBannerVisible = true // Failure: Banner
                 albumViewModel.resetDeleteState()
             }
             else -> Unit // Idle, Loading
@@ -200,15 +202,15 @@ fun AlbumScreen(
     LaunchedEffect(tagRenameState) {
         when (val state = tagRenameState) {
             is AlbumViewModel.TagRenameState.Success -> {
-                Toast.makeText(context, "Tag renamed", Toast.LENGTH_SHORT).show() // 성공: Toast
+                Toast.makeText(context, context.getString(R.string.album_tag_renamed), Toast.LENGTH_SHORT).show() // Success: Toast
                 currentTagName = editableTagName
                 albumViewModel.resetRenameState()
                 isErrorBannerVisible = false
             }
             is AlbumViewModel.TagRenameState.Error -> {
-                errorBannerTitle = "Failed to Rename Tag"
+                errorBannerTitle = context.getString(R.string.album_failed_rename_tag)
                 errorBannerMessage = state.message
-                isErrorBannerVisible = true // 실패: Banner
+                isErrorBannerVisible = true // Failure: Banner
                 editableTagName = currentTagName
                 albumViewModel.resetRenameState()
             }
@@ -219,14 +221,14 @@ fun AlbumScreen(
     LaunchedEffect(tagAddState) {
         when (val state = tagAddState) {
             is AlbumViewModel.TagAddState.Success -> {
-                Toast.makeText(context, "Photos added to album", Toast.LENGTH_SHORT).show() // 성공: Toast
+                Toast.makeText(context, context.getString(R.string.album_photos_added), Toast.LENGTH_SHORT).show() // Success: Toast
                 albumViewModel.resetAddState()
                 isErrorBannerVisible = false
             }
             is AlbumViewModel.TagAddState.Error -> {
-                errorBannerTitle = "Failed to Add Photos"
+                errorBannerTitle = context.getString(R.string.album_failed_add_photos)
                 errorBannerMessage = state.message
-                isErrorBannerVisible = true // 실패: Banner
+                isErrorBannerVisible = true // Failure: Banner
                 albumViewModel.resetAddState()
             }
             else -> Unit
@@ -280,13 +282,13 @@ fun AlbumScreen(
             onDismissRequest = { isDeleteConfirmationDialogVisible = false },
             title = {
                 Text(
-                    text = "Remove Photos",
+                    text = stringResource(R.string.album_remove_photos_title),
                     style = MaterialTheme.typography.titleLarge,
                 )
             },
             text = {
                 Text(
-                    text = "Are you sure you want to remove ${selectedTagAlbumPhotos.size} photo(s) from '$currentTagName' tag?",
+                    text = stringResource(R.string.album_remove_photos_message, selectedTagAlbumPhotos.size, currentTagName),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
@@ -300,7 +302,7 @@ fun AlbumScreen(
                         Toast
                             .makeText(
                                 context,
-                                "${selectedTagAlbumPhotos.size} photo(s) removed",
+                                context.getString(R.string.album_photos_removed_count, selectedTagAlbumPhotos.size),
                                 Toast.LENGTH_SHORT,
                             ).show()
 
@@ -309,12 +311,12 @@ fun AlbumScreen(
                         albumViewModel.resetTagAlbumPhotoSelection()
                     },
                 ) {
-                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.album_remove), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { isDeleteConfirmationDialogVisible = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
         )
@@ -346,7 +348,7 @@ fun AlbumScreen(
                                         Toast
                                             .makeText(
                                                 context,
-                                                "Share ${photos.size} photo(s)",
+                                                context.getString(R.string.share_photos_count, photos.size),
                                                 Toast.LENGTH_SHORT,
                                             ).show()
                                     }
@@ -361,7 +363,7 @@ fun AlbumScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Share,
-                                    contentDescription = "Share",
+                                    contentDescription = stringResource(R.string.cd_share),
                                 )
                             }
                             IconButton(
@@ -375,7 +377,7 @@ fun AlbumScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "Untag",
+                                    contentDescription = stringResource(R.string.cd_untag),
                                 )
                             }
                         }
@@ -455,7 +457,7 @@ fun AlbumScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Clear text",
+                                        contentDescription = stringResource(R.string.cd_clear_text),
                                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                         modifier = Modifier.size(16.dp),
                                     )
@@ -472,8 +474,8 @@ fun AlbumScreen(
                     AnimatedVisibility(visible = isSelectPhotosBannerShareVisible) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                            title = "No Photos Selected",
-                            message = "Please select photos to share.",
+                            title = stringResource(R.string.album_no_photos_selected_title),
+                            message = stringResource(R.string.album_select_photos_to_share),
                             onActionClick = { isSelectPhotosBannerShareVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
@@ -484,8 +486,8 @@ fun AlbumScreen(
                     AnimatedVisibility(visible = isSelectPhotosBannerUntagVisible) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                            title = "No Photos Selected",
-                            message = "Please select photos to untag.",
+                            title = stringResource(R.string.album_no_photos_selected_title),
+                            message = stringResource(R.string.album_select_photos_to_untag),
                             onActionClick = { isSelectPhotosBannerUntagVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
@@ -507,7 +509,7 @@ fun AlbumScreen(
 
                     if (!hasPermission) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Please allow access to your photos.")
+                            Text(stringResource(R.string.album_permission_required))
                         }
                     } else {
                         AlbumGridArea(
@@ -623,9 +625,9 @@ private fun AlbumGridArea(
             is AlbumViewModel.AlbumLoadingState.Error -> {
                 WarningBanner(
                     modifier = Modifier.fillMaxWidth(),
-                    title = "Failed to Load Album",
+                    title = stringResource(R.string.album_failed_to_load),
                     message = albumLoadState.message,
-                    onActionClick = { /* PullToRefresh가 처리 */ },
+                    onActionClick = { /* PullToRefresh handles this */ },
                     showActionButton = false,
                     showDismissButton = false,
                 )
@@ -676,7 +678,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "AI Recommending...",
+                    text = stringResource(R.string.album_ai_recommending),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -684,13 +686,13 @@ private fun RecommendChip(
             is AlbumViewModel.RecommendLoadingState.Success -> {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = "AI",
+                    contentDescription = stringResource(R.string.cd_ai),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "AI Recommend",
+                    text = stringResource(R.string.album_ai_recommend),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -698,13 +700,13 @@ private fun RecommendChip(
             is AlbumViewModel.RecommendLoadingState.Error -> {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Error",
+                    contentDescription = stringResource(R.string.error_title),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.error,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Recommendation Failed",
+                    text = stringResource(R.string.album_recommendation_failed),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -717,7 +719,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Preparing...",
+                    text = stringResource(R.string.album_preparing),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -726,7 +728,7 @@ private fun RecommendChip(
         Spacer(modifier = Modifier.width(4.dp))
         Icon(
             imageVector = Icons.Default.ExpandLess,
-            contentDescription = "Expand",
+            contentDescription = stringResource(R.string.cd_expand),
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(18.dp),
         )
@@ -818,7 +820,7 @@ private fun RecommendExpandedPanel(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             TextButton(onClick = onResetRecommendSelection) {
-                                Text("Cancel")
+                                Text(stringResource(R.string.action_cancel))
                             }
                             Button(
                                 onClick = {
@@ -834,7 +836,12 @@ private fun RecommendExpandedPanel(
                                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                             ) {
                                 Text(
-                                    text = "Add ${selectedRecommendPhotos.size} Photo${if (selectedRecommendPhotos.size > 1) "s" else ""}",
+                                    text =
+                                        stringResource(
+                                            R.string.album_add_photos_count,
+                                            selectedRecommendPhotos.size,
+                                            if (selectedRecommendPhotos.size > 1) "s" else "",
+                                        ),
                                     style = MaterialTheme.typography.labelLarge,
                                 )
                             }
@@ -843,13 +850,13 @@ private fun RecommendExpandedPanel(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "AI",
+                                contentDescription = stringResource(R.string.cd_ai),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "AI Recommend",
+                                text = stringResource(R.string.album_ai_recommend),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -859,7 +866,7 @@ private fun RecommendExpandedPanel(
                     IconButton(onClick = onCollapse) {
                         Icon(
                             imageVector = Icons.Default.ExpandMore,
-                            contentDescription = "Collapse",
+                            contentDescription = stringResource(R.string.cd_collapse),
                             modifier = Modifier.size(24.dp),
                         )
                     }
@@ -891,7 +898,7 @@ private fun RecommendExpandedPanel(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    "No recommendations available",
+                                    stringResource(R.string.album_no_recommendations),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -923,9 +930,9 @@ private fun RecommendExpandedPanel(
                         Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
                             WarningBanner(
                                 modifier = Modifier.fillMaxWidth(),
-                                title = "Recommendation Failed",
+                                title = stringResource(R.string.album_recommendation_failed),
                                 message = recommendLoadState.message,
-                                onActionClick = { /* TODO: 재시도 로직 필요 */ },
+                                onActionClick = { /* TODO: Retry logic needed */ },
                                 showActionButton = false,
                                 showDismissButton = false,
                             )

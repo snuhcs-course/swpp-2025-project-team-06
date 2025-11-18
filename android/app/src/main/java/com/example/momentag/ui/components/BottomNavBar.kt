@@ -21,8 +21,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.momentag.R
 
 @Composable
 fun BottomNavBar(
@@ -46,19 +48,22 @@ fun BottomNavBar(
         ) {
             BottomNavItem(
                 icon = Icons.Default.Home,
-                text = "Home",
+                text = stringResource(R.string.nav_home),
+                contentDescription = stringResource(R.string.cd_nav_home),
                 isSelected = currentTab == BottomTab.HomeScreen,
             ) { onTabSelected(BottomTab.HomeScreen) }
 
             BottomNavItem(
                 icon = Icons.AutoMirrored.Filled.Label,
-                text = "My Tags",
+                text = stringResource(R.string.nav_my_tags),
+                contentDescription = stringResource(R.string.cd_nav_my_tags),
                 isSelected = currentTab == BottomTab.MyTagsScreen,
             ) { onTabSelected(BottomTab.MyTagsScreen) }
 
             BottomNavItem(
                 icon = Icons.Default.AutoStories,
-                text = "Moment",
+                text = stringResource(R.string.nav_moment),
+                contentDescription = stringResource(R.string.cd_nav_moment),
                 isSelected = currentTab == BottomTab.StoryScreen,
             ) { onTabSelected(BottomTab.StoryScreen) }
         }
@@ -75,6 +80,7 @@ enum class BottomTab {
 private fun BottomNavItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
+    contentDescription: String,
     isSelected: Boolean = false,
     onClick: () -> Unit,
 ) {
@@ -89,7 +95,7 @@ private fun BottomNavItem(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = contentDescription,
             tint = tint,
             modifier = Modifier.size(24.dp),
         )

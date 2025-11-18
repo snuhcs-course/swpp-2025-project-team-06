@@ -19,29 +19,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.theme.imageCornerRadius
 
 /**
- * 이미지 그리드 아이템 - 일반 모드와 선택 모드를 모두 지원
+ * Image grid item - Supports both normal and selection modes
  *
- * ImageContext는 ImageBrowserRepository를 통해 자동으로 관리됩니다.
- * UI는 단순히 navigate만 하면 됩니다.
+ * ImageContext is automatically managed through ImageBrowserRepository.
+ * UI only needs to handle navigation.
  *
- * @param photo Photo 객체 (photoId + contentUri)
- * @param navController 네비게이션 컨트롤러
+ * @param photo Photo object (photoId + contentUri)
+ * @param navController Navigation controller
  * @param modifier Modifier
- * @param isSelectionMode 선택 모드 활성화 여부 (기본: false)
- * @param isSelected 현재 선택 여부 (기본: false)
- * @param onToggleSelection 선택/해제 콜백 (선택사항)
- * @param onLongPress 롱프레스 콜백 (선택사항)
- * @param cornerRadius 모서리 둥글기 (기본: 4dp)
- * @param topPadding 상단 패딩 (기본: 0dp)
+ * @param isSelectionMode Whether selection mode is active (default: false)
+ * @param isSelected Whether currently selected (default: false)
+ * @param onToggleSelection Selection/deselection callback (optional)
+ * @param onLongPress Long press callback (optional)
+ * @param cornerRadius Corner radius (default: 4dp)
+ * @param topPadding Top padding (default: 0dp)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -61,7 +63,7 @@ fun ImageGridUriItem(
     ) {
         AsyncImage(
             model = photo.contentUri,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -85,7 +87,7 @@ fun ImageGridUriItem(
             contentScale = ContentScale.Crop,
         )
 
-        // 선택 표시 (선택 모드일 때만)
+        // Selection indicator (only in selection mode)
         if (isSelectionMode) {
             Box(
                 modifier =
@@ -118,7 +120,7 @@ fun ImageGridUriItem(
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
+                        contentDescription = stringResource(R.string.cd_photo_selected),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(16.dp),
                     )

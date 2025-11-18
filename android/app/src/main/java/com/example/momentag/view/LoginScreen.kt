@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.LoginState
 import com.example.momentag.ui.components.WarningBanner
@@ -58,16 +60,16 @@ import com.example.momentag.viewmodel.AuthViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController) {
-    // 1. Context 및 Platform 관련 변수
+    // Context and platform-related variables
     val context = LocalContext.current
 
-    // 2. ViewModel 인스턴스
+    // ViewModel instance
     val authViewModel: AuthViewModel = hiltViewModel()
 
-    // 3. ViewModel에서 가져온 상태 (collectAsState)
+    // State collected from ViewModel
     val loginState by authViewModel.loginState.collectAsState()
 
-    // 4. 로컬 상태 변수
+    // Local state variables
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
@@ -79,7 +81,7 @@ fun LoginScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
 
-    // 9. 콜백 함수 정의
+    // Callback function to clear all errors
     val clearAllErrors = {
         isUsernameError = false
         isPasswordError = false
@@ -87,7 +89,7 @@ fun LoginScreen(navController: NavController) {
         isErrorBannerVisible = false
     }
 
-    // 10. LaunchedEffect
+    // Handle login state changes
     LaunchedEffect(loginState) {
         when (val state = loginState) {
             is LoginState.Loading -> {
@@ -158,7 +160,7 @@ fun LoginScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(24.dp))
             // MomenTag title
             Text(
-                text = "#MomenTag",
+                text = stringResource(R.string.app_title_with_hash),
                 style = MaterialTheme.typography.displayLarge,
             )
 
@@ -174,7 +176,7 @@ fun LoginScreen(navController: NavController) {
                 Spacer(modifier = Modifier.weight(0.5f))
                 // Login title
                 Text(
-                    text = "Login",
+                    text = stringResource(R.string.login_title),
                     style = MaterialTheme.typography.displayLarge,
                 )
 
@@ -184,9 +186,9 @@ fun LoginScreen(navController: NavController) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Don't have an account? ", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.login_no_account) + " ", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        text = "Sign Up",
+                        text = stringResource(R.string.login_sign_up),
                         modifier =
                             Modifier.clickable {
                                 navController.navigate(Screen.Register.route) {
@@ -200,7 +202,11 @@ fun LoginScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // username input
-                Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = stringResource(R.string.field_username),
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -229,7 +235,7 @@ fun LoginScreen(navController: NavController) {
                             isUsernameError = false
                         }
                     },
-                    placeholder = { Text("Username", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    placeholder = { Text(stringResource(R.string.field_username), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     isError = isUsernameError,
@@ -253,7 +259,7 @@ fun LoginScreen(navController: NavController) {
                 ) {
                     if (isUsernameError && username.isEmpty()) {
                         Text(
-                            text = "Please enter your username",
+                            text = stringResource(R.string.validation_required_username),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -261,7 +267,11 @@ fun LoginScreen(navController: NavController) {
                 }
 
                 // password input
-                Text(text = "Password", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = stringResource(R.string.field_password),
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 OutlinedTextField(
                     modifier =
                         Modifier
@@ -290,13 +300,20 @@ fun LoginScreen(navController: NavController) {
                             isPasswordError = false
                         }
                     },
-                    placeholder = { Text("Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    placeholder = { Text(stringResource(R.string.field_password), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                        val description = if (passwordVisible) "Hide password" else "Show password"
+                        val description =
+                            if (passwordVisible) {
+                                stringResource(
+                                    R.string.cd_password_hide,
+                                )
+                            } else {
+                                stringResource(R.string.cd_password_show)
+                            }
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(imageVector = image, contentDescription = description)
                         }
@@ -314,7 +331,7 @@ fun LoginScreen(navController: NavController) {
                         ),
                 )
 
-                // --- 수정: 로컬 에러만 여기에 표시 ---
+                // Show local validation error only
                 Box(
                     modifier =
                         Modifier
@@ -324,7 +341,7 @@ fun LoginScreen(navController: NavController) {
                 ) {
                     if (!isErrorBannerVisible && isPasswordError && password.isEmpty()) {
                         Text(
-                            text = "Please enter your password",
+                            text = stringResource(R.string.validation_required_password),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -333,8 +350,8 @@ fun LoginScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(8.dp))
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
-                        title = "Login Failed",
-                        message = errorMessage ?: "Unknown error",
+                        title = stringResource(R.string.error_title_login_failed),
+                        message = errorMessage ?: stringResource(R.string.error_message_unknown),
                         onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,
                         showDismissButton = true,
@@ -372,7 +389,7 @@ fun LoginScreen(navController: NavController) {
                             strokeWidth = 2.dp,
                         )
                     } else {
-                        Text("Log In", style = MaterialTheme.typography.headlineSmall)
+                        Text(stringResource(R.string.action_login), style = MaterialTheme.typography.headlineSmall)
                     }
                 }
                 Spacer(modifier = Modifier.weight(1f))

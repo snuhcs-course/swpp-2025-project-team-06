@@ -59,11 +59,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
@@ -78,25 +80,25 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTagScreen(navController: NavController) {
-    // 1. Context 및 Platform 관련 변수
+    // Context and platform-related variables
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
-    // 2. ViewModel 인스턴스
+    // ViewModel instance
     val addTagViewModel: AddTagViewModel = hiltViewModel()
 
-    // 3. ViewModel에서 가져온 상태 (collectAsState)
+    // State collected from ViewModel
     val tagName by addTagViewModel.tagName.collectAsState()
     val selectedPhotos by addTagViewModel.selectedPhotos.collectAsState()
     val saveState by addTagViewModel.saveState.collectAsState()
     val isTagNameDuplicate by addTagViewModel.isTagNameDuplicate.collectAsState()
 
-    // 4. 로컬 상태 변수
+    // Local state variables
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
 
-    // 5. ActivityResultLauncher
+    // Permission launcher
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -107,13 +109,13 @@ fun AddTagScreen(navController: NavController) {
             },
         )
 
-    // 6. 콜백 함수 정의
+    // Callback functions
     val onDeselectPhoto: (Photo) -> Unit = { photo ->
         isChanged = true
         addTagViewModel.removePhoto(photo)
     }
 
-    // 7. LaunchedEffect
+    // Request permissions on first launch
     LaunchedEffect(key1 = true) {
         val permission =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -139,7 +141,7 @@ fun AddTagScreen(navController: NavController) {
         }
     }
 
-    // 8. BackHandler
+    // Handle back button
     BackHandler {
         addTagViewModel.clearDraft()
         navController.popBackStack()
@@ -148,7 +150,7 @@ fun AddTagScreen(navController: NavController) {
     Scaffold(
         topBar = {
             BackTopBar(
-                title = "Create Tag",
+                title = stringResource(R.string.tag_create_title),
                 onBackClick = {
                     addTagViewModel.clearDraft()
                     navController.popBackStack()
@@ -222,7 +224,12 @@ fun AddTagScreen(navController: NavController) {
 
                     // Added Pictures Section
                     Text(
-                        text = if (selectedPhotos.isEmpty()) "Photos" else "Photos (${selectedPhotos.size})",
+                        text =
+                            if (selectedPhotos.isEmpty()) {
+                                stringResource(R.string.tag_photos_label)
+                            } else {
+                                stringResource(R.string.tag_photos_count, selectedPhotos.size)
+                            },
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -252,7 +259,7 @@ fun AddTagScreen(navController: NavController) {
                     // Error Banner - Floating above Done button
                     if (isErrorBannerVisible && saveState is AddTagViewModel.SaveState.Error) {
                         WarningBanner(
-                            title = "Couldn't save tag",
+                            title = stringResource(R.string.error_message_save_tag),
                             message = (saveState as AddTagViewModel.SaveState.Error).message,
                             onActionClick = { },
                             onDismiss = { isErrorBannerVisible = false },
@@ -291,7 +298,7 @@ fun AddTagScreen(navController: NavController) {
                             enabled = canSubmit,
                         ) {
                             Text(
-                                "Done",
+                                stringResource(R.string.action_done),
                                 style = MaterialTheme.typography.labelLarge,
                             )
                         }
@@ -341,7 +348,7 @@ private fun TagNameSection(
             textStyle = MaterialTheme.typography.headlineSmall,
             placeholder = {
                 Text(
-                    "Enter tag name",
+                    stringResource(R.string.field_enter_tag_name),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 )
@@ -365,7 +372,7 @@ private fun TagNameSection(
         )
         if (isDuplicate) {
             Text(
-                text = "The tag '$tagName' already exists. This will add photos to it.",
+                text = stringResource(R.string.validation_tag_exists, tagName),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp),
@@ -422,7 +429,7 @@ private fun PhotoItem(
     ) {
         AsyncImage(
             model = photo.contentUri,
-            contentDescription = "Photo ${photo.photoId}",
+            contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -456,7 +463,7 @@ private fun CheckboxOverlay(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.cd_photo_selected),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(16.dp),
             )

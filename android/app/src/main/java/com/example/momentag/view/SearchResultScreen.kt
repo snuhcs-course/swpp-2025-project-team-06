@@ -62,6 +62,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -71,6 +72,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
@@ -98,9 +100,9 @@ import kotlinx.coroutines.flow.first
 
 /**
  *  * ========================================
- *  * SearchResultScreen - 검색 결과 화면
+ *  * SearchResultScreen - Search Result Screen
  *  * ========================================
- * Semantic Search 결과를 표시하는 검색 결과 메인 화면
+ * Main screen displaying Semantic Search results
  */
 @Composable
 fun SearchResultScreen(
@@ -150,7 +152,7 @@ fun SearchResultScreen(
 
     LaunchedEffect(tagLoadingState) {
         if (tagLoadingState is TagLoadingState.Error) {
-            val errorMessage = (tagLoadingState as TagLoadingState.Error).message ?: "Unknown error"
+            val errorMessage = (tagLoadingState as TagLoadingState.Error).message ?: context.getString(R.string.error_message_unknown)
 
             // TODO : change to error box
             Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
@@ -240,9 +242,9 @@ fun SearchResultScreen(
 
     val placeholderText =
         if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
-            initialQuery // 로딩 중(파싱 전)에는 initialQuery를 플레이스홀더로 사용
+            initialQuery // While loading (before parsing), use initialQuery as placeholder
         } else {
-            "Search with \"#tag\"" // 기본 플레이스홀더
+            stringResource(R.string.search_placeholder_with_tag) // Default placeholder
         }
 
     BackHandler(enabled = isSelectionMode) {
@@ -342,7 +344,7 @@ fun SearchResultScreen(
                         Toast
                             .makeText(
                                 context,
-                                "Share ${photos.size} photo(s)",
+                                context.getString(R.string.share_photos_count, photos.size),
                                 Toast.LENGTH_SHORT,
                             ).show()
                     }
@@ -356,7 +358,7 @@ fun SearchResultScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Share,
-                    contentDescription = "Share",
+                    contentDescription = stringResource(R.string.cd_share),
                 )
             }
         }
@@ -365,7 +367,7 @@ fun SearchResultScreen(
     val performSearch = {
         focusManager.clearFocus()
         searchViewModel.performSearch { route ->
-            // 이미 search result 화면
+            // Already on search result screen
         }
     }
 
@@ -454,7 +456,7 @@ fun SearchResultScreen(
 }
 
 /**
- * UI 전용 검색 결과 화면
+ * UI-only search results screen
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -507,7 +509,7 @@ fun SearchResultScreenUi(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             CommonTopBar(
-                title = "Search Results",
+                title = stringResource(R.string.search_result_title),
                 showBackButton = true,
                 onBackClick = onBackClick,
                 actions = topBarActions,
@@ -563,7 +565,7 @@ fun SearchResultScreenUi(
 }
 
 /**
- * 검색 결과 컨텐츠 (순수 UI)
+ * Search result content (pure UI)
  */
 @Composable
 private fun SearchResultContent(
@@ -666,7 +668,7 @@ private fun SearchResultContent(
                 IconButton(
                     onClick = {
                         // TODO: Show filter dialog
-                        Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.filter), Toast.LENGTH_SHORT).show()
                     },
                     modifier =
                         Modifier
@@ -678,13 +680,13 @@ private fun SearchResultContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.FilterList,
-                        contentDescription = "Filter",
+                        contentDescription = stringResource(R.string.cd_filter),
                         tint = MaterialTheme.colorScheme.onPrimary,
                     )
                 }
             }
 
-            // 태그 추천 목록 (LazyRow)
+            // Tag suggestion list (LazyRow)
             if (tagSuggestions.isNotEmpty()) {
                 LazyRow(
                     modifier =
@@ -727,8 +729,8 @@ private fun SearchResultContent(
             AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                 WarningBanner(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    title = "Search Failed",
-                    message = errorMessage ?: "Unknown error",
+                    title = stringResource(R.string.search_failed_title),
+                    message = errorMessage ?: stringResource(R.string.error_message_unknown),
                     onActionClick = onRetry,
                     onDismiss = onDismissError,
                     showActionButton = true,
@@ -792,7 +794,7 @@ private fun SearchResultContent(
                             Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(start = 16.dp),
-                        text = "Add Tag (${selectedPhotos.size})",
+                        text = stringResource(R.string.add_tag_with_count, selectedPhotos.size),
                         onClick = {
                             onCreateTagClick()
                         },
@@ -804,7 +806,7 @@ private fun SearchResultContent(
 }
 
 /**
- * UI 상태에 따라 적절한 검색 결과를 표시
+ * Display appropriate search results based on UI state
  */
 @Composable
 private fun SearchResultsFromState(

@@ -36,13 +36,20 @@
     <string name="nav_moment">Moment</string>
 
     <!-- ============================================ -->
+    <!-- BUTTONS -->
+    <!-- ============================================ -->
+    <string name="button_create_tag">Create Tag</string>
+
+    <!-- ============================================ -->
     <!-- ERROR TITLES -->
     <!-- ============================================ -->
     <string name="error_title">Error</string>
     <string name="error_title_logout_failed">Logout Failed</string>
     <string name="error_title_load_failed">Failed to Load</string>
+    <string name="error_title_load_tags_failed">Failed to Load Tags</string>
     <string name="error_title_delete_failed">Delete Failed</string>
     <string name="error_title_save_failed">Save Failed</string>
+    <string name="error_title_action_failed">Action Failed</string>
     <string name="error_title_search_failed">Search Failed</string>
     <string name="error_title_login_failed">Login Failed</string>
     <string name="error_title_register_failed">Registration Failed</string>
@@ -51,12 +58,13 @@
     <!-- ERROR MESSAGES - User-friendly with guidance -->
     <!-- ============================================ -->
     <string name="error_message_generic">Something went wrong. Please try again.</string>
+    <string name="error_message_unknown">Unknown error</string>
     <string name="error_message_logout">We couldn\'t log you out. Please check your connection and try again.</string>
     <string name="error_message_load_tags">We couldn\'t load your tags. Pull down to refresh.</string>
     <string name="error_message_delete_tag">We couldn\'t delete this tag. Please try again.</string>
     <string name="error_message_network">We couldn\'t connect to the server. Please check your internet connection.</string>
     <string name="error_message_search">We couldn\'t complete your search. Please try again.</string>
-    <string name="error_message_save_tag">We couldn\'t save your tag. Please check your connection and try again.</string>
+    <string name="error_message_save_tag">Couldn\'t save tag</string>
     <string name="error_message_login">We couldn\'t log you in. Please check your credentials and try again.</string>
     <string name="error_message_register">We couldn\'t create your account. Please try again.</string>
 
@@ -106,8 +114,10 @@
     <string name="validation_required_password">Please enter your password</string>
     <string name="validation_required_email">Please enter your email</string>
     <string name="validation_invalid_email">Please enter a valid email address</string>
-    <string name="validation_passwords_dont_match">Passwords don\'t match</string>
+    <string name="validation_passwords_dont_match">Password does not match</string>
+    <string name="validation_required_password_check">Please check your password</string>
     <string name="validation_required_tag_name">Please enter a tag name</string>
+    <string name="validation_tag_exists">The tag \'%1$s\' already exists. This will add photos to it.</string>
 
     <!-- ============================================ -->
     <!-- DIALOGS -->
@@ -116,9 +126,14 @@
     <string name="dialog_logout_message">Are you sure you want to log out?</string>
     <string name="dialog_delete_tag_title">Delete Tag</string>
     <string name="dialog_delete_tag_message">Are you sure you want to delete \'%1$s\' tag?</string>
-    <string name="dialog_rename_tag_title">Rename Tag</string>
-    <string name="dialog_rename_tag_message">Enter a new name for this tag</string>
+    <string name="dialog_delete_tags_title">Delete Tags</string>
+    <string name="dialog_delete_tags_message">Are you sure you want to delete %1$d tag(s)?</string>
+    <string name="dialog_rename_tag_title">Edit Tag Name</string>
+    <string name="dialog_rename_tag_message">Enter the new tag name</string>
+    <string name="dialog_add_to_tag_title">Add to Tag</string>
+    <string name="dialog_add_to_tag_message">Are you sure you want to add the selected photos to \'%1$s\'?</string>
     <string name="dialog_confirm">Confirm</string>
+    <string name="dialog_add">Add</string>
 
     <!-- ============================================ -->
     <!-- BANNERS / NOTIFICATIONS -->
@@ -143,9 +158,20 @@
     <string name="cd_recent_search_item">Recent search item</string>
     <string name="cd_delete_search_history">Delete this search from history</string>
     <string name="cd_password_visibility_toggle">Toggle password visibility</string>
+    <string name="cd_password_show">Show password</string>
+    <string name="cd_password_hide">Hide password</string>
     <string name="cd_more_options">More options</string>
     <string name="cd_filter">Filter results</string>
     <string name="cd_selected_photo">Selected photo</string>
+    <string name="cd_photo_item">Photo %1$s</string>
+    <string name="cd_photo_selected">Selected</string>
+    <string name="cd_empty_tag">Empty Tag</string>
+    <string name="cd_nav_home">Navigate to Home</string>
+    <string name="cd_nav_my_tags">Navigate to My Tags</string>
+    <string name="cd_nav_moment">Navigate to Moment</string>
+    <string name="cd_create_tag">Create a new tag</string>
+    <string name="cd_add_photos">Add photos to tag</string>
+    <string name="cd_scroll_up">Scroll up for next moment</string>
 
     <!-- ============================================ -->
     <!-- EMPTY STATES -->
@@ -168,6 +194,17 @@
     <string name="tag_add_photos">Add Photos</string>
     <string name="tag_select_photos">Select Photos</string>
     <string name="tag_add_to_tag">Add to Tag</string>
+    <string name="tag_count_singular">%1$d tag</string>
+    <string name="tag_count_plural">%1$d tags</string>
+    <string name="tag_choose_to_add_photos">Choose Tag to add photos</string>
+    <string name="tag_organize_memories">Organize your memories\nby keyword</string>
+    <string name="tag_create_memories">Create memories</string>
+    <string name="tag_sort_by">Sort by</string>
+    <string name="tag_sort_name_az">Name (A-Z)</string>
+    <string name="tag_sort_name_za">Name (Z-A)</string>
+    <string name="tag_sort_recently_added">Recently Added</string>
+    <string name="tag_sort_count_desc">Count (Descending)</string>
+    <string name="tag_sort_count_asc">Count (Ascending)</string>
 
     <!-- ============================================ -->
     <!-- PHOTOS / ALBUMS -->
@@ -195,11 +232,79 @@
     <string name="loading_uploading">Uploading…</string>
     <string name="loading_searching">Searching…</string>
     <string name="loading_saving">Saving…</string>
+    <string name="loading_with_ellipsis">Loading…</string>
 
     <!-- ============================================ -->
     <!-- GALLERY / LOCAL -->
     <!-- ============================================ -->
     <string name="gallery_albums_title">Albums</string>
     <string name="gallery_upload_started">Upload started</string>
+
+    <!-- ============================================ -->
+    <!-- SEARCH RESULT SCREEN -->
+    <!-- ============================================ -->
+    <string name="search_result_title">Search Results</string>
+    <string name="search_placeholder_with_tag">Search with \"#tag\"</string>
+    <string name="search_failed_title">Search Failed</string>
+    <string name="share_photos_count">Share %1$d photo(s)</string>
+    <string name="cd_share">Share</string>
+    <string name="filter">Filter</string>
+    <string name="add_tag_with_count">Add Tag (%1$d)</string>
+
+    <!-- ============================================ -->
+    <!-- ALBUM SCREEN -->
+    <!-- ============================================ -->
+    <string name="album_photo_removed">Photo removed from album</string>
+    <string name="album_photos_removed_count">%1$d photo(s) removed</string>
+    <string name="album_failed_remove_photo">Failed to Remove Photo</string>
+    <string name="album_tag_renamed">Tag renamed</string>
+    <string name="album_failed_rename_tag">Failed to Rename Tag</string>
+    <string name="album_photos_added">Photos added to album</string>
+    <string name="album_failed_add_photos">Failed to Add Photos</string>
+    <string name="album_remove_photos_title">Remove Photos</string>
+    <string name="album_remove_photos_message">Are you sure you want to remove %1$d photo(s) from \'%2$s\' tag?</string>
+    <string name="album_remove">Remove</string>
+    <string name="cd_untag">Untag</string>
+    <string name="cd_clear_text">Clear text</string>
+    <string name="album_no_photos_selected_title">No Photos Selected</string>
+    <string name="album_select_photos_to_share">Please select photos to share.</string>
+    <string name="album_select_photos_to_untag">Please select photos to untag.</string>
+    <string name="album_permission_required">Please allow access to your photos.</string>
+    <string name="album_failed_to_load">Failed to Load Album</string>
+    <string name="album_ai_recommending">AI Recommending...</string>
+    <string name="album_ai_recommend">AI Recommend</string>
+    <string name="album_recommendation_failed">Recommendation Failed</string>
+    <string name="album_preparing">Preparing...</string>
+    <string name="cd_expand">Expand</string>
+    <string name="cd_collapse">Collapse</string>
+    <string name="album_add_photos_count">Add %1$d Photo%2$s</string>
+    <string name="album_no_recommendations">No recommendations available</string>
+    <string name="cd_ai">AI</string>
+
+    <!-- ============================================ -->
+    <!-- STORY SCREEN -->
+    <!-- ============================================ -->
+    <string name="story_title">Moment</string>
+    <string name="story_loading_memories">Loading memories...</string>
+    <string name="story_error_title">Error</string>
+    <string name="story_network_error_title">Network Error</string>
+    <string name="cd_story_image">story image</string>
+    <string name="story_tags_for_memory">Tags for this memory</string>
+    <string name="story_edit_tags">Edit Tags</string>
+    <string name="story_remember_this">How do you want to remember this?</string>
+    <string name="story_failed_save_tag">Failed to Save Tag</string>
+    <string name="cd_success">Success</string>
+    <string name="story_retry">Retry</string>
+
+    <!-- ============================================ -->
+    <!-- SELECT IMAGE SCREEN -->
+    <!-- ============================================ -->
+    <string name="select_image_title">Select Photos</string>
+    <string name="select_image_add_to_tag">Add to #%1$s</string>
+    <string name="select_image_selected_count">%1$d selected</string>
+    <string name="cd_photo">Photo %1$s</string>
+    <string name="select_image_no_suggestions">No suggestions at this time</string>
+    <string name="select_image_couldnt_load">Couldn\'t load suggestions</string>
+    <string name="select_image_connection_lost">Connection lost</string>
 
 </resources>
