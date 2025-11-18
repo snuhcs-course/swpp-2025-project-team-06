@@ -111,6 +111,10 @@ ktlint {
     ignoreFailures.set(false)
 }
 
+hilt {
+    enableAggregatingTask = false
+}
+
 tasks.withType<Test> {
     jvmArgs(
         "-noverify",
