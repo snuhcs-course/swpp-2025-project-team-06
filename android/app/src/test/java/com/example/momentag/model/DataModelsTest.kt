@@ -16,6 +16,19 @@ import org.junit.Before
 import org.junit.Test
 
 class DataModelsTest {
+    private fun createSamplePhoto(
+        id: String,
+        uriString: String,
+    ): Photo {
+        val mockUri = mockk<Uri>()
+        every { mockUri.toString() } returns uriString
+        return Photo(
+            photoId = id,
+            contentUri = mockUri,
+            createdAt = "2024-01-01T00:00:00Z",
+        )
+    }
+
     private lateinit var mockUri: Uri
 
     @Before
@@ -800,19 +813,6 @@ class DataModelsTest {
 
     // ========== Image Context Tests ==========
 
-    private fun createSamplePhoto(
-        id: String,
-        uriString: String,
-    ): Photo {
-        val mockUri = mockk<Uri>()
-        every { mockUri.toString() } returns uriString
-        return Photo(
-            photoId = id,
-            contentUri = mockUri,
-            createdAt = "2024-01-01T00:00:00Z",
-        )
-    }
-
     @Test
     fun `ImageContext 생성 테스트`() {
         // Given
@@ -1134,5 +1134,97 @@ class DataModelsTest {
         // Then
         assertEquals(1000, tagAlbum.photos.size)
         assertEquals("photo500", tagAlbum.photos[499])
+    }
+
+    // ========== SearchResultItem Tests ==========
+
+    @Test
+    fun `SearchResultItem 생성 테스트`() {
+        // Given
+        val query = "여행"
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+
+        // When
+        val searchResultItem =
+            SearchResultItem(
+                query = query,
+                photo = photo,
+            )
+
+        // Then
+        assertEquals("여행", searchResultItem.query)
+        assertEquals("1", searchResultItem.photo.photoId)
+        assertEquals(photo, searchResultItem.photo)
+    }
+
+    @Test
+    fun `SearchResultItem 빈 쿼리 테스트`() {
+        // Given
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+
+        // When
+        val searchResultItem =
+            SearchResultItem(
+                query = "",
+                photo = photo,
+            )
+
+        // Then
+        assertTrue(searchResultItem.query.isEmpty())
+        assertEquals(photo, searchResultItem.photo)
+    }
+
+    @Test
+    fun `SearchResultItem copy 테스트`() {
+        // Given
+        val original =
+            SearchResultItem(
+                query = "원래쿼리",
+                photo = createSamplePhoto("1", "content://media/external/images/1"),
+            )
+
+        // When
+        val copied = original.copy(query = "새쿼리")
+
+        // Then
+        assertEquals("새쿼리", copied.query)
+        assertEquals(original.photo, copied.photo)
+    }
+
+    @Test
+    fun `SearchResultItem equals 테스트`() {
+        // Given
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+        val item1 = SearchResultItem("여행", photo)
+        val item2 = SearchResultItem("여행", photo)
+        val item3 = SearchResultItem("가족", photo)
+
+        // Then
+        assertEquals(item1, item2)
+        assertNotEquals(item1, item3)
+    }
+
+    @Test
+    fun `SearchResultItem hashCode 테스트`() {
+        // Given
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+        val item1 = SearchResultItem("여행", photo)
+        val item2 = SearchResultItem("여행", photo)
+
+        // Then
+        assertEquals(item1.hashCode(), item2.hashCode())
+    }
+
+    @Test
+    fun `SearchResultItem 특수문자 쿼리 테스트`() {
+        // Given
+        val specialQuery = "!@#$%^&*()_+{}[]|\\:\";<>?,./~`"
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+
+        // When
+        val item = SearchResultItem(specialQuery, photo)
+
+        // Then
+        assertEquals(specialQuery, item.query)
     }
 }
