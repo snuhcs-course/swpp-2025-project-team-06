@@ -116,13 +116,24 @@
     <string name="field_enter_tag_name">Enter tag name</string>
 
     <!-- ============================================ -->
+    <!-- CONTEXTUAL HELP / SUPPORTING TEXT -->
+    <!-- ============================================ -->
+    <string name="help_tag_name">Tags help you organize photos by events or keywords</string>
+    <string name="help_password_requirements">Must be at least 8 characters</string>
+    <string name="help_email_format">We\'ll use this to help you recover your account</string>
+    <string name="help_search">Try searching for places, people, or events</string>
+    <string name="help_no_tags">Create your first tag to start organizing your memories</string>
+    <string name="help_no_photos_in_tag">Add photos to bring this tag to life</string>
+    <string name="help_select_photos">Tap photos to select them for your tag</string>
+
+    <!-- ============================================ -->
     <!-- VALIDATION MESSAGES -->
     <!-- ============================================ -->
     <string name="validation_required_username">Please enter your username</string>
     <string name="validation_required_password">Please enter your password</string>
     <string name="validation_required_email">Please enter your email</string>
     <string name="validation_invalid_email">Please enter a valid email address</string>
-    <string name="validation_passwords_dont_match">Password does not match</string>
+    <string name="validation_passwords_dont_match">Passwords don\'t match</string>
     <string name="validation_required_password_check">Please check your password</string>
     <string name="validation_required_tag_name">Please enter a tag name</string>
     <string name="validation_tag_exists">The tag \'%1$s\' already exists. This will add photos to it.</string>

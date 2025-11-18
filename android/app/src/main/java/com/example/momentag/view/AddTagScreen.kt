@@ -359,6 +359,17 @@ private fun TagNameSection(
                     style = MaterialTheme.typography.headlineSmall,
                 )
             },
+            supportingText =
+                if (!isDuplicate && tagName.isEmpty()) {
+                    {
+                        Text(
+                            text = stringResource(R.string.help_tag_name),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                } else {
+                    null
+                },
             colors =
                 TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
