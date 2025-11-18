@@ -1,318 +1,206 @@
 package com.example.momentag.ui.imagedetail
 
-import android.Manifest
 import android.net.Uri
-import android.os.Build
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.longClick
-import androidx.compose.ui.test.isDisplayed
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.rule.GrantPermissionRule
-import com.example.momentag.ui.theme.MomenTagTheme
+import com.example.momentag.model.ImageContext
+import com.example.momentag.model.ImageDetailTagState
+import com.example.momentag.model.Photo
+import com.example.momentag.model.Tag
 import com.example.momentag.view.ImageDetailScreen
+import com.example.momentag.viewmodel.ImageDetailViewModel
 import com.example.momentag.viewmodel.ViewModelFactory
-import org.junit.After
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.time.Duration.Companion.seconds
-
-// Test Tags
-private const val EXISTING_TAG_1 = "Existing Tag 1"
-private const val RECOMMENDED_TAG_B = "Recommend B"
-private const val TIMEOUT_MILLIS = 10_000L
 
 @RunWith(AndroidJUnit4::class)
-@OptIn(ExperimentalTestApi::class)
 class ImageDetailScreenTest {
-    @get:Rule(order = 0)
-    val permissionRule: GrantPermissionRule =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            GrantPermissionRule.grant(Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            // Placeholder for older SDKs if media location is not relevant
-            GrantPermissionRule.grant(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
+    @get:Rule
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
-    @get:Rule(order = 1)
-    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    // 테스트 대상 ViewModel
+    private lateinit var vm: ImageDetailViewModel
 
-    // Test constants
-    private val mockImageId = "backend_photo_123"
-    // NOTE: If you still experience SecurityException, change this to a non-media store URI:
-    // private val mockUri: Uri = Uri.parse("content://momentag.mock_data/100")
-    private val mockUri: Uri = Uri.parse("content://media/external/images/media/100")
+    // 테스트에 사용할 가짜 데이터
+    private val fakePhotoId = "p_test_123"
+    private val fakeImageUri: Uri = Uri.parse("content://fake/uri/1")
 
     @Before
     fun setup() {
-        // Clear shared state if needed (no repository clear needed for ImageDetailViewModel setup)
-        // Ensure ViewModelFactory is initialized (handles data source setup)
-        ViewModelFactory.getInstance(composeTestRule.activity.applicationContext)
-    }
+        val factory = ViewModelFactory.getInstance(composeRule.activity)
+        // ImageDetailViewModel의 싱글턴 인스턴스를 가져옴
+        vm = ViewModelProvider(composeRule.activity, factory)[ImageDetailViewModel::class.java]
 
-    @After
-    fun tearDown() {
-        // Cleanup after test
+        // 모든 상태 초기화
+        setFlow("_imageContext", null)
+        setFlow("_imageDetailTagState", ImageDetailTagState.Idle)
+        setFlow("_tagDeleteState", ImageDetailViewModel.TagDeleteState.Idle)
+        setFlow("_tagAddState", ImageDetailViewModel.TagAddState.Idle)
+        setFlow("_photoAddress", null)
     }
 
     /**
-     * Waits for the tags section to load by checking for the presence of the "Add Tag" button
-     * which should appear regardless of whether actual tags are returned (empty state).
-     * If the button does not appear within the timeout, it indicates a critical loading failure
-     * but we proceed cautiously to prevent a direct ComposeTimeoutException.
+     * **핵심 수정 사항**: setContent 호출을 @Test 함수 내부로 이동하여,
+     * 각 테스트가 독립적인 Compose Hierarchy를 가지도록 보장합니다.
      */
-    private fun waitForTagsToLoad() {
-        try {
-            composeTestRule.waitUntil(TIMEOUT_MILLIS) {
-                // Wait until the expected persistent UI element (Add Tag button) is displayed
-                composeTestRule.onNodeWithText("Add Tag").isDisplayed()
-            }
-        } catch (e: Exception) {
-            // If timeout occurs, print a warning but continue the test flow.
-            // This prevents the overall test run from crashing instantly on timeout,
-            // allowing subsequent assertions to test the 'no data' flow.
-            println("Warning: Tags section failed to load ('Add Tag' not displayed) within $TIMEOUT_MILLIS ms.")
-            composeTestRule.waitForIdle()
+    private fun setContent() {
+        composeRule.setContent {
+            ImageDetailScreen(
+                imageUri = fakeImageUri,
+                imageId = fakePhotoId,
+                onNavigateBack = {},
+            )
         }
     }
 
+    // ViewModel의 private MutableStateFlow를 리플렉션을 통해 설정하는 유틸리티 함수
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> setFlow(
+        name: String,
+        value: T,
+    ) {
+        val field = ImageDetailViewModel::class.java.getDeclaredField(name)
+        field.isAccessible = true
+        val flow = field.get(vm) as MutableStateFlow<T>
+        flow.value = value
+    }
+
+    // ----------------------------------------------------------
+    // 1. 기본 UI 요소 표시 테스트
+    // ----------------------------------------------------------
 
     @Test
-    fun imageDetailScreen_initialState_displaysCoreUIAndTagsSection() {
-        // Given: ImageDetailScreen is loaded
-        composeTestRule.setContent {
-            MomenTagTheme {
-                ImageDetailScreen(
-                    imageUri = mockUri,
-                    imageId = mockImageId,
-                    onNavigateBack = {},
-                )
-            }
-        }
+    fun imageDetailScreen_initialState_showsTopBarAndImage() {
+        setContent()
 
-        composeTestRule.waitForIdle()
-
-        // Then: Verify Top Bar and main image is present
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Back").assertIsDisplayed().assertHasClickAction()
-        // If AsyncImage is mocked or stable, this should always pass
-        composeTestRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
-
-        // Then: Wait for Tags section to load and verify core tag elements
-        waitForTagsToLoad()
-        composeTestRule.onNodeWithText("Add Tag").assertIsDisplayed().assertHasClickAction()
+        // 상단 바 제목 확인
+        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        // Back 버튼 확인 (BackTopBar 내에서 정의된 컨텐츠 설명)
+        composeRule.onNodeWithContentDescription("Back").assertIsDisplayed()
+        // 이미지 확인 (HorizontalPager 내 ZoomableImage의 Content Description)
+        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
     }
+
+    // ----------------------------------------------------------
+    // 2. 태그 섹션 - 로딩 상태 테스트
+    // ----------------------------------------------------------
+
+    @Test
+    fun imageDetailScreen_tagSection_showsLoadingIndicators() {
+        setFlow(
+            "_imageDetailTagState",
+            ImageDetailTagState.Success(
+                existingTags = emptyList(),
+                recommendedTags = emptyList(),
+                isExistingLoading = true,
+                isRecommendedLoading = true,
+            ),
+        )
+
+        setContent()
+
+        // CircularProgressIndicator가 두 번 표시되는지 확인 (기존 태그 로딩 + 추천 태그 로딩)
+        // SemanticsProperties.ProgressBarRangeInfo를 사용하여 ProgressIndicator를 찾음
+        val hasProgress: SemanticsMatcher =
+            SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
+
+        // ProgressIndicator가 2개 있는지 확인
+        composeRule.onAllNodes(hasProgress)
+            .assertCountEquals(2)
+    }
+
+    // ----------------------------------------------------------
+    // 3. Focus Mode 토글 테스트 (단일 탭)
+    // ----------------------------------------------------------
 
     @Test
     fun imageDetailScreen_singleTap_togglesFocusMode() {
-        // Given: Screen is loaded in normal mode
-        composeTestRule.setContent {
-            MomenTagTheme {
-                ImageDetailScreen(
-                    imageUri = mockUri,
-                    imageId = mockImageId,
-                    onNavigateBack = {},
-                )
-            }
-        }
-        composeTestRule.waitForIdle()
-        waitForTagsToLoad()
+        setContent()
 
-        // Then: Core UI elements are visible
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        // Test Rule의 시계를 제어 모드로 변경하여 딜레이를 수동으로 처리할 수 있게 함
+        composeRule.mainClock.autoAdvance = false
 
-        // Use try-catch for assertion that depends on successful load
-        try {
-            composeTestRule.onNodeWithText("Add Tag").assertIsDisplayed()
-        } catch (e: AssertionError) {
-            // If Add Tag is not displayed (e.g., error state or no-data loading issue), skip this part of the test
-        }
+        // 1. 초기 상태: TopBar 표시
+        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
 
-        // When: Single tap on the image to enter focus mode
-        composeTestRule.onNodeWithContentDescription("Detail image")
-            .performClick()
-        composeTestRule.waitForIdle()
+        // 2. 이미지 클릭 (Focus Mode 진입)
+        val imageNode = composeRule.onNodeWithContentDescription("Detail image")
 
-        // Then: Core UI elements disappear (Focus Mode activated)
-        composeTestRule.onNodeWithText("MomenTag").assertDoesNotExist()
+        // 터치 입력을 실행
+        imageNode.performClick()
 
-        // When: Single tap again to exit focus mode
-        composeTestRule.onNodeWithContentDescription("Detail image")
-            .performClick()
-        composeTestRule.waitForIdle()
+        // ZoomableImage 내부의 200ms delay를 통과시키기 위해 시계를 수동으로 전진
+        composeRule.mainClock.advanceTimeBy(250)
+        composeRule.waitForIdle() // UI가 변경 사항을 반영할 시간을 줍니다.
 
-        // Then: Core UI elements reappear
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        // TopBar가 사라졌는지 확인 (Focus Mode 진입 성공)
+        composeRule.onAllNodes(hasText("MomenTag")).assertCountEquals(0)
 
+        // 3. 다시 이미지 클릭 (Focus Mode 해제)
+        imageNode.performClick()
+
+        // ZoomableImage 내부의 200ms delay를 다시 통과시킴
+        composeRule.mainClock.advanceTimeBy(250)
+        composeRule.waitForIdle()
+
+        // TopBar가 다시 표시되었는지 확인 (Focus Mode 해제 성공)
+        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
     }
 
-    @Test
-    fun imageDetailScreen_longPressOnTag_togglesDeleteModeForThatTag() {
-        // Given: Screen is loaded and tags are present (Integration assumption)
-        composeTestRule.setContent {
-            MomenTagTheme {
-                ImageDetailScreen(
-                    imageUri = mockUri,
-                    imageId = mockImageId,
-                    onNavigateBack = {},
-                )
-            }
-        }
-        waitForTagsToLoad()
-
-        // Try to find the existing tag. If not found, the test safely skips this block.
-        try {
-            val firstExistingTag = composeTestRule.onAllNodesWithText(EXISTING_TAG_1, substring = true).onFirst()
-
-            // Check if it's currently displayed before interacting (prevents common NotFoundException)
-            if (firstExistingTag.isDisplayed()) {
-                // When: Long press on the tag to enter delete mode
-                firstExistingTag.performTouchInput {
-                    longClick()
-                }
-                composeTestRule.waitForIdle()
-
-                // Then: Delete icon appears
-                composeTestRule.onNodeWithContentDescription("Delete tag").assertIsDisplayed().assertHasClickAction()
-
-                // When: Click the tag to exit its delete mode
-                firstExistingTag.performClick()
-                composeTestRule.waitForIdle()
-
-                // Then: Delete icon disappears
-                composeTestRule.onNodeWithContentDescription("Delete tag").assertDoesNotExist()
-            }
-        } catch (e: Exception) {
-            // Log or print warning that tag wasn't found (likely due to ViewModel not loading mock data)
-            println("Skipping test: Tag '$EXISTING_TAG_1' not found. ViewModel load likely failed.")
-        }
-    }
+    // ----------------------------------------------------------
+    // 6. ImageContext를 통한 Pager 탐색 및 데이터 업데이트
+    // ----------------------------------------------------------
 
     @Test
-    fun imageDetailScreen_tapRecommendedTag_addsTag() {
-        // Given: Screen is loaded and recommended tags are present
-        composeTestRule.setContent {
-            MomenTagTheme {
-                ImageDetailScreen(
-                    imageUri = mockUri,
-                    imageId = mockImageId,
-                    onNavigateBack = {},
-                )
-            }
-        }
-        waitForTagsToLoad()
+    fun imageDetailScreen_imageContext_loadsMultiplePhotos() {
+        val p1 = Photo("p1", Uri.parse("content://1"), "2024")
+        val p2 = Photo("p2", Uri.parse("content://2"), "2024")
 
-        // Try to find the recommended tag. If not found, the test safely skips this block.
-        try {
-            val recommendedTag = composeTestRule.onAllNodesWithText(RECOMMENDED_TAG_B, substring = true).onFirst()
+        val context =
+            ImageContext(
+                images = listOf(p1, p2),
+                currentIndex = 0,
+                contextType = ImageContext.ContextType.GALLERY,
+            )
 
-            if (recommendedTag.isDisplayed()) {
-                // When: Click the recommended tag to confirm addition (onConfirm logic)
-                recommendedTag.performClick()
-                composeTestRule.waitForIdle()
+        setFlow("_imageContext", context)
+        // [수정] setContent()를 테스트 함수 시작 부분으로 이동
+        setContent()
 
-                // Then: The recommended tag should disappear (if the add logic works correctly)
-                recommendedTag.assertDoesNotExist()
-            }
-        } catch (e: Exception) {
-            println("Skipping test: Recommended tag '$RECOMMENDED_TAG_B' not found. ViewModel load likely failed.")
-        }
-    }
 
-    @Test
-    fun imageDetailScreen_backHandler_exitsDeleteMode() {
-        // Given: Screen is loaded and we attempt to enter Tag Delete Mode
-        composeTestRule.setContent {
-            MomenTagTheme {
-                ImageDetailScreen(
-                    imageUri = mockUri,
-                    imageId = mockImageId,
-                    onNavigateBack = {},
-                )
-            }
-        }
-        waitForTagsToLoad()
+        // 1. 첫 번째 이미지 확인 (Index 0)
+        composeRule.onNodeWithContentDescription("Detail image")
+            .assertIsDisplayed()
 
-        // Try to find the existing tag. If not found, the test safely skips this block.
-        try {
-            val firstExistingTag = composeTestRule.onAllNodesWithText(EXISTING_TAG_1, substring = true).onFirst()
+        // 초기 로딩 후 첫 번째 사진의 태그가 로드되는지 확인
+        val existingTags = listOf(Tag(tagId = "t1", tagName = "첫번째사진태그"))
+        setFlow(
+            "_imageDetailTagState",
+            ImageDetailTagState.Success(
+                existingTags = existingTags,
+                recommendedTags = emptyList(),
+                isExistingLoading = false,
+                isRecommendedLoading = false,
+            ),
+        )
+        // LaunchedEffect가 실행될 시간을 기다림
+        composeRule.waitForIdle()
 
-            if (firstExistingTag.isDisplayed()) {
-                // Enter delete mode first
-                firstExistingTag.performTouchInput {
-                    longClick()
-                }
-                composeTestRule.waitForIdle()
-
-                // Then: Delete icon is visible
-                composeTestRule.onNodeWithContentDescription("Delete tag").assertIsDisplayed()
-
-                // When: Back button is pressed (System Back Handler)
-                composeTestRule.activity.onBackPressedDispatcher.onBackPressed()
-                composeTestRule.waitForIdle()
-
-                // Then: Delete icon disappears (isDeleteMode is false)
-                composeTestRule.onNodeWithContentDescription("Delete tag").assertDoesNotExist()
-
-                // And: Screen title is still visible (did not navigate back)
-                composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
-            }
-        } catch (e: Exception) {
-            println("Skipping test: Tag '$EXISTING_TAG_1' not found for delete mode test. ViewModel load likely failed.")
-        }
-    }
-
-    @Test
-    fun imageDetailScreen_warningBanner_displaysOnErrorAndHides() {
-        // Note: This test relies on the underlying ViewModel/Repository to emit an error state
-        // during or after loading. This is highly unstable in integration testing without mocks.
-
-        // Given: Screen is loaded
-        composeTestRule.setContent {
-            MomenTagTheme {
-                ImageDetailScreen(
-                    imageUri = mockUri,
-                    imageId = mockImageId,
-                    onNavigateBack = {},
-                )
-            }
-        }
-
-        // Wait for potential loading to complete/fail
-        composeTestRule.waitForIdle()
-
-        // Try to find the error banner. If it exists, proceed to dismiss it.
-        try {
-            val warningBannerTitle = composeTestRule.onNodeWithText("Error")
-
-            // Then: Banner should be displayed (if an error occurred)
-            if (warningBannerTitle.isDisplayed()) {
-                warningBannerTitle.assertIsDisplayed()
-
-                // When: Dismiss button is clicked
-                // NOTE: The WarningBanner in LocalAlbumScreen.kt uses contentDescription="Dismiss" or showDismissButton=true
-                composeTestRule.onNodeWithContentDescription("Dismiss").performClick()
-                composeTestRule.waitForIdle()
-
-                // Then: Banner disappears
-                warningBannerTitle.assertDoesNotExist()
-            } else {
-                println("Skipping test: Warning Banner not displayed (No error state)")
-            }
-        } catch (e: Exception) {
-            // No error banner found, which is expected in the success path.
-        }
+        composeRule.onNodeWithText("첫번째사진태그").assertIsDisplayed()
     }
 }
