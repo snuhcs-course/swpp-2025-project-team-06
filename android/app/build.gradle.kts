@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp.logging)
     implementation(libs.datastore.preferences)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.room.ktx)
