@@ -86,10 +86,9 @@ import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.horizontalArrangement
-import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.SearchViewModel
 import kotlinx.coroutines.android.awaitFrame
@@ -138,7 +137,7 @@ fun SearchResultScreen(
 
     // 5. Derived 상태 및 계산된 값
     val allTags = (tagLoadingState as? TagLoadingState.Success)?.tags ?: emptyList<TagItem>()
-    val topSpacerHeight = 8.dp
+    val topSpacerHeight = Dimen.ItemSpacingSmall
     val contentItems = searchViewModel.contentItems
     val textStates = searchViewModel.textStates
     val focusRequesters = searchViewModel.focusRequesters
@@ -626,7 +625,7 @@ private fun SearchResultContent(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = Dimen.ScreenHorizontalPadding)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -635,7 +634,7 @@ private fun SearchResultContent(
                     },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
             // Search Input
             Row(
@@ -643,7 +642,7 @@ private fun SearchResultContent(
                     Modifier
                         .fillMaxWidth()
                         .onGloballyPositioned { onSearchBarRowHeightChange(it.size.height) },
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ChipSearchBar(
@@ -692,13 +691,13 @@ private fun SearchResultContent(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp)
+                            .padding(vertical = Dimen.ItemSpacingSmall)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = { },
                             ),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                 ) {
                     items(tagSuggestions, key = { it.tagId }) { tag ->
                         SuggestionChip(
@@ -709,7 +708,7 @@ private fun SearchResultContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
             // Results
             SearchResultsFromState(
@@ -728,7 +727,7 @@ private fun SearchResultContent(
 
             AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                 WarningBanner(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = Dimen.ItemSpacingSmall),
                     title = "Search Failed",
                     message = errorMessage ?: "Unknown error",
                     onActionClick = onRetry,
@@ -738,7 +737,7 @@ private fun SearchResultContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
         }
 
         // search history dropdown
@@ -749,14 +748,14 @@ private fun SearchResultContent(
             modifier =
                 Modifier
                     .offset(y = topSpacerHeight + with(LocalDensity.current) { searchBarRowHeight.toDp() } + 4.dp)
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = Dimen.ScreenHorizontalPadding)
                     .zIndex(1f),
         ) {
             Surface(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(end = 48.dp + 8.dp),
+                        .padding(end = 48.dp + Dimen.ItemSpacingSmall),
                 shape = RoundedCornerShape(16.dp),
                 shadowElevation = 8.dp,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -784,8 +783,8 @@ private fun SearchResultContent(
                     Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp)
-                        .padding(horizontal = 16.dp),
+                        .padding(bottom = Dimen.ItemSpacingLarge)
+                        .padding(horizontal = Dimen.ScreenHorizontalPadding),
             ) {
                 // Only show CreateTagButton when in selection mode and photos are selected
                 if (isSelectionMode && selectedPhotos.isNotEmpty()) {
@@ -793,7 +792,7 @@ private fun SearchResultContent(
                         modifier =
                             Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(start = 16.dp),
+                                .padding(start = Dimen.ScreenHorizontalPadding),
                         text = "Add Tag (${selectedPhotos.size})",
                         onClick = {
                             onCreateTagClick()
@@ -843,8 +842,8 @@ private fun SearchResultsFromState(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = modifier,
-                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
-                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                 ) {
                     items(
                         count = uiState.results.size,

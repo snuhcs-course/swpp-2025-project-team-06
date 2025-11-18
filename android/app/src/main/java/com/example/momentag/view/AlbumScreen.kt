@@ -88,11 +88,10 @@ import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.horizontalArrangement
-import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AlbumViewModel
 import kotlinx.coroutines.delay
@@ -414,13 +413,13 @@ fun AlbumScreen(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                             ) { submitAndClearFocus() },
                 ) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                     // 제목(태그명) 행
                     Row(
@@ -434,7 +433,7 @@ fun AlbumScreen(
                             modifier =
                                 Modifier
                                     .weight(1f)
-                                    .padding(end = 8.dp)
+                                    .padding(end = Dimen.ItemSpacingSmall)
                                     .onFocusChanged { isFocused = it.isFocused },
                             textStyle =
                                 MaterialTheme.typography.displayMedium.copy(
@@ -472,13 +471,13 @@ fun AlbumScreen(
                     }
 
                     HorizontalDivider(
-                        modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
 
                     AnimatedVisibility(visible = isSelectPhotosBannerShareVisible) {
                         WarningBanner(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                             title = "No Photos Selected",
                             message = "Please select photos to share.",
                             onActionClick = { isSelectPhotosBannerShareVisible = false },
@@ -490,7 +489,7 @@ fun AlbumScreen(
 
                     AnimatedVisibility(visible = isSelectPhotosBannerUntagVisible) {
                         WarningBanner(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                             title = "No Photos Selected",
                             message = "Please select photos to untag.",
                             onActionClick = { isSelectPhotosBannerUntagVisible = false },
@@ -502,7 +501,7 @@ fun AlbumScreen(
 
                     AnimatedVisibility(visible = isErrorBannerVisible) {
                         WarningBanner(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                             title = errorBannerTitle,
                             message = errorBannerMessage,
                             onActionClick = { isErrorBannerVisible = false },
@@ -590,11 +589,11 @@ private fun AlbumGridArea(
                 val photos = albumLoadState.photos
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
-                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                     contentPadding =
                         PaddingValues(
-                            bottom = if (isRecommendationExpanded) panelHeight else 80.dp,
+                            bottom = if (isRecommendationExpanded) panelHeight else Dimen.FloatingButtonAreaPadding,
                         ),
                     modifier = Modifier.fillMaxSize(),
                 ) {
@@ -648,7 +647,7 @@ private fun AlbumGridArea(
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = Dimen.ItemSpacingLarge),
         ) {
             RecommendChip(
                 recommendLoadState = recommendLoadState,
@@ -670,7 +669,7 @@ private fun RecommendChip(
                 .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(20.dp))
                 .clip(RoundedCornerShape(20.dp))
                 .clickable(onClick = onExpand)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
@@ -681,7 +680,7 @@ private fun RecommendChip(
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "AI Recommending...",
                     style = MaterialTheme.typography.bodyMedium,
@@ -695,7 +694,7 @@ private fun RecommendChip(
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "AI Recommend",
                     style = MaterialTheme.typography.bodyMedium,
@@ -709,7 +708,7 @@ private fun RecommendChip(
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Error,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "Recommendation Failed",
                     style = MaterialTheme.typography.bodyMedium,
@@ -722,7 +721,7 @@ private fun RecommendChip(
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "Preparing...",
                     style = MaterialTheme.typography.bodyMedium,
@@ -730,7 +729,7 @@ private fun RecommendChip(
                 )
             }
         }
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
         StandardIcon.Icon(
             imageVector = Icons.Default.ExpandLess,
             contentDescription = "Expand",
@@ -797,7 +796,7 @@ private fun RecommendExpandedPanel(
                         modifier =
                             Modifier
                                 .width(40.dp)
-                                .height(4.dp)
+                                .height(Dimen.GridItemSpacing)
                                 .background(
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                     RoundedCornerShape(2.dp),
@@ -810,7 +809,7 @@ private fun RecommendExpandedPanel(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -820,7 +819,7 @@ private fun RecommendExpandedPanel(
                     ) {
                         // 사진 선택 시: Add와 Cancel 버튼
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             TextButton(onClick = onResetRecommendSelection) {
@@ -837,7 +836,11 @@ private fun RecommendExpandedPanel(
                                         containerColor = MaterialTheme.colorScheme.error,
                                     ),
                                 shape = RoundedCornerShape(20.dp),
-                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                                contentPadding =
+                                    PaddingValues(
+                                        horizontal = Dimen.ButtonPaddingLargeHorizontal,
+                                        vertical = Dimen.ButtonPaddingVertical,
+                                    ),
                             ) {
                                 Text(
                                     text = "Add ${selectedRecommendPhotos.size} Photo${if (selectedRecommendPhotos.size > 1) "s" else ""}",
@@ -853,7 +856,7 @@ private fun RecommendExpandedPanel(
                                 sizeRole = IconSizeRole.Navigation,
                                 intent = IconIntent.Primary,
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                             Text(
                                 text = "AI Recommend",
                                 style = MaterialTheme.typography.titleMedium,
@@ -872,7 +875,7 @@ private fun RecommendExpandedPanel(
                 }
             }
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Column(modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding)) {
                 // Grid / states
                 when (recommendLoadState) {
                     is AlbumViewModel.RecommendLoadingState.Loading,
@@ -904,8 +907,8 @@ private fun RecommendExpandedPanel(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
-                                verticalArrangement = Arrangement.spacedBy(verticalArrangement),
-                                horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                                verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                                 modifier = Modifier.weight(1f),
                                 userScrollEnabled = true,
                             ) {

@@ -85,11 +85,10 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.horizontalArrangement
-import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -299,9 +298,9 @@ fun SelectImageScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 24.dp),
+                        .padding(horizontal = Dimen.FormScreenHorizontalPadding),
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 // Pictures Header with count
                 Row(
@@ -319,7 +318,7 @@ fun SelectImageScreen(navController: NavController) {
                     )
 
                     if (isSelectionMode && selectedPhotos.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
 
                         Text(
                             text = "${selectedPhotos.size} selected",
@@ -330,7 +329,7 @@ fun SelectImageScreen(navController: NavController) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 if (isLoading) {
                     Box(
@@ -351,12 +350,17 @@ fun SelectImageScreen(navController: NavController) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         state = listState,
-                        verticalArrangement = Arrangement.spacedBy(verticalArrangement),
-                        horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding =
                             PaddingValues(
-                                bottom = if (isRecommendationExpanded) panelHeight + 80.dp else 200.dp,
+                                bottom =
+                                    if (isRecommendationExpanded) {
+                                        panelHeight + Dimen.FloatingButtonAreaPadding
+                                    } else {
+                                        Dimen.FloatingButtonAreaPaddingLarge
+                                    },
                             ),
                     ) {
                         items(
@@ -385,7 +389,7 @@ fun SelectImageScreen(navController: NavController) {
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
-                                            .padding(16.dp),
+                                            .padding(Dimen.ComponentPadding),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     CircularProgressIndicator(
@@ -420,7 +424,7 @@ fun SelectImageScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 80.dp),
+                        .padding(bottom = Dimen.FloatingButtonAreaPadding),
             ) {
                 // 축소 상태: 화면 하단 중앙 칩
                 RecommendChip(
@@ -474,8 +478,8 @@ fun SelectImageScreen(navController: NavController) {
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .padding(bottom = 8.dp)
+                            .padding(horizontal = Dimen.FormScreenHorizontalPadding)
+                            .padding(bottom = Dimen.ItemSpacingSmall)
                             .height(52.dp)
                             .shadow(
                                 elevation = if (selectedPhotos.isNotEmpty()) 6.dp else 2.dp,
@@ -545,7 +549,7 @@ private fun PhotoSelectableItem(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
+                        .padding(Dimen.GridItemSpacing)
                         .size(24.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(
@@ -584,7 +588,7 @@ private fun RecommendChip(
                     shape = RoundedCornerShape(20.dp),
                 ).clip(RoundedCornerShape(20.dp))
                 .clickable(onClick = onExpand)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
@@ -595,7 +599,7 @@ private fun RecommendChip(
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "Finding suggestions...",
                     style = MaterialTheme.typography.bodyMedium,
@@ -609,7 +613,7 @@ private fun RecommendChip(
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "Suggested for You",
                     style = MaterialTheme.typography.bodyMedium,
@@ -623,7 +627,7 @@ private fun RecommendChip(
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Error,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "Could not load suggestions",
                     style = MaterialTheme.typography.bodyMedium,
@@ -636,7 +640,7 @@ private fun RecommendChip(
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "Getting ready...",
                     style = MaterialTheme.typography.bodyMedium,
@@ -645,7 +649,7 @@ private fun RecommendChip(
             }
         }
 
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
         StandardIcon.Icon(
             imageVector = Icons.Default.ExpandLess,
             contentDescription = "Expand",
@@ -712,7 +716,7 @@ private fun RecommendExpandedPanel(
                         modifier =
                             Modifier
                                 .width(40.dp)
-                                .height(4.dp)
+                                .height(Dimen.GridItemSpacing)
                                 .background(
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                     RoundedCornerShape(2.dp),
@@ -725,7 +729,7 @@ private fun RecommendExpandedPanel(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -755,7 +759,7 @@ private fun RecommendExpandedPanel(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                         Text(
                             text = "Suggested for You",
                             style = MaterialTheme.typography.titleMedium,
@@ -774,10 +778,10 @@ private fun RecommendExpandedPanel(
                 }
             }
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Column(modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding)) {
                 // Header
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 // Grid
                 when (recommendState) {
@@ -812,8 +816,8 @@ private fun RecommendExpandedPanel(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                                 modifier = Modifier.weight(1f),
                                 userScrollEnabled = true,
                             ) {
@@ -856,7 +860,7 @@ private fun RecommendExpandedPanel(
                                 showActionButton = true,
                                 actionIcon = Icons.Default.Refresh,
                                 showDismissButton = false,
-                                modifier = Modifier.padding(16.dp),
+                                modifier = Modifier.padding(Dimen.ComponentPadding),
                             )
                         }
                     }

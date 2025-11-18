@@ -40,6 +40,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -79,9 +80,9 @@ private fun TagContainer(
     Row(
         modifier =
             modifier
-                .height(32.dp)
+                .height(Dimen.TagHeight)
                 .background(color = color, shape = RoundedCornerShape(50))
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(horizontal = Dimen.ItemSpacingMedium, vertical = Dimen.GridItemSpacing),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -107,7 +108,7 @@ fun TagChip(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
 
         when (variant) {
             is TagVariant.Plain -> Unit
@@ -115,7 +116,7 @@ fun TagChip(
             is TagVariant.CloseAlways -> {
                 IconButton(
                     onClick = variant.onDismiss,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(Dimen.ItemSpacingLarge),
                 ) {
                     StandardIcon.Icon(
                         imageVector = Icons.AutoMirrored.Filled.LabelOff,
@@ -129,7 +130,7 @@ fun TagChip(
                 AnimatedVisibility(visible = variant.isDeleteMode) {
                     IconButton(
                         onClick = variant.onDismiss,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
                     ) {
                         StandardIcon.Icon(
                             imageVector = Icons.AutoMirrored.Filled.LabelOff,
@@ -236,7 +237,7 @@ fun TagChipWithCount(
         if (isEditMode && onEdit != null) {
             IconButton(
                 onClick = onEdit,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.Edit,
@@ -267,7 +268,7 @@ fun TagChipWithCount(
                 Box(
                     modifier =
                         Modifier
-                            .size(16.dp)
+                            .size(Dimen.IconButtonsSizeXSmall)
                             .clip(CircleShape)
                             .background(
                                 if (isChecked) {
@@ -301,7 +302,7 @@ fun TagChipWithCount(
             Spacer(modifier = Modifier.width(4.dp))
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.AutoMirrored.Filled.LabelOff,
@@ -437,7 +438,7 @@ fun CustomTagChip(
                             tagText = ""
                         }
                     },
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                     enabled = tagText.isNotBlank(),
                 ) {
                     val confirmTint =
@@ -490,7 +491,7 @@ fun CustomTagChip(
                         isExpanded = false
                         tagText = ""
                     },
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                 ) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Close,

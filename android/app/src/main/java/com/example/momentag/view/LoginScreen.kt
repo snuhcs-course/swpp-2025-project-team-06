@@ -52,6 +52,7 @@ import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.model.LoginState
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
 
@@ -152,10 +153,10 @@ fun LoginScreen(navController: NavController) {
                                     ),
                             ),
                     ).padding(paddingValues)
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = Dimen.FormScreenHorizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
             // MomenTag title
             Text(
                 text = "#MomenTag",
@@ -178,7 +179,7 @@ fun LoginScreen(navController: NavController) {
                     style = MaterialTheme.typography.displayLarge,
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
                 // "Don't have an account? Sign Up"
                 Row(
@@ -197,7 +198,7 @@ fun LoginScreen(navController: NavController) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
                 // username input
                 Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -249,7 +250,7 @@ fun LoginScreen(navController: NavController) {
                         Modifier
                             .height(20.dp)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (isUsernameError && username.isEmpty()) {
                         Text(
@@ -323,7 +324,7 @@ fun LoginScreen(navController: NavController) {
                         Modifier
                             .height(20.dp)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (!isErrorBannerVisible && isPasswordError && password.isEmpty()) {
                         Text(
@@ -333,7 +334,7 @@ fun LoginScreen(navController: NavController) {
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         title = "Login Failed",
@@ -345,7 +346,7 @@ fun LoginScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                 Button(
                     onClick = {
                         val usernameEmpty = username.isEmpty()

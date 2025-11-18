@@ -53,6 +53,7 @@ import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.model.RegisterState
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
 
@@ -177,11 +178,11 @@ fun RegisterScreen(navController: NavController) {
                                     ),
                             ),
                     ).padding(paddingValues)
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = Dimen.FormScreenHorizontalPadding)
                     .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
             // MomenTag title
             Text(
                 text = "MomenTag",
@@ -204,7 +205,7 @@ fun RegisterScreen(navController: NavController) {
                     style = MaterialTheme.typography.displayLarge,
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
                 // "Already have an account? Login"
                 Row(
@@ -223,7 +224,7 @@ fun RegisterScreen(navController: NavController) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
                 // email input
                 Text(text = "Email", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -277,7 +278,7 @@ fun RegisterScreen(navController: NavController) {
                         Modifier
                             .height(20.dp)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (isEmailError && email.isEmpty()) {
                         Text(
@@ -345,7 +346,7 @@ fun RegisterScreen(navController: NavController) {
                         Modifier
                             .height(20.dp)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (isUsernameError && username.isEmpty()) {
                         Text(
@@ -414,7 +415,7 @@ fun RegisterScreen(navController: NavController) {
                         Modifier
                             .height(20.dp)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (isPasswordError && password.isEmpty()) {
                         Text(
@@ -485,7 +486,7 @@ fun RegisterScreen(navController: NavController) {
                         Modifier
                             .height(20.dp)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (!isErrorBannerVisible) { // 서버 에러(배너)가 없을 때만 로컬 에러 표시
                         if (isPasswordCheckError && passwordCheck.isEmpty()) {
@@ -505,7 +506,7 @@ fun RegisterScreen(navController: NavController) {
                 }
                 // --- 수정 끝 (기존 Box, AnimatedVisibility, if 블록 모두 삭제 후 Box로 대체) ---
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                 // --- 추가: WarningBanner를 버튼 바로 위로 이동 ---
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
@@ -519,7 +520,7 @@ fun RegisterScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp)) // 배너와 버튼 사이 간격
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall)) // 배너와 버튼 사이 간격
                 // --- 추가 끝 ---
 
                 // register button

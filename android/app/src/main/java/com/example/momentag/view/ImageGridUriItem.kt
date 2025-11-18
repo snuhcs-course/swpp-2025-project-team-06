@@ -24,10 +24,10 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.imageCornerRadius
 
 /**
  * 이미지 그리드 아이템 - 일반 모드와 선택 모드를 모두 지원
@@ -55,7 +55,7 @@ fun ImageGridUriItem(
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
-    cornerRadius: Dp = imageCornerRadius,
+    cornerRadius: Dp = Dimen.ImageCornerRadius,
     topPadding: Dp = 0.dp,
 ) {
     Box(
@@ -103,7 +103,7 @@ fun ImageGridUriItem(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
+                        .padding(Dimen.GridItemSpacing)
                         .size(24.dp)
                         .background(
                             if (isSelected) {

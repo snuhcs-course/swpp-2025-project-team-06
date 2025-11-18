@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.model.TagItem
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -117,15 +118,15 @@ fun ChipSearchBar(
     Row(
         modifier =
             modifier
-                .heightIn(min = 48.dp)
+                .heightIn(min = Dimen.SearchBarMinHeight)
                 .background(
                     color = containerColor,
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                 ).clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                 ) { onContainerClick() }
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = Dimen.ScreenHorizontalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StandardIcon.Icon(
@@ -138,7 +139,7 @@ fun ChipSearchBar(
             modifier =
                 Modifier
                     .weight(1f)
-                    .padding(start = 8.dp),
+                    .padding(start = Dimen.ItemSpacingSmall),
             listState = listState,
             isCursorHidden = isCursorHidden,
             contentItems = contentItems,
@@ -281,7 +282,7 @@ private fun InternalChipSearchInput(
                                 } else {
                                     onFocus(null)
                                 }
-                            }.padding(horizontal = 4.dp, vertical = 8.dp)
+                            }.padding(horizontal = Dimen.GridItemSpacing, vertical = Dimen.ItemSpacingSmall)
 
                     BasicTextField(
                         value = textValue,
@@ -342,9 +343,9 @@ private fun SearchChipView(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { onClick() },
-                ).padding(horizontal = 10.dp, vertical = 6.dp),
+                ).padding(horizontal = Dimen.ButtonPaddingVertical, vertical = Dimen.ButtonPaddingSmallVertical),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
     ) {
         Text(
             text = "#${tag.tagName}",
@@ -367,9 +368,9 @@ fun SuggestionChip(
                 .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
                 .clip(CircleShape)
                 .clickable { onClick() }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = Dimen.ButtonPaddingVertical, vertical = Dimen.ButtonPaddingSmallVertical),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
     ) {
         Text(
             text = "#${tag.tagName}",
@@ -397,7 +398,7 @@ fun SearchHistoryItem(
             modifier
                 .fillMaxWidth()
                 .clickable { onHistoryClick(query) }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingMedium),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -407,12 +408,12 @@ fun SearchHistoryItem(
             sizeRole = IconSizeRole.Navigation,
             intent = IconIntent.Muted,
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingMedium))
 
         FlowRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.Center,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
         ) {
             val elements =
                 remember(query, allTags) {
@@ -427,7 +428,7 @@ fun SearchHistoryItem(
                                 text = element.text,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(vertical = 4.dp),
+                                modifier = Modifier.padding(vertical = Dimen.GridItemSpacing),
                             )
                         }
                     }
@@ -438,7 +439,7 @@ fun SearchHistoryItem(
                                     .background(
                                         color = MaterialTheme.colorScheme.secondaryContainer,
                                         shape = RoundedCornerShape(8.dp),
-                                    ).padding(horizontal = 10.dp, vertical = 4.dp),
+                                    ).padding(horizontal = Dimen.ButtonPaddingVertical, vertical = Dimen.GridItemSpacing),
                         ) {
                             Text(
                                 text = "#${element.tag.tagName}",
@@ -454,11 +455,11 @@ fun SearchHistoryItem(
             }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
 
         IconButton(
             onClick = { onHistoryDelete(query) },
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(Dimen.SectionSpacing),
         ) {
             StandardIcon.Icon(
                 imageVector = Icons.Default.Close,

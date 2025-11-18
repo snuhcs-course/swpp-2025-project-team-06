@@ -129,12 +129,13 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.ui.components.tagX
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -212,7 +213,7 @@ fun HomeScreen(navController: NavController) {
 
     // 5. Derived 상태 및 계산된 값
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
-    val topSpacerHeight = 8.dp
+    val topSpacerHeight = Dimen.ItemSpacingSmall
     val textStates = searchViewModel.textStates
     val contentItems = searchViewModel.contentItems
     val focusRequesters = searchViewModel.focusRequesters
@@ -628,7 +629,7 @@ fun HomeScreen(navController: NavController) {
             // Only show when in selection mode and photos are selected
             if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
                 CreateTagButton(
-                    modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
+                    modifier = Modifier.padding(start = 32.dp, bottom = Dimen.ItemSpacingLarge),
                     text = "Add Tag (${selectedPhotos.size})",
                     onClick = {
                         // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
@@ -679,7 +680,7 @@ fun HomeScreen(navController: NavController) {
                                 } else {
                                     Modifier
                                 },
-                            ).padding(horizontal = 16.dp)
+                            ).padding(horizontal = Dimen.ScreenHorizontalPadding)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -698,7 +699,7 @@ fun HomeScreen(navController: NavController) {
                                 .onGloballyPositioned { layoutCoordinates ->
                                     searchBarRowHeight = layoutCoordinates.size.height
                                 },
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         ChipSearchBar(
@@ -749,13 +750,13 @@ fun HomeScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
+                                    .padding(vertical = Dimen.ItemSpacingSmall)
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
                                         onClick = { },
                                     ),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                         ) {
                             items(tagSuggestions, key = { it.tagId }) { tag ->
                                 SuggestionChip(
@@ -766,7 +767,7 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -800,7 +801,7 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     if (!hasPermission) {
                         Box(
@@ -884,7 +885,7 @@ fun HomeScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
+                                    .padding(Dimen.ComponentPadding),
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
@@ -895,7 +896,7 @@ fun HomeScreen(navController: NavController) {
                     }
                     AnimatedVisibility(visible = bannerVisible) {
                         Column {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                             WarningBanner(
                                 title = "Uploading...🚀",
                                 message = "Photos are uploading in the background.",
@@ -909,12 +910,12 @@ fun HomeScreen(navController: NavController) {
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                         }
                     }
                     AnimatedVisibility(visible = isErrorBannerVisible && errorBannerMessage != null) {
                         Column {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                             WarningBanner(
                                 title = errorBannerTitle,
                                 message = errorBannerMessage!!,
@@ -932,7 +933,7 @@ fun HomeScreen(navController: NavController) {
                                 showDismissButton = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                         }
                     }
                 }
@@ -945,14 +946,14 @@ fun HomeScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() + 16.dp }) // change to move y-axis
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
                             .zIndex(1f), // z-index for overlay
                 ) {
                     Surface(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(end = 48.dp + 8.dp),
+                                .padding(end = 48.dp + Dimen.ItemSpacingSmall),
                         shape =
                             RoundedCornerShape(
                                 topStart = 16.dp,
@@ -991,7 +992,7 @@ fun HomeScreen(navController: NavController) {
     if (isDeleteConfirmationDialogVisible && tagToDeleteInfo != null) {
         val (tagId, tagName) = tagToDeleteInfo!!
 
-        confirmDialog(
+        ConfirmDialog(
             title = "Delete Tag",
             message = "Are you sure you want to delete '$tagName' tag?",
             confirmButtonText = "Delete Tag",
@@ -1042,9 +1043,9 @@ private fun ViewToggle(
             modifier =
                 Modifier
                     .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(8.dp))
-                    .padding(4.dp),
+                    .padding(Dimen.GridItemSpacing),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall)) {
                 // Tag Albums (Grid)
                 Box(
                     modifier =
@@ -1053,7 +1054,7 @@ private fun ViewToggle(
                             .background(
                                 if (!isOnlyTag && !isShowingAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, false) }
-                            .padding(8.dp),
+                            .padding(Dimen.ItemSpacingSmall),
                 ) {
                     val isTagAlbumsSelected = !isOnlyTag && !isShowingAllPhotos
                     StandardIcon.Icon(
@@ -1071,7 +1072,7 @@ private fun ViewToggle(
                             .background(
                                 if (isShowingAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, true) }
-                            .padding(8.dp),
+                            .padding(Dimen.ItemSpacingSmall),
                 ) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Photo,
@@ -1123,8 +1124,8 @@ private fun MainContent(
                 columns = GridCells.Fixed(3),
                 state = allPhotosGridState,
                 modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
             ) {
                 groupedPhotos.forEach { group ->
                     item(
@@ -1137,8 +1138,8 @@ private fun MainContent(
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier =
                                 Modifier
-                                    .padding(horizontal = 4.dp)
-                                    .padding(top = 4.dp, bottom = 4.dp),
+                                    .padding(horizontal = Dimen.GridItemSpacing)
+                                    .padding(vertical = Dimen.GridItemSpacing),
                         )
                     }
 
@@ -1203,7 +1204,7 @@ private fun MainContent(
                                     modifier =
                                         Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(4.dp)
+                                            .padding(Dimen.GridItemSpacing)
                                             .size(24.dp)
                                             .background(
                                                 if (isSelected) {
@@ -1239,7 +1240,7 @@ private fun MainContent(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(Dimen.ComponentPadding),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 CircularProgressIndicator(
@@ -1264,8 +1265,8 @@ private fun MainContent(
                     // 태그 Flow 뷰
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingMedium),
                     ) {
                         tagItems.forEach { item ->
                             tagX(
@@ -1282,8 +1283,8 @@ private fun MainContent(
                         columns = GridCells.Fixed(3),
                         modifier = modifier,
                         state = tagAlbumGridState,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                     ) {
                         items(tagItems) { item ->
                             TagGridItem(
@@ -1340,7 +1341,7 @@ fun TagGridItem(
                 contentDescription = tagName,
                 modifier =
                     Modifier
-                        .padding(top = 12.dp)
+                        .padding(top = Dimen.ItemSpacingMedium)
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(16.dp))
                         .align(Alignment.BottomCenter)
@@ -1364,7 +1365,7 @@ fun TagGridItem(
             Spacer(
                 modifier =
                     Modifier
-                        .padding(top = 12.dp)
+                        .padding(top = Dimen.ItemSpacingMedium)
                         .aspectRatio(1f)
                         .background(
                             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -1396,11 +1397,11 @@ fun TagGridItem(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 8.dp)
+                    .padding(start = Dimen.ItemSpacingSmall)
                     .background(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(8.dp),
-                    ).padding(horizontal = 8.dp, vertical = 4.dp),
+                    ).padding(horizontal = Dimen.ItemSpacingSmall, vertical = Dimen.GridItemSpacing),
         )
         if (isDeleteMode) {
             IconButton(
@@ -1410,7 +1411,7 @@ fun TagGridItem(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 4.dp, end = 4.dp)
+                        .padding(top = Dimen.GridItemSpacing, end = Dimen.GridItemSpacing)
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), RoundedCornerShape(50))
                         .size(24.dp),
             ) {
@@ -1447,7 +1448,7 @@ fun EmptyStateTags(
                     .rotate(45f),
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
         // 2. 텍스트
         Text(
@@ -1456,7 +1457,7 @@ fun EmptyStateTags(
             fontWeight = FontWeight.Bold,
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
         Text(
             text = "Organize your memories\nby keyword",
@@ -1515,7 +1516,7 @@ fun EmptyStatePhotos(
             modifier = Modifier.size(120.dp),
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
         // 2. 텍스트
         Text(
@@ -1524,7 +1525,7 @@ fun EmptyStatePhotos(
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
         Text(
             text = "Select photos\nto store your memories",
             style = MaterialTheme.typography.bodyLarge,
@@ -1564,11 +1565,11 @@ private fun SortOptionsSheet(
     currentOrder: TagSortOrder,
     onOrderChange: (TagSortOrder) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+    Column(modifier = Modifier.padding(vertical = Dimen.ItemSpacingLarge)) {
         Text(
             "Sort by",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
         )
 
         SortOptionItem(
@@ -1616,7 +1617,7 @@ private fun SortOptionItem(
             Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingMedium),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val optionIntent = if (isSelected) IconIntent.Primary else IconIntent.Muted
@@ -1625,7 +1626,7 @@ private fun SortOptionItem(
             contentDescription = text,
             intent = optionIntent,
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingLarge))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,

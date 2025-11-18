@@ -1,7 +1,7 @@
 
 @file:OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 
-package com.example.momentag.ui.storytag
+package com.example.momentag.view
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -77,6 +77,7 @@ import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.StoryTagChip
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -180,7 +181,7 @@ fun StoryTagSelectionScreen(
                             strokeWidth = 4.dp,
                             modifier = Modifier.size(24.dp),
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                         Text("Loading memories...", color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
@@ -332,8 +333,8 @@ fun StoryTagSelectionScreen(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp)
-                                        .padding(bottom = 12.dp),
+                                        .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                        .padding(bottom = Dimen.ItemSpacingMedium),
                             )
                         }
                     }
@@ -389,9 +390,9 @@ private fun StoryPageFullBlock(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
         ) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
             Text(
                 text = story.date,
@@ -400,7 +401,7 @@ private fun StoryPageFullBlock(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
             Box(
                 modifier =
@@ -420,7 +421,7 @@ private fun StoryPageFullBlock(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
         }
 
         if (isScrollHintVisible) {
@@ -464,7 +465,7 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
                 ).background(
                     color = surfaceContainerColor.copy(alpha = 0.65f),
                     shape = RoundedCornerShape(16.dp),
-                ).padding(horizontal = 16.dp, vertical = 12.dp),
+                ).padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -528,7 +529,7 @@ internal fun TagSelectionCard(
         Column(
             modifier =
                 Modifier
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(Dimen.ComponentPadding),
         ) {
             // Show different text based on mode
             Text(
@@ -547,11 +548,11 @@ internal fun TagSelectionCard(
                         MaterialTheme.colorScheme.onSurface
                     },
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                modifier = Modifier.padding(bottom = 12.dp),
+                modifier = Modifier.padding(bottom = Dimen.ItemSpacingMedium),
             )
 
             FlowRow(
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
             ) {
                 tags.forEach { tagText ->
                     val isSelected = selectedTags.contains(tagText)
@@ -591,7 +592,7 @@ internal fun TagSelectionCard(
                     onActionClick = onRetry, // 재시도 버튼 (GradientPillButton이 Retry로 바뀜)
                     showActionButton = false, // 버튼은 GradientPillButton이 담당
                     showDismissButton = false,
-                    modifier = Modifier.padding(bottom = 8.dp),
+                    modifier = Modifier.padding(bottom = Dimen.ItemSpacingSmall),
                 )
             }
 
@@ -791,7 +792,7 @@ private fun StoryPageFullBlockPreviewContent(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
         ) {
             Text(
                 text = date,
@@ -802,7 +803,7 @@ private fun StoryPageFullBlockPreviewContent(
                 text = location,
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                modifier = Modifier.padding(top = Dimen.ErrorMessagePadding, bottom = Dimen.ItemSpacingMedium),
             )
 
             // 여기서는 Coil 말고 painterResource 써!
@@ -824,7 +825,7 @@ private fun StoryPageFullBlockPreviewContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
             TagSelectionCard(
                 tags = suggestedTags,

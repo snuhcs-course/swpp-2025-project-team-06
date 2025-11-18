@@ -70,10 +70,11 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
+import com.example.momentag.ui.theme.Dimen.ImageCornerRadius
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.viewmodel.AddTagViewModel
 import kotlinx.coroutines.delay
 
@@ -211,7 +212,7 @@ fun AddTagScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp),
+                            .padding(horizontal = Dimen.FormScreenHorizontalPadding),
                 ) {
                     // Tag Name Section
                     TagNameSection(
@@ -220,7 +221,7 @@ fun AddTagScreen(navController: NavController) {
                         isDuplicate = isTagNameDuplicate,
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     // Added Pictures Section
                     Text(
@@ -229,7 +230,7 @@ fun AddTagScreen(navController: NavController) {
                         color = MaterialTheme.colorScheme.onSurface,
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
                     if (hasPermission) {
                         SelectedPhotosGrid(
@@ -249,7 +250,7 @@ fun AddTagScreen(navController: NavController) {
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                            .padding(horizontal = Dimen.FormScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
                 ) {
                     // Error Banner - Floating above Done button
                     if (isErrorBannerVisible && saveState is AddTagViewModel.SaveState.Error) {
@@ -261,7 +262,7 @@ fun AddTagScreen(navController: NavController) {
                             showActionButton = false,
                             showDismissButton = true,
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                     }
 
                     // Done Button
@@ -370,7 +371,7 @@ private fun TagNameSection(
                 text = "The tag '$tagName' already exists. This will add photos to it.",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = Dimen.ErrorMessagePadding),
             )
         }
     }
@@ -385,10 +386,10 @@ private fun SelectedPhotosGrid(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
         modifier = modifier,
-        contentPadding = PaddingValues(bottom = 8.dp),
+        contentPadding = PaddingValues(bottom = Dimen.ItemSpacingSmall),
     ) {
         // Add Picture Button - Always first
         item {
@@ -418,7 +419,7 @@ private fun PhotoItem(
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(imageCornerRadius))
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(onClick = onClick),
     ) {
@@ -443,9 +444,9 @@ private fun CheckboxOverlay(
     Box(
         modifier =
             modifier
-                .padding(4.dp)
+                .padding(Dimen.GridItemSpacing)
                 .size(24.dp)
-                .clip(RoundedCornerShape(imageCornerRadius))
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(
                     if (isSelected) {
                         MaterialTheme.colorScheme.primaryContainer
