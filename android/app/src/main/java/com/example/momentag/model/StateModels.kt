@@ -1,17 +1,5 @@
 package com.example.momentag.model
 
-sealed class MyTagsUiState {
-    object Loading : MyTagsUiState()
-
-    data class Success(
-        val tags: List<TagCntData>,
-    ) : MyTagsUiState()
-
-    data class Error(
-        val message: String,
-    ) : MyTagsUiState()
-}
-
 sealed interface StoryState {
     object Idle : StoryState
 
