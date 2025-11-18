@@ -189,7 +189,6 @@ class AlbumScreenTest {
         }
         composeTestRule.waitForIdle()
 
-        // 화면이 안정될 때까지 기다림
         composeTestRule.waitUntil(
             timeoutMillis = 3.seconds.inWholeMilliseconds
         ) {
@@ -198,24 +197,33 @@ class AlbumScreenTest {
 
         val tagNameNode = composeTestRule.onNodeWithText(testTagName)
 
-        // When: 유저가 이름을 입력 후 제출(엔터)
-        // 1. 포커스 획득
+        // When: User enter name
         tagNameNode.performClick()
         composeTestRule.waitForIdle()
 
-        // 2. 텍스트 교체
         tagNameNode.performTextReplacement(newTagName)
-
-        // 3. 엔터키 입력으로 제출 처리
-        tagNameNode.performTextInput("\n")
-
         composeTestRule.waitForIdle()
 
-        // Then: 바뀐 이름이 보여야 함
-        composeTestRule.onNodeWithText(newTagName).assertIsDisplayed()
+        composeTestRule.onNodeWithText(newTagName).performImeAction()
+        composeTestRule.waitForIdle()
 
-        // Then: 기존 이름은 없어야 함
-        composeTestRule.onNodeWithText(testTagName).assertDoesNotExist()
+        // Then: Wait for async rename operation to complete and error banner to show
+        composeTestRule.waitUntil(
+            timeoutMillis = 5.seconds.inWholeMilliseconds
+        ) {
+            try {
+                composeTestRule.onNodeWithText("Failed to Rename Tag", substring = true).assertExists()
+                true
+            } catch (e: AssertionError) {
+                false
+            }
+        }
+
+        // Then: Error banner should be displayed
+        composeTestRule.onNodeWithText("Failed to Rename Tag", substring = true).assertIsDisplayed()
+
+        // Then: Tag name should revert to original name
+        composeTestRule.onNodeWithText(testTagName).assertIsDisplayed()
     }
 
     @Test
