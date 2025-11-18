@@ -76,7 +76,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.Screen
@@ -89,7 +89,6 @@ import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
@@ -104,7 +103,7 @@ fun SelectImageScreen(navController: NavController) {
     LocalDensity.current
 
     // 2. ViewModel 인스턴스
-    val selectImageViewModel: SelectImageViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val selectImageViewModel: SelectImageViewModel = hiltViewModel()
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val allPhotos by selectImageViewModel.allPhotos.collectAsState()

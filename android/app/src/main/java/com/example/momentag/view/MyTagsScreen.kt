@@ -70,10 +70,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
@@ -89,7 +89,6 @@ import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.TagActionState
 import com.example.momentag.viewmodel.TagSortOrder
-import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -102,7 +101,7 @@ fun MyTagsScreen(navController: NavController) {
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // 2. ViewModel 인스턴스
-    val myTagsViewModel: MyTagsViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val myTagsViewModel: MyTagsViewModel = hiltViewModel()
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val uiState by myTagsViewModel.uiState.collectAsState()

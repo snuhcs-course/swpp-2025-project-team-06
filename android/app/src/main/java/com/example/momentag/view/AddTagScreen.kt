@@ -61,7 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.Screen
@@ -73,7 +73,6 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.viewmodel.AddTagViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,7 +83,7 @@ fun AddTagScreen(navController: NavController) {
     val focusManager = LocalFocusManager.current
 
     // 2. ViewModel 인스턴스
-    val addTagViewModel: AddTagViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val addTagViewModel: AddTagViewModel = hiltViewModel()
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val tagName by addTagViewModel.tagName.collectAsState()

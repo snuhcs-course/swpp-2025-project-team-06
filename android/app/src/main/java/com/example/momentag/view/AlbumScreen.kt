@@ -81,7 +81,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
@@ -92,7 +92,6 @@ import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AlbumViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -111,7 +110,7 @@ fun AlbumScreen(
     val focusManager = LocalFocusManager.current
 
     // 2. ViewModel 인스턴스
-    val albumViewModel: AlbumViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val albumViewModel: AlbumViewModel = hiltViewModel()
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val imageLoadState by albumViewModel.albumLoadingState.collectAsState()

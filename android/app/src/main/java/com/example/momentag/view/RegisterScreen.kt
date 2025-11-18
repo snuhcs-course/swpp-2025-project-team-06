@@ -49,13 +49,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.model.RegisterState
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.viewmodel.AuthViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
 
 // TODO:Register보내고 돌아오는 거 기다릴 동안 Loading 화면 띄워 줘야 할 듯
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,7 +64,7 @@ fun RegisterScreen(navController: NavController) {
     val context = LocalContext.current
 
     // 2. ViewModel 인스턴스
-    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val authViewModel: AuthViewModel = hiltViewModel()
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val registerState by authViewModel.registerState.collectAsState()

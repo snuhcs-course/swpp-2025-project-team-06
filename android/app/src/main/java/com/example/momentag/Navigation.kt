@@ -7,7 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -27,7 +27,6 @@ import com.example.momentag.view.RegisterScreen
 import com.example.momentag.view.SearchResultScreen
 import com.example.momentag.view.SelectImageScreen
 import com.example.momentag.viewmodel.StoryViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -188,8 +187,7 @@ fun appNavigation() {
         composable(
             route = Screen.Story.route,
         ) {
-            val factory = ViewModelFactory.getInstance(LocalContext.current)
-            val storyViewModel: StoryViewModel = viewModel(factory = factory)
+            val storyViewModel: StoryViewModel = hiltViewModel()
 
             StoryTagSelectionScreen(
                 viewModel = storyViewModel,

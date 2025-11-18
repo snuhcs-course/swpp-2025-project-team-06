@@ -11,6 +11,7 @@ import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.repository.TokenRepository
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.uuid.ExperimentalUuidApi
@@ -48,7 +49,7 @@ class ViewModelFactory private constructor(
         RemoteRepository(RetrofitInstance.getApiService(context.applicationContext))
     }
     val localRepository by lazy {
-        LocalRepository(context.applicationContext)
+        LocalRepository(context.applicationContext, Gson())
     }
 
     // 3. Private 속성 (Repositories)

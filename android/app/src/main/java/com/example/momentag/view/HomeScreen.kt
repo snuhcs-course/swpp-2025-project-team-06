@@ -116,10 +116,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
@@ -143,7 +143,6 @@ import com.example.momentag.viewmodel.HomeViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.TagSortOrder
-import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.delay
@@ -164,10 +163,10 @@ fun HomeScreen(navController: NavController) {
     remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
 
     // 2. ViewModel 인스턴스
-    val authViewModel: AuthViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val photoViewModel: PhotoViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
-    val searchViewModel: SearchViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val photoViewModel: PhotoViewModel = hiltViewModel()
+    val homeViewModel: HomeViewModel = hiltViewModel()
+    val searchViewModel: SearchViewModel = hiltViewModel()
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val logoutState by authViewModel.logoutState.collectAsState()

@@ -66,10 +66,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
@@ -91,7 +91,6 @@ import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.SearchViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
@@ -116,7 +115,7 @@ fun SearchResultScreen(
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
 
     // 2. ViewModel 인스턴스
-    val searchViewModel: SearchViewModel = viewModel(factory = ViewModelFactory.getInstance(context))
+    val searchViewModel: SearchViewModel = hiltViewModel()
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val semanticSearchState by searchViewModel.searchState.collectAsState()

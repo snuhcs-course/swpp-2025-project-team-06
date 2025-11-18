@@ -13,97 +13,102 @@ import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.worker.AlbumUploadWorker
 import com.example.momentag.worker.SelectedPhotoUploadWorker
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class PhotoViewModel(
-    private val remoteRepository: RemoteRepository,
-    private val localRepository: LocalRepository,
-    private val albumUploadJobCount: StateFlow<Int>,
-) : ViewModel() {
-    // 1. Private MutableStateFlow
-    private val _uiState = MutableStateFlow(HomeScreenUiState())
+@HiltViewModel
+class PhotoViewModel
+    @Inject
+    constructor(
+        private val remoteRepository: RemoteRepository,
+        private val localRepository: LocalRepository,
+        private val albumUploadJobCount: StateFlow<Int>,
+    ) : ViewModel() {
+        // 1. Private MutableStateFlow
+        private val _uiState = MutableStateFlow(HomeScreenUiState())
 
-    // 2. Public StateFlow (exposed state)
-    val uiState = _uiState.asStateFlow()
+        // 2. Public StateFlow (exposed state)
+        val uiState = _uiState.asStateFlow()
 
-    // 3. init 블록
-    init {
-        viewModelScope.launch {
-            albumUploadJobCount.collect { count ->
-                _uiState.update { it.copy(isLoading = count > 0) }
+        // 3. init 블록
+        init {
+            viewModelScope.launch {
+                albumUploadJobCount.collect { count ->
+                    _uiState.update { it.copy(isLoading = count > 0) }
+                }
             }
         }
-    }
 
-    fun uploadPhotosForAlbums(
-        albumIds: Set<Long>,
-        context: Context,
-    ) {
-        if (albumIds.isEmpty()) return
+        fun uploadPhotosForAlbums(
+            albumIds: Set<Long>,
+            context: Context,
+        ) {
+            if (albumIds.isEmpty()) return
 
-        albumIds.forEach { albumId ->
+            albumIds.forEach { albumId ->
+
+                val inputData =
+                    Data
+                        .Builder()
+                        .putLong(AlbumUploadWorker.KEY_ALBUM_ID, albumId)
+                        .build()
+
+                val uploadWorkRequest =
+                    OneTimeWorkRequest
+                        .Builder(AlbumUploadWorker::class.java)
+                        .setInputData(inputData)
+                        .addTag("album-upload-$albumId")
+                        .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                        .build()
+
+                WorkManager.getInstance(context).enqueue(uploadWorkRequest)
+            }
+
+            _uiState.update { it.copy(userMessage = "Background upload started.") }
+        }
+
+        fun uploadSelectedPhotos(
+            photos: Set<Photo>,
+            context: Context,
+        ) {
+            if (photos.isEmpty()) return
+
+            val photoIds = photos.mapNotNull { it.photoId.toLongOrNull() }.toLongArray()
+
+            if (photoIds.isEmpty()) {
+                _uiState.update { it.copy(errorMessage = "No photo IDs to upload.") }
+                return
+            }
 
             val inputData =
                 Data
                     .Builder()
-                    .putLong(AlbumUploadWorker.KEY_ALBUM_ID, albumId)
+                    .putLongArray(SelectedPhotoUploadWorker.KEY_PHOTO_IDS, photoIds)
                     .build()
 
             val uploadWorkRequest =
                 OneTimeWorkRequest
-                    .Builder(AlbumUploadWorker::class.java)
+                    .Builder(SelectedPhotoUploadWorker::class.java)
                     .setInputData(inputData)
-                    .addTag("album-upload-$albumId")
+                    .addTag("selected-photo-upload")
                     .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                     .build()
 
             WorkManager.getInstance(context).enqueue(uploadWorkRequest)
+
+            _uiState.update { it.copy(userMessage = "Background upload started.") }
         }
 
-        _uiState.update { it.copy(userMessage = "Background upload started.") }
-    }
-
-    fun uploadSelectedPhotos(
-        photos: Set<Photo>,
-        context: Context,
-    ) {
-        if (photos.isEmpty()) return
-
-        val photoIds = photos.mapNotNull { it.photoId.toLongOrNull() }.toLongArray()
-
-        if (photoIds.isEmpty()) {
-            _uiState.update { it.copy(errorMessage = "No photo IDs to upload.") }
-            return
+        fun infoMessageShown() {
+            _uiState.update { it.copy(userMessage = null) }
         }
 
-        val inputData =
-            Data
-                .Builder()
-                .putLongArray(SelectedPhotoUploadWorker.KEY_PHOTO_IDS, photoIds)
-                .build()
-
-        val uploadWorkRequest =
-            OneTimeWorkRequest
-                .Builder(SelectedPhotoUploadWorker::class.java)
-                .setInputData(inputData)
-                .addTag("selected-photo-upload")
-                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                .build()
-
-        WorkManager.getInstance(context).enqueue(uploadWorkRequest)
-
-        _uiState.update { it.copy(userMessage = "Background upload started.") }
+        fun errorMessageShown() {
+            _uiState.update { it.copy(errorMessage = null) }
+        }
     }
-
-    fun infoMessageShown() {
-        _uiState.update { it.copy(userMessage = null) }
-    }
-
-    fun errorMessageShown() {
-        _uiState.update { it.copy(errorMessage = null) }
-    }
-}

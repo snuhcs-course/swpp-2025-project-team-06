@@ -16,13 +16,18 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.example.momentag.R
+import com.example.momentag.di.AlbumUploadJobCountQualifier
+import com.example.momentag.di.AlbumUploadSuccessEventQualifier
 import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoInfoForUpload
 import com.example.momentag.repository.RemoteRepository
-import com.example.momentag.viewmodel.ViewModelFactory
 import com.google.gson.Gson
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -38,18 +43,39 @@ class AlbumUploadWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface AlbumUploadWorkerEntryPoint {
+        fun localRepository(): LocalRepository
+
+        fun remoteRepository(): RemoteRepository
+
+        fun gson(): Gson
+
+        @AlbumUploadJobCountQualifier
+        fun albumUploadJobCount(): MutableStateFlow<Int>
+
+        @AlbumUploadSuccessEventQualifier
+        fun albumUploadSuccessEvent(): MutableSharedFlow<Long>
+    }
+
     private val localRepository: LocalRepository
     private val remoteRepository: RemoteRepository
     private val albumUploadJobCount: MutableStateFlow<Int>
     private val albumUploadSuccessEvent: MutableSharedFlow<Long>
-    private val gson = Gson()
+    private val gson: Gson
 
     init {
-        val factory = ViewModelFactory.getInstance(applicationContext)
-        localRepository = factory.localRepository
-        remoteRepository = factory.remoteRepository
-        albumUploadJobCount = factory.albumUploadJobCount
-        albumUploadSuccessEvent = factory.albumUploadSuccessEvent
+        val entryPoint =
+            EntryPointAccessors.fromApplication(
+                applicationContext,
+                AlbumUploadWorkerEntryPoint::class.java,
+            )
+        localRepository = entryPoint.localRepository()
+        remoteRepository = entryPoint.remoteRepository()
+        albumUploadJobCount = entryPoint.albumUploadJobCount()
+        albumUploadSuccessEvent = entryPoint.albumUploadSuccessEvent()
+        gson = entryPoint.gson()
     }
 
     private val notificationManager =
