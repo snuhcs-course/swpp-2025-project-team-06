@@ -65,6 +65,7 @@ import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -74,6 +75,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
 import com.example.momentag.ui.components.BackTopBar
@@ -509,7 +511,7 @@ fun ImageDetailScreen(
                 val photo = photos.getOrNull(page)
                 ZoomableImage(
                     model = photo?.contentUri,
-                    contentDescription = "Detail image",
+                    contentDescription = stringResource(R.string.cd_detail_image),
                     modifier = Modifier.fillMaxSize(),
                     onScaleChanged = { zoomed ->
                         isZoomed = zoomed

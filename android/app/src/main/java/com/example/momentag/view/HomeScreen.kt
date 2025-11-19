@@ -109,6 +109,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -441,7 +442,7 @@ fun HomeScreen(navController: NavController) {
             }
             is AuthViewModel.LogoutState.Error -> {
                 errorBannerTitle = context.getString(R.string.error_title_logout_failed)
-                errorBannerMessage = (logoutState as LogoutState.Error).message ?: context.getString(R.string.error_message_logout)
+                errorBannerMessage = (logoutState as AuthViewModel.LogoutState.Error).message ?: context.getString(R.string.error_message_logout)
                 isErrorBannerVisible = true
             }
             else -> Unit
@@ -580,7 +581,7 @@ fun HomeScreen(navController: NavController) {
                         ) {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = "Share",
+                                contentDescription = stringResource(R.string.cd_share),
                                 intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                             )
                         }
@@ -628,7 +629,7 @@ fun HomeScreen(navController: NavController) {
             if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
                 CreateTagButton(
                     modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
-                    text = "Add Tag (${selectedPhotos.size})",
+                    text = stringResource(R.string.button_add_tag_count, selectedPhotos.size),
                     onClick = {
                         // selectedPhotos are already saved in draftTagRepository
                         // Same pattern as SearchResultScreen
@@ -735,7 +736,7 @@ fun HomeScreen(navController: NavController) {
                         ) {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.FilterList,
-                                contentDescription = "Filter",
+                                contentDescription = stringResource(R.string.cd_filter),
                                 intent = IconIntent.Inverse,
                             )
                         }
@@ -776,7 +777,7 @@ fun HomeScreen(navController: NavController) {
                             IconButton(onClick = { scope.launch { sheetState.show() } }) {
                                 StandardIcon.Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
-                                    contentDescription = "Sort Tag Albums",
+                                    contentDescription = stringResource(R.string.cd_sort_tag_albums),
                                     intent = IconIntent.Muted,
                                 )
                             }
@@ -809,7 +810,7 @@ fun HomeScreen(navController: NavController) {
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                "To view tags and images,\nplease allow access to your photos.",
+                                stringResource(R.string.empty_state_permission_needed),
                                 textAlign = TextAlign.Center,
                             )
                         }
@@ -1056,7 +1057,7 @@ private fun ViewToggle(
                     val isTagAlbumsSelected = !isOnlyTag && !isShowingAllPhotos
                     StandardIcon.Icon(
                         imageVector = Icons.Default.CollectionsBookmark,
-                        contentDescription = "Tag Albums",
+                        contentDescription = stringResource(R.string.cd_tag_albums),
                         sizeRole = IconSizeRole.Navigation,
                         intent = if (isTagAlbumsSelected) IconIntent.Surface else IconIntent.Muted,
                     )
@@ -1073,7 +1074,7 @@ private fun ViewToggle(
                 ) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Photo,
-                        contentDescription = "All Photos",
+                        contentDescription = stringResource(R.string.cd_all_photos),
                         sizeRole = IconSizeRole.Navigation,
                         intent = if (isShowingAllPhotos) IconIntent.Surface else IconIntent.Muted,
                     )
@@ -1149,7 +1150,7 @@ private fun MainContent(
                         Box(modifier = Modifier.aspectRatio(1f)) {
                             AsyncImage(
                                 model = photo.contentUri,
-                                contentDescription = "Photo ${photo.photoId}",
+                                contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
                                 modifier =
                                     Modifier
                                         .fillMaxSize()
@@ -1219,7 +1220,7 @@ private fun MainContent(
                                     if (isSelected) {
                                         StandardIcon.Icon(
                                             imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
+                                            contentDescription = stringResource(R.string.cd_photo_selected),
                                             sizeRole = IconSizeRole.InlineAction,
                                             intent = IconIntent.OnPrimaryContainer,
                                         )
@@ -1414,7 +1415,7 @@ fun TagGridItem(
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = "Delete Tag",
+                    contentDescription = stringResource(R.string.cd_delete_tag),
                     sizeRole = IconSizeRole.InlineAction,
                     intent = IconIntent.Surface,
                 )
@@ -1438,7 +1439,7 @@ fun EmptyStateTags(
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_empty_tags),
-            contentDescription = "Create memories",
+            contentDescription = stringResource(R.string.tag_create_memories),
             modifier =
                 Modifier
                     .size(120.dp)
@@ -1449,7 +1450,7 @@ fun EmptyStateTags(
 
         // 2. 텍스트
         Text(
-            text = "Create memories",
+            text = stringResource(R.string.tag_create_memories),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
         )
@@ -1457,7 +1458,7 @@ fun EmptyStateTags(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Organize your memories\nby keyword",
+            text = stringResource(R.string.tag_organize_memories),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1483,7 +1484,7 @@ fun EmptyStateTags(
             contentPadding = PaddingValues(horizontal = 32.dp),
         ) {
             Text(
-                text = "+ Create New Tag",
+                text = stringResource(R.string.tag_create_new),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -1509,7 +1510,7 @@ fun EmptyStatePhotos(
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_empty_photos),
-            contentDescription = "Please upload photos",
+            contentDescription = stringResource(R.string.empty_state_upload_photos_title),
             modifier = Modifier.size(120.dp),
         )
 
@@ -1517,14 +1518,14 @@ fun EmptyStatePhotos(
 
         // 2. 텍스트
         Text(
-            text = "Please upload photos",
+            text = stringResource(R.string.empty_state_upload_photos_title),
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Select photos\nto store your memories",
+            text = stringResource(R.string.empty_state_upload_photos_message),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1549,7 +1550,7 @@ fun EmptyStatePhotos(
             contentPadding = PaddingValues(horizontal = 32.dp),
         ) {
             Text(
-                text = "Upload Photos",
+                text = stringResource(R.string.button_upload_photos),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -1564,37 +1565,37 @@ private fun SortOptionsSheet(
 ) {
     Column(modifier = Modifier.padding(vertical = 16.dp)) {
         Text(
-            "Sort by",
+            stringResource(R.string.tag_sort_by),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         SortOptionItem(
-            text = "Most Recently Added",
+            text = stringResource(R.string.tag_sort_most_recently_added),
             icon = Icons.Default.FiberNew,
             isSelected = currentOrder == TagSortOrder.CREATED_DESC,
             onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
         )
         SortOptionItem(
-            text = "Name (A-Z)",
+            text = stringResource(R.string.tag_sort_name_az),
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.NAME_ASC,
             onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
         )
         SortOptionItem(
-            text = "Name (Z-A)",
+            text = stringResource(R.string.tag_sort_name_za),
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.NAME_DESC,
             onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
         )
         SortOptionItem(
-            text = "Count (Ascending)",
+            text = stringResource(R.string.tag_sort_count_asc),
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.COUNT_ASC,
             onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
         )
         SortOptionItem(
-            text = "Count (Descending)",
+            text = stringResource(R.string.tag_sort_count_desc),
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
             onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
@@ -1633,7 +1634,7 @@ private fun SortOptionItem(
         if (isSelected) {
             StandardIcon.Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.cd_photo_selected),
                 intent = IconIntent.Primary,
             )
         }

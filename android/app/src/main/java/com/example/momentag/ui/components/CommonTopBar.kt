@@ -115,7 +115,7 @@ fun CommonTopBar(
             actions()
         },
         colors =
-            TopAppBarDefaults.centerAlignedTopAppBarColors(
+            TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
         modifier = modifier,

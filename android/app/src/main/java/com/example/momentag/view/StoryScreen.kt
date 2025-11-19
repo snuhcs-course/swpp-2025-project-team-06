@@ -819,7 +819,7 @@ private fun StoryPageFullBlockPreviewContent(
                     painter =
                         androidx.compose.ui.res
                             .painterResource(id = drawableResId),
-                    contentDescription = "preview image",
+                    contentDescription = stringResource(R.string.cd_preview_image),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
                 )

@@ -57,10 +57,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Album
 import com.example.momentag.ui.components.BackTopBar
@@ -163,12 +165,12 @@ fun LocalGalleryScreen(
         topBar = {
             if (isSelectionMode) {
                 TopAppBar(
-                    title = { Text("${selectedAlbumIds.size} selected") },
+                    title = { Text(stringResource(R.string.photos_selected_count, selectedAlbumIds.size)) },
                     navigationIcon = {
                         IconButton(onClick = { localViewModel.clearAlbumSelection() }) {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.cd_navigate_back),
                                 sizeRole = IconSizeRole.Navigation,
                             )
                         }
@@ -189,7 +191,7 @@ fun LocalGalleryScreen(
                                 }
                             StandardIcon.Icon(
                                 imageVector = selectAllIcon,
-                                contentDescription = "Select All",
+                                contentDescription = stringResource(R.string.cd_select_all),
                                 intent = if (selectedAlbumIds.size == albumSet.size) IconIntent.Primary else IconIntent.Muted,
                             )
                         }
@@ -207,9 +209,9 @@ fun LocalGalleryScreen(
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
-                            Text("Upload started (check notification)")
+                            Text(stringResource(R.string.banner_upload_check_notification))
                         } else {
-                            Text("Upload ${selectedAlbumIds.size} selected albums")
+                            Text(stringResource(R.string.photos_upload_selected_albums, selectedAlbumIds.size))
                         }
                     },
                     icon = {
@@ -221,7 +223,7 @@ fun LocalGalleryScreen(
                         } else {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.Upload,
-                                contentDescription = "Upload",
+                                contentDescription = stringResource(R.string.cd_upload),
                                 intent = IconIntent.Inverse,
                             )
                         }
@@ -266,7 +268,7 @@ fun LocalGalleryScreen(
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Albums",
+                    text = stringResource(R.string.gallery_albums_title),
                     style = MaterialTheme.typography.displayMedium,
                 )
                 HorizontalDivider(
@@ -351,7 +353,7 @@ private fun AlbumGridItem(
     ) {
         AsyncImage(
             model = album.thumbnailUri,
-            contentDescription = "Album ${album.albumName}",
+            contentDescription = stringResource(R.string.cd_album, album.albumName),
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -402,7 +404,7 @@ private fun AlbumGridItem(
                 if (isSelected) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
+                        contentDescription = stringResource(R.string.cd_photo_selected),
                         sizeRole = IconSizeRole.InlineAction,
                         intent = IconIntent.OnPrimaryContainer,
                     )

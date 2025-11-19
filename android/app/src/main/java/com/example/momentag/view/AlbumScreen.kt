@@ -708,7 +708,6 @@ private fun RecommendChip(
                 StandardIcon.Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.error_title),
-                    contentDescription = "Error",
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Error,
                 )

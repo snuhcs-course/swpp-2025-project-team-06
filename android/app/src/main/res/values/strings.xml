@@ -39,6 +39,8 @@
     <!-- BUTTONS -->
     <!-- ============================================ -->
     <string name="button_create_tag">Create Tag</string>
+    <string name="button_upload_photos">Upload Photos</string>
+    <string name="button_add_tag_count">Add Tag (%1$d)</string>
 
     <!-- ============================================ -->
     <!-- ERROR TITLES -->
@@ -191,6 +193,16 @@
     <string name="cd_create_tag">Create a new tag</string>
     <string name="cd_add_photos">Add photos to tag</string>
     <string name="cd_scroll_up">Scroll up for next moment</string>
+    <string name="cd_select_all">Select all items</string>
+    <string name="cd_upload">Upload photos</string>
+    <string name="cd_album">Album %1$s</string>
+    <string name="cd_cancel_selection">Cancel selection</string>
+    <string name="cd_sort_tag_albums">Sort tag albums</string>
+    <string name="cd_tag_albums">Tag albums view</string>
+    <string name="cd_all_photos">All photos view</string>
+    <string name="cd_delete_tag">Delete tag</string>
+    <string name="cd_preview_image">Preview image</string>
+    <string name="cd_detail_image">Detail image</string>
 
     <!-- ============================================ -->
     <!-- EMPTY STATES -->
@@ -200,6 +212,8 @@
     <string name="empty_state_no_tags">No tags yet</string>
     <string name="empty_state_no_results">No results found</string>
     <string name="empty_state_permission_needed">To view tags and images,\nplease allow access to your photos</string>
+    <string name="empty_state_upload_photos_title">Please upload photos</string>
+    <string name="empty_state_upload_photos_message">Select photos\nto store your memories</string>
 
     <!-- ============================================ -->
     <!-- TAGS -->
@@ -222,6 +236,7 @@
     <string name="tag_sort_name_az">Name (A-Z)</string>
     <string name="tag_sort_name_za">Name (Z-A)</string>
     <string name="tag_sort_recently_added">Recently Added</string>
+    <string name="tag_sort_most_recently_added">Most Recently Added</string>
     <string name="tag_sort_count_desc">Count (Descending)</string>
     <string name="tag_sort_count_asc">Count (Ascending)</string>
 
@@ -230,6 +245,8 @@
     <!-- ============================================ -->
     <string name="photos_selected_count">%1$d selected</string>
     <string name="photos_upload_albums">Upload %1$d albums</string>
+    <string name="photos_upload_selected_albums">Upload %1$d selected albums</string>
+    <string name="photos_upload_selected_photos">Upload %1$d selected photos</string>
     <string name="photos_create_tag_with_count">Create tag (%1$d photos)</string>
     <string name="photos_getting_ready">Getting ready…</string>
     <string name="photos_finding_suggestions">Finding suggestions…</string>
