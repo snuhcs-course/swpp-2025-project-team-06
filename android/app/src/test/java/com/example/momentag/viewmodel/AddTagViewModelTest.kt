@@ -43,6 +43,7 @@ class AddTagViewModelTest {
 
         every { photoSelectionRepository.tagName } returns MutableStateFlow("")
         every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(emptyList())
+        coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
 
         viewModel = AddTagViewModel(photoSelectionRepository, localRepository, remoteRepository)
     }
