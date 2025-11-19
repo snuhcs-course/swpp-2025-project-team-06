@@ -96,7 +96,7 @@ fun ErrorDialog(
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimen.ErrorDialogElevation),
             ) {
                 Column(
                     modifier =
@@ -189,7 +189,7 @@ fun ErrorOverlay(
                 CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                 ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = Dimen.ErrorDialogElevation),
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth(),
@@ -301,7 +301,7 @@ fun ConfirmDialog(
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimen.ErrorDialogElevation),
             ) {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
@@ -414,7 +414,7 @@ fun RenameTagDialog(
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimen.ErrorDialogElevation),
             ) {
                 Box(
                     modifier = Modifier.fillMaxWidth(),

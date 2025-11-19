@@ -20,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconBlueprints
 
@@ -36,8 +35,8 @@ fun BottomNavBar(
                 .fillMaxWidth()
                 .height(Dimen.BottomNavBarHeight),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
+        tonalElevation = Dimen.BottomNavTonalElevation,
+        shadowElevation = Dimen.BottomNavShadowElevation,
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = Dimen.BottomNavHorizontalPadding),

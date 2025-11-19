@@ -48,10 +48,32 @@ object Dimen {
     val SearchBarMinHeight = 48.dp
     val TagHeight = 32.dp
 
+    val SearchSidePadding = 6.dp
+    val SearchSideEmptyPadding = 0.dp
+    val MinSearchBarMinHeight = 10.dp
+
     // 6. 모서리 둥글기 (Corner Radius)
     val ImageCornerRadius = 4.dp
     val ButtonCornerRadius = 8.dp
     val ComponentCornerRadius = 12.dp
+    val TagCornerRadius = 16.dp
     val DialogCornerRadius = 16.dp
     val SearchBarCornerRadius = 24.dp
+
+    // 7. 그림자 (Elevation)
+    val BottomNavTonalElevation = 4.dp
+    val BottomNavShadowElevation = 8.dp
+    val ErrorDialogElevation = 12.dp
+
+    // 8. 태그 (Tag)
+    val TagItemSpacer = 4.dp
+    val TagHorizontalPadding = 4.dp
+    val TagCustomChipHorizontalPadding = 12.dp
+    val CountTagEditHorizontalPadding = 12.dp
+    val TagChipWithCountSpacer = 6.dp
+    val TagMaxTextWidth = 180.dp
+    val TagChipVerticalPadding = 4.dp
+    val TagChipHorizontalPadding = 8.dp
+    val StoryTagChipBadgeSize = 18.dp
+    val CustomTagChipTextFieldWidth = 80.dp
 }

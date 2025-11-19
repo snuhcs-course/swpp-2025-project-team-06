@@ -225,10 +225,10 @@ private fun InternalChipSearchInput(
                     val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
                     val isEmptyText = text.isEmpty() && !isPlaceholder
 
-                    val sidePadding = if (isEmptyText) 0.dp else 6.dp // 비어있으면 0dp
+                    val sidePadding = if (isEmptyText) Dimen.SearchSideEmptyPadding else Dimen.SearchSidePadding // 비어있으면 0dp
                     val totalHorizontalPadding = sidePadding * 2
 
-                    val minFieldWidth = 10.dp
+                    val minFieldWidth = Dimen.MinSearchBarMinHeight
 
                     val finalWidth = (textWidthDp + totalHorizontalPadding).coerceAtLeast(minFieldWidth)
 
@@ -438,7 +438,7 @@ fun SearchHistoryItem(
                                 Modifier
                                     .background(
                                         color = MaterialTheme.colorScheme.secondaryContainer,
-                                        shape = RoundedCornerShape(8.dp),
+                                        shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                                     ).padding(horizontal = Dimen.ButtonPaddingVertical, vertical = Dimen.GridItemSpacing),
                         ) {
                             Text(
