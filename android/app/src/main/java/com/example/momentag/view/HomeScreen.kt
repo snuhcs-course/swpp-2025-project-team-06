@@ -888,7 +888,7 @@ fun HomeScreen(navController: NavController) {
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(Dimen.CircularProgressSizeMedium),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                         }

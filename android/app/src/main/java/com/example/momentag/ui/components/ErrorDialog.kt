@@ -564,7 +564,7 @@ private fun previewErrorOverlay() {
             Text(
                 text = "Some Screen Content",
                 style = MaterialTheme.typography.displaySmall,
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier.padding(Dimen.DialogPadding),
             )
         }
 

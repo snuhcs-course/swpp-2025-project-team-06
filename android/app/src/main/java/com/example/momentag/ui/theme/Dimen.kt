@@ -76,6 +76,7 @@ object Dimen {
 
     // --- Progress Indicators ---
     val CircularProgressSizeBig = 48.dp
+    val CircularProgressSizeMedium = 32.dp
     val CircularProgressSizeSmall = 20.dp
     val CircularProgressSizeXSmall = 18.dp
     val CircularProgressStrokeWidthBig = 5.dp
