@@ -56,10 +56,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -70,18 +68,16 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.viewmodel.AddTagViewModel
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTagScreen(navController: NavController) {
-    // 1. Context 및 Platform 관련 변수
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     // 2. ViewModel 인스턴스
@@ -211,7 +207,7 @@ fun AddTagScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp),
+                            .padding(horizontal = Dimen.FormScreenHorizontalPadding),
                 ) {
                     // Tag Name Section
                     TagNameSection(
@@ -220,7 +216,7 @@ fun AddTagScreen(navController: NavController) {
                         isDuplicate = isTagNameDuplicate,
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     // Added Pictures Section
                     Text(
@@ -229,7 +225,7 @@ fun AddTagScreen(navController: NavController) {
                         color = MaterialTheme.colorScheme.onSurface,
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
                     if (hasPermission) {
                         SelectedPhotosGrid(
@@ -249,7 +245,7 @@ fun AddTagScreen(navController: NavController) {
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                            .padding(horizontal = Dimen.FormScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
                 ) {
                     // Error Banner - Floating above Done button
                     if (isErrorBannerVisible && saveState is AddTagViewModel.SaveState.Error) {
@@ -261,7 +257,7 @@ fun AddTagScreen(navController: NavController) {
                             showActionButton = false,
                             showDismissButton = true,
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                     }
 
                     // Done Button
@@ -273,7 +269,7 @@ fun AddTagScreen(navController: NavController) {
                             onClick = {
                                 addTagViewModel.saveTagAndPhotos()
                             },
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                             colors =
                                 ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
@@ -284,10 +280,10 @@ fun AddTagScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(52.dp)
+                                    .height(Dimen.ButtonHeightLarge)
                                     .shadow(
-                                        elevation = if (canSubmit) 6.dp else 2.dp,
-                                        shape = RoundedCornerShape(24.dp),
+                                        elevation = if (canSubmit) Dimen.ButtonShadowElevation else Dimen.ButtonDisabledShadowElevation,
+                                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                                         clip = false,
                                     ),
                             enabled = canSubmit,
@@ -312,14 +308,14 @@ fun AddTagScreen(navController: NavController) {
                         CircularProgressIndicator(
                             modifier =
                                 Modifier
-                                    .size(56.dp)
+                                    .size(Dimen.BottomNavBarHeight)
                                     .shadow(
-                                        elevation = 8.dp,
+                                        elevation = Dimen.BottomNavShadowElevation,
                                         shape = CircleShape,
                                         clip = false,
                                     ),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 5.dp,
+                            strokeWidth = Dimen.CircularProgressStrokeWidthBig,
                         )
                     }
                 }
@@ -370,7 +366,7 @@ private fun TagNameSection(
                 text = "The tag '$tagName' already exists. This will add photos to it.",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = Dimen.ErrorMessagePadding),
             )
         }
     }
@@ -385,10 +381,10 @@ private fun SelectedPhotosGrid(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
         modifier = modifier,
-        contentPadding = PaddingValues(bottom = 8.dp),
+        contentPadding = PaddingValues(bottom = Dimen.ItemSpacingSmall),
     ) {
         // Add Picture Button - Always first
         item {
@@ -418,7 +414,7 @@ private fun PhotoItem(
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(imageCornerRadius))
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(onClick = onClick),
     ) {
@@ -443,9 +439,9 @@ private fun CheckboxOverlay(
     Box(
         modifier =
             modifier
-                .padding(4.dp)
-                .size(24.dp)
-                .clip(RoundedCornerShape(imageCornerRadius))
+                .padding(Dimen.GridItemSpacing)
+                .size(Dimen.IconButtonSizeSmall)
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(
                     if (isSelected) {
                         MaterialTheme.colorScheme.primaryContainer

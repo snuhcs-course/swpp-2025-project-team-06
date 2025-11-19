@@ -20,7 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconBlueprints
 
 @Composable
@@ -33,13 +33,13 @@ fun BottomNavBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(Dimen.BottomNavBarHeight),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
+        tonalElevation = Dimen.BottomNavTonalElevation,
+        shadowElevation = Dimen.BottomNavShadowElevation,
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 30.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = Dimen.BottomNavHorizontalPadding),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -89,7 +89,7 @@ private fun BottomNavItem(
         modifier =
             Modifier
                 .clickable { onClick() }
-                .padding(vertical = 6.dp),
+                .padding(vertical = Dimen.BottomNavItemVerticalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         iconBlueprint.Icon(
@@ -97,7 +97,7 @@ private fun BottomNavItem(
             contentDescription = null,
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(Dimen.GridItemSpacing))
 
         Text(
             text = text,
@@ -107,6 +107,6 @@ private fun BottomNavItem(
             overflow = TextOverflow.Ellipsis,
         )
 
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(Dimen.SpacingXXSmall))
     }
 }

@@ -22,7 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.StandardIcon
 
@@ -78,11 +78,11 @@ fun SearchIdleCustom(
                 text = "Recent searches",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
             )
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 8.dp),
+                contentPadding = PaddingValues(horizontal = Dimen.ItemSpacingSmall),
             ) {
                 items(displayedHistory) { query ->
                     HistoryItem(
@@ -111,7 +111,7 @@ private fun HistoryItem(
             modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(vertical = 12.dp, horizontal = 8.dp),
+                .padding(vertical = Dimen.ItemSpacingMedium, horizontal = Dimen.ItemSpacingSmall),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -124,7 +124,7 @@ private fun HistoryItem(
                 contentDescription = "recent search",
                 intent = IconIntent.Muted,
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(Dimen.ItemSpacingLarge))
             Text(
                 text = query,
                 style = MaterialTheme.typography.bodyLarge,
