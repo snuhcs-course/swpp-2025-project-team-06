@@ -1,70 +1,73 @@
 package com.example.momentag.ui.mytags
 
-import android.Manifest
-import android.os.Build
-import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.rule.GrantPermissionRule
-import com.example.momentag.repository.PhotoSelectionRepository
+import com.example.momentag.HiltTestActivity
 import com.example.momentag.ui.theme.MomenTagTheme
 import com.example.momentag.view.MyTagsScreen
-import com.example.momentag.viewmodel.ViewModelFactory
-import org.junit.After
+import com.example.momentag.viewmodel.MyTagsViewModel
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/**
+ * Hilt 환경에서 동작
+ * - Hilt가 ViewModel을 생성하게 둠 (hiltRule.inject())
+ * - 생성된 ViewModel 인스턴스를 가져와 reflection으로 내부 MutableStateFlow 값을 설정
+ */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalTestApi::class)
 class MyTagsScreenTest {
+    // Hilt rule
     @get:Rule(order = 0)
-    val permissionRule: GrantPermissionRule =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            GrantPermissionRule.grant(Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            GrantPermissionRule.grant(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
+    val hiltRule = HiltAndroidRule(this)
 
+    // Compose rule using HiltTestActivity so Hilt VM factory is available
     @get:Rule(order = 1)
-    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    val composeTestRule = createAndroidComposeRule<HiltTestActivity>()
+
+    private lateinit var vm: MyTagsViewModel
 
     @Before
     fun setup() {
-        // Clear any existing state from the singleton repository
-        clearSharedRepositoryState()
+        // must inject Hilt BEFORE requesting the ViewModel
+        hiltRule.inject()
+
+        // get the Hilt-created ViewModel from the activity's ViewModelProvider
+        vm = ViewModelProvider(composeTestRule.activity)[MyTagsViewModel::class.java]
+
+        // For example, to set initial states for tests:
+        // setFlow("_myTags", emptyList<Any>())
+        // setFlow("_isLoading", false)
     }
 
-    @After
-    fun tearDown() {
-        // Clean up after each test to prevent state pollution
-        clearSharedRepositoryState()
-    }
-
-    private fun clearSharedRepositoryState() {
-        // Access the singleton ViewModelFactory and clear the PhotoSelectionRepository
-        val context = composeTestRule.activity.applicationContext
-        val viewModelFactory = ViewModelFactory.getInstance(context)
-
-        // Use reflection to access and clear the private photoSelectionRepository
+    /**
+     * reflection으로 ViewModel 내부 private MutableStateFlow 필드 값을 바꿔서
+     * UI에 데이터/상태를 주입
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> setFlow(name: String, value: T) {
         try {
-            val field = ViewModelFactory::class.java.getDeclaredField("photoSelectionRepository\$delegate")
+            val field = MyTagsViewModel::class.java.getDeclaredField(name)
             field.isAccessible = true
-            val lazyDelegate = field.get(viewModelFactory) as? Lazy<*>
-            if (lazyDelegate?.isInitialized() == true) {
-                val repository = lazyDelegate.value as PhotoSelectionRepository
-                repository.clear()
-            }
-        } catch (e: Exception) {
-            // If reflection fails, we can't clear the state
-            // This is acceptable as it's a test-only concern
+            val flow = field.get(vm) as MutableStateFlow<T>
+            flow.value = value
+        } catch (e: NoSuchFieldException) {
+            // This can happen if the ViewModel's internal fields change.
+            // For this test setup, we can ignore it, but in a real scenario,
+            // this would indicate the test needs to be updated.
         }
     }
 
