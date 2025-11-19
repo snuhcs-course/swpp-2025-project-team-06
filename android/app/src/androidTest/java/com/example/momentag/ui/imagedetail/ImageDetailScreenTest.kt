@@ -2,8 +2,6 @@ package com.example.momentag.ui.imagedetail
 
 import android.net.Uri
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
