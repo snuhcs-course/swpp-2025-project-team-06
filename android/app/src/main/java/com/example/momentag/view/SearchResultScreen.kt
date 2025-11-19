@@ -150,7 +150,8 @@ fun SearchResultScreen(
 
     LaunchedEffect(tagLoadingState) {
         if (tagLoadingState is SearchViewModel.TagLoadingState.Error) {
-            val errorMessage = (tagLoadingState as SearchViewModel.TagLoadingState.Error).message ?: context.getString(R.string.error_message_unknown)
+            val errorMessage =
+                (tagLoadingState as SearchViewModel.TagLoadingState.Error).message ?: context.getString(R.string.error_message_unknown)
 
             // TODO : change to error box
             Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
