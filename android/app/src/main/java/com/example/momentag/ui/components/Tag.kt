@@ -39,7 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -79,9 +79,9 @@ private fun TagContainer(
     Row(
         modifier =
             modifier
-                .height(32.dp)
-                .background(color = color, shape = RoundedCornerShape(50))
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .height(Dimen.TagHeight)
+                .background(color = color, shape = RoundedCornerShape(Dimen.Radius50))
+                .padding(horizontal = Dimen.ItemSpacingMedium, vertical = Dimen.GridItemSpacing),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -107,7 +107,7 @@ fun TagChip(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
 
         when (variant) {
             is TagVariant.Plain -> Unit
@@ -115,7 +115,7 @@ fun TagChip(
             is TagVariant.CloseAlways -> {
                 IconButton(
                     onClick = variant.onDismiss,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(Dimen.ItemSpacingLarge),
                 ) {
                     StandardIcon.Icon(
                         imageVector = Icons.AutoMirrored.Filled.LabelOff,
@@ -129,7 +129,7 @@ fun TagChip(
                 AnimatedVisibility(visible = variant.isDeleteMode) {
                     IconButton(
                         onClick = variant.onDismiss,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
                     ) {
                         StandardIcon.Icon(
                             imageVector = Icons.AutoMirrored.Filled.LabelOff,
@@ -208,12 +208,12 @@ fun TagChipWithCount(
     var textOverflow by remember { mutableStateOf(false) }
 
     // reasonable maximum width for the tag text before ellipsizing
-    val maxTextWidth = 180.dp
+    val maxTextWidth = Dimen.TagMaxTextWidth
     Row(
         modifier =
             modifier
-                .height(32.dp)
-                .background(color = color, shape = RoundedCornerShape(16.dp))
+                .height(Dimen.TagHeight)
+                .background(color = color, shape = RoundedCornerShape(Dimen.TagCornerRadius))
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = {
@@ -227,8 +227,8 @@ fun TagChipWithCount(
                         },
                     )
                 }.padding(
-                    horizontal = if (isEditMode) 6.dp else 12.dp,
-                    vertical = 4.dp,
+                    horizontal = if (isEditMode) Dimen.CountTagEditHorizontalPadding else Dimen.CountTagEditHorizontalPadding * 2,
+                    vertical = Dimen.TagChipVerticalPadding,
                 ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -236,7 +236,7 @@ fun TagChipWithCount(
         if (isEditMode && onEdit != null) {
             IconButton(
                 onClick = onEdit,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.Edit,
@@ -245,7 +245,7 @@ fun TagChipWithCount(
                     intent = IconIntent.Inverse,
                 )
             }
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
         }
 
         Text(
@@ -260,14 +260,14 @@ fun TagChipWithCount(
 
         // Edit 모드가 아닐 때만 카운트 표시
         if (!isEditMode) {
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(Dimen.TagChipWithCountSpacer))
 
             // showCheckbox가 true면 체크박스, 아니면 카운트
             if (showCheckbox) {
                 Box(
                     modifier =
                         Modifier
-                            .size(16.dp)
+                            .size(Dimen.IconButtonsSizeXSmall)
                             .clip(CircleShape)
                             .background(
                                 if (isChecked) {
@@ -298,10 +298,10 @@ fun TagChipWithCount(
 
         // 오른쪽: Edit 모드일 때 휴지통 아이콘 표시 (삭제/취소)
         if (isEditMode && onDelete != null) {
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.AutoMirrored.Filled.LabelOff,
@@ -355,7 +355,7 @@ fun StoryTagChip(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
         }
 
         // 2) 선택된 경우에만 우상단 체크 뱃지 오버레이
@@ -364,8 +364,8 @@ fun StoryTagChip(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .offset(x = 4.dp, y = (-4).dp)
-                        .size(18.dp)
+                        .offset(x = Dimen.TagItemSpacer, y = -Dimen.TagItemSpacer)
+                        .size(Dimen.StoryTagChipBadgeSize)
                         .clip(CircleShape)
                         .background(Color(0xFF4CAF50)),
                 contentAlignment = Alignment.Center,
@@ -402,13 +402,13 @@ fun CustomTagChip(
             Box(
                 modifier =
                     Modifier
-                        .height(32.dp)
-                        .clip(RoundedCornerShape(50))
+                        .height(Dimen.TagHeight)
+                        .clip(RoundedCornerShape(Dimen.Radius50))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable {
                             isExpanded = true
                             onExpanded?.invoke()
-                        }.padding(horizontal = 12.dp, vertical = 4.dp),
+                        }.padding(horizontal = Dimen.TagCustomChipHorizontalPadding, vertical = Dimen.TagChipVerticalPadding),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -422,10 +422,10 @@ fun CustomTagChip(
             Row(
                 modifier =
                     Modifier
-                        .height(32.dp)
-                        .clip(RoundedCornerShape(50))
+                        .height(Dimen.TagHeight)
+                        .clip(RoundedCornerShape(Dimen.Radius50))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                        .padding(horizontal = Dimen.TagChipHorizontalPadding, vertical = Dimen.TagChipVerticalPadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // 왼쪽: Confirm button (Checkmark)
@@ -437,7 +437,7 @@ fun CustomTagChip(
                             tagText = ""
                         }
                     },
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                     enabled = tagText.isNotBlank(),
                 ) {
                     val confirmTint =
@@ -455,15 +455,15 @@ fun CustomTagChip(
                 }
 
                 // Text field
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
 
                 BasicTextField(
                     value = tagText,
                     onValueChange = { tagText = it },
                     modifier =
                         Modifier
-                            .width(80.dp)
-                            .padding(horizontal = 4.dp),
+                            .width(Dimen.CustomTagChipTextFieldWidth)
+                            .padding(horizontal = Dimen.TagHorizontalPadding),
                     textStyle =
                         MaterialTheme.typography.bodyMedium.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -482,7 +482,7 @@ fun CustomTagChip(
                     },
                 )
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
 
                 // 오른쪽: Cancel button (Close icon)
                 IconButton(
@@ -490,7 +490,7 @@ fun CustomTagChip(
                         isExpanded = false
                         tagText = ""
                     },
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                 ) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Close,

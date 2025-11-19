@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material.icons.filled.LabelOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,7 +69,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -82,10 +80,11 @@ import com.example.momentag.model.TagCntData
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.RenameTagDialog
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.components.confirmDialog
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -262,7 +261,7 @@ fun MyTagsScreen(navController: NavController) {
                             showActionButton = false,
                             showDismissButton = true,
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                     }
 
                     AnimatedVisibility(visible = isSelectingForPhotos) {
@@ -270,12 +269,12 @@ fun MyTagsScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                                    .padding(bottom = 8.dp)
+                                    .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                    .padding(bottom = Dimen.ItemSpacingSmall)
                                     .background(
                                         MaterialTheme.colorScheme.secondaryContainer,
-                                        shape = RoundedCornerShape(12.dp),
-                                    ).padding(horizontal = 16.dp, vertical = 10.dp),
+                                        shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
+                                    ).padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
@@ -299,15 +298,15 @@ fun MyTagsScreen(navController: NavController) {
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                                .padding(top = 8.dp, bottom = 8.dp)
-                                .height(52.dp),
+                                .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                .padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingSmall)
+                                .height(Dimen.ButtonHeightLarge),
                         colors =
                             ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
-                        shape = RoundedCornerShape(26.dp),
+                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                     ) {
                         Text(
                             text = stringResource(R.string.tag_create_new),
@@ -323,8 +322,8 @@ fun MyTagsScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                                    .padding(bottom = 8.dp),
+                                    .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                    .padding(bottom = Dimen.ItemSpacingSmall),
                             title = stringResource(R.string.error_title_action_failed),
                             message = errorMessage ?: stringResource(R.string.error_message_unknown),
                             onActionClick = { isErrorBannerVisible = false },
@@ -401,7 +400,7 @@ fun MyTagsScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 24.dp),
+                                    .padding(horizontal = Dimen.FormScreenHorizontalPadding),
                             contentAlignment = Alignment.Center,
                         ) {
                             WarningBanner(
@@ -467,21 +466,21 @@ fun MyTagsScreen(navController: NavController) {
                 CircularProgressIndicator(
                     modifier =
                         Modifier
-                            .size(56.dp)
+                            .size(Dimen.BottomNavBarHeight)
                             .shadow(
-                                elevation = 8.dp,
+                                elevation = Dimen.BottomNavShadowElevation,
                                 shape = CircleShape,
                                 clip = false,
                             ),
                     color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 5.dp,
+                    strokeWidth = Dimen.CircularProgressStrokeWidthBig,
                 )
             }
         }
     }
 
     if (isDeleteDialogVisible && tagToDelete != null) {
-        confirmDialog(
+        ConfirmDialog(
             title = stringResource(R.string.dialog_delete_tag_title),
             message = stringResource(R.string.dialog_delete_tag_message, tagToDelete?.second ?: ""),
             confirmButtonText = stringResource(R.string.action_delete),
@@ -522,7 +521,7 @@ fun MyTagsScreen(navController: NavController) {
     }
 
     if (isAddTagConfirmDialogVisible && tagToAddPhotosTo != null) {
-        confirmDialog(
+        ConfirmDialog(
             title = stringResource(R.string.dialog_add_to_tag_title),
             message = stringResource(R.string.dialog_add_to_tag_message, tagToAddPhotosTo?.tagName ?: ""),
             confirmButtonText = stringResource(R.string.dialog_add),
@@ -617,9 +616,9 @@ private fun MyTagsContent(
                             onExitEditMode()
                             // Exit individual edit mode when clicking empty space
                             individualEditTagId = null
-                        }.padding(horizontal = 24.dp),
+                        }.padding(horizontal = Dimen.FormScreenHorizontalPadding),
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -648,17 +647,20 @@ private fun MyTagsContent(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                 ) {
                     tags.forEach { tagData ->
                         val tagModifier =
                             if (isSelectingTagForPhotos) {
-                                Modifier.shadow(elevation = 4.dp, shape = RoundedCornerShape(16.dp))
+                                Modifier.shadow(
+                                    elevation = Dimen.BottomNavTonalElevation,
+                                    shape = RoundedCornerShape(Dimen.TagCornerRadius),
+                                )
                             } else {
                                 Modifier
                             }
@@ -703,12 +705,12 @@ private fun MyTagsContent(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(80.dp))
+                Spacer(modifier = Modifier.height(Dimen.FloatingButtonAreaPadding))
             }
 
             // Bulk delete confirmation dialog
             if (isBulkDeleteConfirmVisible && selectedTagsForBulkEdit.isNotEmpty()) {
-                confirmDialog(
+                ConfirmDialog(
                     title = stringResource(R.string.dialog_delete_tags_title),
                     message = stringResource(R.string.dialog_delete_tags_message, selectedTagsForBulkEdit.size),
                     confirmButtonText = stringResource(R.string.action_delete),
@@ -737,11 +739,11 @@ private fun MyTagsContent(
                     contentDescription = stringResource(R.string.cd_empty_tag),
                     modifier =
                         Modifier
-                            .size(200.dp)
+                            .size(Dimen.FloatingButtonAreaPaddingLarge)
                             .rotate(45f),
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
                 Text(
                     text = stringResource(R.string.tag_create_memories),
@@ -749,7 +751,7 @@ private fun MyTagsContent(
                     fontWeight = FontWeight.Bold,
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                 Text(
                     text = stringResource(R.string.tag_organize_memories),
@@ -780,11 +782,11 @@ private fun SortOptionsSheet(
     currentOrder: TagSortOrder,
     onOrderChange: (TagSortOrder) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+    Column(modifier = Modifier.padding(vertical = Dimen.ItemSpacingLarge)) {
         Text(
             stringResource(R.string.tag_sort_by),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
         )
 
         SortOptionItem(
@@ -832,7 +834,7 @@ private fun SortOptionItem(
             Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingMedium),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val optionIntent = if (isSelected) IconIntent.Primary else IconIntent.Muted
@@ -841,7 +843,7 @@ private fun SortOptionItem(
             contentDescription = text,
             intent = optionIntent,
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingLarge))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,

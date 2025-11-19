@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.momentag.R
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
 
@@ -71,10 +72,10 @@ fun CommonTopBar(
             var isLogoutConfirmVisible by remember { mutableStateOf(false) }
             if (showLogout && onLogoutClick != null) {
                 if (isLogoutLoading) {
-                    Box(modifier = Modifier.padding(start = 8.dp)) {
+                    Box(modifier = Modifier.padding(start = Dimen.ItemSpacingSmall)) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
+                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                         )
                     }
                 } else {
@@ -88,7 +89,7 @@ fun CommonTopBar(
                 }
 
                 if (isLogoutConfirmVisible) {
-                    confirmDialog(
+                    ConfirmDialog(
                         title = stringResource(R.string.dialog_logout_title),
                         message = stringResource(R.string.dialog_logout_message),
                         onConfirm = {

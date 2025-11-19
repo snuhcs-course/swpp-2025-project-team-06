@@ -32,9 +32,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.R
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.StandardIcon
@@ -53,7 +53,7 @@ import com.example.momentag.ui.theme.StandardIcon
  * @param dismissible Whether dialog can be closed by clicking backdrop (default: false)
  */
 @Composable
-fun errorDialog(
+fun ErrorDialog(
     errorMessage: String,
     onRetry: () -> Unit,
     onDismiss: (() -> Unit)? = null,
@@ -93,19 +93,19 @@ fun errorDialog(
                 modifier =
                     Modifier
                         .fillMaxWidth(0.85f)
-                        .padding(32.dp),
-                shape = RoundedCornerShape(16.dp),
+                        .padding(Dimen.DialogPadding),
+                shape = RoundedCornerShape(Dimen.DialogCornerRadius),
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimen.ErrorDialogElevation),
             ) {
                 Column(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
+                            .padding(Dimen.SectionSpacing),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     // Title
@@ -113,7 +113,7 @@ fun errorDialog(
                         text = dialogTitle,
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
-                        modifier = Modifier.padding(bottom = 16.dp),
+                        modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
                     )
 
                     // Error message
@@ -122,7 +122,7 @@ fun errorDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 24.dp),
+                        modifier = Modifier.padding(bottom = Dimen.SectionSpacing),
                     )
 
                     // Retry button
@@ -134,7 +134,7 @@ fun errorDialog(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                     ) {
                         Text(
                             text = retryText,
@@ -188,13 +188,13 @@ fun ErrorOverlay(
             modifier =
                 Modifier
                     .fillMaxWidth(0.85f)
-                    .padding(32.dp),
-            shape = RoundedCornerShape(16.dp),
+                    .padding(Dimen.DialogPadding),
+            shape = RoundedCornerShape(Dimen.DialogCornerRadius),
             colors =
                 CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                 ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = Dimen.ErrorDialogElevation),
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth(),
@@ -203,7 +203,7 @@ fun ErrorOverlay(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
+                            .padding(Dimen.SectionSpacing),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     // Title
@@ -211,7 +211,7 @@ fun ErrorOverlay(
                         text = dialogTitle,
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
-                        modifier = Modifier.padding(bottom = 16.dp),
+                        modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
                     )
 
                     // Error message
@@ -220,7 +220,7 @@ fun ErrorOverlay(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 24.dp),
+                        modifier = Modifier.padding(bottom = Dimen.SectionSpacing),
                     )
 
                     // Retry button
@@ -232,7 +232,7 @@ fun ErrorOverlay(
                                 contentColor = Color.Red,
                             ),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                     ) {
                         Text(
                             text = retryText,
@@ -248,8 +248,8 @@ fun ErrorOverlay(
                         modifier =
                             Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(8.dp)
-                                .size(32.dp),
+                                .padding(Dimen.ItemSpacingSmall)
+                                .size(Dimen.IconButtonSizeMedium),
                     ) {
                         StandardIcon.Icon(
                             imageVector = Icons.Default.Close,
@@ -264,7 +264,7 @@ fun ErrorOverlay(
 }
 
 @Composable
-fun confirmDialog(
+fun ConfirmDialog(
     title: String,
     message: String,
     onConfirm: () -> Unit,
@@ -300,13 +300,13 @@ fun confirmDialog(
                 modifier =
                     Modifier
                         .fillMaxWidth(0.85f)
-                        .padding(32.dp),
-                shape = RoundedCornerShape(16.dp),
+                        .padding(Dimen.DialogPadding),
+                shape = RoundedCornerShape(Dimen.DialogCornerRadius),
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimen.ErrorDialogElevation),
             ) {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
@@ -315,14 +315,14 @@ fun confirmDialog(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(Dimen.SectionSpacing),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
                             text = title,
                             color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.headlineMedium,
-                            modifier = Modifier.padding(bottom = 16.dp),
+                            modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
                         )
 
                         Text(
@@ -330,7 +330,7 @@ fun confirmDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(bottom = 24.dp),
+                            modifier = Modifier.padding(bottom = Dimen.SectionSpacing),
                         )
 
                         Button(
@@ -341,7 +341,7 @@ fun confirmDialog(
                                     contentColor = Color.Red,
                                 ),
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                         ) {
                             Text(
                                 text = confirmButtonText,
@@ -356,8 +356,8 @@ fun confirmDialog(
                             modifier =
                                 Modifier
                                     .align(Alignment.TopEnd)
-                                    .padding(8.dp)
-                                    .size(32.dp),
+                                    .padding(Dimen.ItemSpacingSmall)
+                                    .size(Dimen.IconButtonSizeMedium),
                         ) {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.Close,
@@ -413,13 +413,13 @@ fun RenameTagDialog(
                 modifier =
                     Modifier
                         .fillMaxWidth(0.85f)
-                        .padding(32.dp),
-                shape = RoundedCornerShape(16.dp),
+                        .padding(Dimen.DialogPadding),
+                shape = RoundedCornerShape(Dimen.DialogCornerRadius),
                 colors =
                     CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimen.ErrorDialogElevation),
             ) {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
@@ -428,7 +428,7 @@ fun RenameTagDialog(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(Dimen.SectionSpacing),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         // 1. Title (Font size matches confirmDialog)
@@ -436,7 +436,7 @@ fun RenameTagDialog(
                             text = title,
                             color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.headlineMedium,
-                            modifier = Modifier.padding(bottom = 24.dp),
+                            modifier = Modifier.padding(bottom = Dimen.SectionSpacing),
                         )
 
                         Text(
@@ -444,7 +444,7 @@ fun RenameTagDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(bottom = 16.dp),
+                            modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
                         )
 
                         // 2. TextField (Styled as requested)
@@ -469,7 +469,7 @@ fun RenameTagDialog(
                                 ),
                         )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
                         Button(
                             onClick = {
@@ -483,7 +483,7 @@ fun RenameTagDialog(
                                     contentColor = Color.Red,
                                 ),
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                             enabled = editedTagName.isNotBlank(),
                         ) {
                             Text(
@@ -499,8 +499,8 @@ fun RenameTagDialog(
                         modifier =
                             Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(8.dp)
-                                .size(32.dp),
+                                .padding(Dimen.ItemSpacingSmall)
+                                .size(Dimen.IconButtonSizeMedium),
                     ) {
                         StandardIcon.Icon(
                             imageVector = Icons.Default.Close,
@@ -527,7 +527,7 @@ private fun previewErrorDialog() {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface),
     ) {
-        errorDialog(
+        ErrorDialog(
             errorMessage = "Network Error!\nPlease check your internet connection.",
             onRetry = {},
         )
@@ -543,7 +543,7 @@ private fun previewErrorDialogCustomText() {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface),
     ) {
-        errorDialog(
+        ErrorDialog(
             errorMessage = "We couldn't connect to the server.\nPlease try again later.",
             onRetry = {},
             title = "Connection Failed",
@@ -569,7 +569,7 @@ private fun previewErrorOverlay() {
             Text(
                 text = "Some Screen Content",
                 style = MaterialTheme.typography.displaySmall,
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier.padding(Dimen.DialogPadding),
             )
         }
 

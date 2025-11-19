@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.momentag.R
+import com.example.momentag.ui.theme.Dimen
 import kotlinx.coroutines.delay
 
 /**
@@ -49,15 +50,15 @@ fun SearchLoadingStateCustom(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             CircularProgressIndicator(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(Dimen.CircularProgressSizeBig),
                 color = MaterialTheme.colorScheme.primary,
-                strokeWidth = 4.dp,
+                strokeWidth = Dimen.CircularProgressStrokeWidth,
             )
             Text(
                 text = stringResource(R.string.loading_with_ellipsis),
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium),
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
             )
         }
 
@@ -67,7 +68,7 @@ fun SearchLoadingStateCustom(
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp),
+                        .padding(bottom = Dimen.SectionSpacing),
             ) {
                 WarningBanner(
                     title = stringResource(R.string.banner_loading_delay_title),

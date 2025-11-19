@@ -61,6 +61,7 @@ import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -213,8 +214,8 @@ fun LocalAlbumScreen(
                     icon = {
                         if (uploadState.isLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                             )
                         } else {
                             StandardIcon.Icon(
@@ -256,21 +257,21 @@ fun LocalAlbumScreen(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = Dimen.ScreenHorizontalPadding),
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                 Text(
                     text = albumName,
                     style = MaterialTheme.typography.headlineMedium,
                 )
                 HorizontalDivider(
-                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+                    modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
 
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                         title = stringResource(R.string.notification_upload_failed),
                         message = errorMessage ?: stringResource(R.string.error_message_generic),
                         onActionClick = { isErrorBannerVisible = false },
@@ -286,8 +287,8 @@ fun LocalAlbumScreen(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
                 ) {
                     items(
                         count = photos.size,
@@ -300,7 +301,7 @@ fun LocalAlbumScreen(
                             modifier =
                                 Modifier
                                     .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
                                     .combinedClickable(
                                         onClick = {
                                             if (isSelectionMode) {
@@ -348,8 +349,8 @@ fun LocalAlbumScreen(
                                     modifier =
                                         Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(4.dp)
-                                            .size(24.dp)
+                                            .padding(Dimen.GridItemSpacing)
+                                            .size(Dimen.IconButtonSizeSmall)
                                             .background(
                                                 if (isSelected) {
                                                     MaterialTheme.colorScheme.primaryContainer

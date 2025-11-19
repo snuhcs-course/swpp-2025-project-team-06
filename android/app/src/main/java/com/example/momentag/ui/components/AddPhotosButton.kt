@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.example.momentag.R
 import com.example.momentag.ui.theme.imageCornerRadius
+import com.example.momentag.ui.theme.Dimen
 
 @Composable
 fun AddPhotosButton(
@@ -29,7 +30,7 @@ fun AddPhotosButton(
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(imageCornerRadius))
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .clickable(onClick = onClick)
                 .semantics {

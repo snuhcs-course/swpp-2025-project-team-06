@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.momentag.R
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -81,8 +82,8 @@ fun WarningBanner(
                 .fillMaxWidth()
                 .background(
                     color = bgColor,
-                    shape = RoundedCornerShape(12.dp),
-                ).padding(16.dp),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
+                ).padding(Dimen.ComponentPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Left icon
@@ -93,7 +94,7 @@ fun WarningBanner(
             intent = iconIntent,
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingMedium))
 
         // Text content
         Column(modifier = Modifier.weight(1f)) {
@@ -109,13 +110,13 @@ fun WarningBanner(
             )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
 
         // Action button (e.g., refresh)
         if (showActionButton) {
             IconButton(
                 onClick = onActionClick,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(Dimen.IconButtonSizeLarge),
             ) {
                 StandardIcon.Icon(
                     imageVector = actionIcon,
@@ -130,7 +131,7 @@ fun WarningBanner(
         if (showDismissButton && onDismiss != null) {
             IconButton(
                 onClick = onDismiss,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(Dimen.IconButtonSizeLarge),
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.Close,
@@ -154,7 +155,7 @@ private fun previewWarningBannerLoadingDelay() {
         title = "Loading is taking longer than usual",
         message = "Pull down to refresh",
         onActionClick = {},
-        modifier = Modifier.padding(24.dp),
+        modifier = Modifier.padding(Dimen.SectionSpacing),
     )
 }
 
@@ -167,7 +168,7 @@ private fun previewWarningBannerWithDismiss() {
         onActionClick = {},
         onDismiss = {},
         showDismissButton = true,
-        modifier = Modifier.padding(24.dp),
+        modifier = Modifier.padding(Dimen.SectionSpacing),
     )
 }
 
@@ -181,7 +182,7 @@ private fun previewWarningBannerCustomColor() {
         backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
         icon = Icons.Default.Warning,
         actionIcon = Icons.Default.Refresh,
-        modifier = Modifier.padding(24.dp),
+        modifier = Modifier.padding(Dimen.SectionSpacing),
     )
 }
 
@@ -194,6 +195,6 @@ private fun previewWarningBannerNoAction() {
         onActionClick = {},
         showActionButton = false,
         backgroundColor = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier.padding(24.dp),
+        modifier = Modifier.padding(Dimen.SectionSpacing),
     )
 }

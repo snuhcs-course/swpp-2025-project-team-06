@@ -129,12 +129,13 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.ui.components.tagX
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -212,7 +213,7 @@ fun HomeScreen(navController: NavController) {
 
     // 5. Derived state and computed values
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
-    val topSpacerHeight = 8.dp
+    val topSpacerHeight = Dimen.ItemSpacingSmall
     val textStates = searchViewModel.textStates
     val contentItems = searchViewModel.contentItems
     val focusRequesters = searchViewModel.focusRequesters
@@ -629,8 +630,8 @@ fun HomeScreen(navController: NavController) {
             // Only show when in selection mode and photos are selected
             if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
                 CreateTagButton(
-                    modifier = Modifier.padding(start = 32.dp, bottom = 16.dp),
                     text = stringResource(R.string.button_add_tag_count, selectedPhotos.size),
+                    modifier = Modifier.padding(start = Dimen.ButtonStartPadding, bottom = Dimen.ItemSpacingLarge),
                     onClick = {
                         // selectedPhotos are already saved in draftTagRepository
                         // Same pattern as SearchResultScreen
@@ -679,7 +680,7 @@ fun HomeScreen(navController: NavController) {
                                 } else {
                                     Modifier
                                 },
-                            ).padding(horizontal = 16.dp)
+                            ).padding(horizontal = Dimen.ScreenHorizontalPadding)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -698,7 +699,7 @@ fun HomeScreen(navController: NavController) {
                                 .onGloballyPositioned { layoutCoordinates ->
                                     searchBarRowHeight = layoutCoordinates.size.height
                                 },
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         ChipSearchBar(
@@ -729,10 +730,10 @@ fun HomeScreen(navController: NavController) {
                             },
                             modifier =
                                 Modifier
-                                    .size(48.dp)
+                                    .size(Dimen.SearchBarMinHeight)
                                     .background(
                                         color = MaterialTheme.colorScheme.primary,
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                                     ),
                         ) {
                             StandardIcon.Icon(
@@ -749,13 +750,13 @@ fun HomeScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
+                                    .padding(vertical = Dimen.ItemSpacingSmall)
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
                                         onClick = { },
                                     ),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                         ) {
                             items(tagSuggestions, key = { it.tagId }) { tag ->
                                 SuggestionChip(
@@ -766,7 +767,7 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -784,7 +785,7 @@ fun HomeScreen(navController: NavController) {
                             }
                         } else {
                             // Empty spacer to occupy space in "All Photos" view
-                            Spacer(modifier = Modifier.size(48.dp)) // Same size as IconButton
+                            Spacer(modifier = Modifier.size(Dimen.SearchBarMinHeight)) // Same size as IconButton
                         }
                         ViewToggle(
                             isOnlyTag = isOnlyTag,
@@ -800,7 +801,7 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     if (!hasPermission) {
                         Box(
@@ -884,18 +885,18 @@ fun HomeScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
+                                    .padding(Dimen.ComponentPadding),
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(Dimen.CircularProgressSizeMedium),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }
                     AnimatedVisibility(visible = bannerVisible) {
                         Column {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                             WarningBanner(
                                 title = "Uploading...🚀",
                                 message = "Photos are uploading in the background.",
@@ -909,12 +910,12 @@ fun HomeScreen(navController: NavController) {
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                         }
                     }
                     AnimatedVisibility(visible = isErrorBannerVisible && errorBannerMessage != null) {
                         Column {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                             WarningBanner(
                                 title = errorBannerTitle,
                                 message = errorBannerMessage!!,
@@ -932,7 +933,7 @@ fun HomeScreen(navController: NavController) {
                                 showDismissButton = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                         }
                     }
                 }
@@ -945,22 +946,16 @@ fun HomeScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() + 16.dp }) // change to move y-axis
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
                             .zIndex(1f), // z-index for overlay
                 ) {
                     Surface(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(end = 48.dp + 8.dp),
-                        shape =
-                            RoundedCornerShape(
-                                topStart = 16.dp,
-                                topEnd = 16.dp,
-                                bottomStart = 16.dp,
-                                bottomEnd = 16.dp,
-                            ),
-                        shadowElevation = 8.dp,
+                                .padding(end = Dimen.SearchBarMinHeight + Dimen.ItemSpacingSmall),
+                        shape = RoundedCornerShape(Dimen.TagCornerRadius),
+                        shadowElevation = Dimen.BottomNavShadowElevation,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         LazyColumn(
@@ -991,7 +986,7 @@ fun HomeScreen(navController: NavController) {
     if (isDeleteConfirmationDialogVisible && tagToDeleteInfo != null) {
         val (tagId, tagName) = tagToDeleteInfo!!
 
-        confirmDialog(
+        ConfirmDialog(
             title = stringResource(R.string.dialog_delete_tag_title),
             message = stringResource(R.string.dialog_delete_tag_message, tagName),
             confirmButtonText = stringResource(R.string.action_delete),
@@ -1041,19 +1036,19 @@ private fun ViewToggle(
         Box(
             modifier =
                 Modifier
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(8.dp))
-                    .padding(4.dp),
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(Dimen.ButtonCornerRadius))
+                    .padding(Dimen.GridItemSpacing),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall)) {
                 // Tag Albums (Grid)
                 Box(
                     modifier =
                         Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(Dimen.Radius6))
                             .background(
                                 if (!isOnlyTag && !isShowingAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, false) }
-                            .padding(8.dp),
+                            .padding(Dimen.ItemSpacingSmall),
                 ) {
                     val isTagAlbumsSelected = !isOnlyTag && !isShowingAllPhotos
                     StandardIcon.Icon(
@@ -1067,11 +1062,11 @@ private fun ViewToggle(
                 Box(
                     modifier =
                         Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(Dimen.Radius6))
                             .background(
                                 if (isShowingAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, true) }
-                            .padding(8.dp),
+                            .padding(Dimen.ItemSpacingSmall),
                 ) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Photo,
@@ -1123,8 +1118,8 @@ private fun MainContent(
                 columns = GridCells.Fixed(3),
                 state = allPhotosGridState,
                 modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
             ) {
                 groupedPhotos.forEach { group ->
                     item(
@@ -1137,8 +1132,8 @@ private fun MainContent(
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier =
                                 Modifier
-                                    .padding(horizontal = 4.dp)
-                                    .padding(top = 4.dp, bottom = 4.dp),
+                                    .padding(horizontal = Dimen.GridItemSpacing)
+                                    .padding(vertical = Dimen.GridItemSpacing),
                         )
                     }
 
@@ -1155,7 +1150,7 @@ private fun MainContent(
                                 modifier =
                                     Modifier
                                         .fillMaxSize()
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                                         .combinedClickable(
                                             onClick = {
                                                 if (isSelectionMode) {
@@ -1187,7 +1182,7 @@ private fun MainContent(
                                     modifier =
                                         Modifier
                                             .fillMaxSize()
-                                            .clip(RoundedCornerShape(4.dp))
+                                            .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                                             .background(
                                                 if (isSelected) {
                                                     MaterialTheme.colorScheme.onSurface.copy(
@@ -1203,8 +1198,8 @@ private fun MainContent(
                                     modifier =
                                         Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(4.dp)
-                                            .size(24.dp)
+                                            .padding(Dimen.GridItemSpacing)
+                                            .size(Dimen.IconButtonSizeSmall)
                                             .background(
                                                 if (isSelected) {
                                                     MaterialTheme.colorScheme.primaryContainer
@@ -1214,7 +1209,7 @@ private fun MainContent(
                                                             alpha = 0.8f,
                                                         )
                                                 },
-                                                RoundedCornerShape(12.dp),
+                                                RoundedCornerShape(Dimen.ComponentCornerRadius),
                                             ),
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -1239,11 +1234,11 @@ private fun MainContent(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(Dimen.ComponentPadding),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(Dimen.IconButtonSizeMedium),
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                             }
@@ -1264,8 +1259,8 @@ private fun MainContent(
                     // 태그 Flow 뷰
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingMedium),
                     ) {
                         tagItems.forEach { item ->
                             tagX(
@@ -1282,8 +1277,8 @@ private fun MainContent(
                         columns = GridCells.Fixed(3),
                         modifier = modifier,
                         state = tagAlbumGridState,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                     ) {
                         items(tagItems) { item ->
                             TagGridItem(
@@ -1340,9 +1335,9 @@ fun TagGridItem(
                 contentDescription = tagName,
                 modifier =
                     Modifier
-                        .padding(top = 12.dp)
+                        .padding(top = Dimen.ItemSpacingMedium)
                         .aspectRatio(1f)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(Dimen.TagCornerRadius))
                         .align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
@@ -1364,11 +1359,11 @@ fun TagGridItem(
             Spacer(
                 modifier =
                     Modifier
-                        .padding(top = 12.dp)
+                        .padding(top = Dimen.ItemSpacingMedium)
                         .aspectRatio(1f)
                         .background(
                             color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(Dimen.TagCornerRadius),
                         ).align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
@@ -1396,11 +1391,11 @@ fun TagGridItem(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 8.dp)
+                    .padding(start = Dimen.ItemSpacingSmall)
                     .background(
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(8.dp),
-                    ).padding(horizontal = 8.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
+                    ).padding(horizontal = Dimen.ItemSpacingSmall, vertical = Dimen.GridItemSpacing),
         )
         if (isDeleteMode) {
             IconButton(
@@ -1410,9 +1405,9 @@ fun TagGridItem(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 4.dp, end = 4.dp)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), RoundedCornerShape(50))
-                        .size(24.dp),
+                        .padding(top = Dimen.GridItemSpacing, end = Dimen.GridItemSpacing)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), RoundedCornerShape(Dimen.Radius50))
+                        .size(Dimen.IconButtonSizeSmall),
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.Filled.Close,
@@ -1443,11 +1438,11 @@ fun EmptyStateTags(
             contentDescription = stringResource(R.string.tag_create_memories),
             modifier =
                 Modifier
-                    .size(120.dp)
+                    .size(Dimen.EmptyStateImageSize)
                     .rotate(45f),
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
         // 2. 텍스트
         Text(
@@ -1456,7 +1451,7 @@ fun EmptyStateTags(
             fontWeight = FontWeight.Bold,
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
         Text(
             text = stringResource(R.string.tag_organize_memories),
@@ -1465,7 +1460,7 @@ fun EmptyStateTags(
             textAlign = TextAlign.Center,
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Dimen.IconButtonSizeMedium))
 
         // 3. "Create New Tag" 버튼
         Button(
@@ -1475,14 +1470,14 @@ fun EmptyStateTags(
             modifier =
                 Modifier
                     .fillMaxWidth(0.8f)
-                    .height(52.dp),
-            shape = RoundedCornerShape(50.dp),
+                    .height(Dimen.ButtonHeightLarge),
+            shape = RoundedCornerShape(Dimen.Radius50),
             colors =
                 ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
-            contentPadding = PaddingValues(horizontal = 32.dp),
+            contentPadding = PaddingValues(horizontal = Dimen.DialogPadding),
         ) {
             Text(
                 text = stringResource(R.string.tag_create_new),
@@ -1512,10 +1507,10 @@ fun EmptyStatePhotos(
         Image(
             painter = painterResource(id = R.drawable.ic_empty_photos),
             contentDescription = stringResource(R.string.empty_state_upload_photos_title),
-            modifier = Modifier.size(120.dp),
+            modifier = Modifier.size(Dimen.EmptyStateImageSize),
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
         // 2. 텍스트
         Text(
@@ -1524,7 +1519,7 @@ fun EmptyStatePhotos(
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
         Text(
             text = stringResource(R.string.empty_state_upload_photos_message),
             style = MaterialTheme.typography.bodyLarge,
@@ -1533,7 +1528,7 @@ fun EmptyStatePhotos(
             lineHeight = 22.sp,
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Dimen.IconButtonSizeMedium))
         Button(
             onClick = {
                 navController.navigate(Screen.LocalGallery.route)
@@ -1541,14 +1536,14 @@ fun EmptyStatePhotos(
             modifier =
                 Modifier
                     .fillMaxWidth(0.8f)
-                    .height(52.dp),
-            shape = RoundedCornerShape(50.dp),
+                    .height(Dimen.ButtonHeightLarge),
+            shape = RoundedCornerShape(Dimen.Radius50),
             colors =
                 ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
-            contentPadding = PaddingValues(horizontal = 32.dp),
+            contentPadding = PaddingValues(horizontal = Dimen.DialogPadding),
         ) {
             Text(
                 text = stringResource(R.string.button_upload_photos),
@@ -1564,11 +1559,11 @@ private fun SortOptionsSheet(
     currentOrder: TagSortOrder,
     onOrderChange: (TagSortOrder) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+    Column(modifier = Modifier.padding(vertical = Dimen.ItemSpacingLarge)) {
         Text(
             stringResource(R.string.tag_sort_by),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
         )
 
         SortOptionItem(
@@ -1616,7 +1611,7 @@ private fun SortOptionItem(
             Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingMedium),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val optionIntent = if (isSelected) IconIntent.Primary else IconIntent.Muted
@@ -1625,7 +1620,7 @@ private fun SortOptionItem(
             contentDescription = text,
             intent = optionIntent,
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingLarge))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,

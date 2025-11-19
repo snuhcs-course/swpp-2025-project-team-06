@@ -20,16 +20,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.imageCornerRadius
 
 /**
  * Image grid item - Supports both normal and selection modes
@@ -57,8 +56,8 @@ fun ImageGridUriItem(
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
-    cornerRadius: Dp = imageCornerRadius,
-    topPadding: Dp = 0.dp,
+    cornerRadius: Dp = Dimen.ImageCornerRadius,
+    topPadding: Dp = Dimen.SearchSideEmptyPadding,
 ) {
     Box(
         modifier = modifier.aspectRatio(1f),
@@ -105,8 +104,8 @@ fun ImageGridUriItem(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(24.dp)
+                        .padding(Dimen.GridItemSpacing)
+                        .size(Dimen.IconButtonSizeSmall)
                         .background(
                             if (isSelected) {
                                 MaterialTheme.colorScheme.primaryContainer
@@ -115,7 +114,7 @@ fun ImageGridUriItem(
                                     alpha = 0.8f,
                                 )
                             },
-                            RoundedCornerShape(12.dp),
+                            RoundedCornerShape(Dimen.ComponentCornerRadius),
                         ),
                 contentAlignment = Alignment.Center,
             ) {

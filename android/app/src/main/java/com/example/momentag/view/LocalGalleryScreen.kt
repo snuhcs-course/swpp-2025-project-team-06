@@ -28,7 +28,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
@@ -67,6 +67,7 @@ import com.example.momentag.Screen
 import com.example.momentag.model.Album
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -113,7 +114,6 @@ fun LocalGalleryScreen(
                     if (selectedAlbumIds.isNotEmpty()) {
                         photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
                     }
-                } else {
                 }
             },
         )
@@ -169,8 +169,8 @@ fun LocalGalleryScreen(
                     navigationIcon = {
                         IconButton(onClick = { localViewModel.clearAlbumSelection() }) {
                             StandardIcon.Icon(
-                                imageVector = Icons.Default.ArrowBack,
                                 contentDescription = stringResource(R.string.cd_navigate_back),
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 sizeRole = IconSizeRole.Navigation,
                             )
                         }
@@ -217,8 +217,8 @@ fun LocalGalleryScreen(
                     icon = {
                         if (uploadState.isLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                             )
                         } else {
                             StandardIcon.Icon(
@@ -264,22 +264,22 @@ fun LocalGalleryScreen(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = Dimen.ScreenHorizontalPadding),
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                 Text(
                     text = stringResource(R.string.gallery_albums_title),
                     style = MaterialTheme.typography.displayMedium,
                 )
                 HorizontalDivider(
-                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+                    modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 )
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
                 ) {
                     items(albumSet) { album ->
                         val isSelected = selectedAlbumIds.contains(album.albumId)
@@ -304,7 +304,7 @@ fun LocalGalleryScreen(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 uploadState.userMessage?.let { message ->
                     LaunchedEffect(uploadState.userMessage) {
@@ -345,7 +345,7 @@ private fun AlbumGridItem(
         modifier =
             Modifier
                 .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
@@ -364,11 +364,11 @@ private fun AlbumGridItem(
             modifier =
                 Modifier
                     .align(Alignment.BottomStart)
-                    .padding(8.dp) // Position from the corner
+                    .padding(Dimen.ItemSpacingSmall) // Position from the corner
                     .background(
                         color = Color.Black.copy(alpha = 0.6f), // Use black with some transparency
-                        shape = RoundedCornerShape(8.dp),
-                    ).padding(horizontal = 8.dp, vertical = 4.dp), // Padding inside the background
+                        shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
+                    ).padding(horizontal = Dimen.ItemSpacingSmall, vertical = Dimen.GridItemSpacing), // Padding inside the background
         )
 
         if (isSelectionMode) {
@@ -389,8 +389,8 @@ private fun AlbumGridItem(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(24.dp)
+                        .padding(Dimen.GridItemSpacing)
+                        .size(Dimen.IconButtonSizeSmall)
                         .background(
                             if (isSelected) {
                                 MaterialTheme.colorScheme.primaryContainer
