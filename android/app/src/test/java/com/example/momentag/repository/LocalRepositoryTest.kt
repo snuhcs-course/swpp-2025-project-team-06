@@ -738,7 +738,7 @@ class LocalRepositoryTest {
     fun `resizeImage handles exception in ImageDecoder path via reflection with mock`() {
         // Given
         val mockContext = mockk<Context>()
-        val mockGson =  mockk<Gson>()
+        val mockGson = mockk<Gson>()
         every { mockContext.contentResolver } returns mockContentResolver
 
         val uri = Uri.parse("content://test/invalid")
@@ -828,7 +828,6 @@ class LocalRepositoryTest {
         val mockContext = mockk<Context>()
         val mockCursor = mockk<Cursor>(relaxed = true)
         val mockGson = mockk<Gson>()
-
 
         every { mockContext.contentResolver } returns mockContentResolver
         every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
