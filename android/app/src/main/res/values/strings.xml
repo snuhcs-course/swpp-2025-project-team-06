@@ -21,7 +21,7 @@
     <string name="action_update">Update</string>
     <string name="action_logout">Log Out</string>
     <string name="action_login">Log In</string>
-    <string name="action_register">Register</string>
+    <string name="action_register">Sign Up</string>
     <string name="action_done">Done</string>
     <string name="action_sort">Sort</string>
     <string name="action_cancel">Cancel</string>
@@ -122,7 +122,7 @@
     <!-- ============================================ -->
     <string name="field_username">Username</string>
     <string name="field_password">Password</string>
-    <string name="field_email">Email</string>
+    <string name="field_email">Email address</string>
     <string name="field_confirm_password">Confirm password</string>
     <string name="field_tag_name">Tag name</string>
     <string name="field_enter_tag_name">Enter tag name</string>
@@ -146,7 +146,7 @@
     <string name="validation_required_email">Please enter your email</string>
     <string name="validation_invalid_email">Please enter a valid email address</string>
     <string name="validation_passwords_dont_match">Passwords don\'t match</string>
-    <string name="validation_required_password_check">Please check your password</string>
+    <string name="validation_required_password_check">Please confirm your password</string>
     <string name="validation_required_tag_name">Please enter a tag name</string>
     <string name="validation_tag_exists">The tag \'%1$s\' already exists. This will add photos to it.</string>
 
@@ -243,7 +243,7 @@
     <string name="empty_state_no_photos">No photos yet</string>
     <string name="empty_state_no_tags">No tags yet</string>
     <string name="empty_state_no_results">No results found</string>
-    <string name="empty_state_permission_needed">To view tags and images,\nplease allow access to your photos</string>
+    <string name="empty_state_permission_needed">To view tags and photos,\nplease allow access to your photos</string>
     <string name="empty_state_upload_photos_title">Please upload photos</string>
     <string name="empty_state_upload_photos_message">Select photos\nto store your memories</string>
 
@@ -261,7 +261,7 @@
     <string name="tag_add_to_tag">Add to Tag</string>
     <string name="tag_count_singular">%1$d tag</string>
     <string name="tag_count_plural">%1$d tags</string>
-    <string name="tag_choose_to_add_photos">Choose Tag to add photos</string>
+    <string name="tag_choose_to_add_photos">Choose a tag to add photos</string>
     <string name="tag_organize_memories">Organize your memories\nby keyword</string>
     <string name="tag_create_memories">Create memories</string>
     <string name="tag_sort_by">Sort by</string>
@@ -296,7 +296,6 @@
     <!-- ============================================ -->
     <!-- LOADING STATES -->
     <!-- ============================================ -->
-    <string name="loading_please_wait">Please wait…</string>
     <string name="loading_uploading">Uploading…</string>
     <string name="loading_searching">Searching…</string>
     <string name="loading_saving">Saving…</string>
