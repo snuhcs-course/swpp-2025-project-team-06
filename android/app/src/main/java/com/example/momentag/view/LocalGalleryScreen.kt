@@ -199,7 +199,7 @@ fun LocalGalleryScreen(
                 )
             } else {
                 BackTopBar(
-                    title = "MomenTag",
+                    title = stringResource(R.string.app_name),
                     onBackClick = onNavigateBack,
                 )
             }
@@ -316,8 +316,8 @@ fun LocalGalleryScreen(
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         modifier = Modifier.fillMaxWidth(),
-                        title = "Upload Failed",
-                        message = errorMessage ?: "An error occurred",
+                        title = stringResource(R.string.notification_upload_failed),
+                        message = errorMessage ?: stringResource(R.string.error_message_generic),
                         onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,
                         showDismissButton = true,

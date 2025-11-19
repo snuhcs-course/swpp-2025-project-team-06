@@ -535,7 +535,7 @@ internal fun TagSelectionCard(
                     if (isReadOnly) {
                         stringResource(R.string.story_tags_for_memory)
                     } else if (isEditMode) {
-                        "Edit Tags"
+                        stringResource(R.string.story_edit_tags)
                     } else {
                         stringResource(R.string.story_remember_this)
                     },

@@ -393,7 +393,7 @@ fun ImageDetailScreen(
     LaunchedEffect(tagDeleteState) {
         when (tagDeleteState) {
             is ImageDetailViewModel.TagDeleteState.Success -> {
-                Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.success_tag_deleted), Toast.LENGTH_SHORT).show()
                 val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
                 if (currentPhotoId.isNotEmpty()) {
                     imageDetailViewModel.loadPhotoTags(currentPhotoId)
@@ -417,7 +417,7 @@ fun ImageDetailScreen(
     LaunchedEffect(tagAddState) {
         when (tagAddState) {
             is ImageDetailViewModel.TagAddState.Success -> {
-                Toast.makeText(context, "Tag Added", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.success_tag_added), Toast.LENGTH_SHORT).show()
                 imageDetailViewModel.resetAddState()
             }
             is ImageDetailViewModel.TagAddState.Error -> {
@@ -491,7 +491,7 @@ fun ImageDetailScreen(
         topBar = {
             if (!isFocusMode) {
                 BackTopBar(
-                    title = "MomenTag",
+                    title = stringResource(R.string.app_name),
                     onBackClick = onNavigateBack,
                 )
             }
@@ -597,7 +597,7 @@ fun ImageDetailScreen(
             // WarningBanner always at the bottom of the main content Box, on top of everything
             if (isWarningBannerVisible && !isFocusMode) {
                 WarningBanner(
-                    title = "Error",
+                    title = stringResource(R.string.error_title),
                     message = warningBannerMessage,
                     onActionClick = { isWarningBannerVisible = false },
                     showActionButton = false,

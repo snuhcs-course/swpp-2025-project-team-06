@@ -134,8 +134,8 @@ fun AlbumScreen(
     var isDeleteConfirmationDialogVisible by remember { mutableStateOf(false) }
     var isRecommendationExpanded by remember { mutableStateOf(false) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
-    var errorBannerTitle by remember { mutableStateOf("Error") }
-    var errorBannerMessage by remember { mutableStateOf("An error occurred") }
+    var errorBannerTitle by remember { mutableStateOf(context.getString(R.string.error_title)) }
+    var errorBannerMessage by remember { mutableStateOf(context.getString(R.string.error_message_generic)) }
     var isSelectPhotosBannerShareVisible by remember { mutableStateOf(false) }
     var isSelectPhotosBannerUntagVisible by remember { mutableStateOf(false) }
 
@@ -229,7 +229,7 @@ fun AlbumScreen(
                 isErrorBannerVisible = false
             }
             is AlbumViewModel.TagAddState.Error -> {
-                errorBannerTitle = "Failed to Add Photos"
+                errorBannerTitle = context.getString(R.string.album_failed_add_photos)
                 errorBannerMessage = state.message
                 isErrorBannerVisible = true // Failure: Banner
                 albumViewModel.resetAddState()
@@ -329,7 +329,7 @@ fun AlbumScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             CommonTopBar(
-                title = "MomenTag",
+                title = stringResource(R.string.app_name),
                 showBackButton = true,
                 onBackClick = {
                     if (isTagAlbumPhotoSelectionMode) {

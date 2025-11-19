@@ -168,7 +168,7 @@ fun LocalAlbumScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "MomenTag",
+                        stringResource(R.string.app_name),
                         style = MaterialTheme.typography.titleLarge,
                     )
                 },
@@ -271,8 +271,8 @@ fun LocalAlbumScreen(
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        title = "Upload Failed",
-                        message = errorMessage ?: "An error occurred",
+                        title = stringResource(R.string.notification_upload_failed),
+                        message = errorMessage ?: stringResource(R.string.error_message_generic),
                         onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,
                         showDismissButton = true,

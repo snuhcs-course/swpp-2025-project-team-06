@@ -86,7 +86,7 @@ class AlbumUploadWorker
         ): Notification =
             NotificationCompat
                 .Builder(applicationContext, CHANNEL_ID)
-                .setContentTitle("MomenTag Album Upload")
+                .setContentTitle(applicationContext.getString(R.string.notification_upload_title))
                 .setContentText(text)
                 .setSmallIcon(R.mipmap.ic_launcher_foreground)
                 .setOngoing(ongoing)
@@ -116,10 +116,10 @@ class AlbumUploadWorker
                 val channel =
                     NotificationChannel(
                         CHANNEL_ID,
-                        "MomenTag Uploads",
+                        applicationContext.getString(R.string.notification_channel_name),
                         NotificationManager.IMPORTANCE_LOW,
                     ).apply {
-                        description = "Shows album photo upload progress"
+                        description = applicationContext.getString(R.string.notification_channel_description)
                     }
                 notificationManager.createNotificationChannel(channel)
             }
@@ -143,7 +143,7 @@ class AlbumUploadWorker
                         return cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)) ?: "알 수 없는 앨범"
                     }
                 }
-            return "Unknown Album"
+            return applicationContext.getString(R.string.fallback_unknown_album)
         }
 
         override suspend fun doWork(): Result {
@@ -165,16 +165,16 @@ class AlbumUploadWorker
                 if (success) {
                     albumUploadSuccessEvent.emit(albumId)
                     updateNotification(
-                        "Upload Complete",
-                        "'$albumName': Album upload completed successfully.",
+                        applicationContext.getString(R.string.notification_upload_complete),
+                        "'$albumName': ${applicationContext.getString(R.string.notification_upload_complete_message)}",
                         RESULT_NOTIFICATION_ID,
                         false,
                     )
                     return Result.success()
                 } else {
                     updateNotification(
-                        "Upload Failed",
-                        "'$albumName': Failed to upload some files.",
+                        applicationContext.getString(R.string.notification_upload_failed),
+                        "'$albumName': ${applicationContext.getString(R.string.error_message_upload_failed)}",
                         RESULT_NOTIFICATION_ID,
                         false,
                     )
@@ -182,8 +182,8 @@ class AlbumUploadWorker
                 }
             } catch (e: Exception) {
                 updateNotification(
-                    "Upload Error",
-                    "'$albumName': An unknown error occurred.",
+                    applicationContext.getString(R.string.notification_upload_error),
+                    "'$albumName': ${applicationContext.getString(R.string.error_message_generic)}",
                     RESULT_NOTIFICATION_ID,
                     false,
                 )
@@ -274,7 +274,12 @@ class AlbumUploadWorker
                     chunkCount++
                     val progressText = "Uploading '$albumName' ($chunkCount / $totalChunks)..."
                     setProgress(workDataOf(KEY_PROGRESS to progressText))
-                    updateNotification("Uploadind Albums", progressText, NOTIFICATION_ID, true)
+                    updateNotification(
+                        applicationContext.getString(R.string.notification_uploading_albums),
+                        progressText,
+                        NOTIFICATION_ID,
+                        true,
+                    )
 
                     val uploadData = createUploadDataFromChunk(currentChunk)
 

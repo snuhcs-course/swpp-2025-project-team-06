@@ -201,7 +201,7 @@ fun HomeScreen(navController: NavController) {
     var isDeleteConfirmationDialogVisible by remember { mutableStateOf(false) }
     var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
-    var errorBannerTitle by remember { mutableStateOf("Error") }
+    var errorBannerTitle by remember { mutableStateOf(context.getString(R.string.error_title)) }
     var errorBannerMessage by remember { mutableStateOf<String?>(null) }
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
@@ -549,7 +549,7 @@ fun HomeScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "MomenTag",
+                title = stringResource(R.string.app_name),
                 onTitleClick = {
                     navController.navigate(Screen.LocalGallery.route)
                 },
@@ -725,7 +725,7 @@ fun HomeScreen(navController: NavController) {
                         IconButton(
                             onClick = {
                                 // TODO: Show filter dialog
-                                Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.filter), Toast.LENGTH_SHORT).show()
                             },
                             modifier =
                                 Modifier
@@ -992,9 +992,9 @@ fun HomeScreen(navController: NavController) {
         val (tagId, tagName) = tagToDeleteInfo!!
 
         confirmDialog(
-            title = "Delete Tag",
-            message = "Are you sure you want to delete '$tagName' tag?",
-            confirmButtonText = "Delete Tag",
+            title = stringResource(R.string.dialog_delete_tag_title),
+            message = stringResource(R.string.dialog_delete_tag_message, tagName),
+            confirmButtonText = stringResource(R.string.action_delete),
             onConfirm = {
                 homeViewModel.deleteTag(tagId)
                 isDeleteConfirmationDialogVisible = false

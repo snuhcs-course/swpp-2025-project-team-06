@@ -77,6 +77,11 @@
     <string name="error_message_recommendation">We couldn\'t get recommendations. Please try again.</string>
     <string name="error_message_load_suggestions">We couldn\'t load suggestions. Please check your connection.</string>
     <string name="error_message_connection_lost">Connection lost. Please check your internet connection.</string>
+    <string name="error_message_authentication_required">Please log in again</string>
+    <string name="error_message_photo_not_found">We couldn\'t find this photo. Please try again.</string>
+    <string name="error_message_add_photo_failed">We couldn\'t add these photos. Please try again.</string>
+    <string name="error_message_empty_query">Please enter a search query</string>
+    <string name="error_message_upload_failed">We couldn\'t upload some photos</string>
 
     <!-- ============================================ -->
     <!-- SUCCESS MESSAGES - Casual, friendly tone -->
@@ -85,6 +90,7 @@
     <string name="success_tag_deleted">Tag deleted</string>
     <string name="success_tag_created">Tag created</string>
     <string name="success_tag_updated">Tag updated</string>
+    <string name="success_tag_added">Tag added</string>
     <string name="success_photos_added">Photos added to tag</string>
     <string name="success_upload_started">Upload started</string>
 
@@ -166,6 +172,22 @@
     <string name="banner_upload_check_notification">Check notifications for progress</string>
 
     <!-- ============================================ -->
+    <!-- WORKER NOTIFICATIONS (Background Tasks) -->
+    <!-- ============================================ -->
+    <string name="notification_upload_title">MomenTag Album Upload</string>
+    <string name="notification_channel_name">MomenTag Uploads</string>
+    <string name="notification_channel_description">Shows album photo upload progress</string>
+    <string name="notification_upload_complete">Upload complete</string>
+    <string name="notification_upload_complete_message">All photos uploaded successfully</string>
+    <string name="notification_upload_failed">Upload failed</string>
+    <string name="notification_upload_error">Upload error</string>
+    <string name="notification_uploading_photos">Uploading photos</string>
+    <string name="notification_uploading_albums">Uploading albums</string>
+    <string name="fallback_unknown_album">Unknown Album</string>
+    <string name="fallback_unknown_date">Unknown date</string>
+    <string name="fallback_unknown_location">Unknown location</string>
+
+    <!-- ============================================ -->
     <!-- CONTENT DESCRIPTIONS (Accessibility) -->
     <!-- ============================================ -->
     <string name="cd_navigate_back">Navigate back to previous screen</string>
@@ -203,6 +225,12 @@
     <string name="cd_delete_tag">Delete tag</string>
     <string name="cd_preview_image">Preview image</string>
     <string name="cd_detail_image">Detail image</string>
+    <string name="cd_edit_tag_name">Edit tag name</string>
+    <string name="cd_tag_selected">Tag selected</string>
+    <string name="cd_confirm_action">Confirm action</string>
+    <string name="cd_cancel_action">Cancel action</string>
+    <string name="cd_search_photos">Search photos</string>
+    <string name="cd_search_history">Search history</string>
 
     <!-- ============================================ -->
     <!-- EMPTY STATES -->
