@@ -67,7 +67,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -537,7 +536,7 @@ fun ImageDetailScreen(
                                     .fillMaxWidth()
                                     .padding(
                                         top = Dimen.ItemSpacingSmall,
-                                        bottom = 2.dp,
+                                        bottom = Dimen.SpacingXXSmall,
                                         start = Dimen.ItemSpacingMedium,
                                         end = Dimen.ItemSpacingMedium,
                                     ),
@@ -555,7 +554,7 @@ fun ImageDetailScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .padding(
-                                        top = 0.dp,
+                                        top = Dimen.SearchSideEmptyPadding,
                                         bottom = Dimen.ItemSpacingSmall,
                                         start = Dimen.ItemSpacingMedium,
                                         end = Dimen.ItemSpacingMedium,
@@ -569,7 +568,7 @@ fun ImageDetailScreen(
 
                     // Tags section at the bottom
                     if (isError) {
-                        Spacer(modifier = Modifier.fillMaxWidth().height(48.dp))
+                        Spacer(modifier = Modifier.fillMaxWidth().height(Dimen.SearchBarMinHeight))
                     } else {
                         TagsSection(
                             modifier =
@@ -711,7 +710,7 @@ fun TagsSection(
     ) {
         // --- 1. 기존 태그 로딩 처리 ---
         if (isExistingTagsLoading) {
-            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
         } else {
             // Display existing tags - 개별 롱프레스로 해당 태그만 삭제 모드
             existingTags.forEach { tagItem ->
@@ -747,7 +746,7 @@ fun TagsSection(
 
         // --- 2. 추천 태그 로딩 처리 ---
         if (isRecommendedTagsLoading) {
-            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
         } else {
             // Display recommended tags (통일된 색상 사용)
             recommendedTags.forEach { tagName ->

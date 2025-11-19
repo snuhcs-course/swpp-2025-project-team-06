@@ -674,10 +674,10 @@ private fun SearchResultContent(
                     },
                     modifier =
                         Modifier
-                            .size(48.dp)
+                            .size(Dimen.SearchBarMinHeight)
                             .background(
                                 color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                             ),
                 ) {
                     StandardIcon.Icon(
@@ -750,7 +750,7 @@ private fun SearchResultContent(
             exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
             modifier =
                 Modifier
-                    .offset(y = topSpacerHeight + with(LocalDensity.current) { searchBarRowHeight.toDp() } + 4.dp)
+                    .offset(y = topSpacerHeight + with(LocalDensity.current) { searchBarRowHeight.toDp() } + Dimen.GridItemSpacing)
                     .padding(horizontal = Dimen.ScreenHorizontalPadding)
                     .zIndex(1f),
         ) {
@@ -759,8 +759,8 @@ private fun SearchResultContent(
                     Modifier
                         .fillMaxWidth()
                         .padding(end = 48.dp + Dimen.ItemSpacingSmall),
-                shape = RoundedCornerShape(16.dp),
-                shadowElevation = 8.dp,
+                shape = RoundedCornerShape(Dimen.TagCornerRadius),
+                shadowElevation = Dimen.BottomNavShadowElevation,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 LazyColumn(

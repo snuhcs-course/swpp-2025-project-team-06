@@ -628,7 +628,7 @@ fun HomeScreen(navController: NavController) {
             // Only show when in selection mode and photos are selected
             if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
                 CreateTagButton(
-                    modifier = Modifier.padding(start = 32.dp, bottom = Dimen.ItemSpacingLarge),
+                    modifier = Modifier.padding(start = Dimen.ButtonStartPadding, bottom = Dimen.ItemSpacingLarge),
                     text = "Add Tag (${selectedPhotos.size})",
                     onClick = {
                         // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
@@ -729,10 +729,10 @@ fun HomeScreen(navController: NavController) {
                             },
                             modifier =
                                 Modifier
-                                    .size(48.dp)
+                                    .size(Dimen.SearchBarMinHeight)
                                     .background(
                                         color = MaterialTheme.colorScheme.primary,
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                                     ),
                         ) {
                             StandardIcon.Icon(
@@ -784,7 +784,7 @@ fun HomeScreen(navController: NavController) {
                             }
                         } else {
                             // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
-                            Spacer(modifier = Modifier.size(48.dp)) // IconButton 크기만큼
+                            Spacer(modifier = Modifier.size(Dimen.SearchBarMinHeight)) // IconButton 크기만큼
                         }
                         ViewToggle(
                             isOnlyTag = isOnlyTag,
@@ -952,15 +952,9 @@ fun HomeScreen(navController: NavController) {
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(end = 48.dp + Dimen.ItemSpacingSmall),
-                        shape =
-                            RoundedCornerShape(
-                                topStart = 16.dp,
-                                topEnd = 16.dp,
-                                bottomStart = 16.dp,
-                                bottomEnd = 16.dp,
-                            ),
-                        shadowElevation = 8.dp,
+                                .padding(end = Dimen.SearchBarMinHeight + Dimen.ItemSpacingSmall),
+                        shape = RoundedCornerShape(Dimen.TagCornerRadius),
+                        shadowElevation = Dimen.BottomNavShadowElevation,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         LazyColumn(
@@ -1041,7 +1035,7 @@ private fun ViewToggle(
         Box(
             modifier =
                 Modifier
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(Dimen.ButtonCornerRadius))
                     .padding(Dimen.GridItemSpacing),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall)) {
@@ -1049,7 +1043,7 @@ private fun ViewToggle(
                 Box(
                     modifier =
                         Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(Dimen.Radius6))
                             .background(
                                 if (!isOnlyTag && !isShowingAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, false) }
@@ -1067,7 +1061,7 @@ private fun ViewToggle(
                 Box(
                     modifier =
                         Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(Dimen.Radius6))
                             .background(
                                 if (isShowingAllPhotos) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                             ).clickable { onToggle(false, true) }
@@ -1155,7 +1149,7 @@ private fun MainContent(
                                 modifier =
                                     Modifier
                                         .fillMaxSize()
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                                         .combinedClickable(
                                             onClick = {
                                                 if (isSelectionMode) {
@@ -1187,7 +1181,7 @@ private fun MainContent(
                                     modifier =
                                         Modifier
                                             .fillMaxSize()
-                                            .clip(RoundedCornerShape(4.dp))
+                                            .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                                             .background(
                                                 if (isSelected) {
                                                     MaterialTheme.colorScheme.onSurface.copy(
@@ -1204,7 +1198,7 @@ private fun MainContent(
                                         Modifier
                                             .align(Alignment.TopEnd)
                                             .padding(Dimen.GridItemSpacing)
-                                            .size(24.dp)
+                                            .size(Dimen.IconButtonSizeSmall)
                                             .background(
                                                 if (isSelected) {
                                                     MaterialTheme.colorScheme.primaryContainer
@@ -1214,7 +1208,7 @@ private fun MainContent(
                                                             alpha = 0.8f,
                                                         )
                                                 },
-                                                RoundedCornerShape(12.dp),
+                                                RoundedCornerShape(Dimen.ComponentCornerRadius),
                                             ),
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -1243,7 +1237,7 @@ private fun MainContent(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(Dimen.IconButtonSizeMedium),
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                             }
@@ -1342,7 +1336,7 @@ fun TagGridItem(
                     Modifier
                         .padding(top = Dimen.ItemSpacingMedium)
                         .aspectRatio(1f)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(Dimen.TagCornerRadius))
                         .align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
@@ -1368,7 +1362,7 @@ fun TagGridItem(
                         .aspectRatio(1f)
                         .background(
                             color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(Dimen.TagCornerRadius),
                         ).align(Alignment.BottomCenter)
                         .combinedClickable(
                             onClick = {
@@ -1399,7 +1393,7 @@ fun TagGridItem(
                     .padding(start = Dimen.ItemSpacingSmall)
                     .background(
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                     ).padding(horizontal = Dimen.ItemSpacingSmall, vertical = Dimen.GridItemSpacing),
         )
         if (isDeleteMode) {
@@ -1411,8 +1405,8 @@ fun TagGridItem(
                     Modifier
                         .align(Alignment.TopEnd)
                         .padding(top = Dimen.GridItemSpacing, end = Dimen.GridItemSpacing)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), RoundedCornerShape(50))
-                        .size(24.dp),
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), RoundedCornerShape(Dimen.Radius50))
+                        .size(Dimen.IconButtonSizeSmall),
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.Filled.Close,
@@ -1443,7 +1437,7 @@ fun EmptyStateTags(
             contentDescription = "Create memories",
             modifier =
                 Modifier
-                    .size(120.dp)
+                    .size(Dimen.EmptyStateImageSize)
                     .rotate(45f),
         )
 
@@ -1465,7 +1459,7 @@ fun EmptyStateTags(
             textAlign = TextAlign.Center,
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Dimen.IconButtonSizeMedium))
 
         // 3. "Create New Tag" 버튼
         Button(
@@ -1475,14 +1469,14 @@ fun EmptyStateTags(
             modifier =
                 Modifier
                     .fillMaxWidth(0.8f)
-                    .height(52.dp),
-            shape = RoundedCornerShape(50.dp),
+                    .height(Dimen.ButtonHeightLarge),
+            shape = RoundedCornerShape(Dimen.Radius50),
             colors =
                 ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
-            contentPadding = PaddingValues(horizontal = 32.dp),
+            contentPadding = PaddingValues(horizontal = Dimen.DialogPadding),
         ) {
             Text(
                 text = "+ Create New Tag",
@@ -1512,7 +1506,7 @@ fun EmptyStatePhotos(
         Image(
             painter = painterResource(id = R.drawable.ic_empty_photos),
             contentDescription = "Please upload photos",
-            modifier = Modifier.size(120.dp),
+            modifier = Modifier.size(Dimen.EmptyStateImageSize),
         )
 
         Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
@@ -1533,7 +1527,7 @@ fun EmptyStatePhotos(
             lineHeight = 22.sp,
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Dimen.IconButtonSizeMedium))
         Button(
             onClick = {
                 navController.navigate(Screen.LocalGallery.route)
@@ -1541,14 +1535,14 @@ fun EmptyStatePhotos(
             modifier =
                 Modifier
                     .fillMaxWidth(0.8f)
-                    .height(52.dp),
-            shape = RoundedCornerShape(50.dp),
+                    .height(Dimen.ButtonHeightLarge),
+            shape = RoundedCornerShape(Dimen.Radius50),
             colors =
                 ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
-            contentPadding = PaddingValues(horizontal = 32.dp),
+            contentPadding = PaddingValues(horizontal = Dimen.DialogPadding),
         ) {
             Text(
                 text = "Upload Photos",

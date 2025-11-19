@@ -53,7 +53,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -212,8 +211,8 @@ fun LocalAlbumScreen(
                     icon = {
                         if (uploadState.isLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                             )
                         } else {
                             StandardIcon.Icon(
@@ -299,7 +298,7 @@ fun LocalAlbumScreen(
                             modifier =
                                 Modifier
                                     .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
                                     .combinedClickable(
                                         onClick = {
                                             if (isSelectionMode) {
@@ -348,7 +347,7 @@ fun LocalAlbumScreen(
                                         Modifier
                                             .align(Alignment.TopEnd)
                                             .padding(Dimen.GridItemSpacing)
-                                            .size(24.dp)
+                                            .size(Dimen.IconButtonSizeSmall)
                                             .background(
                                                 if (isSelected) {
                                                     MaterialTheme.colorScheme.primaryContainer

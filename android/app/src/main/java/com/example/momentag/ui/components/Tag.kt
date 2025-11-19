@@ -80,7 +80,7 @@ private fun TagContainer(
         modifier =
             modifier
                 .height(Dimen.TagHeight)
-                .background(color = color, shape = RoundedCornerShape(50))
+                .background(color = color, shape = RoundedCornerShape(Dimen.Radius50))
                 .padding(horizontal = Dimen.ItemSpacingMedium, vertical = Dimen.GridItemSpacing),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
@@ -403,7 +403,7 @@ fun CustomTagChip(
                 modifier =
                     Modifier
                         .height(Dimen.TagHeight)
-                        .clip(RoundedCornerShape(50))
+                        .clip(RoundedCornerShape(Dimen.Radius50))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable {
                             isExpanded = true
@@ -423,7 +423,7 @@ fun CustomTagChip(
                 modifier =
                     Modifier
                         .height(Dimen.TagHeight)
-                        .clip(RoundedCornerShape(50))
+                        .clip(RoundedCornerShape(Dimen.Radius50))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(horizontal = Dimen.TagChipHorizontalPadding, vertical = Dimen.TagChipVerticalPadding),
                 verticalAlignment = Alignment.CenterVertically,

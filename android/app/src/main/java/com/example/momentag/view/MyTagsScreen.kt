@@ -68,7 +68,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -273,7 +272,7 @@ fun MyTagsScreen(navController: NavController) {
                                     .padding(bottom = Dimen.ItemSpacingSmall)
                                     .background(
                                         MaterialTheme.colorScheme.secondaryContainer,
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                                     ).padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -300,13 +299,13 @@ fun MyTagsScreen(navController: NavController) {
                                 .fillMaxWidth()
                                 .padding(horizontal = Dimen.ScreenHorizontalPadding)
                                 .padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingSmall)
-                                .height(52.dp),
+                                .height(Dimen.ButtonHeightLarge),
                         colors =
                             ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
-                        shape = RoundedCornerShape(26.dp),
+                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                     ) {
                         Text(
                             text = "+ Create New Tag",
@@ -466,14 +465,14 @@ fun MyTagsScreen(navController: NavController) {
                 CircularProgressIndicator(
                     modifier =
                         Modifier
-                            .size(56.dp)
+                            .size(Dimen.BottomNavBarHeight)
                             .shadow(
-                                elevation = 8.dp,
+                                elevation = Dimen.BottomNavShadowElevation,
                                 shape = CircleShape,
                                 clip = false,
                             ),
                     color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 5.dp,
+                    strokeWidth = Dimen.CircularProgressStrokeWidthBig,
                 )
             }
         }
@@ -647,7 +646,10 @@ private fun MyTagsContent(
                     tags.forEach { tagData ->
                         val tagModifier =
                             if (isSelectingTagForPhotos) {
-                                Modifier.shadow(elevation = 4.dp, shape = RoundedCornerShape(16.dp))
+                                Modifier.shadow(
+                                    elevation = Dimen.BottomNavTonalElevation,
+                                    shape = RoundedCornerShape(Dimen.TagCornerRadius),
+                                )
                             } else {
                                 Modifier
                             }
@@ -726,7 +728,7 @@ private fun MyTagsContent(
                     contentDescription = "Empty Tag",
                     modifier =
                         Modifier
-                            .size(200.dp)
+                            .size(Dimen.FloatingButtonAreaPaddingLarge)
                             .rotate(45f),
                 )
 

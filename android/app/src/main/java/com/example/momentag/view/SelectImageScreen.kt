@@ -134,7 +134,7 @@ fun SelectImageScreen(navController: NavController) {
     val listState = selectImageViewModel.lazyGridState
 
     // 5. Derived 상태 및 계산된 값
-    val minHeight = 200.dp
+    val minHeight = Dimen.ExpandedPanelMinHeight
     val maxHeight = (configuration.screenHeightDp * 0.6f).dp
     var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
 
@@ -340,9 +340,9 @@ fun SelectImageScreen(navController: NavController) {
                         CircularProgressIndicator(
                             modifier =
                                 Modifier
-                                    .size(56.dp),
+                                    .size(Dimen.BottomNavBarHeight),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 5.dp,
+                            strokeWidth = Dimen.CircularProgressStrokeWidthBig,
                         )
                     }
                 } else if (hasPermission) {
@@ -392,9 +392,9 @@ fun SelectImageScreen(navController: NavController) {
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(36.dp),
+                                        modifier = Modifier.size(Dimen.IconButtonSizeMediumLarge),
                                         color = MaterialTheme.colorScheme.primary,
-                                        strokeWidth = 3.dp,
+                                        strokeWidth = Dimen.CircularProgressStrokeWidthMedium,
                                     )
                                 }
                             }
@@ -465,7 +465,7 @@ fun SelectImageScreen(navController: NavController) {
                             }
                         }
                     },
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -479,19 +479,24 @@ fun SelectImageScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(horizontal = Dimen.FormScreenHorizontalPadding)
                             .padding(bottom = Dimen.ItemSpacingSmall)
-                            .height(52.dp)
+                            .height(Dimen.ButtonHeightLarge)
                             .shadow(
-                                elevation = if (selectedPhotos.isNotEmpty()) 6.dp else 2.dp,
-                                shape = RoundedCornerShape(24.dp),
+                                elevation =
+                                    if (selectedPhotos.isNotEmpty()) {
+                                        Dimen.ButtonShadowElevation
+                                    } else {
+                                        Dimen.ButtonDisabledShadowElevation
+                                    },
+                                shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                                 clip = false,
                             ),
                     enabled = selectedPhotos.isNotEmpty() && addPhotosState !is SelectImageViewModel.AddPhotosState.Loading,
                 ) {
                     if (addPhotosState is SelectImageViewModel.AddPhotosState.Loading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                             color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
+                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                         )
                     } else {
                         Text(
@@ -517,7 +522,7 @@ private fun PhotoSelectableItem(
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .combinedClickable(
                     onClick = onClick,
@@ -549,8 +554,8 @@ private fun PhotoSelectableItem(
                     Modifier
                         .align(Alignment.TopEnd)
                         .padding(Dimen.GridItemSpacing)
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(Dimen.IconButtonSizeSmall)
+                        .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
                         .background(
                             if (isSelected) {
                                 MaterialTheme.colorScheme.primaryContainer
@@ -581,11 +586,11 @@ private fun RecommendChip(
     Row(
         modifier =
             Modifier
-                .shadow(elevation = 4.dp, shape = RoundedCornerShape(20.dp))
+                .shadow(elevation = Dimen.BottomNavTonalElevation, shape = RoundedCornerShape(Dimen.TagCornerRadius))
                 .background(
                     color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(20.dp),
-                ).clip(RoundedCornerShape(20.dp))
+                    shape = RoundedCornerShape(Dimen.TagCornerRadius),
+                ).clip(RoundedCornerShape(Dimen.TagCornerRadius))
                 .clickable(onClick = onExpand)
                 .padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
         verticalAlignment = Alignment.CenterVertically,
@@ -594,8 +599,8 @@ private fun RecommendChip(
         when (recommendState) {
             is SelectImageViewModel.RecommendState.Loading -> {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
+                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
@@ -635,8 +640,8 @@ private fun RecommendChip(
             }
             else -> {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
+                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
@@ -676,11 +681,13 @@ private fun RecommendExpandedPanel(
             Modifier
                 .fillMaxWidth()
                 .height(panelHeight)
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(
+                .shadow(
+                    elevation = Dimen.BottomNavShadowElevation,
+                    shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
+                ).background(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                    shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
+                ).clip(RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius)),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -708,17 +715,17 @@ private fun RecommendExpandedPanel(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(40.dp),
+                            .height(Dimen.IconButtonSizeLarge),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
                         modifier =
                             Modifier
-                                .width(40.dp)
+                                .width(Dimen.IconButtonSizeLarge)
                                 .height(Dimen.GridItemSpacing)
                                 .background(
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    RoundedCornerShape(2.dp),
+                                    RoundedCornerShape(Dimen.SpacingXXSmall),
                                 ),
                     )
                 }
@@ -737,8 +744,8 @@ private fun RecommendExpandedPanel(
                         when (recommendState) {
                             is SelectImageViewModel.RecommendState.Loading -> {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
+                                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                                 )
                             }
                             is SelectImageViewModel.RecommendState.Success -> {
@@ -793,8 +800,8 @@ private fun RecommendExpandedPanel(
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(48.dp),
-                                strokeWidth = 4.dp,
+                                modifier = Modifier.size(Dimen.CircularProgressSizeBig),
+                                strokeWidth = Dimen.CircularProgressStrokeWidth,
                             )
                         }
                     }

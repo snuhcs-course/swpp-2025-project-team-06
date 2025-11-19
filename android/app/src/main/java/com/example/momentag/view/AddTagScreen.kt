@@ -58,7 +58,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -270,7 +269,7 @@ fun AddTagScreen(navController: NavController) {
                             onClick = {
                                 addTagViewModel.saveTagAndPhotos()
                             },
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                             colors =
                                 ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
@@ -281,10 +280,10 @@ fun AddTagScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(52.dp)
+                                    .height(Dimen.ButtonHeightLarge)
                                     .shadow(
-                                        elevation = if (canSubmit) 6.dp else 2.dp,
-                                        shape = RoundedCornerShape(24.dp),
+                                        elevation = if (canSubmit) Dimen.ButtonShadowElevation else Dimen.ButtonDisabledShadowElevation,
+                                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                                         clip = false,
                                     ),
                             enabled = canSubmit,
@@ -309,14 +308,14 @@ fun AddTagScreen(navController: NavController) {
                         CircularProgressIndicator(
                             modifier =
                                 Modifier
-                                    .size(56.dp)
+                                    .size(Dimen.BottomNavBarHeight)
                                     .shadow(
-                                        elevation = 8.dp,
+                                        elevation = Dimen.BottomNavShadowElevation,
                                         shape = CircleShape,
                                         clip = false,
                                     ),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 5.dp,
+                            strokeWidth = Dimen.CircularProgressStrokeWidthBig,
                         )
                     }
                 }
@@ -441,7 +440,7 @@ private fun CheckboxOverlay(
         modifier =
             modifier
                 .padding(Dimen.GridItemSpacing)
-                .size(24.dp)
+                .size(Dimen.IconButtonSizeSmall)
                 .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(
                     if (isSelected) {

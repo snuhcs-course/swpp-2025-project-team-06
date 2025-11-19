@@ -19,7 +19,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.Screen
@@ -56,7 +55,7 @@ fun ImageGridUriItem(
     onToggleSelection: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
     cornerRadius: Dp = Dimen.ImageCornerRadius,
-    topPadding: Dp = 0.dp,
+    topPadding: Dp = Dimen.SearchSideEmptyPadding,
 ) {
     Box(
         modifier = modifier.aspectRatio(1f),
@@ -104,7 +103,7 @@ fun ImageGridUriItem(
                     Modifier
                         .align(Alignment.TopEnd)
                         .padding(Dimen.GridItemSpacing)
-                        .size(24.dp)
+                        .size(Dimen.IconButtonSizeSmall)
                         .background(
                             if (isSelected) {
                                 MaterialTheme.colorScheme.primaryContainer
@@ -113,7 +112,7 @@ fun ImageGridUriItem(
                                     alpha = 0.8f,
                                 )
                             },
-                            RoundedCornerShape(12.dp),
+                            RoundedCornerShape(Dimen.ComponentCornerRadius),
                         ),
                 contentAlignment = Alignment.Center,
             ) {

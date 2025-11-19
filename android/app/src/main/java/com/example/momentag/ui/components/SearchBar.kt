@@ -57,7 +57,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.coerceAtLeast
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.theme.Dimen
@@ -178,7 +177,7 @@ private fun InternalChipSearchInput(
 ) {
     LazyRow(
         state = listState,
-        horizontalArrangement = Arrangement.spacedBy(0.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.SearchSideEmptyPadding),
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             modifier
@@ -250,7 +249,7 @@ private fun InternalChipSearchInput(
                                 val cursorRect = layoutResult.getCursorRect(selectionEnd)
 
                                 // 오른쪽에 추가할 패딩
-                                val endPaddingPx = with(density) { sidePadding.toPx() } // + 8.dp
+                                val endPaddingPx = with(density) { sidePadding.toPx() }
 
                                 val rectWithPadding =
                                     Rect(
