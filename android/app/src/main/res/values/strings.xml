@@ -371,4 +371,24 @@
     <string name="select_image_couldnt_load">We couldn\'t load suggestions. Please check your connection.</string>
     <string name="select_image_connection_lost">Connection lost. Please check your internet connection.</string>
 
+    <!-- ============================================ -->
+    <!-- IMAGE DETAIL SCREEN -->
+    <!-- ============================================ -->
+    <string name="image_detail_error_occurred">We couldn\'t complete that action. Please try again.</string>
+    <string name="image_detail_error_loading_tags">We couldn\'t load tags. Please try again.</string>
+    <string name="image_detail_no_photo_delete">No photo to remove tag from</string>
+    <string name="image_detail_no_photo_add">No photo to add tag to</string>
+
+    <!-- ============================================ -->
+    <!-- HOME SCREEN -->
+    <!-- ============================================ -->
+    <string name="home_exit_prompt">Press again to exit</string>
+    <string name="home_share_photos">Share %1$d photo(s)</string>
+    <string name="home_uploading_title">Uploading…</string>
+
+    <!-- ============================================ -->
+    <!-- ADD TAG SCREEN -->
+    <!-- ============================================ -->
+    <string name="add_tag_hash_prefix">#</string>
+
 </resources>

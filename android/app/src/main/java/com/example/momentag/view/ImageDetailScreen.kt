@@ -404,7 +404,7 @@ fun ImageDetailScreen(
             }
 
             is ImageDetailViewModel.TagDeleteState.Error -> {
-                warningBannerMessage = "An Error Occured. Please Try Again"
+                warningBannerMessage = context.getString(R.string.image_detail_error_occurred)
                 isWarningBannerVisible = true
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
@@ -421,7 +421,7 @@ fun ImageDetailScreen(
                 imageDetailViewModel.resetAddState()
             }
             is ImageDetailViewModel.TagAddState.Error -> {
-                warningBannerMessage = "An Error Occured. Please Try Again."
+                warningBannerMessage = context.getString(R.string.image_detail_error_occurred)
                 isWarningBannerVisible = true
                 imageDetailViewModel.resetAddState()
             }
@@ -431,7 +431,7 @@ fun ImageDetailScreen(
 
     LaunchedEffect(isError, errorMessage) {
         if (isError) {
-            warningBannerMessage = "An Error Occured While Loading Tags. Please Try Again."
+            warningBannerMessage = context.getString(R.string.image_detail_error_loading_tags)
             isWarningBannerVisible = true
         }
     }
@@ -592,7 +592,7 @@ fun ImageDetailScreen(
                                 if (currentPhotoId.isNotEmpty()) {
                                     imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
                                 } else {
-                                    warningBannerMessage = "No photo to delete tag from."
+                                    warningBannerMessage = context.getString(R.string.image_detail_no_photo_delete)
                                     isWarningBannerVisible = true
                                 }
                             },
@@ -601,7 +601,7 @@ fun ImageDetailScreen(
                                 if (currentPhotoId.isNotEmpty()) {
                                     imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
                                 } else {
-                                    warningBannerMessage = "No photo to add tag to."
+                                    warningBannerMessage = context.getString(R.string.image_detail_no_photo_add)
                                     isWarningBannerVisible = true
                                 }
                             },

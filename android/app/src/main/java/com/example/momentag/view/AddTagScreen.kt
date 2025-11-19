@@ -356,7 +356,7 @@ private fun TagNameSection(
             },
             leadingIcon = {
                 Text(
-                    text = "#",
+                    text = stringResource(R.string.add_tag_hash_prefix),
                     style = MaterialTheme.typography.headlineSmall,
                 )
             },

@@ -826,7 +826,7 @@ private fun RecommendExpandedPanel(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             TextButton(onClick = onResetRecommendSelection) {
-                                Text("Cancel")
+                                Text(stringResource(R.string.action_cancel))
                             }
                             Button(
                                 onClick = {

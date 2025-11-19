@@ -539,7 +539,7 @@ fun HomeScreen(navController: NavController) {
             activity?.finish()
         } else {
             backPressedTime = currentTime
-            Toast.makeText(context, "Press again to exit.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.home_exit_prompt), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -569,7 +569,7 @@ fun HomeScreen(navController: NavController) {
                                     Toast
                                         .makeText(
                                             context,
-                                            "Share ${photos.size} photo(s)",
+                                            context.getString(R.string.home_share_photos, photos.size),
                                             Toast.LENGTH_SHORT,
                                         ).show()
                                 }
@@ -898,8 +898,8 @@ fun HomeScreen(navController: NavController) {
                         Column {
                             Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                             WarningBanner(
-                                title = "Uploading...🚀",
-                                message = "Photos are uploading in the background.",
+                                title = stringResource(R.string.home_uploading_title),
+                                message = stringResource(R.string.banner_uploading_message),
                                 onActionClick = { },
                                 showActionButton = false,
                                 backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
