@@ -37,7 +37,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -65,7 +64,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
@@ -73,6 +71,9 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.viewmodel.AddTagViewModel
 import kotlinx.coroutines.delay
@@ -472,11 +473,11 @@ private fun CheckboxOverlay(
         contentAlignment = Alignment.Center,
     ) {
         if (isSelected) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = stringResource(R.string.cd_photo_selected),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(16.dp),
+                sizeRole = IconSizeRole.InlineAction,
+                intent = IconIntent.OnPrimaryContainer,
             )
         }
     }

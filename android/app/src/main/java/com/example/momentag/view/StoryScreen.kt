@@ -40,7 +40,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -70,8 +69,6 @@ import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.StoryModel
-import com.example.momentag.model.StoryState
-import com.example.momentag.model.StoryTagSubmissionState
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -79,6 +76,9 @@ import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.StoryTagChip
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -105,7 +105,7 @@ fun StoryTagSelectionScreen(
 
     // 4. LaunchedEffect
     LaunchedEffect(Unit) {
-        if (storyState is StoryState.Idle) {
+        if (storyState is StoryViewModel.StoryState.Idle) {
             viewModel.loadStories(10)
         }
     }
@@ -164,10 +164,10 @@ fun StoryTagSelectionScreen(
     ) { paddingValues ->
         // Handle different states
         when (val state = storyState) {
-            is StoryState.Idle -> {
+            is StoryViewModel.StoryState.Idle -> {
                 // Show nothing while idle
             }
-            is StoryState.Loading -> {
+            is StoryViewModel.StoryState.Loading -> {
                 // Show loading screen
                 Box(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -184,7 +184,7 @@ fun StoryTagSelectionScreen(
                     }
                 }
             }
-            is StoryState.Success -> {
+            is StoryViewModel.StoryState.Success -> {
                 val stories = state.stories
                 val pagerState = rememberPagerState(pageCount = { stories.size })
 
@@ -242,7 +242,7 @@ fun StoryTagSelectionScreen(
                     val story = stories[page]
                     val isFirstStory = page == 0
                     val selectedForThisStory = selectedTags[story.id] ?: emptySet()
-                    val storyTagSubmissionState = submissionStates[story.id] ?: StoryTagSubmissionState.Idle
+                    val storyTagSubmissionState = submissionStates[story.id] ?: StoryViewModel.StoryTagSubmissionState.Idle
                     val isViewed = viewedStories.contains(story.id)
                     val isEditMode = editModeStory == story.id
 
@@ -338,7 +338,7 @@ fun StoryTagSelectionScreen(
                     }
                 }
             }
-            is StoryState.Error -> {
+            is StoryViewModel.StoryState.Error -> {
                 ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
                     title = stringResource(R.string.story_error_title),
@@ -350,7 +350,7 @@ fun StoryTagSelectionScreen(
                     },
                 )
             }
-            is StoryState.NetworkError -> {
+            is StoryViewModel.StoryState.NetworkError -> {
                 ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
                     title = stringResource(R.string.story_network_error_title),
@@ -468,11 +468,11 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.KeyboardArrowUp,
+                sizeRole = IconSizeRole.DefaultAction,
+                tintOverride = onSurfaceColor.copy(alpha = 0.7f),
                 contentDescription = stringResource(R.string.cd_scroll_up),
-                tint = onSurfaceColor.copy(alpha = 0.7f),
-                modifier = Modifier.size(24.dp),
             )
             Text(
                 text = stringResource(R.string.story_scroll_for_next),
@@ -487,7 +487,7 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
 internal fun TagSelectionCard(
     tags: List<String>,
     selectedTags: Set<String>,
-    storyTagSubmissionState: StoryTagSubmissionState,
+    storyTagSubmissionState: StoryViewModel.StoryTagSubmissionState,
     isViewed: Boolean,
     isEditMode: Boolean,
     onTagToggle: (String) -> Unit,
@@ -503,7 +503,7 @@ internal fun TagSelectionCard(
 
     // Trigger auto-advance when submission succeeds (both initial submission and edits)
     LaunchedEffect(storyTagSubmissionState) {
-        if (storyTagSubmissionState is StoryTagSubmissionState.Success) {
+        if (storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Success) {
             onSuccess()
         }
     }
@@ -535,7 +535,7 @@ internal fun TagSelectionCard(
                     if (isReadOnly) {
                         stringResource(R.string.story_tags_for_memory)
                     } else if (isEditMode) {
-                        stringResource(R.string.story_edit_tags)
+                        "Edit Tags"
                     } else {
                         stringResource(R.string.story_remember_this)
                     },
@@ -583,11 +583,11 @@ internal fun TagSelectionCard(
             val canSubmit = if (isEditMode) true else hasSelection
 
             // Show error message if submission failed
-            AnimatedVisibility(visible = storyTagSubmissionState is StoryTagSubmissionState.Error) {
+            AnimatedVisibility(visible = storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Error) {
                 WarningBanner(
                     title = stringResource(R.string.story_failed_save_tag),
                     message =
-                        (storyTagSubmissionState as? StoryTagSubmissionState.Error)?.message
+                        (storyTagSubmissionState as? StoryViewModel.StoryTagSubmissionState.Error)?.message
                             ?: stringResource(R.string.error_message_unknown),
                     onActionClick = onRetry, // Retry button (GradientPillButton changes to Retry)
                     showActionButton = false, // Button is handled by GradientPillButton
@@ -601,7 +601,7 @@ internal fun TagSelectionCard(
                 GradientPillButton(
                     text = stringResource(R.string.action_edit),
                     enabled = true,
-                    storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                    storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                     onClick = onEdit,
                 )
             } else {
@@ -611,7 +611,7 @@ internal fun TagSelectionCard(
                     storyTagSubmissionState = storyTagSubmissionState,
                     onClick = {
                         when (storyTagSubmissionState) {
-                            is StoryTagSubmissionState.Error -> onRetry()
+                            is StoryViewModel.StoryTagSubmissionState.Error -> onRetry()
                             else -> onDone()
                         }
                     },
@@ -625,12 +625,12 @@ internal fun TagSelectionCard(
 internal fun GradientPillButton(
     text: String,
     enabled: Boolean,
-    storyTagSubmissionState: StoryTagSubmissionState,
+    storyTagSubmissionState: StoryViewModel.StoryTagSubmissionState,
     onClick: () -> Unit,
 ) {
-    val isLoading = storyTagSubmissionState is StoryTagSubmissionState.Loading
-    val isSuccess = storyTagSubmissionState is StoryTagSubmissionState.Success
-    val isError = storyTagSubmissionState is StoryTagSubmissionState.Error
+    val isLoading = storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Loading
+    val isSuccess = storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Success
+    val isError = storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Error
 
     val bgModifier =
         when {
@@ -677,11 +677,11 @@ internal fun GradientPillButton(
                 )
             }
             isSuccess -> {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.cd_success),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp),
+                    sizeRole = IconSizeRole.DefaultAction,
+                    intent = IconIntent.Inverse,
                 )
             }
             isError -> {
@@ -830,7 +830,7 @@ private fun StoryPageFullBlockPreviewContent(
             TagSelectionCard(
                 tags = suggestedTags,
                 selectedTags = setOf("#카페", "#디저트"),
-                storyTagSubmissionState = StoryTagSubmissionState.Idle,
+                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                 isViewed = false,
                 isEditMode = false,
                 onTagToggle = {},

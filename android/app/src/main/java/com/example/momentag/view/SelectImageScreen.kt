@@ -49,7 +49,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -83,11 +82,13 @@ import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
-import com.example.momentag.model.RecommendState
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
@@ -558,11 +559,11 @@ private fun PhotoSelectableItem(
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
-                    Icon(
+                    StandardIcon.Icon(
                         imageVector = Icons.Default.Check,
+                        sizeRole = IconSizeRole.InlineAction,
+                        intent = IconIntent.OnPrimaryContainer,
                         contentDescription = stringResource(R.string.cd_photo_selected),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
@@ -572,7 +573,7 @@ private fun PhotoSelectableItem(
 
 @Composable
 private fun RecommendChip(
-    recommendState: RecommendState,
+    recommendState: SelectImageViewModel.RecommendState,
     onExpand: () -> Unit,
 ) {
     Row(
@@ -589,7 +590,7 @@ private fun RecommendChip(
         horizontalArrangement = Arrangement.Center,
     ) {
         when (recommendState) {
-            is RecommendState.Loading -> {
+            is SelectImageViewModel.RecommendState.Loading -> {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp,
@@ -602,12 +603,12 @@ private fun RecommendChip(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            is RecommendState.Success -> {
-                Icon(
+            is SelectImageViewModel.RecommendState.Success -> {
+                StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Primary,
                     contentDescription = stringResource(R.string.cd_ai),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -616,12 +617,12 @@ private fun RecommendChip(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            is RecommendState.Error, is RecommendState.NetworkError -> {
-                Icon(
+            is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
+                StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = stringResource(R.string.error_title),
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(18.dp),
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Error,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -646,18 +647,17 @@ private fun RecommendChip(
         }
 
         Spacer(modifier = Modifier.width(4.dp))
-        Icon(
+        StandardIcon.Icon(
             imageVector = Icons.Default.ExpandLess,
+            sizeRole = IconSizeRole.StatusIndicator,
             contentDescription = stringResource(R.string.cd_expand),
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(18.dp),
         )
     }
 }
 
 @Composable
 private fun RecommendExpandedPanel(
-    recommendState: RecommendState,
+    recommendState: SelectImageViewModel.RecommendState,
     recommendedPhotos: List<Photo>,
     onPhotoClick: (Photo) -> Unit,
     onRetry: () -> Unit,
@@ -733,26 +733,26 @@ private fun RecommendExpandedPanel(
                     // 왼쪽: AI Recommend 텍스트
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         when (recommendState) {
-                            is RecommendState.Loading -> {
+                            is SelectImageViewModel.RecommendState.Loading -> {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp,
                                 )
                             }
-                            is RecommendState.Success -> {
-                                Icon(
+                            is SelectImageViewModel.RecommendState.Success -> {
+                                StandardIcon.Icon(
                                     imageVector = Icons.Default.AutoAwesome,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    intent = IconIntent.Primary,
                                     contentDescription = stringResource(R.string.cd_ai),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                             else -> {
-                                Icon(
+                                StandardIcon.Icon(
                                     imageVector = Icons.Default.AutoAwesome,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    intent = IconIntent.Primary,
                                     contentDescription = stringResource(R.string.cd_ai),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
@@ -766,10 +766,10 @@ private fun RecommendExpandedPanel(
 
                     // Right side: Close button
                     IconButton(onClick = onCollapse) {
-                        Icon(
+                        StandardIcon.Icon(
                             imageVector = Icons.Default.ExpandMore,
+                            sizeRole = IconSizeRole.DefaultAction,
                             contentDescription = stringResource(R.string.cd_collapse),
-                            modifier = Modifier.size(24.dp),
                         )
                     }
                 }
@@ -782,7 +782,7 @@ private fun RecommendExpandedPanel(
 
                 // Grid
                 when (recommendState) {
-                    is RecommendState.Loading -> {
+                    is SelectImageViewModel.RecommendState.Loading -> {
                         Box(
                             modifier =
                                 Modifier
@@ -796,7 +796,7 @@ private fun RecommendExpandedPanel(
                             )
                         }
                     }
-                    is RecommendState.Success -> {
+                    is SelectImageViewModel.RecommendState.Success -> {
                         if (recommendedPhotos.isEmpty()) {
                             Box(
                                 modifier =
@@ -835,7 +835,7 @@ private fun RecommendExpandedPanel(
                             }
                         }
                     }
-                    is RecommendState.Error, is RecommendState.NetworkError -> {
+                    is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
                         Box(
                             modifier =
                                 Modifier
@@ -844,11 +844,11 @@ private fun RecommendExpandedPanel(
                             contentAlignment = Alignment.BottomCenter,
                         ) {
                             val (title, message) =
-                                if (recommendState is RecommendState.Error) {
+                                if (recommendState is SelectImageViewModel.RecommendState.Error) {
                                     stringResource(R.string.select_image_couldnt_load) to recommendState.message
                                 } else {
                                     stringResource(R.string.select_image_connection_lost) to
-                                        (recommendState as RecommendState.NetworkError).message
+                                        (recommendState as SelectImageViewModel.RecommendState.NetworkError).message
                                 }
 
                             WarningBanner(
@@ -862,7 +862,7 @@ private fun RecommendExpandedPanel(
                             )
                         }
                     }
-                    is RecommendState.Idle -> {
+                    is SelectImageViewModel.RecommendState.Idle -> {
                         Box(
                             modifier =
                                 Modifier

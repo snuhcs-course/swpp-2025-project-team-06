@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.R
 
 /**
@@ -120,10 +121,10 @@ private fun HistoryItem(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f),
         ) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.History,
+                intent = IconIntent.Muted,
                 contentDescription = stringResource(R.string.cd_recent_search_item),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(
@@ -136,10 +137,10 @@ private fun HistoryItem(
         }
 
         IconButton(onClick = onDelete) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.Close,
+                intent = IconIntent.Muted,
                 contentDescription = stringResource(R.string.cd_delete_search_history),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

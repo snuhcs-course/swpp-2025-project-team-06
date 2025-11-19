@@ -16,7 +16,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.momentag.R
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.StandardIcon
 
 /**
  * Reusable error dialog component
@@ -250,10 +251,10 @@ fun ErrorOverlay(
                                 .padding(8.dp)
                                 .size(32.dp),
                     ) {
-                        Icon(
+                        StandardIcon.Icon(
                             imageVector = Icons.Default.Close,
+                            intent = IconIntent.Muted,
                             contentDescription = stringResource(R.string.cd_close_dialog),
-                            tint = Color.Gray,
                         )
                     }
                 }
@@ -358,10 +359,10 @@ fun confirmDialog(
                                     .padding(8.dp)
                                     .size(32.dp),
                         ) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color.Gray,
+                                intent = IconIntent.Muted,
                             )
                         }
                     }
@@ -501,10 +502,10 @@ fun RenameTagDialog(
                                 .padding(8.dp)
                                 .size(32.dp),
                     ) {
-                        Icon(
+                        StandardIcon.Icon(
                             imageVector = Icons.Default.Close,
+                            intent = IconIntent.Muted,
                             contentDescription = stringResource(R.string.cd_close_dialog),
-                            tint = Color.Gray,
                         )
                     }
                 }
@@ -572,7 +573,7 @@ private fun previewErrorOverlay() {
             )
         }
 
-        // Error overlay
+        // 에러 오버레이
         ErrorOverlay(
             errorMessage = "Failed to load data.\nPlease try again.",
             onRetry = {},

@@ -23,7 +23,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -53,8 +52,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
-import com.example.momentag.model.LoginState
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,17 +91,17 @@ fun LoginScreen(navController: NavController) {
     // Handle login state changes
     LaunchedEffect(loginState) {
         when (val state = loginState) {
-            is LoginState.Loading -> {
+            is AuthViewModel.LoginState.Loading -> {
                 isLoading = true
                 isErrorBannerVisible = false
             }
-            is LoginState.Success -> {
+            is AuthViewModel.LoginState.Success -> {
                 isLoading = false
                 navController.navigate(Screen.Home.route) {
                     popUpTo(Screen.Login.route) { inclusive = true }
                 }
             }
-            is LoginState.BadRequest -> {
+            is AuthViewModel.LoginState.BadRequest -> {
                 isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
@@ -110,7 +109,7 @@ fun LoginScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
-            is LoginState.Unauthorized -> {
+            is AuthViewModel.LoginState.Unauthorized -> {
                 isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
@@ -118,7 +117,7 @@ fun LoginScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
-            is LoginState.NetworkError -> {
+            is AuthViewModel.LoginState.NetworkError -> {
                 isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
@@ -126,7 +125,7 @@ fun LoginScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetLoginState()
             }
-            is LoginState.Error -> {
+            is AuthViewModel.LoginState.Error -> {
                 isLoading = false
                 errorMessage = state.message
                 isUsernameError = true
@@ -315,7 +314,10 @@ fun LoginScreen(navController: NavController) {
                                 stringResource(R.string.cd_password_show)
                             }
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(imageVector = image, contentDescription = description)
+                            StandardIcon.Icon(
+                                imageVector = image,
+                                contentDescription = description,
+                            )
                         }
                     },
                     isError = isPasswordError,

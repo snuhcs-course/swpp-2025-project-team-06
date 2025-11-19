@@ -30,17 +30,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FiberNew
+import androidx.compose.material.icons.filled.LabelOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -78,7 +78,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
-import com.example.momentag.model.MyTagsUiState
 import com.example.momentag.model.TagCntData
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -87,8 +86,10 @@ import com.example.momentag.ui.components.RenameTagDialog
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.MyTagsViewModel
-import com.example.momentag.viewmodel.TagActionState
 import com.example.momentag.viewmodel.TagSortOrder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -112,7 +113,7 @@ fun MyTagsScreen(navController: NavController) {
     val saveState by myTagsViewModel.saveState.collectAsState()
     val actionState by myTagsViewModel.tagActionState.collectAsState()
 
-    // 4. Local state variables
+    // 4. 로컬 상태 변수
     var isSortSheetVisible by remember { mutableStateOf(false) }
     var isDeleteDialogVisible by remember { mutableStateOf(false) }
     var tagToDelete by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -146,19 +147,19 @@ fun MyTagsScreen(navController: NavController) {
 
     LaunchedEffect(actionState) {
         when (val state = actionState) {
-            is TagActionState.Success -> {
+            is MyTagsViewModel.TagActionState.Success -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
                 isErrorBannerVisible = false
                 myTagsViewModel.clearActionState()
             }
-            is TagActionState.Error -> {
+            is MyTagsViewModel.TagActionState.Error -> {
                 errorMessage = state.message
                 isErrorBannerVisible = true
                 myTagsViewModel.clearActionState()
             }
-            is TagActionState.Idle -> {
+            is MyTagsViewModel.TagActionState.Idle -> {
             }
-            is TagActionState.Loading -> {
+            is MyTagsViewModel.TagActionState.Loading -> {
                 // TODO: Show loading indicator if needed (currently skipped as Dialog closes)
             }
         }
@@ -206,15 +207,15 @@ fun MyTagsScreen(navController: NavController) {
                     },
                     actions = {
                         if (myTagsViewModel.isSelectedPhotosEmpty() &&
-                            currentState is MyTagsUiState.Success &&
+                            currentState is MyTagsViewModel.MyTagsUiState.Success &&
                             currentState.tags.isNotEmpty()
                         ) {
                             // Sort Button (always visible)
                             IconButton(onClick = { isSortSheetVisible = true }) {
-                                Icon(
+                                StandardIcon.Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    sizeRole = IconSizeRole.DefaultAction,
                                     contentDescription = stringResource(R.string.cd_sort_action),
-                                    tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                             // Delete Button (always visible, enters edit mode on click)
@@ -228,17 +229,16 @@ fun MyTagsScreen(navController: NavController) {
                                     }
                                 },
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
+                                val deleteIntent =
+                                    when {
+                                        isEditMode && hasSelectedTags -> IconIntent.Error
+                                        isEditMode -> IconIntent.Disabled
+                                        else -> IconIntent.Neutral
+                                    }
+                                StandardIcon.Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.LabelOff,
                                     contentDescription = stringResource(R.string.cd_delete_action),
-                                    tint =
-                                        if (isEditMode && hasSelectedTags) {
-                                            MaterialTheme.colorScheme.error
-                                        } else if (isEditMode) {
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        },
+                                    intent = deleteIntent,
                                 )
                             }
                         }
@@ -387,7 +387,7 @@ fun MyTagsScreen(navController: NavController) {
                         ).padding(paddingValues),
             ) {
                 when (val state = uiState) {
-                    is MyTagsUiState.Loading -> {
+                    is MyTagsViewModel.MyTagsUiState.Loading -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center,
@@ -396,7 +396,7 @@ fun MyTagsScreen(navController: NavController) {
                         }
                     }
 
-                    is MyTagsUiState.Error -> {
+                    is MyTagsViewModel.MyTagsUiState.Error -> {
                         Box(
                             modifier =
                                 Modifier
@@ -414,7 +414,7 @@ fun MyTagsScreen(navController: NavController) {
                         }
                     }
 
-                    is MyTagsUiState.Success -> {
+                    is MyTagsViewModel.MyTagsUiState.Success -> {
                         MyTagsContent(
                             tags = state.tags,
                             navController = navController,
@@ -835,10 +835,11 @@ private fun SortOptionItem(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        val optionIntent = if (isSelected) IconIntent.Primary else IconIntent.Muted
+        StandardIcon.Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            intent = optionIntent,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
@@ -848,10 +849,10 @@ private fun SortOptionItem(
             modifier = Modifier.weight(1f),
         )
         if (isSelected) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.Check,
+                intent = IconIntent.Primary,
                 contentDescription = stringResource(R.string.cd_photo_selected),
-                tint = MaterialTheme.colorScheme.primary,
             )
         }
     }

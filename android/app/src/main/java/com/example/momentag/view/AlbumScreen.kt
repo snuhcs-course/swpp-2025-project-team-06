@@ -38,11 +38,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.LabelOff
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -50,7 +51,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -90,6 +90,9 @@ import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.horizontalArrangement
 import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.util.ShareUtils
@@ -226,7 +229,7 @@ fun AlbumScreen(
                 isErrorBannerVisible = false
             }
             is AlbumViewModel.TagAddState.Error -> {
-                errorBannerTitle = context.getString(R.string.album_failed_add_photos)
+                errorBannerTitle = "Failed to Add Photos"
                 errorBannerMessage = state.message
                 isErrorBannerVisible = true // Failure: Banner
                 albumViewModel.resetAddState()
@@ -361,9 +364,11 @@ fun AlbumScreen(
                                     ),
                                 modifier = Modifier.width(36.dp),
                             ) {
-                                Icon(
+                                StandardIcon.Icon(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = stringResource(R.string.cd_share),
+                                    sizeRole = IconSizeRole.DefaultAction,
+                                    intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                                 )
                             }
                             IconButton(
@@ -375,9 +380,11 @@ fun AlbumScreen(
                                         disabledContentColor = Color(0xFFD32F2F).copy(alpha = 0.38f),
                                     ),
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
+                                StandardIcon.Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.LabelOff,
                                     contentDescription = stringResource(R.string.cd_untag),
+                                    sizeRole = IconSizeRole.DefaultAction,
+                                    intent = if (isEnabled) IconIntent.Error else IconIntent.Disabled,
                                 )
                             }
                         }
@@ -455,11 +462,11 @@ fun AlbumScreen(
                                             ),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Icon(
+                                    StandardIcon.Icon(
                                         imageVector = Icons.Default.Close,
+                                        sizeRole = IconSizeRole.InlineAction,
+                                        tintOverride = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                         contentDescription = stringResource(R.string.cd_clear_text),
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                        modifier = Modifier.size(16.dp),
                                     )
                                 }
                             }
@@ -684,11 +691,11 @@ private fun RecommendChip(
                 )
             }
             is AlbumViewModel.RecommendLoadingState.Success -> {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = stringResource(R.string.cd_ai),
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Primary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -698,11 +705,12 @@ private fun RecommendChip(
                 )
             }
             is AlbumViewModel.RecommendLoadingState.Error -> {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.error_title),
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.error,
+                    contentDescription = "Error",
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Error,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -726,11 +734,10 @@ private fun RecommendChip(
             }
         }
         Spacer(modifier = Modifier.width(4.dp))
-        Icon(
+        StandardIcon.Icon(
             imageVector = Icons.Default.ExpandLess,
             contentDescription = stringResource(R.string.cd_expand),
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(18.dp),
+            sizeRole = IconSizeRole.StatusIndicator,
         )
     }
 }
@@ -848,11 +855,11 @@ private fun RecommendExpandedPanel(
                         }
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.AutoAwesome,
+                                sizeRole = IconSizeRole.Navigation,
+                                intent = IconIntent.Primary,
                                 contentDescription = stringResource(R.string.cd_ai),
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.primary,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
@@ -864,10 +871,10 @@ private fun RecommendExpandedPanel(
                     }
 
                     IconButton(onClick = onCollapse) {
-                        Icon(
+                        StandardIcon.Icon(
                             imageVector = Icons.Default.ExpandMore,
+                            sizeRole = IconSizeRole.DefaultAction,
                             contentDescription = stringResource(R.string.cd_collapse),
-                            modifier = Modifier.size(24.dp),
                         )
                     }
                 }

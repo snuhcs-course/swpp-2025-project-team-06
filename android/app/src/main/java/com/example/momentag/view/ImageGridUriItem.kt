@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,6 +26,9 @@ import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.imageCornerRadius
 
 /**
@@ -118,11 +120,11 @@ fun ImageGridUriItem(
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
-                    Icon(
+                    StandardIcon.Icon(
                         imageVector = Icons.Default.Check,
+                        sizeRole = IconSizeRole.InlineAction,
+                        intent = IconIntent.OnPrimaryContainer,
                         contentDescription = stringResource(R.string.cd_photo_selected),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(16.dp),
                     )
                 }
             }

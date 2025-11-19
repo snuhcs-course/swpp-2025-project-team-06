@@ -75,7 +75,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -124,7 +123,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
-import com.example.momentag.model.LogoutState
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -136,6 +134,9 @@ import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.confirmDialog
 import com.example.momentag.ui.components.tagX
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
@@ -431,14 +432,14 @@ fun HomeScreen(navController: NavController) {
     // Navigate to login screen on successful logout (clear backstack)
     LaunchedEffect(logoutState) {
         when (logoutState) {
-            is LogoutState.Success -> {
+            is AuthViewModel.LogoutState.Success -> {
                 Toast.makeText(context, context.getString(R.string.success_logout), Toast.LENGTH_SHORT).show()
                 navController.navigate(Screen.Login.route) {
                     popUpTo(0)
                     launchSingleTop = true
                 }
             }
-            is LogoutState.Error -> {
+            is AuthViewModel.LogoutState.Error -> {
                 errorBannerTitle = context.getString(R.string.error_title_logout_failed)
                 errorBannerMessage = (logoutState as LogoutState.Error).message ?: context.getString(R.string.error_message_logout)
                 isErrorBannerVisible = true
@@ -552,7 +553,7 @@ fun HomeScreen(navController: NavController) {
                 },
                 showLogout = true,
                 onLogoutClick = { authViewModel.logout() },
-                isLogoutLoading = logoutState is LogoutState.Loading,
+                isLogoutLoading = logoutState is AuthViewModel.LogoutState.Loading,
                 actions = {
                     if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
                         val isEnabled = selectedPhotos.isNotEmpty()
@@ -577,9 +578,10 @@ fun HomeScreen(navController: NavController) {
                                     disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                                 ),
                         ) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.Share,
                                 contentDescription = "Share",
+                                intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                             )
                         }
                     }
@@ -731,10 +733,10 @@ fun HomeScreen(navController: NavController) {
                                         shape = RoundedCornerShape(12.dp),
                                     ),
                         ) {
-                            Icon(
+                            StandardIcon.Icon(
                                 imageVector = Icons.Default.FilterList,
                                 contentDescription = "Filter",
-                                tint = MaterialTheme.colorScheme.onPrimary,
+                                intent = IconIntent.Inverse,
                             )
                         }
                     }
@@ -772,10 +774,10 @@ fun HomeScreen(navController: NavController) {
                         // Show sort button only in "Tag Albums" view
                         if (!isShowingAllPhotos) {
                             IconButton(onClick = { scope.launch { sheetState.show() } }) {
-                                Icon(
+                                StandardIcon.Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
                                     contentDescription = "Sort Tag Albums",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    intent = IconIntent.Muted,
                                 )
                             }
                         } else {
@@ -1051,18 +1053,12 @@ private fun ViewToggle(
                             ).clickable { onToggle(false, false) }
                             .padding(8.dp),
                 ) {
-                    Icon(
-                        Icons.Default.CollectionsBookmark,
+                    val isTagAlbumsSelected = !isOnlyTag && !isShowingAllPhotos
+                    StandardIcon.Icon(
+                        imageVector = Icons.Default.CollectionsBookmark,
                         contentDescription = "Tag Albums",
-                        tint =
-                            if (!isOnlyTag &&
-                                !isShowingAllPhotos
-                            ) {
-                                MaterialTheme.colorScheme.surface
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        modifier = Modifier.size(20.dp),
+                        sizeRole = IconSizeRole.Navigation,
+                        intent = if (isTagAlbumsSelected) IconIntent.Surface else IconIntent.Muted,
                     )
                 }
                 // All Photos (Grid)
@@ -1075,11 +1071,11 @@ private fun ViewToggle(
                             ).clickable { onToggle(false, true) }
                             .padding(8.dp),
                 ) {
-                    Icon(
-                        Icons.Default.Photo,
+                    StandardIcon.Icon(
+                        imageVector = Icons.Default.Photo,
                         contentDescription = "All Photos",
-                        tint = if (isShowingAllPhotos) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        sizeRole = IconSizeRole.Navigation,
+                        intent = if (isShowingAllPhotos) IconIntent.Surface else IconIntent.Muted,
                     )
                 }
             }
@@ -1221,11 +1217,11 @@ private fun MainContent(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (isSelected) {
-                                        Icon(
+                                        StandardIcon.Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.size(16.dp),
+                                            sizeRole = IconSizeRole.InlineAction,
+                                            intent = IconIntent.OnPrimaryContainer,
                                         )
                                     }
                                 }
@@ -1416,11 +1412,11 @@ fun TagGridItem(
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), RoundedCornerShape(50))
                         .size(24.dp),
             ) {
-                Icon(
+                StandardIcon.Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = "Delete Tag",
-                    tint = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.size(16.dp),
+                    sizeRole = IconSizeRole.InlineAction,
+                    intent = IconIntent.Surface,
                 )
             }
         }
@@ -1621,10 +1617,11 @@ private fun SortOptionItem(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        val optionIntent = if (isSelected) IconIntent.Primary else IconIntent.Muted
+        StandardIcon.Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            intent = optionIntent,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
@@ -1634,10 +1631,10 @@ private fun SortOptionItem(
             modifier = Modifier.weight(1f),
         )
         if (isSelected) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Selected",
-                tint = MaterialTheme.colorScheme.primary,
+                intent = IconIntent.Primary,
             )
         }
     }

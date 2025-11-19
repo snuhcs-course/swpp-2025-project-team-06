@@ -7,7 +7,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.momentag.R
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 
 /**
  * CreateTagButton — Shared button component used across Home / Gallery screens
@@ -37,10 +39,11 @@ fun CreateTagButton(
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
     ) {
-        Icon(
+        StandardIcon.Icon(
             imageVector = Icons.Default.AddCircle,
             contentDescription = stringResource(R.string.cd_create_tag),
-            modifier = Modifier.width(20.dp),
+            sizeRole = IconSizeRole.Navigation,
+            intent = IconIntent.Inverse,
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(text = text, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge)

@@ -24,7 +24,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -54,8 +53,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
-import com.example.momentag.model.RegisterState
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
 
 // TODO: Show loading screen while waiting for registration response
@@ -110,17 +109,17 @@ fun RegisterScreen(navController: NavController) {
     // Handle registration state changes
     LaunchedEffect(registerState) {
         when (val state = registerState) {
-            is RegisterState.Loading -> {
+            is AuthViewModel.RegisterState.Loading -> {
                 isLoading = true
                 isErrorBannerVisible = false
             }
-            is RegisterState.Success -> {
+            is AuthViewModel.RegisterState.Success -> {
                 isLoading = false
                 navController.navigate(Screen.Login.route) {
                     popUpTo(Screen.Register.route) { inclusive = true }
                 }
             }
-            is RegisterState.BadRequest -> {
+            is AuthViewModel.RegisterState.BadRequest -> {
                 isLoading = false
                 errorMessage = state.message
                 isEmailError = true
@@ -130,7 +129,7 @@ fun RegisterScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
-            is RegisterState.Conflict -> {
+            is AuthViewModel.RegisterState.Conflict -> {
                 isLoading = false
                 errorMessage = state.message
                 isEmailError = true
@@ -140,7 +139,7 @@ fun RegisterScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
-            is RegisterState.NetworkError -> {
+            is AuthViewModel.RegisterState.NetworkError -> {
                 isLoading = false
                 errorMessage = state.message
                 isEmailError = true
@@ -150,7 +149,7 @@ fun RegisterScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
-            is RegisterState.Error -> {
+            is AuthViewModel.RegisterState.Error -> {
                 isLoading = false
                 errorMessage = state.message
                 isEmailError = true
@@ -414,7 +413,7 @@ fun RegisterScreen(navController: NavController) {
                                 stringResource(R.string.cd_password_show)
                             }
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(imageVector = image, contentDescription = description)
+                            StandardIcon.Icon(imageVector = image, contentDescription = description)
                         }
                     },
                     isError = isPasswordError,
@@ -499,7 +498,7 @@ fun RegisterScreen(navController: NavController) {
                                 stringResource(R.string.cd_password_show)
                             }
                         IconButton(onClick = { passwordCheckVisible = !passwordCheckVisible }) {
-                            Icon(imageVector = image, contentDescription = description)
+                            StandardIcon.Icon(imageVector = image, contentDescription = description)
                         }
                     },
                     isError = isPasswordCheckError || (passwordCheck.isNotEmpty() && password != passwordCheck),
