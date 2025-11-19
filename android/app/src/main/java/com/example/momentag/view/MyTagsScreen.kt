@@ -152,7 +152,7 @@ fun MyTagsScreen(navController: NavController) {
                 myTagsViewModel.clearActionState()
             }
             is MyTagsViewModel.TagActionState.Error -> {
-                errorMessage = state.message
+                errorMessage = context.getString(state.error.toMessageResId())
                 isErrorBannerVisible = true
                 myTagsViewModel.clearActionState()
             }
@@ -255,7 +255,7 @@ fun MyTagsScreen(navController: NavController) {
                     if (isErrorBannerVisible && saveState is MyTagsViewModel.SaveState.Error) {
                         WarningBanner(
                             title = stringResource(R.string.error_title_save_failed),
-                            message = (saveState as MyTagsViewModel.SaveState.Error).message,
+                            message = stringResource((saveState as MyTagsViewModel.SaveState.Error).error.toMessageResId()),
                             onActionClick = { },
                             onDismiss = { isErrorBannerVisible = false },
                             showActionButton = false,
@@ -405,7 +405,7 @@ fun MyTagsScreen(navController: NavController) {
                         ) {
                             WarningBanner(
                                 title = stringResource(R.string.error_title_load_tags_failed),
-                                message = state.message,
+                                message = stringResource(state.error.toMessageResId()),
                                 onActionClick = { myTagsViewModel.refreshTags() },
                                 showActionButton = true,
                                 showDismissButton = false,

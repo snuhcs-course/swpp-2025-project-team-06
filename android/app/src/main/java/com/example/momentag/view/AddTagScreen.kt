@@ -259,9 +259,18 @@ fun AddTagScreen(navController: NavController) {
                 ) {
                     // Error Banner - Floating above Done button
                     if (isErrorBannerVisible && saveState is AddTagViewModel.SaveState.Error) {
+                        val errorState = saveState as AddTagViewModel.SaveState.Error
+                        val errorMessage =
+                            when (errorState.error) {
+                                AddTagViewModel.AddTagError.NetworkError -> stringResource(R.string.error_message_network)
+                                AddTagViewModel.AddTagError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                                AddTagViewModel.AddTagError.EmptyName -> stringResource(R.string.validation_required_tag_name)
+                                AddTagViewModel.AddTagError.NoPhotos -> stringResource(R.string.help_select_photos)
+                                AddTagViewModel.AddTagError.UnknownError -> stringResource(R.string.error_message_save_tag)
+                            }
                         WarningBanner(
                             title = stringResource(R.string.error_message_save_tag),
-                            message = (saveState as AddTagViewModel.SaveState.Error).message,
+                            message = errorMessage,
                             onActionClick = { },
                             onDismiss = { isErrorBannerVisible = false },
                             showActionButton = false,

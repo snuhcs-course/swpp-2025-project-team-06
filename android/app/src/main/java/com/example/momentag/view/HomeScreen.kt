@@ -468,10 +468,17 @@ fun HomeScreen(navController: NavController) {
     }
 
     LaunchedEffect(homeLoadingState) {
-        when (homeLoadingState) {
+        when (val state = homeLoadingState) {
             is HomeViewModel.HomeLoadingState.Error -> {
                 errorBannerTitle = context.getString(R.string.error_title_load_failed)
-                errorBannerMessage = context.getString(R.string.error_message_load_tags)
+                errorBannerMessage =
+                    when (state.error) {
+                        HomeViewModel.HomeError.NetworkError -> context.getString(R.string.error_message_network)
+                        HomeViewModel.HomeError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                        HomeViewModel.HomeError.DeleteFailed,
+                        HomeViewModel.HomeError.UnknownError,
+                        -> context.getString(R.string.error_message_unknown)
+                    }
                 isErrorBannerVisible = true
             }
             is HomeViewModel.HomeLoadingState.Success -> {
@@ -493,7 +500,13 @@ fun HomeScreen(navController: NavController) {
             }
             is HomeViewModel.HomeDeleteState.Error -> {
                 errorBannerTitle = context.getString(R.string.error_title_delete_failed)
-                errorBannerMessage = context.getString(R.string.error_message_delete_tag)
+                errorBannerMessage =
+                    when (state.error) {
+                        HomeViewModel.HomeError.NetworkError -> context.getString(R.string.error_message_network)
+                        HomeViewModel.HomeError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                        HomeViewModel.HomeError.DeleteFailed -> context.getString(R.string.error_message_delete_tag)
+                        HomeViewModel.HomeError.UnknownError -> context.getString(R.string.error_message_unknown)
+                    }
                 isErrorBannerVisible = true
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()

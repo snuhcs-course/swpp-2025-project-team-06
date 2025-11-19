@@ -44,7 +44,7 @@ class SelectImageViewModel
             object Success : AddPhotosState()
 
             data class Error(
-                val message: String,
+                val error: SelectImageError,
             ) : AddPhotosState()
         }
 
@@ -58,12 +58,16 @@ class SelectImageViewModel
             ) : RecommendState()
 
             data class Error(
-                val message: String,
+                val error: SelectImageError,
             ) : RecommendState()
+        }
 
-            data class NetworkError(
-                val message: String,
-            ) : RecommendState()
+        sealed class SelectImageError {
+            object NetworkError : SelectImageError()
+
+            object Unauthorized : SelectImageError()
+
+            object UnknownError : SelectImageError()
         }
 
         // 2. Private MutableStateFlow
@@ -197,16 +201,16 @@ class SelectImageViewModel
                         updateRecommendedPhotos(photos)
                     }
                     is RecommendRepository.RecommendResult.Error -> {
-                        _recommendState.value = RecommendState.Error("Something went wrong. Please try again")
+                        _recommendState.value = RecommendState.Error(SelectImageError.UnknownError)
                     }
                     is RecommendRepository.RecommendResult.Unauthorized -> {
-                        _recommendState.value = RecommendState.Error("Your session expired. Please sign in again")
+                        _recommendState.value = RecommendState.Error(SelectImageError.Unauthorized)
                     }
                     is RecommendRepository.RecommendResult.NetworkError -> {
-                        _recommendState.value = RecommendState.NetworkError("Connection lost. Check your internet and try again")
+                        _recommendState.value = RecommendState.Error(SelectImageError.NetworkError)
                     }
                     is RecommendRepository.RecommendResult.BadRequest -> {
-                        _recommendState.value = RecommendState.Error("Something went wrong. Please try again")
+                        _recommendState.value = RecommendState.Error(SelectImageError.UnknownError)
                     }
                 }
             }
@@ -335,23 +339,23 @@ class SelectImageViewModel
                             // Success, continue to next photo
                         }
                         is RemoteRepository.Result.Error -> {
-                            _addPhotosState.value = AddPhotosState.Error("Something went wrong. Please try again")
+                            _addPhotosState.value = AddPhotosState.Error(SelectImageError.UnknownError)
                             return@launch
                         }
                         is RemoteRepository.Result.Unauthorized -> {
-                            _addPhotosState.value = AddPhotosState.Error("Your session expired. Please sign in again")
+                            _addPhotosState.value = AddPhotosState.Error(SelectImageError.Unauthorized)
                             return@launch
                         }
                         is RemoteRepository.Result.BadRequest -> {
-                            _addPhotosState.value = AddPhotosState.Error("Something went wrong. Please try again")
+                            _addPhotosState.value = AddPhotosState.Error(SelectImageError.UnknownError)
                             return@launch
                         }
                         is RemoteRepository.Result.NetworkError -> {
-                            _addPhotosState.value = AddPhotosState.Error("Connection lost. Check your internet and try again")
+                            _addPhotosState.value = AddPhotosState.Error(SelectImageError.NetworkError)
                             return@launch
                         }
                         is RemoteRepository.Result.Exception -> {
-                            _addPhotosState.value = AddPhotosState.Error("Connection lost. Check your internet and try again")
+                            _addPhotosState.value = AddPhotosState.Error(SelectImageError.NetworkError)
                             return@launch
                         }
                     }

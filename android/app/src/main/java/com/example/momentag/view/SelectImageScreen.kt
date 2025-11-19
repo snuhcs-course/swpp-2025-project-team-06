@@ -626,7 +626,7 @@ private fun RecommendChip(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
+            is SelectImageViewModel.RecommendState.Error -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = stringResource(R.string.error_title),
@@ -634,8 +634,14 @@ private fun RecommendChip(
                     intent = IconIntent.Error,
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
+                val errorMessage =
+                    when (recommendState.error) {
+                        SelectImageViewModel.SelectImageError.NetworkError -> stringResource(R.string.error_message_network)
+                        SelectImageViewModel.SelectImageError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                        SelectImageViewModel.SelectImageError.UnknownError -> stringResource(R.string.error_message_unknown)
+                    }
                 Text(
-                    text = stringResource(R.string.select_image_couldnt_load),
+                    text = errorMessage,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -846,7 +852,7 @@ private fun RecommendExpandedPanel(
                             }
                         }
                     }
-                    is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
+                    is SelectImageViewModel.RecommendState.Error -> {
                         Box(
                             modifier =
                                 Modifier
@@ -855,11 +861,16 @@ private fun RecommendExpandedPanel(
                             contentAlignment = Alignment.BottomCenter,
                         ) {
                             val (title, message) =
-                                if (recommendState is SelectImageViewModel.RecommendState.Error) {
-                                    stringResource(R.string.select_image_couldnt_load) to recommendState.message
-                                } else {
-                                    stringResource(R.string.select_image_connection_lost) to
-                                        (recommendState as SelectImageViewModel.RecommendState.NetworkError).message
+                                when (recommendState.error) {
+                                    SelectImageViewModel.SelectImageError.NetworkError ->
+                                        stringResource(R.string.select_image_connection_lost) to
+                                            stringResource(R.string.error_message_network)
+                                    SelectImageViewModel.SelectImageError.Unauthorized ->
+                                        stringResource(R.string.select_image_couldnt_load) to
+                                            stringResource(R.string.error_message_authentication_required)
+                                    SelectImageViewModel.SelectImageError.UnknownError ->
+                                        stringResource(R.string.select_image_couldnt_load) to
+                                            stringResource(R.string.error_message_unknown)
                                 }
 
                             WarningBanner(

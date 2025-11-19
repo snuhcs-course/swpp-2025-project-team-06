@@ -149,8 +149,14 @@ fun SearchResultScreen(
 
     LaunchedEffect(tagLoadingState) {
         if (tagLoadingState is SearchViewModel.TagLoadingState.Error) {
+            val errorState = tagLoadingState as SearchViewModel.TagLoadingState.Error
             val errorMessage =
-                (tagLoadingState as SearchViewModel.TagLoadingState.Error).message ?: context.getString(R.string.error_message_unknown)
+                when (errorState.error) {
+                    SearchViewModel.SearchError.NetworkError -> context.getString(R.string.error_message_network)
+                    SearchViewModel.SearchError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                    SearchViewModel.SearchError.EmptyQuery -> context.getString(R.string.error_message_empty_query)
+                    SearchViewModel.SearchError.UnknownError -> context.getString(R.string.error_message_search)
+                }
 
             // TODO : change to error box
             Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
@@ -310,11 +316,9 @@ fun SearchResultScreen(
                 is SearchViewModel.SemanticSearchState.Empty -> {
                     SearchViewModel.SearchUiState.Empty((semanticSearchState as SearchViewModel.SemanticSearchState.Empty).query)
                 }
-                is SearchViewModel.SemanticSearchState.NetworkError -> {
-                    SearchViewModel.SearchUiState.Error((semanticSearchState as SearchViewModel.SemanticSearchState.NetworkError).message)
-                }
                 is SearchViewModel.SemanticSearchState.Error -> {
-                    SearchViewModel.SearchUiState.Error((semanticSearchState as SearchViewModel.SemanticSearchState.Error).message)
+                    val errorState = semanticSearchState as SearchViewModel.SemanticSearchState.Error
+                    SearchViewModel.SearchUiState.Error(errorState.error)
                 }
             }
         }
@@ -324,7 +328,13 @@ fun SearchResultScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is SearchViewModel.SearchUiState.Error) {
-            errorMessage = uiState.message
+            errorMessage =
+                when (uiState.error) {
+                    SearchViewModel.SearchError.NetworkError -> context.getString(R.string.error_message_network)
+                    SearchViewModel.SearchError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                    SearchViewModel.SearchError.EmptyQuery -> context.getString(R.string.error_message_empty_query)
+                    SearchViewModel.SearchError.UnknownError -> context.getString(R.string.error_message_search)
+                }
             isErrorBannerVisible = true
         } else {
             // 로딩이 성공하거나, Idle 상태가 되면 배너를 숨깁니다.

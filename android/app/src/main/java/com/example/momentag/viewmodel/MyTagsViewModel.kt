@@ -29,7 +29,7 @@ class MyTagsViewModel
             ) : MyTagsUiState()
 
             data class Error(
-                val message: String,
+                val error: MyTagsError,
             ) : MyTagsUiState()
         }
 
@@ -43,7 +43,7 @@ class MyTagsViewModel
             ) : TagActionState()
 
             data class Error(
-                val message: String,
+                val error: MyTagsError,
             ) : TagActionState()
         }
 
@@ -55,8 +55,29 @@ class MyTagsViewModel
             object Success : SaveState()
 
             data class Error(
-                val message: String,
+                val error: MyTagsError,
             ) : SaveState()
+        }
+
+        sealed class MyTagsError {
+            object NetworkError : MyTagsError()
+
+            object Unauthorized : MyTagsError()
+
+            object DeleteFailed : MyTagsError()
+
+            object RenameFailed : MyTagsError()
+
+            object UnknownError : MyTagsError()
+
+            fun toMessageResId(): Int =
+                when (this) {
+                    is NetworkError -> com.example.momentag.R.string.error_message_network
+                    is Unauthorized -> com.example.momentag.R.string.error_message_login
+                    is DeleteFailed -> com.example.momentag.R.string.error_message_delete_tag
+                    is RenameFailed -> com.example.momentag.R.string.error_message_rename_tag
+                    is UnknownError -> com.example.momentag.R.string.error_message_unknown
+                }
         }
 
         // 2. Private MutableStateFlow
@@ -128,27 +149,27 @@ class MyTagsViewModel
 
                     is RemoteRepository.Result.Error -> {
                         println("MyTagsViewModel: Error ${result.code}: ${result.message}")
-                        _uiState.value = MyTagsUiState.Error("Error ${result.code}: ${result.message}")
+                        _uiState.value = MyTagsUiState.Error(MyTagsError.UnknownError)
                     }
 
                     is RemoteRepository.Result.Unauthorized -> {
                         println("MyTagsViewModel: Unauthorized: ${result.message}")
-                        _uiState.value = MyTagsUiState.Error("Unauthorized: ${result.message}")
+                        _uiState.value = MyTagsUiState.Error(MyTagsError.Unauthorized)
                     }
 
                     is RemoteRepository.Result.BadRequest -> {
                         println("MyTagsViewModel: BadRequest: ${result.message}")
-                        _uiState.value = MyTagsUiState.Error("Bad Request: ${result.message}")
+                        _uiState.value = MyTagsUiState.Error(MyTagsError.UnknownError)
                     }
 
                     is RemoteRepository.Result.NetworkError -> {
                         println("MyTagsViewModel: NetworkError: ${result.message}")
-                        _uiState.value = MyTagsUiState.Error("Network Error: ${result.message}")
+                        _uiState.value = MyTagsUiState.Error(MyTagsError.NetworkError)
                     }
 
                     is RemoteRepository.Result.Exception -> {
                         println("MyTagsViewModel: Exception: ${result.e.message}")
-                        _uiState.value = MyTagsUiState.Error("Exception: ${result.e.message ?: "Unknown error"}")
+                        _uiState.value = MyTagsUiState.Error(MyTagsError.UnknownError)
                     }
                 }
             }
@@ -174,17 +195,19 @@ class MyTagsViewModel
                         loadTags() // 성공 시에만 태그 목록 새로고침
                     }
                     is RemoteRepository.Result.Error -> {
-                        _tagActionState.value = TagActionState.Error(result.message)
+                        _tagActionState.value = TagActionState.Error(MyTagsError.DeleteFailed)
                         println("MyTagsViewModel: Failed to delete tag - ${result.message}")
                     }
-                    else -> { // NetworkError, Exception 등
-                        val errorMsg =
-                            when (result) {
-                                is RemoteRepository.Result.NetworkError -> result.message
-                                is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
-                                else -> "Failed to delete tag"
-                            }
-                        _tagActionState.value = TagActionState.Error(errorMsg)
+                    is RemoteRepository.Result.Unauthorized -> {
+                        _tagActionState.value = TagActionState.Error(MyTagsError.Unauthorized)
+                        println("MyTagsViewModel: Unauthorized - ${result.message}")
+                    }
+                    is RemoteRepository.Result.NetworkError -> {
+                        _tagActionState.value = TagActionState.Error(MyTagsError.NetworkError)
+                        println("MyTagsViewModel: Network error - ${result.message}")
+                    }
+                    else -> { // BadRequest, Exception 등
+                        _tagActionState.value = TagActionState.Error(MyTagsError.DeleteFailed)
                         println("MyTagsViewModel: Failed to delete tag")
                     }
                 }
@@ -205,17 +228,19 @@ class MyTagsViewModel
                         loadTags() // 성공 시에만 태그 목록 새로고침
                     }
                     is RemoteRepository.Result.Error -> {
-                        _tagActionState.value = TagActionState.Error(result.message)
+                        _tagActionState.value = TagActionState.Error(MyTagsError.RenameFailed)
                         println("MyTagsViewModel: Failed to rename tag - ${result.message}")
                     }
-                    else -> { // NetworkError, Exception 등
-                        val errorMsg =
-                            when (result) {
-                                is RemoteRepository.Result.NetworkError -> result.message
-                                is RemoteRepository.Result.Exception -> result.e.message ?: "Unknown error"
-                                else -> "Failed to rename tag"
-                            }
-                        _tagActionState.value = TagActionState.Error(errorMsg)
+                    is RemoteRepository.Result.Unauthorized -> {
+                        _tagActionState.value = TagActionState.Error(MyTagsError.Unauthorized)
+                        println("MyTagsViewModel: Unauthorized - ${result.message}")
+                    }
+                    is RemoteRepository.Result.NetworkError -> {
+                        _tagActionState.value = TagActionState.Error(MyTagsError.NetworkError)
+                        println("MyTagsViewModel: Network error - ${result.message}")
+                    }
+                    else -> { // BadRequest, Exception 등
+                        _tagActionState.value = TagActionState.Error(MyTagsError.RenameFailed)
                         println("MyTagsViewModel: Failed to rename tag")
                     }
                 }
@@ -235,7 +260,7 @@ class MyTagsViewModel
             }
 
             if (selectedPhotos.value.isEmpty()) {
-                _saveState.value = SaveState.Error("Tag cannot be empty and photos must be selected")
+                _saveState.value = SaveState.Error(MyTagsError.UnknownError)
                 return
             }
 
@@ -248,7 +273,7 @@ class MyTagsViewModel
                         is RemoteRepository.Result.Success -> {
                         }
                         else -> {
-                            _saveState.value = SaveState.Error(getErrorMessage(result))
+                            _saveState.value = SaveState.Error(getErrorType(result))
                             isAllSucceeded = false
                             break
                         }
@@ -261,14 +286,14 @@ class MyTagsViewModel
             }
         }
 
-        private fun getErrorMessage(result: RemoteRepository.Result<*>): String =
+        private fun getErrorType(result: RemoteRepository.Result<*>): MyTagsError =
             when (result) {
-                is RemoteRepository.Result.BadRequest -> "Bad Request: ${result.message}"
-                is RemoteRepository.Result.Unauthorized -> "Login error: ${result.message}"
-                is RemoteRepository.Result.Error -> "Server Error (${result.code}): ${result.message}"
-                is RemoteRepository.Result.Exception -> "Network Error: ${result.e.message}"
-                is RemoteRepository.Result.Success -> "An unknown error occurred (Success was passed to error handler)"
-                is RemoteRepository.Result.NetworkError -> "Network Error: ${result.message}"
+                is RemoteRepository.Result.BadRequest -> MyTagsError.UnknownError
+                is RemoteRepository.Result.Unauthorized -> MyTagsError.Unauthorized
+                is RemoteRepository.Result.Error -> MyTagsError.UnknownError
+                is RemoteRepository.Result.Exception -> MyTagsError.UnknownError
+                is RemoteRepository.Result.Success -> MyTagsError.UnknownError
+                is RemoteRepository.Result.NetworkError -> MyTagsError.NetworkError
             }
 
         fun clearActionState() {

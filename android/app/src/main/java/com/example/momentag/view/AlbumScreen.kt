@@ -192,7 +192,13 @@ fun AlbumScreen(
             }
             is AlbumViewModel.TagDeleteState.Error -> {
                 errorBannerTitle = context.getString(R.string.album_failed_remove_photo)
-                errorBannerMessage = state.message
+                errorBannerMessage =
+                    when (state.error) {
+                        AlbumViewModel.AlbumError.NetworkError -> context.getString(R.string.error_message_network)
+                        AlbumViewModel.AlbumError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                        AlbumViewModel.AlbumError.NotFound -> context.getString(R.string.error_message_photo_not_found)
+                        AlbumViewModel.AlbumError.UnknownError -> context.getString(R.string.error_message_unknown)
+                    }
                 isErrorBannerVisible = true // Failure: Banner
                 albumViewModel.resetDeleteState()
             }
@@ -210,7 +216,13 @@ fun AlbumScreen(
             }
             is AlbumViewModel.TagRenameState.Error -> {
                 errorBannerTitle = context.getString(R.string.album_failed_rename_tag)
-                errorBannerMessage = state.message
+                errorBannerMessage =
+                    when (state.error) {
+                        AlbumViewModel.AlbumError.NetworkError -> context.getString(R.string.error_message_network)
+                        AlbumViewModel.AlbumError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                        AlbumViewModel.AlbumError.NotFound -> context.getString(R.string.error_message_photo_not_found)
+                        AlbumViewModel.AlbumError.UnknownError -> context.getString(R.string.error_message_unknown)
+                    }
                 isErrorBannerVisible = true // Failure: Banner
                 editableTagName = currentTagName
                 albumViewModel.resetRenameState()
@@ -228,7 +240,13 @@ fun AlbumScreen(
             }
             is AlbumViewModel.TagAddState.Error -> {
                 errorBannerTitle = context.getString(R.string.album_failed_add_photos)
-                errorBannerMessage = state.message
+                errorBannerMessage =
+                    when (state.error) {
+                        AlbumViewModel.AlbumError.NetworkError -> context.getString(R.string.error_message_network)
+                        AlbumViewModel.AlbumError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                        AlbumViewModel.AlbumError.NotFound -> context.getString(R.string.error_message_photo_not_found)
+                        AlbumViewModel.AlbumError.UnknownError -> context.getString(R.string.error_message_unknown)
+                    }
                 isErrorBannerVisible = true // Failure: Banner
                 albumViewModel.resetAddState()
             }
@@ -628,10 +646,17 @@ private fun AlbumGridArea(
                 }
             }
             is AlbumViewModel.AlbumLoadingState.Error -> {
+                val errorMessage =
+                    when (albumLoadState.error) {
+                        AlbumViewModel.AlbumError.NetworkError -> stringResource(R.string.error_message_network)
+                        AlbumViewModel.AlbumError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                        AlbumViewModel.AlbumError.NotFound -> stringResource(R.string.error_message_photo_not_found)
+                        AlbumViewModel.AlbumError.UnknownError -> stringResource(R.string.error_message_unknown)
+                    }
                 WarningBanner(
                     modifier = Modifier.fillMaxWidth(),
                     title = stringResource(R.string.album_failed_to_load),
-                    message = albumLoadState.message,
+                    message = errorMessage,
                     onActionClick = { /* PullToRefresh handles this */ },
                     showActionButton = false,
                     showDismissButton = false,
@@ -942,11 +967,18 @@ private fun RecommendExpandedPanel(
                         }
                     }
                     is AlbumViewModel.RecommendLoadingState.Error -> {
+                        val errorMessage =
+                            when (recommendLoadState.error) {
+                                AlbumViewModel.AlbumError.NetworkError -> stringResource(R.string.error_message_network)
+                                AlbumViewModel.AlbumError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                                AlbumViewModel.AlbumError.NotFound -> stringResource(R.string.error_message_photo_not_found)
+                                AlbumViewModel.AlbumError.UnknownError -> stringResource(R.string.error_message_unknown)
+                            }
                         Box(modifier = Modifier.fillMaxWidth().height(Dimen.ExpandedPanelHeight), contentAlignment = Alignment.Center) {
                             WarningBanner(
                                 modifier = Modifier.fillMaxWidth(),
                                 title = stringResource(R.string.album_recommendation_failed),
-                                message = recommendLoadState.message,
+                                message = errorMessage,
                                 onActionClick = { /* TODO: Retry logic needed */ },
                                 showActionButton = false,
                                 showDismissButton = false,

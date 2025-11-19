@@ -128,13 +128,13 @@ fun LocalGalleryScreen(
         )
 
     // 10. LaunchedEffect
-    LaunchedEffect(uploadState.errorMessage) {
-        if (uploadState.errorMessage != null) {
-            errorMessage = uploadState.errorMessage
-            isErrorBannerVisible = true
-        } else {
-            isErrorBannerVisible = false
-        }
+    LaunchedEffect(uploadState.error) {
+        errorMessage =
+            when (uploadState.error) {
+                PhotoViewModel.PhotoError.NoPhotosSelected -> context.getString(R.string.error_message_no_photo_ids)
+                null -> null
+            }
+        isErrorBannerVisible = errorMessage != null
     }
 
     if (hasPermission) {

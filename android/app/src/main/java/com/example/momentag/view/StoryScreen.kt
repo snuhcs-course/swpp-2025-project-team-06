@@ -340,22 +340,16 @@ fun StoryTagSelectionScreen(
                 }
             }
             is StoryViewModel.StoryState.Error -> {
+                val errorMessage =
+                    when (state.error) {
+                        StoryViewModel.StoryError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                        StoryViewModel.StoryError.NetworkError -> stringResource(R.string.error_message_network)
+                        StoryViewModel.StoryError.UnknownError -> stringResource(R.string.error_message_unknown)
+                    }
                 ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
                     title = stringResource(R.string.story_error_title),
-                    errorMessage = state.message,
-                    onRetry = { viewModel.loadStories(10) },
-                    onDismiss = {
-                        viewModel.resetState()
-                        onBack()
-                    },
-                )
-            }
-            is StoryViewModel.StoryState.NetworkError -> {
-                ErrorOverlay(
-                    modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    title = stringResource(R.string.story_network_error_title),
-                    errorMessage = state.message,
+                    errorMessage = errorMessage,
                     onRetry = { viewModel.loadStories(10) },
                     onDismiss = {
                         viewModel.resetState()
@@ -585,11 +579,16 @@ internal fun TagSelectionCard(
 
             // Show error message if submission failed
             AnimatedVisibility(visible = storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Error) {
+                val errorMessage =
+                    when ((storyTagSubmissionState as? StoryViewModel.StoryTagSubmissionState.Error)?.error) {
+                        StoryViewModel.StoryError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                        StoryViewModel.StoryError.NetworkError -> stringResource(R.string.error_message_network)
+                        StoryViewModel.StoryError.UnknownError -> stringResource(R.string.error_message_save_tag)
+                        null -> stringResource(R.string.error_message_unknown)
+                    }
                 WarningBanner(
                     title = stringResource(R.string.story_failed_save_tag),
-                    message =
-                        (storyTagSubmissionState as? StoryViewModel.StoryTagSubmissionState.Error)?.message
-                            ?: stringResource(R.string.error_message_unknown),
+                    message = errorMessage,
                     onActionClick = onRetry, // Retry button (GradientPillButton changes to Retry)
                     showActionButton = false, // Button is handled by GradientPillButton
                     showDismissButton = false,

@@ -306,7 +306,15 @@ fun ImageDetailScreen(
     val isExistingLoading = successState?.isExistingLoading ?: false
     val isRecommendedLoading = successState?.isRecommendedLoading ?: false
     val isError = imageDetailTagState is ImageDetailViewModel.ImageDetailTagState.Error
-    val errorMessage = (imageDetailTagState as? ImageDetailViewModel.ImageDetailTagState.Error)?.message
+    val errorMessage =
+        (imageDetailTagState as? ImageDetailViewModel.ImageDetailTagState.Error)?.let { errorState ->
+            when (errorState.error) {
+                ImageDetailViewModel.ImageDetailError.NetworkError -> context.getString(R.string.error_message_network)
+                ImageDetailViewModel.ImageDetailError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                ImageDetailViewModel.ImageDetailError.NotFound -> context.getString(R.string.error_message_photo_not_found)
+                ImageDetailViewModel.ImageDetailError.UnknownError -> context.getString(R.string.error_message_unknown)
+            }
+        }
 
     // 6. Remember된 객체들
     val pagerState =
@@ -404,7 +412,17 @@ fun ImageDetailScreen(
             }
 
             is ImageDetailViewModel.TagDeleteState.Error -> {
-                warningBannerMessage = context.getString(R.string.image_detail_error_occurred)
+                val errorState = tagDeleteState as ImageDetailViewModel.TagDeleteState.Error
+                warningBannerMessage =
+                    when (errorState.error) {
+                        ImageDetailViewModel.ImageDetailError.NetworkError -> context.getString(R.string.error_message_network)
+                        ImageDetailViewModel.ImageDetailError.Unauthorized ->
+                            context.getString(
+                                R.string.error_message_authentication_required,
+                            )
+                        ImageDetailViewModel.ImageDetailError.NotFound -> context.getString(R.string.error_message_photo_not_found)
+                        ImageDetailViewModel.ImageDetailError.UnknownError -> context.getString(R.string.error_message_unknown)
+                    }
                 isWarningBannerVisible = true
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
@@ -421,7 +439,17 @@ fun ImageDetailScreen(
                 imageDetailViewModel.resetAddState()
             }
             is ImageDetailViewModel.TagAddState.Error -> {
-                warningBannerMessage = context.getString(R.string.image_detail_error_occurred)
+                val errorState = tagAddState as ImageDetailViewModel.TagAddState.Error
+                warningBannerMessage =
+                    when (errorState.error) {
+                        ImageDetailViewModel.ImageDetailError.NetworkError -> context.getString(R.string.error_message_network)
+                        ImageDetailViewModel.ImageDetailError.Unauthorized ->
+                            context.getString(
+                                R.string.error_message_authentication_required,
+                            )
+                        ImageDetailViewModel.ImageDetailError.NotFound -> context.getString(R.string.error_message_photo_not_found)
+                        ImageDetailViewModel.ImageDetailError.UnknownError -> context.getString(R.string.error_message_unknown)
+                    }
                 isWarningBannerVisible = true
                 imageDetailViewModel.resetAddState()
             }
