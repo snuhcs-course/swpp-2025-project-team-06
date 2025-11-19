@@ -93,7 +93,7 @@ class SelectedPhotoUploadWorker
         ): Notification =
             NotificationCompat
                 .Builder(applicationContext, CHANNEL_ID)
-                .setContentTitle("MomenTag Album Upload")
+                .setContentTitle(applicationContext.getString(R.string.notification_upload_title))
                 .setContentText(text)
                 .setSmallIcon(R.mipmap.ic_launcher_foreground)
                 .setOngoing(ongoing)
@@ -123,10 +123,10 @@ class SelectedPhotoUploadWorker
                 val channel =
                     NotificationChannel(
                         CHANNEL_ID,
-                        "MomenTag Uploads",
+                        applicationContext.getString(R.string.notification_channel_name),
                         NotificationManager.IMPORTANCE_LOW,
                     ).apply {
-                        description = "Shows album photo upload progress"
+                        description = applicationContext.getString(R.string.notification_channel_description)
                     }
                 notificationManager.createNotificationChannel(channel)
             }
@@ -138,7 +138,7 @@ class SelectedPhotoUploadWorker
                 return Result.failure()
             }
 
-            val initialProgress = "Preparing upload..."
+            val initialProgress = applicationContext.getString(R.string.foreground_preparing_upload)
             setForeground(createForegroundInfo(initialProgress))
 
             albumUploadJobCount.update { it + 1 }
@@ -148,14 +148,29 @@ class SelectedPhotoUploadWorker
 
                 if (success) {
                     albumUploadSuccessEvent.emit(0L)
-                    updateNotification("Upload Complete", "Album upload completed successfully.", RESULT_NOTIFICATION_ID, false)
+                    updateNotification(
+                        applicationContext.getString(R.string.notification_upload_complete),
+                        applicationContext.getString(R.string.notification_upload_complete_message),
+                        RESULT_NOTIFICATION_ID,
+                        false,
+                    )
                     return Result.success()
                 } else {
-                    updateNotification("Upload Failed", "Failed to upload some files.", RESULT_NOTIFICATION_ID, false)
+                    updateNotification(
+                        applicationContext.getString(R.string.notification_upload_failed),
+                        applicationContext.getString(R.string.error_message_upload_failed),
+                        RESULT_NOTIFICATION_ID,
+                        false,
+                    )
                     return Result.failure()
                 }
             } catch (e: Exception) {
-                updateNotification("Upload Error", "An unknown error occurred.", RESULT_NOTIFICATION_ID, false)
+                updateNotification(
+                    applicationContext.getString(R.string.notification_upload_error),
+                    applicationContext.getString(R.string.error_message_generic),
+                    RESULT_NOTIFICATION_ID,
+                    false,
+                )
                 return Result.failure()
             } finally {
                 albumUploadJobCount.update { it - 1 }
@@ -194,7 +209,12 @@ class SelectedPhotoUploadWorker
                 chunkCount++
                 val progressText = "Uploading chunk ($chunkCount / $totalChunks)..."
                 setProgress(workDataOf(KEY_PROGRESS to progressText))
-                updateNotification("Uploading Photos", progressText, NOTIFICATION_ID, true)
+                updateNotification(
+                    applicationContext.getString(R.string.notification_uploading_photos),
+                    progressText,
+                    NOTIFICATION_ID,
+                    true,
+                )
 
                 val uploadData = createUploadDataFromChunk(currentChunk)
                 val response = remoteRepository.uploadPhotos(uploadData)

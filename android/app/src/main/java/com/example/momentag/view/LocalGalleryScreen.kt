@@ -57,9 +57,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Album
 import com.example.momentag.ui.components.BackTopBar
@@ -126,13 +128,13 @@ fun LocalGalleryScreen(
         )
 
     // 10. LaunchedEffect
-    LaunchedEffect(uploadState.errorMessage) {
-        if (uploadState.errorMessage != null) {
-            errorMessage = uploadState.errorMessage
-            isErrorBannerVisible = true
-        } else {
-            isErrorBannerVisible = false
-        }
+    LaunchedEffect(uploadState.error) {
+        errorMessage =
+            when (uploadState.error) {
+                PhotoViewModel.PhotoError.NoPhotosSelected -> context.getString(R.string.error_message_no_photo_ids)
+                null -> null
+            }
+        isErrorBannerVisible = errorMessage != null
     }
 
     if (hasPermission) {
@@ -162,12 +164,12 @@ fun LocalGalleryScreen(
         topBar = {
             if (isSelectionMode) {
                 TopAppBar(
-                    title = { Text("${selectedAlbumIds.size} selected") },
+                    title = { Text(stringResource(R.string.photos_selected_count, selectedAlbumIds.size)) },
                     navigationIcon = {
                         IconButton(onClick = { localViewModel.clearAlbumSelection() }) {
                             StandardIcon.Icon(
+                                contentDescription = stringResource(R.string.cd_navigate_back),
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
                                 sizeRole = IconSizeRole.Navigation,
                             )
                         }
@@ -188,7 +190,7 @@ fun LocalGalleryScreen(
                                 }
                             StandardIcon.Icon(
                                 imageVector = selectAllIcon,
-                                contentDescription = "Select All",
+                                contentDescription = stringResource(R.string.cd_select_all),
                                 intent = if (selectedAlbumIds.size == albumSet.size) IconIntent.Primary else IconIntent.Muted,
                             )
                         }
@@ -196,7 +198,7 @@ fun LocalGalleryScreen(
                 )
             } else {
                 BackTopBar(
-                    title = "MomenTag",
+                    title = stringResource(R.string.app_name),
                     onBackClick = onNavigateBack,
                 )
             }
@@ -206,9 +208,9 @@ fun LocalGalleryScreen(
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
-                            Text("Upload started (check notification)")
+                            Text(stringResource(R.string.banner_upload_check_notification))
                         } else {
-                            Text("Upload ${selectedAlbumIds.size} selected albums")
+                            Text(stringResource(R.string.photos_upload_selected_albums, selectedAlbumIds.size))
                         }
                     },
                     icon = {
@@ -220,7 +222,7 @@ fun LocalGalleryScreen(
                         } else {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.Upload,
-                                contentDescription = "Upload",
+                                contentDescription = stringResource(R.string.cd_upload),
                                 intent = IconIntent.Inverse,
                             )
                         }
@@ -265,7 +267,7 @@ fun LocalGalleryScreen(
             ) {
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                 Text(
-                    text = "Albums",
+                    text = stringResource(R.string.gallery_albums_title),
                     style = MaterialTheme.typography.displayMedium,
                 )
                 HorizontalDivider(
@@ -313,8 +315,8 @@ fun LocalGalleryScreen(
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         modifier = Modifier.fillMaxWidth(),
-                        title = "Upload Failed",
-                        message = errorMessage ?: "An error occurred",
+                        title = stringResource(R.string.notification_upload_failed),
+                        message = errorMessage ?: stringResource(R.string.error_message_generic),
                         onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,
                         showDismissButton = true,
@@ -350,7 +352,7 @@ private fun AlbumGridItem(
     ) {
         AsyncImage(
             model = album.thumbnailUri,
-            contentDescription = "Album ${album.albumName}",
+            contentDescription = stringResource(R.string.cd_album, album.albumName),
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -401,7 +403,7 @@ private fun AlbumGridItem(
                 if (isSelected) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
+                        contentDescription = stringResource(R.string.cd_photo_selected),
                         sizeRole = IconSizeRole.InlineAction,
                         intent = IconIntent.OnPrimaryContainer,
                     )

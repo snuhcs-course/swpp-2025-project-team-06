@@ -60,6 +60,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -122,7 +123,7 @@ fun StoryTagSelectionScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             BackTopBar(
-                title = "Moment",
+                title = stringResource(R.string.story_title),
                 onBackClick = {
                     viewModel.resetState()
                     onBack()
@@ -180,7 +181,7 @@ fun StoryTagSelectionScreen(
                             modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                         )
                         Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
-                        Text("Loading memories...", color = MaterialTheme.colorScheme.onSurface)
+                        Text(stringResource(R.string.story_loading_memories), color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
@@ -339,22 +340,16 @@ fun StoryTagSelectionScreen(
                 }
             }
             is StoryViewModel.StoryState.Error -> {
+                val errorMessage =
+                    when (state.error) {
+                        StoryViewModel.StoryError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                        StoryViewModel.StoryError.NetworkError -> stringResource(R.string.error_message_network)
+                        StoryViewModel.StoryError.UnknownError -> stringResource(R.string.error_message_unknown)
+                    }
                 ErrorOverlay(
                     modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    title = "Error",
-                    errorMessage = state.message,
-                    onRetry = { viewModel.loadStories(10) },
-                    onDismiss = {
-                        viewModel.resetState()
-                        onBack()
-                    },
-                )
-            }
-            is StoryViewModel.StoryState.NetworkError -> {
-                ErrorOverlay(
-                    modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    title = "Network Error",
-                    errorMessage = state.message,
+                    title = stringResource(R.string.story_error_title),
+                    errorMessage = errorMessage,
                     onRetry = { viewModel.loadStories(10) },
                     onDismiss = {
                         viewModel.resetState()
@@ -413,7 +408,7 @@ private fun StoryPageFullBlock(
             ) {
                 AsyncImage(
                     model = story.images.firstOrNull(),
-                    contentDescription = "story image",
+                    contentDescription = stringResource(R.string.cd_story_image),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
                 )
@@ -470,12 +465,12 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
         ) {
             StandardIcon.Icon(
                 imageVector = Icons.Default.KeyboardArrowUp,
-                contentDescription = null,
                 sizeRole = IconSizeRole.DefaultAction,
                 tintOverride = onSurfaceColor.copy(alpha = 0.7f),
+                contentDescription = stringResource(R.string.cd_scroll_up),
             )
             Text(
-                text = "Scroll for next moments",
+                text = stringResource(R.string.story_scroll_for_next),
                 color = onSurfaceColor.copy(alpha = 0.8f),
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -533,11 +528,11 @@ internal fun TagSelectionCard(
             Text(
                 text =
                     if (isReadOnly) {
-                        "Tags for this memory"
+                        stringResource(R.string.story_tags_for_memory)
                     } else if (isEditMode) {
-                        "Edit Tags"
+                        stringResource(R.string.story_edit_tags)
                     } else {
-                        "How do you want to remember this?"
+                        stringResource(R.string.story_remember_this)
                     },
                 color =
                     if (isReadOnly) {
@@ -584,11 +579,18 @@ internal fun TagSelectionCard(
 
             // Show error message if submission failed
             AnimatedVisibility(visible = storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Error) {
+                val errorMessage =
+                    when ((storyTagSubmissionState as? StoryViewModel.StoryTagSubmissionState.Error)?.error) {
+                        StoryViewModel.StoryError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                        StoryViewModel.StoryError.NetworkError -> stringResource(R.string.error_message_network)
+                        StoryViewModel.StoryError.UnknownError -> stringResource(R.string.error_message_save_tag)
+                        null -> stringResource(R.string.error_message_unknown)
+                    }
                 WarningBanner(
-                    title = "Failed to Save Tag",
-                    message = (storyTagSubmissionState as? StoryViewModel.StoryTagSubmissionState.Error)?.message ?: "Unknown error",
-                    onActionClick = onRetry, // 재시도 버튼 (GradientPillButton이 Retry로 바뀜)
-                    showActionButton = false, // 버튼은 GradientPillButton이 담당
+                    title = stringResource(R.string.story_failed_save_tag),
+                    message = errorMessage,
+                    onActionClick = onRetry, // Retry button (GradientPillButton changes to Retry)
+                    showActionButton = false, // Button is handled by GradientPillButton
                     showDismissButton = false,
                     modifier = Modifier.padding(bottom = Dimen.ItemSpacingSmall),
                 )
@@ -597,14 +599,14 @@ internal fun TagSelectionCard(
             // Show Edit button in read-only mode, Done button otherwise
             if (isReadOnly) {
                 GradientPillButton(
-                    text = "Edit",
+                    text = stringResource(R.string.action_edit),
                     enabled = true,
                     storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
                     onClick = onEdit,
                 )
             } else {
                 GradientPillButton(
-                    text = if (isEditMode) "Done" else "Done",
+                    text = stringResource(R.string.action_done),
                     enabled = canSubmit,
                     storyTagSubmissionState = storyTagSubmissionState,
                     onClick = {
@@ -677,14 +679,14 @@ internal fun GradientPillButton(
             isSuccess -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Success",
+                    contentDescription = stringResource(R.string.cd_success),
                     sizeRole = IconSizeRole.DefaultAction,
                     intent = IconIntent.Inverse,
                 )
             }
             isError -> {
                 Text(
-                    text = "Retry",
+                    text = stringResource(R.string.story_retry),
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     style = MaterialTheme.typography.labelLarge,
                 )
@@ -817,7 +819,7 @@ private fun StoryPageFullBlockPreviewContent(
                     painter =
                         androidx.compose.ui.res
                             .painterResource(id = drawableResId),
-                    contentDescription = "preview image",
+                    contentDescription = stringResource(R.string.cd_preview_image),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
                 )

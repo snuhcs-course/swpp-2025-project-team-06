@@ -53,9 +53,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Dimen
@@ -115,13 +117,13 @@ fun LocalAlbumScreen(
         }
     }
 
-    LaunchedEffect(uploadState.errorMessage) {
-        if (uploadState.errorMessage != null) {
-            errorMessage = uploadState.errorMessage
-            isErrorBannerVisible = true
-        } else {
-            isErrorBannerVisible = false
-        }
+    LaunchedEffect(uploadState.error) {
+        errorMessage =
+            when (uploadState.error) {
+                PhotoViewModel.PhotoError.NoPhotosSelected -> context.getString(R.string.error_message_no_photo_ids)
+                null -> null
+            }
+        isErrorBannerVisible = errorMessage != null
     }
 
     if (hasPermission) {
@@ -166,7 +168,7 @@ fun LocalAlbumScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "MomenTag",
+                        stringResource(R.string.app_name),
                         style = MaterialTheme.typography.titleLarge,
                     )
                 },
@@ -178,7 +180,7 @@ fun LocalAlbumScreen(
                         }) {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Cancel Selection",
+                                contentDescription = stringResource(R.string.cd_cancel_selection),
                                 sizeRole = IconSizeRole.DefaultAction,
                             )
                         }
@@ -186,7 +188,7 @@ fun LocalAlbumScreen(
                         IconButton(onClick = onNavigateBack) {
                             StandardIcon.Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.cd_navigate_back),
                                 sizeRole = IconSizeRole.Navigation,
                             )
                         }
@@ -203,9 +205,9 @@ fun LocalAlbumScreen(
                 ExtendedFloatingActionButton(
                     text = {
                         if (uploadState.isLoading) {
-                            Text("Upload started (check notification)")
+                            Text(stringResource(R.string.banner_upload_check_notification))
                         } else {
-                            Text("Upload ${selectedPhotos.size} selected photos")
+                            Text(stringResource(R.string.photos_upload_selected_photos, selectedPhotos.size))
                         }
                     },
                     icon = {
@@ -217,7 +219,7 @@ fun LocalAlbumScreen(
                         } else {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.Upload,
-                                contentDescription = "Upload",
+                                contentDescription = stringResource(R.string.cd_upload),
                                 sizeRole = IconSizeRole.DefaultAction,
                             )
                         }
@@ -269,8 +271,8 @@ fun LocalAlbumScreen(
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                        title = "Upload Failed",
-                        message = errorMessage ?: "An error occurred",
+                        title = stringResource(R.string.notification_upload_failed),
+                        message = errorMessage ?: stringResource(R.string.error_message_generic),
                         onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,
                         showDismissButton = true,
@@ -323,7 +325,7 @@ fun LocalAlbumScreen(
                         ) {
                             AsyncImage(
                                 model = photo.contentUri,
-                                contentDescription = "Photo ${photo.photoId}",
+                                contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize(),
                             )
@@ -361,7 +363,7 @@ fun LocalAlbumScreen(
                                     if (isSelected) {
                                         StandardIcon.Icon(
                                             imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
+                                            contentDescription = stringResource(R.string.cd_photo_selected),
                                             sizeRole = IconSizeRole.InlineAction,
                                             intent = IconIntent.OnPrimaryContainer,
                                         )

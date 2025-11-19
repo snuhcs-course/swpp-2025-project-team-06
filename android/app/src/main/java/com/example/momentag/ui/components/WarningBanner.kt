@@ -22,29 +22,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.momentag.R
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
 
 /**
- * 재사용 가능한 경고 배너 컴포넌트
+ * Reusable warning banner component
  *
- * 로딩 지연, 네트워크 오류 등의 경고 메시지를 표시하는 배너입니다.
- * 주로 화면 하단에 배치되며, 사용자에게 상황을 알리고 액션을 제공합니다.
+ * Banner displaying warning messages for loading delays, network errors, etc.
+ * Typically placed at the bottom of the screen to inform users and provide actions.
  *
- * @param title 경고 제목 (Bold로 표시)
- * @param message 경고 메시지
- * @param onActionClick 액션 버튼 클릭 콜백 (예: 새로고침)
- * @param onDismiss 닫기 버튼 클릭 콜백 (선택적)
+ * @param title Warning title (displayed in bold)
+ * @param message Warning message
+ * @param onActionClick Action button click callback (e.g., refresh)
+ * @param onDismiss Close button click callback (optional)
  * @param modifier Modifier
- * @param backgroundColor 배너 배경색 (기본값: 빨간색)
- * @param icon 왼쪽에 표시할 아이콘 (기본값: Error)
- * @param actionIcon 오른쪽 액션 버튼 아이콘 (기본값: Refresh)
- * @param showActionButton 액션 버튼 표시 여부 (기본값: true)
- * @param showDismissButton 닫기 버튼 표시 여부 (기본값: false)
+ * @param backgroundColor Banner background color (default: error container)
+ * @param icon Icon to display on the left (default: Error)
+ * @param actionIcon Action button icon on the right (default: Refresh)
+ * @param showActionButton Whether to show action button (default: true)
+ * @param showDismissButton Whether to show close button (default: false)
  */
 @Composable
 fun WarningBanner(
@@ -83,17 +85,17 @@ fun WarningBanner(
                 ).padding(Dimen.ComponentPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 왼쪽 아이콘
+        // Left icon
         StandardIcon.Icon(
             imageVector = icon,
-            contentDescription = "Warning Icon",
+            contentDescription = stringResource(R.string.cd_warning_icon),
             sizeRole = IconSizeRole.DefaultAction,
             intent = iconIntent,
         )
 
         Spacer(modifier = Modifier.width(Dimen.ItemSpacingMedium))
 
-        // 텍스트 컨텐츠
+        // Text content
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -109,7 +111,7 @@ fun WarningBanner(
 
         Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
 
-        // 액션 버튼 (새로고침 등)
+        // Action button (e.g., refresh)
         if (showActionButton) {
             IconButton(
                 onClick = onActionClick,
@@ -117,14 +119,14 @@ fun WarningBanner(
             ) {
                 StandardIcon.Icon(
                     imageVector = actionIcon,
-                    contentDescription = "Action",
                     sizeRole = IconSizeRole.BannerAction,
                     intent = iconIntent,
+                    contentDescription = stringResource(R.string.cd_refresh_action),
                 )
             }
         }
 
-        // 닫기 버튼 (선택적)
+        // Close button (optional)
         if (showDismissButton && onDismiss != null) {
             IconButton(
                 onClick = onDismiss,
@@ -132,9 +134,9 @@ fun WarningBanner(
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
                     sizeRole = IconSizeRole.Navigation,
                     intent = iconIntent,
+                    contentDescription = stringResource(R.string.cd_dismiss_notification),
                 )
             }
         }
@@ -142,15 +144,15 @@ fun WarningBanner(
 }
 
 // ========================================
-// 프리뷰
+// Previews
 // ========================================
 
 @Preview(showBackground = true, widthDp = 360)
 @Composable
 private fun previewWarningBannerLoadingDelay() {
     WarningBanner(
-        title = "Loading is taking longer than usual.",
-        message = "Please refresh the page.",
+        title = "Loading is taking longer than usual",
+        message = "Pull down to refresh",
         onActionClick = {},
         modifier = Modifier.padding(Dimen.SectionSpacing),
     )

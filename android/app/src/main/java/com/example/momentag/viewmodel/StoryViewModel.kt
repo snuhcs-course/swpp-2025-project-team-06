@@ -49,11 +49,7 @@ class StoryViewModel
             ) : StoryState()
 
             data class Error(
-                val message: String,
-            ) : StoryState()
-
-            data class NetworkError(
-                val message: String,
+                val error: StoryError,
             ) : StoryState()
         }
 
@@ -65,8 +61,16 @@ class StoryViewModel
             object Success : StoryTagSubmissionState()
 
             data class Error(
-                val message: String,
+                val error: StoryError,
             ) : StoryTagSubmissionState()
+        }
+
+        sealed class StoryError {
+            object Unauthorized : StoryError()
+
+            object NetworkError : StoryError()
+
+            object UnknownError : StoryError()
         }
 
         // 1. Private MutableStateFlow
@@ -198,22 +202,22 @@ class StoryViewModel
                             }
 
                             is RecommendRepository.StoryResult.NetworkError -> {
-                                _storyState.value = StoryState.NetworkError(result.message)
+                                _storyState.value = StoryState.Error(StoryError.NetworkError)
                                 return@launch
                             }
 
                             is RecommendRepository.StoryResult.Unauthorized -> {
-                                _storyState.value = StoryState.Error("Please login again")
+                                _storyState.value = StoryState.Error(StoryError.Unauthorized)
                                 return@launch
                             }
 
                             is RecommendRepository.StoryResult.BadRequest -> {
-                                _storyState.value = StoryState.Error(result.message)
+                                _storyState.value = StoryState.Error(StoryError.UnknownError)
                                 return@launch
                             }
 
                             is RecommendRepository.StoryResult.Error -> {
-                                _storyState.value = StoryState.Error(result.message)
+                                _storyState.value = StoryState.Error(StoryError.UnknownError)
                                 return@launch
                             }
                         }
@@ -493,9 +497,6 @@ class StoryViewModel
                 }
 
             viewModelScope.launch {
-                var hasError = false
-                var errorMessage = ""
-
                 // Get original tags (empty for new stories, existing tags for edits)
                 val originalTags = _originalTags.value[storyId] ?: emptyList()
                 val originalTagNames = originalTags.map { it.tagName }.toSet()
@@ -516,43 +517,43 @@ class StoryViewModel
                         }
                         is RemoteRepository.Result.Error -> {
                             android.util.Log.e("StoryViewModel", "Failed to remove tag ${tag.tagName}: ${removeResult.message}")
-                            hasError = true
-                            errorMessage = removeResult.message
+                            _storyTagSubmissionStates.value =
+                                _storyTagSubmissionStates.value.toMutableMap().apply {
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.UnknownError)
+                                }
+                            return@launch
                         }
                         is RemoteRepository.Result.Unauthorized -> {
                             android.util.Log.e("StoryViewModel", "Unauthorized: ${removeResult.message}")
-                            hasError = true
-                            errorMessage = "Please login again"
                             _storyTagSubmissionStates.value =
                                 _storyTagSubmissionStates.value.toMutableMap().apply {
-                                    this[storyId] = StoryTagSubmissionState.Error(errorMessage)
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.Unauthorized)
                                 }
                             return@launch
                         }
                         is RemoteRepository.Result.NetworkError -> {
                             android.util.Log.e("StoryViewModel", "Network error: ${removeResult.message}")
-                            hasError = true
-                            errorMessage = "Network error. Please try again."
                             _storyTagSubmissionStates.value =
                                 _storyTagSubmissionStates.value.toMutableMap().apply {
-                                    this[storyId] = StoryTagSubmissionState.Error(errorMessage)
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.NetworkError)
                                 }
                             return@launch
                         }
                         is RemoteRepository.Result.Exception -> {
                             android.util.Log.e("StoryViewModel", "Exception: ${removeResult.e.message}")
-                            hasError = true
-                            errorMessage = "An error occurred. Please try again."
                             _storyTagSubmissionStates.value =
                                 _storyTagSubmissionStates.value.toMutableMap().apply {
-                                    this[storyId] = StoryTagSubmissionState.Error(errorMessage)
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.UnknownError)
                                 }
                             return@launch
                         }
                         else -> {
                             android.util.Log.e("StoryViewModel", "Unknown error while removing tag ${tag.tagName}")
-                            hasError = true
-                            errorMessage = "An error occurred. Please try again."
+                            _storyTagSubmissionStates.value =
+                                _storyTagSubmissionStates.value.toMutableMap().apply {
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.UnknownError)
+                                }
+                            return@launch
                         }
                     }
                 }
@@ -568,100 +569,95 @@ class StoryViewModel
                                 }
                                 is RemoteRepository.Result.Error -> {
                                     android.util.Log.e("StoryViewModel", "Failed to add tag $tagName: ${associateResult.message}")
-                                    hasError = true
-                                    errorMessage = associateResult.message
+                                    _storyTagSubmissionStates.value =
+                                        _storyTagSubmissionStates.value.toMutableMap().apply {
+                                            this[storyId] = StoryTagSubmissionState.Error(StoryError.UnknownError)
+                                        }
+                                    return@launch
                                 }
                                 is RemoteRepository.Result.Unauthorized -> {
                                     android.util.Log.e("StoryViewModel", "Unauthorized: ${associateResult.message}")
-                                    hasError = true
-                                    errorMessage = "Please login again"
                                     _storyTagSubmissionStates.value =
                                         _storyTagSubmissionStates.value.toMutableMap().apply {
-                                            this[storyId] = StoryTagSubmissionState.Error(errorMessage)
+                                            this[storyId] = StoryTagSubmissionState.Error(StoryError.Unauthorized)
                                         }
                                     return@launch
                                 }
                                 is RemoteRepository.Result.NetworkError -> {
                                     android.util.Log.e("StoryViewModel", "Network error: ${associateResult.message}")
-                                    hasError = true
-                                    errorMessage = "Network error. Please try again."
                                     _storyTagSubmissionStates.value =
                                         _storyTagSubmissionStates.value.toMutableMap().apply {
-                                            this[storyId] = StoryTagSubmissionState.Error(errorMessage)
+                                            this[storyId] = StoryTagSubmissionState.Error(StoryError.NetworkError)
                                         }
                                     return@launch
                                 }
                                 is RemoteRepository.Result.Exception -> {
                                     android.util.Log.e("StoryViewModel", "Exception: ${associateResult.e.message}")
-                                    hasError = true
-                                    errorMessage = "An error occurred. Please try again."
                                     _storyTagSubmissionStates.value =
                                         _storyTagSubmissionStates.value.toMutableMap().apply {
-                                            this[storyId] = StoryTagSubmissionState.Error(errorMessage)
+                                            this[storyId] = StoryTagSubmissionState.Error(StoryError.UnknownError)
                                         }
                                     return@launch
                                 }
                                 else -> {
                                     android.util.Log.e("StoryViewModel", "Unknown error while adding tag $tagName")
-                                    hasError = true
-                                    errorMessage = "An error occurred. Please try again."
+                                    _storyTagSubmissionStates.value =
+                                        _storyTagSubmissionStates.value.toMutableMap().apply {
+                                            this[storyId] = StoryTagSubmissionState.Error(StoryError.UnknownError)
+                                        }
+                                    return@launch
                                 }
                             }
                         }
                         is RemoteRepository.Result.Error -> {
                             android.util.Log.e("StoryViewModel", "Failed to create tag $tagName: ${createResult.message}")
-                            hasError = true
-                            errorMessage = createResult.message
+                            _storyTagSubmissionStates.value =
+                                _storyTagSubmissionStates.value.toMutableMap().apply {
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.UnknownError)
+                                }
+                            return@launch
                         }
                         is RemoteRepository.Result.Unauthorized -> {
                             android.util.Log.e("StoryViewModel", "Unauthorized: ${createResult.message}")
-                            hasError = true
-                            errorMessage = "Please login again"
                             _storyTagSubmissionStates.value =
                                 _storyTagSubmissionStates.value.toMutableMap().apply {
-                                    this[storyId] = StoryTagSubmissionState.Error(errorMessage)
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.Unauthorized)
                                 }
                             return@launch
                         }
                         is RemoteRepository.Result.NetworkError -> {
                             android.util.Log.e("StoryViewModel", "Network error: ${createResult.message}")
-                            hasError = true
-                            errorMessage = "Network error. Please try again."
                             _storyTagSubmissionStates.value =
                                 _storyTagSubmissionStates.value.toMutableMap().apply {
-                                    this[storyId] = StoryTagSubmissionState.Error(errorMessage)
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.NetworkError)
                                 }
                             return@launch
                         }
                         is RemoteRepository.Result.Exception -> {
                             android.util.Log.e("StoryViewModel", "Exception: ${createResult.e.message}")
-                            hasError = true
-                            errorMessage = "An error occurred. Please try again."
                             _storyTagSubmissionStates.value =
                                 _storyTagSubmissionStates.value.toMutableMap().apply {
-                                    this[storyId] = StoryTagSubmissionState.Error(errorMessage)
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.UnknownError)
                                 }
                             return@launch
                         }
                         else -> {
                             android.util.Log.e("StoryViewModel", "Unknown error while creating tag $tagName")
-                            hasError = true
-                            errorMessage = "An error occurred. Please try again."
+                            _storyTagSubmissionStates.value =
+                                _storyTagSubmissionStates.value.toMutableMap().apply {
+                                    this[storyId] = StoryTagSubmissionState.Error(StoryError.UnknownError)
+                                }
+                            return@launch
                         }
                     }
                 }
 
                 // Don't exit edit mode here - let UI handle it after showing checkmark
 
-                // Set final state
+                // Set final state - all errors return early, so we only reach here on success
                 _storyTagSubmissionStates.value =
                     _storyTagSubmissionStates.value.toMutableMap().apply {
-                        this[storyId] =
-                            if (hasError) {
-                                StoryTagSubmissionState.Error(errorMessage.ifEmpty { "Failed to save tags" })
-                            } else {
-                                StoryTagSubmissionState.Success
-                            }
+                        this[storyId] = StoryTagSubmissionState.Success
                     }
             }
         }

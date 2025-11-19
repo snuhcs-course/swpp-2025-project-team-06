@@ -21,15 +21,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import com.example.momentag.R
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.StandardIcon
 
 /**
- * 검색 결과 빈 상태 화면
+ * Search results empty state screen
  *
- * @param query 검색어
+ * @param query Search query
  * @param modifier Modifier
  */
 @Composable
@@ -42,14 +44,14 @@ fun SearchEmptyStateCustom(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "\"$query\"에 대한 검색 결과가 없습니다.",
+            text = stringResource(R.string.search_empty_state_no_results, query),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 /**
- * 검색 대기 상태 (Idle)
+ * Search idle state (no search performed yet)
  *
  * @param modifier Modifier
  */
@@ -66,7 +68,7 @@ fun SearchIdleCustom(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "Please enter a search term.",
+                text = stringResource(R.string.search_empty_state_idle),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -75,7 +77,7 @@ fun SearchIdleCustom(
 
         Column(modifier = modifier) {
             Text(
-                text = "Recent searches",
+                text = stringResource(R.string.search_recent_header),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
@@ -97,7 +99,7 @@ fun SearchIdleCustom(
 }
 
 /**
- * 최근 검색어 아이템
+ * Recent search history item
  */
 @Composable
 private fun HistoryItem(
@@ -121,8 +123,8 @@ private fun HistoryItem(
         ) {
             StandardIcon.Icon(
                 imageVector = Icons.Default.History,
-                contentDescription = "recent search",
                 intent = IconIntent.Muted,
+                contentDescription = stringResource(R.string.cd_recent_search_item),
             )
             Spacer(modifier = Modifier.width(Dimen.ItemSpacingLarge))
             Text(
@@ -137,16 +139,16 @@ private fun HistoryItem(
         IconButton(onClick = onDelete) {
             StandardIcon.Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "delete single history",
                 intent = IconIntent.Muted,
+                contentDescription = stringResource(R.string.cd_delete_search_history),
             )
         }
     }
 }
 
 /**
- * 검색 에러 상태 (fallback)
- * 쓰일일이 없을 듯? (왜냐면 Error는 전체화면 에러로 전환해서 보여주니까?)
+ * Search error state (fallback)
+ * Rarely used since errors are shown as full-screen overlays
  * @param modifier Modifier
  */
 @Composable
@@ -156,7 +158,7 @@ fun SearchErrorStateFallbackCustom(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "An error occurred.",
+            text = stringResource(R.string.search_error_message),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

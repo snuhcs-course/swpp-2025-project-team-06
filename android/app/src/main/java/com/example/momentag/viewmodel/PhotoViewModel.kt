@@ -32,9 +32,13 @@ class PhotoViewModel
         data class HomeScreenUiState(
             val isLoading: Boolean = false,
             val userMessage: String? = null,
-            val errorMessage: String? = null,
+            val error: PhotoError? = null,
             val isUploadSuccess: Boolean = false,
         )
+
+        sealed class PhotoError {
+            object NoPhotosSelected : PhotoError()
+        }
 
         // 1. Private MutableStateFlow
         private val _uiState = MutableStateFlow(HomeScreenUiState())
@@ -88,7 +92,7 @@ class PhotoViewModel
             val photoIds = photos.mapNotNull { it.photoId.toLongOrNull() }.toLongArray()
 
             if (photoIds.isEmpty()) {
-                _uiState.update { it.copy(errorMessage = "No photo IDs to upload.") }
+                _uiState.update { it.copy(error = PhotoError.NoPhotosSelected) }
                 return
             }
 
@@ -116,6 +120,6 @@ class PhotoViewModel
         }
 
         fun errorMessageShown() {
-            _uiState.update { it.copy(errorMessage = null) }
+            _uiState.update { it.copy(error = null) }
         }
     }

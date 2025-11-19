@@ -64,7 +64,7 @@ class HomeViewModel
             ) : HomeLoadingState()
 
             data class Error(
-                val message: String,
+                val error: HomeError,
             ) : HomeLoadingState()
         }
 
@@ -76,8 +76,18 @@ class HomeViewModel
             object Success : HomeDeleteState()
 
             data class Error(
-                val message: String,
+                val error: HomeError,
             ) : HomeDeleteState()
+        }
+
+        sealed class HomeError {
+            object NetworkError : HomeError()
+
+            object Unauthorized : HomeError()
+
+            object DeleteFailed : HomeError()
+
+            object UnknownError : HomeError()
         }
 
         // 3. Private MutableStateFlow
@@ -251,19 +261,19 @@ class HomeViewModel
                     }
 
                     is RemoteRepository.Result.Error -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(result.message)
+                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.UnknownError)
                     }
                     is RemoteRepository.Result.Unauthorized -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(result.message)
+                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.Unauthorized)
                     }
                     is RemoteRepository.Result.BadRequest -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(result.message)
+                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.UnknownError)
                     }
                     is RemoteRepository.Result.NetworkError -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(result.message)
+                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.NetworkError)
                     }
                     is RemoteRepository.Result.Exception -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(result.e.message ?: "Unknown error")
+                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.UnknownError)
                     }
                 }
             }
@@ -279,24 +289,24 @@ class HomeViewModel
                     }
 
                     is RemoteRepository.Result.Error -> {
-                        _homeDeleteState.value = HomeDeleteState.Error(result.message)
+                        _homeDeleteState.value = HomeDeleteState.Error(HomeError.UnknownError)
                     }
 
                     is RemoteRepository.Result.Unauthorized -> {
-                        _homeDeleteState.value = HomeDeleteState.Error(result.message)
+                        _homeDeleteState.value = HomeDeleteState.Error(HomeError.Unauthorized)
                     }
 
                     is RemoteRepository.Result.BadRequest -> {
-                        _homeDeleteState.value = HomeDeleteState.Error(result.message)
+                        _homeDeleteState.value = HomeDeleteState.Error(HomeError.UnknownError)
                     }
 
                     is RemoteRepository.Result.NetworkError -> {
-                        _homeDeleteState.value = HomeDeleteState.Error(result.message)
+                        _homeDeleteState.value = HomeDeleteState.Error(HomeError.NetworkError)
                     }
 
                     is RemoteRepository.Result.Exception -> {
                         _homeDeleteState.value =
-                            HomeDeleteState.Error(result.e.message ?: "Unknown error")
+                            HomeDeleteState.Error(HomeError.UnknownError)
                     }
                 }
             }

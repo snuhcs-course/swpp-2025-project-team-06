@@ -38,8 +38,20 @@ class AddTagViewModel
             object Success : SaveState()
 
             data class Error(
-                val message: String,
+                val error: AddTagError,
             ) : SaveState()
+        }
+
+        sealed class AddTagError {
+            object NetworkError : AddTagError()
+
+            object Unauthorized : AddTagError()
+
+            object EmptyName : AddTagError()
+
+            object NoPhotos : AddTagError()
+
+            object UnknownError : AddTagError()
         }
 
         // 2. Private MutableStateFlow
@@ -121,8 +133,13 @@ class AddTagViewModel
                 _saveState.value = SaveState.Idle
             }
 
-            if (tagName.value.isBlank() || selectedPhotos.value.isEmpty()) {
-                _saveState.value = SaveState.Error("Please enter a tag name and select at least one photo")
+            if (tagName.value.isBlank()) {
+                _saveState.value = SaveState.Error(AddTagError.EmptyName)
+                return
+            }
+
+            if (selectedPhotos.value.isEmpty()) {
+                _saveState.value = SaveState.Error(AddTagError.NoPhotos)
                 return
             }
 
@@ -136,8 +153,20 @@ class AddTagViewModel
                     is RemoteRepository.Result.Success -> {
                         tagId = tagResult.data.id
                     }
+                    is RemoteRepository.Result.Unauthorized -> {
+                        _saveState.value = SaveState.Error(AddTagError.Unauthorized)
+                        return@launch
+                    }
+                    is RemoteRepository.Result.NetworkError -> {
+                        _saveState.value = SaveState.Error(AddTagError.NetworkError)
+                        return@launch
+                    }
+                    is RemoteRepository.Result.Exception -> {
+                        _saveState.value = SaveState.Error(AddTagError.NetworkError)
+                        return@launch
+                    }
                     else -> {
-                        _saveState.value = SaveState.Error("Couldn't create tag. Please try again")
+                        _saveState.value = SaveState.Error(AddTagError.UnknownError)
                         return@launch
                     }
                 }
@@ -148,7 +177,7 @@ class AddTagViewModel
                         is RemoteRepository.Result.Success -> {
                         }
                         else -> {
-                            _saveState.value = SaveState.Error(getErrorMessage(result))
+                            _saveState.value = SaveState.Error(getErrorType(result))
                             isAllSucceeded = false
                             break
                         }
@@ -173,13 +202,13 @@ class AddTagViewModel
             _saveState.value = SaveState.Idle
         }
 
-        private fun getErrorMessage(result: RemoteRepository.Result<*>): String =
+        private fun getErrorType(result: RemoteRepository.Result<*>): AddTagError =
             when (result) {
-                is RemoteRepository.Result.BadRequest -> "Something went wrong. Please try again"
-                is RemoteRepository.Result.Unauthorized -> "Your session expired. Please sign in again"
-                is RemoteRepository.Result.Error -> "Something went wrong. Please try again"
-                is RemoteRepository.Result.Exception -> "Connection lost. Check your internet and try again"
-                is RemoteRepository.Result.Success -> "Something went wrong. Please try again"
-                is RemoteRepository.Result.NetworkError -> "Connection lost. Check your internet and try again"
+                is RemoteRepository.Result.BadRequest -> AddTagError.UnknownError
+                is RemoteRepository.Result.Unauthorized -> AddTagError.Unauthorized
+                is RemoteRepository.Result.Error -> AddTagError.UnknownError
+                is RemoteRepository.Result.Exception -> AddTagError.NetworkError
+                is RemoteRepository.Result.Success -> AddTagError.UnknownError
+                is RemoteRepository.Result.NetworkError -> AddTagError.NetworkError
             }
     }

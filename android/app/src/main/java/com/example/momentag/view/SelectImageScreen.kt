@@ -71,6 +71,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -78,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.BottomNavBar
@@ -243,7 +245,7 @@ fun SelectImageScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "Select Photos",
+                title = stringResource(R.string.select_image_title),
                 showBackButton = true,
                 onBackClick = {
                     navController.popBackStack()
@@ -308,7 +310,7 @@ fun SelectImageScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Add to #$tagName",
+                        text = stringResource(R.string.select_image_add_to_tag, tagName),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
                         maxLines = 1,
@@ -320,7 +322,7 @@ fun SelectImageScreen(navController: NavController) {
                         Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
 
                         Text(
-                            text = "${selectedPhotos.size} selected",
+                            text = stringResource(R.string.select_image_selected_count, selectedPhotos.size),
                             color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
@@ -500,7 +502,7 @@ fun SelectImageScreen(navController: NavController) {
                         )
                     } else {
                         Text(
-                            text = "Add to Tag",
+                            text = stringResource(R.string.tag_add_to_tag),
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
@@ -531,7 +533,7 @@ private fun PhotoSelectableItem(
     ) {
         AsyncImage(
             model = photo.contentUri,
-            contentDescription = "Photo ${photo.photoId}",
+            contentDescription = stringResource(R.string.cd_photo, photo.photoId),
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -568,9 +570,9 @@ private fun PhotoSelectableItem(
                 if (isSelected) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
                         sizeRole = IconSizeRole.InlineAction,
                         intent = IconIntent.OnPrimaryContainer,
+                        contentDescription = stringResource(R.string.cd_photo_selected),
                     )
                 }
             }
@@ -605,7 +607,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = "Finding suggestions...",
+                    text = stringResource(R.string.photos_finding_suggestions),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -613,27 +615,33 @@ private fun RecommendChip(
             is SelectImageViewModel.RecommendState.Success -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = "AI",
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Primary,
+                    contentDescription = stringResource(R.string.cd_ai),
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = "Suggested for You",
+                    text = stringResource(R.string.photos_suggested_for_you),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
+            is SelectImageViewModel.RecommendState.Error -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = "Error",
+                    contentDescription = stringResource(R.string.error_title),
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Error,
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
+                val errorMessage =
+                    when (recommendState.error) {
+                        SelectImageViewModel.SelectImageError.NetworkError -> stringResource(R.string.error_message_network)
+                        SelectImageViewModel.SelectImageError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                        SelectImageViewModel.SelectImageError.UnknownError -> stringResource(R.string.error_message_unknown)
+                    }
                 Text(
-                    text = "Could not load suggestions",
+                    text = errorMessage,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -646,7 +654,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = "Getting ready...",
+                    text = stringResource(R.string.photos_getting_ready),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -656,8 +664,8 @@ private fun RecommendChip(
         Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
         StandardIcon.Icon(
             imageVector = Icons.Default.ExpandLess,
-            contentDescription = "Expand",
             sizeRole = IconSizeRole.StatusIndicator,
+            contentDescription = stringResource(R.string.cd_expand),
         )
     }
 }
@@ -751,34 +759,34 @@ private fun RecommendExpandedPanel(
                             is SelectImageViewModel.RecommendState.Success -> {
                                 StandardIcon.Icon(
                                     imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = "AI",
                                     sizeRole = IconSizeRole.Navigation,
                                     intent = IconIntent.Primary,
+                                    contentDescription = stringResource(R.string.cd_ai),
                                 )
                             }
                             else -> {
                                 StandardIcon.Icon(
                                     imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = "AI",
                                     sizeRole = IconSizeRole.Navigation,
                                     intent = IconIntent.Primary,
+                                    contentDescription = stringResource(R.string.cd_ai),
                                 )
                             }
                         }
                         Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                         Text(
-                            text = "Suggested for You",
+                            text = stringResource(R.string.photos_suggested_for_you),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
 
-                    // 오른쪽: 닫기 버튼
+                    // Right side: Close button
                     IconButton(onClick = onCollapse) {
                         StandardIcon.Icon(
                             imageVector = Icons.Default.ExpandMore,
-                            contentDescription = "Collapse",
                             sizeRole = IconSizeRole.DefaultAction,
+                            contentDescription = stringResource(R.string.cd_collapse),
                         )
                     }
                 }
@@ -815,7 +823,7 @@ private fun RecommendExpandedPanel(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    "No suggestions at this time",
+                                    stringResource(R.string.select_image_no_suggestions),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -844,7 +852,7 @@ private fun RecommendExpandedPanel(
                             }
                         }
                     }
-                    is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
+                    is SelectImageViewModel.RecommendState.Error -> {
                         Box(
                             modifier =
                                 Modifier
@@ -853,10 +861,16 @@ private fun RecommendExpandedPanel(
                             contentAlignment = Alignment.BottomCenter,
                         ) {
                             val (title, message) =
-                                if (recommendState is SelectImageViewModel.RecommendState.Error) {
-                                    "Couldn't load suggestions" to recommendState.message
-                                } else {
-                                    "Connection lost" to (recommendState as SelectImageViewModel.RecommendState.NetworkError).message
+                                when (recommendState.error) {
+                                    SelectImageViewModel.SelectImageError.NetworkError ->
+                                        stringResource(R.string.select_image_connection_lost) to
+                                            stringResource(R.string.error_message_network)
+                                    SelectImageViewModel.SelectImageError.Unauthorized ->
+                                        stringResource(R.string.select_image_couldnt_load) to
+                                            stringResource(R.string.error_message_authentication_required)
+                                    SelectImageViewModel.SelectImageError.UnknownError ->
+                                        stringResource(R.string.select_image_couldnt_load) to
+                                            stringResource(R.string.error_message_unknown)
                                 }
 
                             WarningBanner(

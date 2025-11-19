@@ -109,6 +109,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -157,20 +158,20 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    // 1. Context 및 Platform 관련 변수
+    // 1. Context and platform-related variables
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val activity = LocalContext.current.findActivity()
     remember { context.getSharedPreferences("MomenTagPrefs", Context.MODE_PRIVATE) }
 
-    // 2. ViewModel 인스턴스
+    // 2. ViewModel instances
     val authViewModel: AuthViewModel = hiltViewModel()
     val photoViewModel: PhotoViewModel = hiltViewModel()
     val homeViewModel: HomeViewModel = hiltViewModel()
     val searchViewModel: SearchViewModel = hiltViewModel()
 
-    // 3. ViewModel에서 가져온 상태 (collectAsState)
+    // 3. State from ViewModels (collectAsState)
     val logoutState by authViewModel.logoutState.collectAsState()
     val homeLoadingState by homeViewModel.homeLoadingState.collectAsState()
     val homeDeleteState by homeViewModel.homeDeleteState.collectAsState()
@@ -192,7 +193,7 @@ fun HomeScreen(navController: NavController) {
     val focusedElementId by searchViewModel.focusedElementId
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
 
-    // 4. 로컬 상태 변수 (remember, mutableStateOf)
+    // 4. Local state variables (remember, mutableStateOf)
     var hasPermission by remember { mutableStateOf(false) }
     var isOnlyTag by remember { mutableStateOf(false) }
     var isDeleteMode by remember { mutableStateOf(false) }
@@ -201,7 +202,7 @@ fun HomeScreen(navController: NavController) {
     var isDeleteConfirmationDialogVisible by remember { mutableStateOf(false) }
     var tagToDeleteInfo by remember { mutableStateOf<Pair<String, String>?>(null) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
-    var errorBannerTitle by remember { mutableStateOf("Error") }
+    var errorBannerTitle by remember { mutableStateOf(context.getString(R.string.error_title)) }
     var errorBannerMessage by remember { mutableStateOf<String?>(null) }
     var searchBarWidth by remember { mutableStateOf(0) }
     var searchBarRowHeight by remember { mutableStateOf(0) }
@@ -210,7 +211,7 @@ fun HomeScreen(navController: NavController) {
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
 
-    // 5. Derived 상태 및 계산된 값
+    // 5. Derived state and computed values
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
     val topSpacerHeight = Dimen.ItemSpacingSmall
     val textStates = searchViewModel.textStates
@@ -223,7 +224,7 @@ fun HomeScreen(navController: NavController) {
     // 6. rememberCoroutineScope
     val scope = rememberCoroutineScope()
 
-    // 7. Remember된 객체들
+    // 7. Remembered objects
     val listState = rememberLazyListState()
     val allPhotosGridState =
         rememberLazyGridState(
@@ -239,8 +240,8 @@ fun HomeScreen(navController: NavController) {
         val observer =
             LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
-                    // SearchResultScreen에서 돌아올 때 등
-                    // HomeScreen이 다시 보일 때 검색창 내용을 지웁니다.
+                    // When returning from SearchResultScreen, etc.
+                    // Clear search bar content when HomeScreen becomes visible again.
                     searchViewModel.clearSearchContent()
                 }
             }
@@ -349,7 +350,7 @@ fun HomeScreen(navController: NavController) {
     }
 
     LaunchedEffect(isSelectionMode) {
-        delay(200L) // 0.2초
+        delay(200L) // 0.2 seconds
         isSelectionModeDelay = isSelectionMode
     }
 
@@ -421,7 +422,7 @@ fun HomeScreen(navController: NavController) {
             onResult = { isGranted -> if (isGranted) hasPermission = true },
         )
 
-    // 권한 요청 및 이미지 로드
+    // Request permissions and load images
     LaunchedEffect(Unit) {
         val permission = requiredImagePermission()
         permissionLauncher.launch(permission)
@@ -430,19 +431,20 @@ fun HomeScreen(navController: NavController) {
         homeViewModel.preGenerateStoriesOnce()
     }
 
-    // 성공 시 로그인 화면으로 이동(백스택 초기화)
+    // Navigate to login screen on successful logout (clear backstack)
     LaunchedEffect(logoutState) {
         when (logoutState) {
             is AuthViewModel.LogoutState.Success -> {
-                Toast.makeText(context, "로그아웃되었습니다", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.success_logout), Toast.LENGTH_SHORT).show()
                 navController.navigate(Screen.Login.route) {
                     popUpTo(0)
                     launchSingleTop = true
                 }
             }
             is AuthViewModel.LogoutState.Error -> {
-                errorBannerTitle = "Logout Failed"
-                errorBannerMessage = (logoutState as AuthViewModel.LogoutState.Error).message ?: "Logout failed"
+                errorBannerTitle = context.getString(R.string.error_title_logout_failed)
+                errorBannerMessage =
+                    (logoutState as AuthViewModel.LogoutState.Error).message ?: context.getString(R.string.error_message_logout)
                 isErrorBannerVisible = true
             }
             else -> Unit
@@ -454,7 +456,7 @@ fun HomeScreen(navController: NavController) {
         if (hasPermission) {
             homeViewModel.loadServerTags()
             searchViewModel.loadServerTags()
-            homeViewModel.loadAllPhotos() // 서버에서 모든 사진 가져오기
+            homeViewModel.loadAllPhotos() // Fetch all photos from server
         }
     }
 
@@ -466,14 +468,21 @@ fun HomeScreen(navController: NavController) {
     }
 
     LaunchedEffect(homeLoadingState) {
-        when (homeLoadingState) {
+        when (val state = homeLoadingState) {
             is HomeViewModel.HomeLoadingState.Error -> {
-                errorBannerTitle = "Failed to Load Tags"
-                errorBannerMessage = (homeLoadingState as HomeViewModel.HomeLoadingState.Error).message
+                errorBannerTitle = context.getString(R.string.error_title_load_failed)
+                errorBannerMessage =
+                    when (state.error) {
+                        HomeViewModel.HomeError.NetworkError -> context.getString(R.string.error_message_network)
+                        HomeViewModel.HomeError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                        HomeViewModel.HomeError.DeleteFailed,
+                        HomeViewModel.HomeError.UnknownError,
+                        -> context.getString(R.string.error_message_unknown)
+                    }
                 isErrorBannerVisible = true
             }
             is HomeViewModel.HomeLoadingState.Success -> {
-                isErrorBannerVisible = false // 로드 성공 시 배너 숨김
+                isErrorBannerVisible = false // Hide banner on successful load
             }
             else -> Unit // Loading, Idle
         }
@@ -482,7 +491,7 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(homeDeleteState) {
         when (val state = homeDeleteState) {
             is HomeViewModel.HomeDeleteState.Success -> {
-                Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.success_tag_deleted), Toast.LENGTH_SHORT).show()
                 homeViewModel.loadServerTags()
                 searchViewModel.loadServerTags()
                 isDeleteMode = false
@@ -490,8 +499,14 @@ fun HomeScreen(navController: NavController) {
                 isErrorBannerVisible = false
             }
             is HomeViewModel.HomeDeleteState.Error -> {
-                errorBannerTitle = "Failed to Delete Tag"
-                errorBannerMessage = state.message
+                errorBannerTitle = context.getString(R.string.error_title_delete_failed)
+                errorBannerMessage =
+                    when (state.error) {
+                        HomeViewModel.HomeError.NetworkError -> context.getString(R.string.error_message_network)
+                        HomeViewModel.HomeError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                        HomeViewModel.HomeError.DeleteFailed -> context.getString(R.string.error_message_delete_tag)
+                        HomeViewModel.HomeError.UnknownError -> context.getString(R.string.error_message_unknown)
+                    }
                 isErrorBannerVisible = true
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
@@ -537,7 +552,7 @@ fun HomeScreen(navController: NavController) {
             activity?.finish()
         } else {
             backPressedTime = currentTime
-            Toast.makeText(context, "Press again to exit.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.home_exit_prompt), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -548,7 +563,7 @@ fun HomeScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "MomenTag",
+                title = stringResource(R.string.app_name),
                 onTitleClick = {
                     navController.navigate(Screen.LocalGallery.route)
                 },
@@ -567,7 +582,7 @@ fun HomeScreen(navController: NavController) {
                                     Toast
                                         .makeText(
                                             context,
-                                            "Share ${photos.size} photo(s)",
+                                            context.getString(R.string.home_share_photos, photos.size),
                                             Toast.LENGTH_SHORT,
                                         ).show()
                                 }
@@ -581,7 +596,7 @@ fun HomeScreen(navController: NavController) {
                         ) {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = "Share",
+                                contentDescription = stringResource(R.string.cd_share),
                                 intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                             )
                         }
@@ -624,16 +639,15 @@ fun HomeScreen(navController: NavController) {
         },
         containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
-            // 태그 앨범 뷰(!isShowingAllPhotos)에서는 Create Tag 버튼을 표시하지 않음
+            // Don't show Create Tag button in tag album view (!isShowingAllPhotos)
             // Only show when in selection mode and photos are selected
             if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
                 CreateTagButton(
+                    text = stringResource(R.string.button_add_tag_count, selectedPhotos.size),
                     modifier = Modifier.padding(start = Dimen.ButtonStartPadding, bottom = Dimen.ItemSpacingLarge),
-                    text = "Add Tag (${selectedPhotos.size})",
                     onClick = {
-                        // selectedPhotos는 이미 draftTagRepository에 저장되어 있음!
-                        // SearchResultScreen과 동일한 패턴
-                        // isSelectionMode = false
+                        // selectedPhotos are already saved in draftTagRepository
+                        // Same pattern as SearchResultScreen
                         navController.navigate(Screen.MyTags.route)
                     },
                 )
@@ -649,7 +663,7 @@ fun HomeScreen(navController: NavController) {
                     isDeleteMode = false
                     homeViewModel.loadServerTags()
                     searchViewModel.loadServerTags()
-                    homeViewModel.loadAllPhotos() // 서버 사진도 새로고침
+                    homeViewModel.loadAllPhotos() // Refresh server photos too
                 }
             },
             modifier =
@@ -725,7 +739,7 @@ fun HomeScreen(navController: NavController) {
                         IconButton(
                             onClick = {
                                 // TODO: Show filter dialog
-                                Toast.makeText(context, "Filter", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.filter), Toast.LENGTH_SHORT).show()
                             },
                             modifier =
                                 Modifier
@@ -737,13 +751,13 @@ fun HomeScreen(navController: NavController) {
                         ) {
                             StandardIcon.Icon(
                                 imageVector = Icons.Default.FilterList,
-                                contentDescription = "Filter",
+                                contentDescription = stringResource(R.string.cd_filter),
                                 intent = IconIntent.Inverse,
                             )
                         }
                     }
 
-                    // 태그 추천 목록 (LazyRow)
+                    // Tag recommendation list (LazyRow)
                     if (tagSuggestions.isNotEmpty()) {
                         LazyRow(
                             modifier =
@@ -773,18 +787,18 @@ fun HomeScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // "태그 앨범" 뷰일 때만 정렬 버튼 표시
+                        // Show sort button only in "Tag Albums" view
                         if (!isShowingAllPhotos) {
                             IconButton(onClick = { scope.launch { sheetState.show() } }) {
                                 StandardIcon.Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
-                                    contentDescription = "Sort Tag Albums",
+                                    contentDescription = stringResource(R.string.cd_sort_tag_albums),
                                     intent = IconIntent.Muted,
                                 )
                             }
                         } else {
-                            // "All Photos" 뷰일 때 공간을 차지할 빈 Spacer
-                            Spacer(modifier = Modifier.size(Dimen.SearchBarMinHeight)) // IconButton 크기만큼
+                            // Empty spacer to occupy space in "All Photos" view
+                            Spacer(modifier = Modifier.size(Dimen.SearchBarMinHeight)) // Same size as IconButton
                         }
                         ViewToggle(
                             isOnlyTag = isOnlyTag,
@@ -794,7 +808,7 @@ fun HomeScreen(navController: NavController) {
                                 homeViewModel.setIsShowingAllPhotos(allPhotos)
                                 if (isSelectionMode) {
                                     homeViewModel.setSelectionMode(false)
-                                    homeViewModel.resetSelection() // draftRepository 초기화
+                                    homeViewModel.resetSelection() // Reset draftRepository
                                 }
                             },
                         )
@@ -811,7 +825,7 @@ fun HomeScreen(navController: NavController) {
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                "To view tags and images,\nplease allow access to your photos.",
+                                stringResource(R.string.empty_state_permission_needed),
                                 textAlign = TextAlign.Center,
                             )
                         }
@@ -897,8 +911,8 @@ fun HomeScreen(navController: NavController) {
                         Column {
                             Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                             WarningBanner(
-                                title = "Uploading...🚀",
-                                message = "Photos are uploading in the background.",
+                                title = stringResource(R.string.home_uploading_title),
+                                message = stringResource(R.string.banner_uploading_message),
                                 onActionClick = { },
                                 showActionButton = false,
                                 backgroundColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -986,9 +1000,9 @@ fun HomeScreen(navController: NavController) {
         val (tagId, tagName) = tagToDeleteInfo!!
 
         ConfirmDialog(
-            title = "Delete Tag",
-            message = "Are you sure you want to delete '$tagName' tag?",
-            confirmButtonText = "Delete Tag",
+            title = stringResource(R.string.dialog_delete_tag_title),
+            message = stringResource(R.string.dialog_delete_tag_message, tagName),
+            confirmButtonText = stringResource(R.string.action_delete),
             onConfirm = {
                 homeViewModel.deleteTag(tagId)
                 isDeleteConfirmationDialogVisible = false
@@ -1052,7 +1066,7 @@ private fun ViewToggle(
                     val isTagAlbumsSelected = !isOnlyTag && !isShowingAllPhotos
                     StandardIcon.Icon(
                         imageVector = Icons.Default.CollectionsBookmark,
-                        contentDescription = "Tag Albums",
+                        contentDescription = stringResource(R.string.cd_tag_albums),
                         sizeRole = IconSizeRole.Navigation,
                         intent = if (isTagAlbumsSelected) IconIntent.Surface else IconIntent.Muted,
                     )
@@ -1069,7 +1083,7 @@ private fun ViewToggle(
                 ) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Photo,
-                        contentDescription = "All Photos",
+                        contentDescription = stringResource(R.string.cd_all_photos),
                         sizeRole = IconSizeRole.Navigation,
                         intent = if (isShowingAllPhotos) IconIntent.Surface else IconIntent.Muted,
                     )
@@ -1145,7 +1159,7 @@ private fun MainContent(
                         Box(modifier = Modifier.aspectRatio(1f)) {
                             AsyncImage(
                                 model = photo.contentUri,
-                                contentDescription = "Photo ${photo.photoId}",
+                                contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
                                 modifier =
                                     Modifier
                                         .fillMaxSize()
@@ -1215,7 +1229,7 @@ private fun MainContent(
                                     if (isSelected) {
                                         StandardIcon.Icon(
                                             imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
+                                            contentDescription = stringResource(R.string.cd_photo_selected),
                                             sizeRole = IconSizeRole.InlineAction,
                                             intent = IconIntent.OnPrimaryContainer,
                                         )
@@ -1410,7 +1424,7 @@ fun TagGridItem(
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = "Delete Tag",
+                    contentDescription = stringResource(R.string.cd_delete_tag),
                     sizeRole = IconSizeRole.InlineAction,
                     intent = IconIntent.Surface,
                 )
@@ -1434,7 +1448,7 @@ fun EmptyStateTags(
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_empty_tags),
-            contentDescription = "Create memories",
+            contentDescription = stringResource(R.string.tag_create_memories),
             modifier =
                 Modifier
                     .size(Dimen.EmptyStateImageSize)
@@ -1445,7 +1459,7 @@ fun EmptyStateTags(
 
         // 2. 텍스트
         Text(
-            text = "Create memories",
+            text = stringResource(R.string.tag_create_memories),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
         )
@@ -1453,7 +1467,7 @@ fun EmptyStateTags(
         Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
         Text(
-            text = "Organize your memories\nby keyword",
+            text = stringResource(R.string.tag_organize_memories),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1479,7 +1493,7 @@ fun EmptyStateTags(
             contentPadding = PaddingValues(horizontal = Dimen.DialogPadding),
         ) {
             Text(
-                text = "+ Create New Tag",
+                text = stringResource(R.string.tag_create_new),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -1505,7 +1519,7 @@ fun EmptyStatePhotos(
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_empty_photos),
-            contentDescription = "Please upload photos",
+            contentDescription = stringResource(R.string.empty_state_upload_photos_title),
             modifier = Modifier.size(Dimen.EmptyStateImageSize),
         )
 
@@ -1513,14 +1527,14 @@ fun EmptyStatePhotos(
 
         // 2. 텍스트
         Text(
-            text = "Please upload photos",
+            text = stringResource(R.string.empty_state_upload_photos_title),
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
         Text(
-            text = "Select photos\nto store your memories",
+            text = stringResource(R.string.empty_state_upload_photos_message),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1545,7 +1559,7 @@ fun EmptyStatePhotos(
             contentPadding = PaddingValues(horizontal = Dimen.DialogPadding),
         ) {
             Text(
-                text = "Upload Photos",
+                text = stringResource(R.string.button_upload_photos),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -1560,37 +1574,37 @@ private fun SortOptionsSheet(
 ) {
     Column(modifier = Modifier.padding(vertical = Dimen.ItemSpacingLarge)) {
         Text(
-            "Sort by",
+            stringResource(R.string.tag_sort_by),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
         )
 
         SortOptionItem(
-            text = "Most Recently Added",
+            text = stringResource(R.string.tag_sort_most_recently_added),
             icon = Icons.Default.FiberNew,
             isSelected = currentOrder == TagSortOrder.CREATED_DESC,
             onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
         )
         SortOptionItem(
-            text = "Name (A-Z)",
+            text = stringResource(R.string.tag_sort_name_az),
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.NAME_ASC,
             onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
         )
         SortOptionItem(
-            text = "Name (Z-A)",
+            text = stringResource(R.string.tag_sort_name_za),
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.NAME_DESC,
             onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
         )
         SortOptionItem(
-            text = "Count (Ascending)",
+            text = stringResource(R.string.tag_sort_count_asc),
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.COUNT_ASC,
             onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
         )
         SortOptionItem(
-            text = "Count (Descending)",
+            text = stringResource(R.string.tag_sort_count_desc),
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
             onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
@@ -1629,7 +1643,7 @@ private fun SortOptionItem(
         if (isSelected) {
             StandardIcon.Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.cd_photo_selected),
                 intent = IconIntent.Primary,
             )
         }

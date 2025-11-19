@@ -29,36 +29,40 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.momentag.R
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.StandardIcon
 
 /**
- * 재사용 가능한 에러 다이얼로그 컴포넌트
+ * Reusable error dialog component
  *
- * 전체 화면을 반투명 검은색으로 덮고, 중앙에 에러 다이얼로그를 표시합니다.
- * 모든 화면에서 일관된 에러 UI를 제공하기 위해 사용됩니다.
+ * Covers the entire screen with a translucent black overlay and displays an error dialog in the center.
+ * Used to provide consistent error UI across all screens.
  *
- * @param errorMessage 표시할 에러 메시지
- * @param onRetry 재시도 버튼 클릭 콜백
- * @param onDismiss 다이얼로그 닫기 콜백 (선택적, 백드롭 클릭 시 호출)
- * @param title 다이얼로그 제목 (기본값: "ERROR")
- * @param retryButtonText 재시도 버튼 텍스트 (기본값: "RETRY")
- * @param dismissible 백드롭 클릭으로 닫을 수 있는지 여부 (기본값: false)
+ * @param errorMessage Error message to display
+ * @param onRetry Retry button click callback
+ * @param onDismiss Dialog dismiss callback (optional, called when backdrop is clicked)
+ * @param title Dialog title (default: "Error")
+ * @param retryButtonText Retry button text (default: "Try Again")
+ * @param dismissible Whether dialog can be closed by clicking backdrop (default: false)
  */
 @Composable
 fun ErrorDialog(
     errorMessage: String,
     onRetry: () -> Unit,
     onDismiss: (() -> Unit)? = null,
-    title: String = "ERROR",
-    retryButtonText: String = "RETRY",
+    title: String? = null,
+    retryButtonText: String? = null,
     dismissible: Boolean = false,
 ) {
+    val dialogTitle = title ?: stringResource(R.string.error_title)
+    val retryText = retryButtonText ?: stringResource(R.string.action_retry)
     Dialog(
         onDismissRequest = {
             if (dismissible) {
@@ -104,15 +108,15 @@ fun ErrorDialog(
                             .padding(Dimen.SectionSpacing),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // 제목
+                    // Title
                     Text(
-                        text = title,
+                        text = dialogTitle,
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
                     )
 
-                    // 에러 메시지
+                    // Error message
                     Text(
                         text = errorMessage,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -121,7 +125,7 @@ fun ErrorDialog(
                         modifier = Modifier.padding(bottom = Dimen.SectionSpacing),
                     )
 
-                    // 재시도 버튼
+                    // Retry button
                     Button(
                         onClick = onRetry,
                         colors =
@@ -133,7 +137,7 @@ fun ErrorDialog(
                         shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                     ) {
                         Text(
-                            text = retryButtonText,
+                            text = retryText,
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
@@ -144,17 +148,17 @@ fun ErrorDialog(
 }
 
 /**
- * 전체 화면을 덮는 에러 오버레이 (Dialog 없이 직접 배치)
+ * Full-screen error overlay (placed directly without Dialog)
  *
- * Dialog를 사용하지 않고 Box로 직접 배치하는 버전입니다.
- * Navigation이나 다른 컴포저블과 함께 사용할 때 유용합니다.
+ * Version that places Box directly without using Dialog.
+ * Useful when using with Navigation or other composables.
  *
- * @param errorMessage 표시할 에러 메시지
- * @param onRetry 재시도 버튼 클릭 콜백
- * @param onDismiss 닫기(X) 버튼 클릭 콜백 (옵션, null이면 X 버튼 표시 안 함)
+ * @param errorMessage Error message to display
+ * @param onRetry Retry button click callback
+ * @param onDismiss Close (X) button click callback (optional, no X button if null)
  * @param modifier Modifier
- * @param title 다이얼로그 제목 (기본값: "ERROR")
- * @param retryButtonText 재시도 버튼 텍스트 (기본값: "RETRY")
+ * @param title Dialog title (default: "Error")
+ * @param retryButtonText Retry button text (default: "Try Again")
  */
 @Composable
 fun ErrorOverlay(
@@ -162,14 +166,16 @@ fun ErrorOverlay(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     onDismiss: (() -> Unit)? = null,
-    title: String = "ERROR",
-    retryButtonText: String = "RETRY",
+    title: String? = null,
+    retryButtonText: String? = null,
 ) {
+    val dialogTitle = title ?: stringResource(R.string.error_title)
+    val retryText = retryButtonText ?: stringResource(R.string.action_retry)
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
-        // 반투명 검은색 배경 (Backdrop/Scrim) - 전체 화면을 덮음
+        // Translucent black background (Backdrop/Scrim) - covers full screen
         Box(
             modifier =
                 Modifier
@@ -177,7 +183,7 @@ fun ErrorOverlay(
                     .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f)),
         )
 
-        // 에러 다이얼로그 카드
+        // Error dialog card
         Card(
             modifier =
                 Modifier
@@ -200,15 +206,15 @@ fun ErrorOverlay(
                             .padding(Dimen.SectionSpacing),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // 제목
+                    // Title
                     Text(
-                        text = title,
+                        text = dialogTitle,
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
                     )
 
-                    // 에러 메시지
+                    // Error message
                     Text(
                         text = errorMessage,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -217,7 +223,7 @@ fun ErrorOverlay(
                         modifier = Modifier.padding(bottom = Dimen.SectionSpacing),
                     )
 
-                    // 재시도 버튼
+                    // Retry button
                     Button(
                         onClick = onRetry,
                         colors =
@@ -229,13 +235,13 @@ fun ErrorOverlay(
                         shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                     ) {
                         Text(
-                            text = retryButtonText,
+                            text = retryText,
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
                 }
 
-                // X 닫기 버튼 (오른쪽 상단)
+                // X close button (top right)
                 if (onDismiss != null) {
                     IconButton(
                         onClick = onDismiss,
@@ -247,8 +253,8 @@ fun ErrorOverlay(
                     ) {
                         StandardIcon.Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
                             intent = IconIntent.Muted,
+                            contentDescription = stringResource(R.string.cd_close_dialog),
                         )
                     }
                 }
@@ -446,18 +452,18 @@ fun RenameTagDialog(
                             value = editedTagName,
                             onValueChange = { editedTagName = it },
                             singleLine = true,
-                            placeholder = { Text("Tag name") },
+                            placeholder = { Text(stringResource(R.string.field_tag_name)) },
                             modifier = Modifier.fillMaxWidth(),
                             colors =
-                                TextFieldDefaults.colors( // <-- TextFieldDefaults로 변경
-                                    // 배경색 투명하게 설정
+                                TextFieldDefaults.colors(
+                                    // Background color transparent
                                     focusedContainerColor = Color.Transparent,
                                     unfocusedContainerColor = Color.Transparent,
                                     disabledContainerColor = Color.Transparent,
-                                    // 밑줄(Indicator) 색상 설정
-                                    focusedIndicatorColor = MaterialTheme.colorScheme.primary, // 포커스 시
-                                    unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceDim, // 포커스 없을 시
-                                    // 텍스트 색상
+                                    // Indicator (underline) color settings
+                                    focusedIndicatorColor = MaterialTheme.colorScheme.primary, // When focused
+                                    unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceDim, // When not focused
+                                    // Text color
                                     focusedTextColor = MaterialTheme.colorScheme.onSurface,
                                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                                 ),
@@ -481,7 +487,7 @@ fun RenameTagDialog(
                             enabled = editedTagName.isNotBlank(),
                         ) {
                             Text(
-                                text = "Update",
+                                text = stringResource(R.string.action_update),
                                 style = MaterialTheme.typography.labelLarge, // Font size matches confirmDialog
                             )
                         }
@@ -498,8 +504,8 @@ fun RenameTagDialog(
                     ) {
                         StandardIcon.Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
                             intent = IconIntent.Muted,
+                            contentDescription = stringResource(R.string.cd_close_dialog),
                         )
                     }
                 }
@@ -509,7 +515,7 @@ fun RenameTagDialog(
 }
 
 // ========================================
-// 프리뷰
+// Previews
 // ========================================
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
@@ -538,10 +544,10 @@ private fun previewErrorDialogCustomText() {
                 .background(MaterialTheme.colorScheme.surface),
     ) {
         ErrorDialog(
-            errorMessage = "서버 연결에 실패했습니다.\n잠시 후 다시 시도해주세요.",
+            errorMessage = "We couldn't connect to the server.\nPlease try again later.",
             onRetry = {},
-            title = "연결 실패",
-            retryButtonText = "다시 시도",
+            title = "Connection Failed",
+            retryButtonText = "Try Again",
         )
     }
 }
@@ -555,7 +561,7 @@ private fun previewErrorOverlay() {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface),
     ) {
-        // 뒤 배경 콘텐츠
+        // Background content
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,

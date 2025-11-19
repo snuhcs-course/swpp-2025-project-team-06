@@ -69,7 +69,7 @@ class SearchViewModel
             ) : SearchUiState()
 
             data class Error(
-                val message: String,
+                val error: SearchError,
             ) : SearchUiState()
         }
 
@@ -87,12 +87,8 @@ class SearchViewModel
                 val query: String,
             ) : SemanticSearchState()
 
-            data class NetworkError(
-                val message: String,
-            ) : SemanticSearchState()
-
             data class Error(
-                val message: String,
+                val error: SearchError,
             ) : SemanticSearchState()
         }
 
@@ -106,8 +102,18 @@ class SearchViewModel
             ) : TagLoadingState()
 
             data class Error(
-                val message: String,
+                val error: SearchError,
             ) : TagLoadingState()
+        }
+
+        sealed class SearchError {
+            object NetworkError : SearchError()
+
+            object Unauthorized : SearchError()
+
+            object EmptyQuery : SearchError()
+
+            object UnknownError : SearchError()
         }
 
         // 2. Private MutableStateFlow
@@ -189,19 +195,19 @@ class SearchViewModel
                     }
 
                     is RemoteRepository.Result.Error -> {
-                        _tagLoadingState.value = TagLoadingState.Error(result.message)
+                        _tagLoadingState.value = TagLoadingState.Error(SearchError.UnknownError)
                     }
                     is RemoteRepository.Result.Unauthorized -> {
-                        _tagLoadingState.value = TagLoadingState.Error(result.message)
+                        _tagLoadingState.value = TagLoadingState.Error(SearchError.Unauthorized)
                     }
                     is RemoteRepository.Result.BadRequest -> {
-                        _tagLoadingState.value = TagLoadingState.Error(result.message)
+                        _tagLoadingState.value = TagLoadingState.Error(SearchError.UnknownError)
                     }
                     is RemoteRepository.Result.NetworkError -> {
-                        _tagLoadingState.value = TagLoadingState.Error(result.message)
+                        _tagLoadingState.value = TagLoadingState.Error(SearchError.NetworkError)
                     }
                     is RemoteRepository.Result.Exception -> {
-                        _tagLoadingState.value = TagLoadingState.Error(result.e.message ?: "Unknown error")
+                        _tagLoadingState.value = TagLoadingState.Error(SearchError.UnknownError)
                     }
                 }
             }
@@ -242,7 +248,7 @@ class SearchViewModel
             offset: Int = 0,
         ) {
             if (query.isBlank()) {
-                _searchState.value = SemanticSearchState.Error("Query cannot be empty")
+                _searchState.value = SemanticSearchState.Error(SearchError.EmptyQuery)
                 return
             }
 
@@ -270,19 +276,19 @@ class SearchViewModel
                     }
 
                     is SearchRepository.SearchResult.BadRequest -> {
-                        _searchState.value = SemanticSearchState.Error(result.message)
+                        _searchState.value = SemanticSearchState.Error(SearchError.UnknownError)
                     }
 
                     is SearchRepository.SearchResult.Unauthorized -> {
-                        _searchState.value = SemanticSearchState.Error("Please login again")
+                        _searchState.value = SemanticSearchState.Error(SearchError.Unauthorized)
                     }
 
                     is SearchRepository.SearchResult.NetworkError -> {
-                        _searchState.value = SemanticSearchState.NetworkError(result.message)
+                        _searchState.value = SemanticSearchState.Error(SearchError.NetworkError)
                     }
 
                     is SearchRepository.SearchResult.Error -> {
-                        _searchState.value = SemanticSearchState.Error(result.message)
+                        _searchState.value = SemanticSearchState.Error(SearchError.UnknownError)
                     }
                 }
             }

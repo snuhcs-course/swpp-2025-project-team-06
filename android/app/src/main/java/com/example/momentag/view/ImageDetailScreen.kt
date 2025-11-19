@@ -65,6 +65,7 @@ import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.core.view.WindowCompat
@@ -73,6 +74,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.model.Photo
 import com.example.momentag.model.Tag
 import com.example.momentag.ui.components.BackTopBar
@@ -304,7 +306,15 @@ fun ImageDetailScreen(
     val isExistingLoading = successState?.isExistingLoading ?: false
     val isRecommendedLoading = successState?.isRecommendedLoading ?: false
     val isError = imageDetailTagState is ImageDetailViewModel.ImageDetailTagState.Error
-    val errorMessage = (imageDetailTagState as? ImageDetailViewModel.ImageDetailTagState.Error)?.message
+    val errorMessage =
+        (imageDetailTagState as? ImageDetailViewModel.ImageDetailTagState.Error)?.let { errorState ->
+            when (errorState.error) {
+                ImageDetailViewModel.ImageDetailError.NetworkError -> context.getString(R.string.error_message_network)
+                ImageDetailViewModel.ImageDetailError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                ImageDetailViewModel.ImageDetailError.NotFound -> context.getString(R.string.error_message_photo_not_found)
+                ImageDetailViewModel.ImageDetailError.UnknownError -> context.getString(R.string.error_message_unknown)
+            }
+        }
 
     // 6. Remember된 객체들
     val pagerState =
@@ -391,7 +401,7 @@ fun ImageDetailScreen(
     LaunchedEffect(tagDeleteState) {
         when (tagDeleteState) {
             is ImageDetailViewModel.TagDeleteState.Success -> {
-                Toast.makeText(context, "Tag Deleted", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.success_tag_deleted), Toast.LENGTH_SHORT).show()
                 val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
                 if (currentPhotoId.isNotEmpty()) {
                     imageDetailViewModel.loadPhotoTags(currentPhotoId)
@@ -402,7 +412,17 @@ fun ImageDetailScreen(
             }
 
             is ImageDetailViewModel.TagDeleteState.Error -> {
-                warningBannerMessage = "An Error Occured. Please Try Again"
+                val errorState = tagDeleteState as ImageDetailViewModel.TagDeleteState.Error
+                warningBannerMessage =
+                    when (errorState.error) {
+                        ImageDetailViewModel.ImageDetailError.NetworkError -> context.getString(R.string.error_message_network)
+                        ImageDetailViewModel.ImageDetailError.Unauthorized ->
+                            context.getString(
+                                R.string.error_message_authentication_required,
+                            )
+                        ImageDetailViewModel.ImageDetailError.NotFound -> context.getString(R.string.error_message_photo_not_found)
+                        ImageDetailViewModel.ImageDetailError.UnknownError -> context.getString(R.string.error_message_unknown)
+                    }
                 isWarningBannerVisible = true
                 isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
@@ -415,11 +435,21 @@ fun ImageDetailScreen(
     LaunchedEffect(tagAddState) {
         when (tagAddState) {
             is ImageDetailViewModel.TagAddState.Success -> {
-                Toast.makeText(context, "Tag Added", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.success_tag_added), Toast.LENGTH_SHORT).show()
                 imageDetailViewModel.resetAddState()
             }
             is ImageDetailViewModel.TagAddState.Error -> {
-                warningBannerMessage = "An Error Occured. Please Try Again."
+                val errorState = tagAddState as ImageDetailViewModel.TagAddState.Error
+                warningBannerMessage =
+                    when (errorState.error) {
+                        ImageDetailViewModel.ImageDetailError.NetworkError -> context.getString(R.string.error_message_network)
+                        ImageDetailViewModel.ImageDetailError.Unauthorized ->
+                            context.getString(
+                                R.string.error_message_authentication_required,
+                            )
+                        ImageDetailViewModel.ImageDetailError.NotFound -> context.getString(R.string.error_message_photo_not_found)
+                        ImageDetailViewModel.ImageDetailError.UnknownError -> context.getString(R.string.error_message_unknown)
+                    }
                 isWarningBannerVisible = true
                 imageDetailViewModel.resetAddState()
             }
@@ -429,7 +459,7 @@ fun ImageDetailScreen(
 
     LaunchedEffect(isError, errorMessage) {
         if (isError) {
-            warningBannerMessage = "An Error Occured While Loading Tags. Please Try Again."
+            warningBannerMessage = context.getString(R.string.image_detail_error_loading_tags)
             isWarningBannerVisible = true
         }
     }
@@ -489,7 +519,7 @@ fun ImageDetailScreen(
         topBar = {
             if (!isFocusMode) {
                 BackTopBar(
-                    title = "MomenTag",
+                    title = stringResource(R.string.app_name),
                     onBackClick = onNavigateBack,
                 )
             }
@@ -509,7 +539,7 @@ fun ImageDetailScreen(
                 val photo = photos.getOrNull(page)
                 ZoomableImage(
                     model = photo?.contentUri,
-                    contentDescription = "Detail image",
+                    contentDescription = stringResource(R.string.cd_detail_image),
                     modifier = Modifier.fillMaxSize(),
                     onScaleChanged = { zoomed ->
                         isZoomed = zoomed
@@ -590,7 +620,7 @@ fun ImageDetailScreen(
                                 if (currentPhotoId.isNotEmpty()) {
                                     imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
                                 } else {
-                                    warningBannerMessage = "No photo to delete tag from."
+                                    warningBannerMessage = context.getString(R.string.image_detail_no_photo_delete)
                                     isWarningBannerVisible = true
                                 }
                             },
@@ -599,7 +629,7 @@ fun ImageDetailScreen(
                                 if (currentPhotoId.isNotEmpty()) {
                                     imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
                                 } else {
-                                    warningBannerMessage = "No photo to add tag to."
+                                    warningBannerMessage = context.getString(R.string.image_detail_no_photo_add)
                                     isWarningBannerVisible = true
                                 }
                             },
@@ -611,7 +641,7 @@ fun ImageDetailScreen(
             // WarningBanner always at the bottom of the main content Box, on top of everything
             if (isWarningBannerVisible && !isFocusMode) {
                 WarningBanner(
-                    title = "Error",
+                    title = stringResource(R.string.error_title),
                     message = warningBannerMessage,
                     onActionClick = { isWarningBannerVisible = false },
                     showActionButton = false,
