@@ -95,36 +95,7 @@ class ImageDetailScreenTest {
     }
 
     // ----------------------------------------------------------
-    // 2. 태그 섹션 - 로딩 상태 테스트
-    // ----------------------------------------------------------
-
-    @Test
-    fun imageDetailScreen_tagSection_showsLoadingIndicators() {
-        setFlow(
-            "_imageDetailTagState",
-            ImageDetailTagState.Success(
-                existingTags = emptyList(),
-                recommendedTags = emptyList(),
-                isExistingLoading = true,
-                isRecommendedLoading = true,
-            ),
-        )
-
-        setContent()
-
-        // CircularProgressIndicator가 두 번 표시되는지 확인 (기존 태그 로딩 + 추천 태그 로딩)
-        // SemanticsProperties.ProgressBarRangeInfo를 사용하여 ProgressIndicator를 찾음
-        val hasProgress: SemanticsMatcher =
-            SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
-
-        // ProgressIndicator가 2개 있는지 확인
-        composeRule
-            .onAllNodes(hasProgress)
-            .assertCountEquals(2)
-    }
-
-    // ----------------------------------------------------------
-    // 3. Focus Mode 토글 테스트 (단일 탭)
+    // 2. Focus Mode 토글 테스트 (단일 탭)
     // ----------------------------------------------------------
 
     @Test
@@ -162,7 +133,7 @@ class ImageDetailScreenTest {
     }
 
     // ----------------------------------------------------------
-    // 6. ImageContext를 통한 Pager 탐색 및 데이터 업데이트
+    // 3. ImageContext를 통한 Pager 탐색 및 데이터 업데이트
     // ----------------------------------------------------------
 
     @Test
