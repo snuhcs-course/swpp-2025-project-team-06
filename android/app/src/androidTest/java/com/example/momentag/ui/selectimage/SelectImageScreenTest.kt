@@ -123,8 +123,10 @@ class SelectImageScreenTest {
         setFlow("_isLoading", true)
         setContent()
 
+        // 로딩이 실제로 나타날 때까지 기다림
         waitForProgress()
-        composeRule.onAllNodes(hasProgress()).assertCountEquals(2)
+
+        composeRule.onAllNodes(hasProgress()).assertCountEquals(2) // 2 indicator
     }
 
     // ----------------------------------------------------------
@@ -133,14 +135,15 @@ class SelectImageScreenTest {
 
     @Test
     fun selectImageScreen_photos_displayedInGrid() {
-        val p = listOf(
-            Photo("p1", Uri.parse("content://1"), "2024-01-01"),
-            Photo("p2", Uri.parse("content://2"), "2024-01-02"),
-        )
+        val p =
+            listOf(
+                Photo("p1", Uri.parse("content://1"), "2024-01-01"),
+                Photo("p2", Uri.parse("content://2"), "2024-01-02"),
+            )
         setFlow("_allPhotos", p)
         setContent()
 
-        composeRule.waitUntil(timeoutMillis = 5000) {
+        composeRule.waitUntil(5000) {
             composeRule.onAllNodes(hasText("Select Photos")).fetchSemanticsNodes().isNotEmpty()
         }
 
@@ -234,18 +237,18 @@ class SelectImageScreenTest {
 
     @Test
     fun selectImageScreen_recommendPhotos_expandable() {
-        val rec = listOf(
-            Photo("r1", Uri.parse("content://10"), "2024"),
-            Photo("r2", Uri.parse("content://11"), "2024"),
-        )
+        val rec =
+            listOf(
+                Photo("r1", Uri.parse("content://10"), "2024"),
+                Photo("r2", Uri.parse("content://11"), "2024"),
+            )
 
         setFlow("_recommendState", SelectImageViewModel.RecommendState.Success(rec))
         setFlow("_recommendedPhotos", rec)
         setContent()
 
-        val chip = composeRule.onAllNodes(hasText("Suggested for You") and hasClickAction()).fetchSemanticsNodes().first()
-        // performClick requires a node, so find it by the text + click action node:
-        composeRule.onNode(hasText("Suggested for You") and hasClickAction()).performClick()
+        val chip = composeRule.onNode(hasText("Suggested for You") and hasClickAction())
+        chip.performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithContentDescription("Photo r1").assertIsDisplayed()
@@ -257,7 +260,9 @@ class SelectImageScreenTest {
         assertEquals(1, vm.selectedPhotos.value.size)
         assertEquals(
             "r1",
-            vm.selectedPhotos.value.first().photoId,
+            vm.selectedPhotos.value
+                .first()
+                .photoId,
         )
     }
 }
