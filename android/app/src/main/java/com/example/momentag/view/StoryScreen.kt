@@ -1,7 +1,7 @@
 
 @file:OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 
-package com.example.momentag.ui.storytag
+package com.example.momentag.view
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -75,6 +75,7 @@ import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.StoryTagChip
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -175,10 +176,10 @@ fun StoryTagSelectionScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 4.dp,
-                            modifier = Modifier.size(24.dp),
+                            strokeWidth = Dimen.CircularProgressStrokeWidth,
+                            modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                         Text("Loading memories...", color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
@@ -330,8 +331,8 @@ fun StoryTagSelectionScreen(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp)
-                                        .padding(bottom = 12.dp),
+                                        .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                        .padding(bottom = Dimen.ItemSpacingMedium),
                             )
                         }
                     }
@@ -387,9 +388,9 @@ private fun StoryPageFullBlock(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
         ) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
             Text(
                 text = story.date,
@@ -398,14 +399,14 @@ private fun StoryPageFullBlock(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(480.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .height(Dimen.StoryImageHeight)
+                        .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { onImageClick() },
                 contentAlignment = Alignment.Center,
@@ -418,7 +419,7 @@ private fun StoryPageFullBlock(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
         }
 
         if (isScrollHintVisible) {
@@ -426,7 +427,7 @@ private fun StoryPageFullBlock(
                 modifier =
                     Modifier
                         .align(Alignment.Center)
-                        .offset(y = 120.dp),
+                        .offset(y = Dimen.EmptyStateImageSize),
             )
         }
     }
@@ -455,14 +456,14 @@ internal fun ScrollHintOverlay(modifier: Modifier = Modifier) {
             modifier
                 .offset(y = offsetY.dp)
                 .shadow(
-                    elevation = 4.dp,
-                    shape = RoundedCornerShape(16.dp),
+                    elevation = Dimen.BottomNavTonalElevation,
+                    shape = RoundedCornerShape(Dimen.TagCornerRadius),
                     ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
                     spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
                 ).background(
                     color = surfaceContainerColor.copy(alpha = 0.65f),
-                    shape = RoundedCornerShape(16.dp),
-                ).padding(horizontal = 16.dp, vertical = 12.dp),
+                    shape = RoundedCornerShape(Dimen.TagCornerRadius),
+                ).padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -512,7 +513,7 @@ internal fun TagSelectionCard(
             modifier
                 .fillMaxWidth()
                 .wrapContentHeight(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
         colors =
             CardDefaults.cardColors(
                 containerColor =
@@ -526,7 +527,7 @@ internal fun TagSelectionCard(
         Column(
             modifier =
                 Modifier
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(Dimen.ComponentPadding),
         ) {
             // Show different text based on mode
             Text(
@@ -545,11 +546,11 @@ internal fun TagSelectionCard(
                         MaterialTheme.colorScheme.onSurface
                     },
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                modifier = Modifier.padding(bottom = 12.dp),
+                modifier = Modifier.padding(bottom = Dimen.ItemSpacingMedium),
             )
 
             FlowRow(
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
             ) {
                 tags.forEach { tagText ->
                     val isSelected = selectedTags.contains(tagText)
@@ -589,7 +590,7 @@ internal fun TagSelectionCard(
                     onActionClick = onRetry, // 재시도 버튼 (GradientPillButton이 Retry로 바뀜)
                     showActionButton = false, // 버튼은 GradientPillButton이 담당
                     showDismissButton = false,
-                    modifier = Modifier.padding(bottom = 8.dp),
+                    modifier = Modifier.padding(bottom = Dimen.ItemSpacingSmall),
                 )
             }
 
@@ -634,22 +635,22 @@ internal fun GradientPillButton(
             isSuccess ->
                 Modifier.background(
                     MaterialTheme.colorScheme.primary,
-                    RoundedCornerShape(24.dp),
+                    RoundedCornerShape(Dimen.SearchBarCornerRadius),
                 )
             isError ->
                 Modifier.background(
                     MaterialTheme.colorScheme.errorContainer,
-                    RoundedCornerShape(24.dp),
+                    RoundedCornerShape(Dimen.SearchBarCornerRadius),
                 )
             enabled || isLoading ->
                 Modifier.background(
                     MaterialTheme.colorScheme.primary,
-                    RoundedCornerShape(24.dp),
+                    RoundedCornerShape(Dimen.SearchBarCornerRadius),
                 )
             else ->
                 Modifier.background(
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                    RoundedCornerShape(24.dp),
+                    RoundedCornerShape(Dimen.SearchBarCornerRadius),
                 )
         }
 
@@ -659,8 +660,8 @@ internal fun GradientPillButton(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(44.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .height(Dimen.ButtonHeightMedium)
+                .clip(RoundedCornerShape(Dimen.SearchBarCornerRadius))
                 .then(bgModifier)
                 .clickable(enabled = isClickable) { onClick() },
         contentAlignment = Alignment.Center,
@@ -668,9 +669,9 @@ internal fun GradientPillButton(
         when {
             isLoading -> {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
                     color = MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = 2.dp,
+                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                 )
             }
             isSuccess -> {
@@ -714,8 +715,8 @@ internal fun FlowRow(
                 measurable.measure(constraints)
             }
 
-        val rowSpacingPx = 8.dp.roundToPx()
-        val colSpacingPx = 8.dp.roundToPx()
+        val rowSpacingPx = Dimen.ItemSpacingSmall.roundToPx()
+        val colSpacingPx = Dimen.ItemSpacingSmall.roundToPx()
 
         val rows = mutableListOf<List<Placeable>>()
         val currentRow = mutableListOf<Placeable>()
@@ -789,7 +790,7 @@ private fun StoryPageFullBlockPreviewContent(
             modifier =
                 Modifier
                     .matchParentSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
         ) {
             Text(
                 text = date,
@@ -800,7 +801,7 @@ private fun StoryPageFullBlockPreviewContent(
                 text = location,
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                modifier = Modifier.padding(top = Dimen.ErrorMessagePadding, bottom = Dimen.ItemSpacingMedium),
             )
 
             // 여기서는 Coil 말고 painterResource 써!
@@ -809,7 +810,7 @@ private fun StoryPageFullBlockPreviewContent(
                     Modifier
                         .fillMaxWidth()
 //                        .aspectRatio(3f / 4f)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(Dimen.ButtonCornerRadius))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 androidx.compose.foundation.Image(
@@ -822,7 +823,7 @@ private fun StoryPageFullBlockPreviewContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
             TagSelectionCard(
                 tags = suggestedTags,

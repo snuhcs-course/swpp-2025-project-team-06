@@ -87,6 +87,7 @@ object StandardIcon {
 /**
  * Immutable description of how an icon should be rendered.
  */
+@ConsistentCopyVisibility
 @Immutable
 data class IconStyle internal constructor(
     val size: Dp,

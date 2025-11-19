@@ -24,7 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -79,8 +79,8 @@ fun WarningBanner(
                 .fillMaxWidth()
                 .background(
                     color = bgColor,
-                    shape = RoundedCornerShape(12.dp),
-                ).padding(16.dp),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
+                ).padding(Dimen.ComponentPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 왼쪽 아이콘
@@ -91,7 +91,7 @@ fun WarningBanner(
             intent = iconIntent,
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingMedium))
 
         // 텍스트 컨텐츠
         Column(modifier = Modifier.weight(1f)) {
@@ -107,13 +107,13 @@ fun WarningBanner(
             )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
 
         // 액션 버튼 (새로고침 등)
         if (showActionButton) {
             IconButton(
                 onClick = onActionClick,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(Dimen.IconButtonSizeLarge),
             ) {
                 StandardIcon.Icon(
                     imageVector = actionIcon,
@@ -128,7 +128,7 @@ fun WarningBanner(
         if (showDismissButton && onDismiss != null) {
             IconButton(
                 onClick = onDismiss,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(Dimen.IconButtonSizeLarge),
             ) {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.Close,
@@ -152,7 +152,7 @@ private fun previewWarningBannerLoadingDelay() {
         title = "Loading is taking longer than usual.",
         message = "Please refresh the page.",
         onActionClick = {},
-        modifier = Modifier.padding(24.dp),
+        modifier = Modifier.padding(Dimen.SectionSpacing),
     )
 }
 
@@ -165,7 +165,7 @@ private fun previewWarningBannerWithDismiss() {
         onActionClick = {},
         onDismiss = {},
         showDismissButton = true,
-        modifier = Modifier.padding(24.dp),
+        modifier = Modifier.padding(Dimen.SectionSpacing),
     )
 }
 
@@ -179,7 +179,7 @@ private fun previewWarningBannerCustomColor() {
         backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
         icon = Icons.Default.Warning,
         actionIcon = Icons.Default.Refresh,
-        modifier = Modifier.padding(24.dp),
+        modifier = Modifier.padding(Dimen.SectionSpacing),
     )
 }
 
@@ -192,6 +192,6 @@ private fun previewWarningBannerNoAction() {
         onActionClick = {},
         showActionButton = false,
         backgroundColor = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier.padding(24.dp),
+        modifier = Modifier.padding(Dimen.SectionSpacing),
     )
 }

@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MomenTagTheme {
-                appNavigation(tokenRepository = tokenRepository)
+                AppNavigation(tokenRepository = tokenRepository)
             }
         }
     }

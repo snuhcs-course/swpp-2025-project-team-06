@@ -67,7 +67,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -81,6 +80,7 @@ import com.example.momentag.ui.components.ConfirmableRecommendedTag
 import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.tagXMode
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -320,7 +320,7 @@ fun ImageDetailScreen(
         )
     rememberBottomSheetScaffoldState(bottomSheetState = sheetState)
 
-    val isSheetExpanded = sheetState.targetValue == SheetValue.Expanded
+    sheetState.targetValue == SheetValue.Expanded
     val currentPhoto = photos.getOrNull(pagerState.currentPage)
 
     // 7. ActivityResultLauncher
@@ -534,7 +534,12 @@ fun ImageDetailScreen(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 8.dp, bottom = 2.dp, start = 12.dp, end = 12.dp),
+                                    .padding(
+                                        top = Dimen.ItemSpacingSmall,
+                                        bottom = Dimen.SpacingXXSmall,
+                                        start = Dimen.ItemSpacingMedium,
+                                        end = Dimen.ItemSpacingMedium,
+                                    ),
                             textAlign = TextAlign.Left,
                         )
                     }
@@ -548,7 +553,12 @@ fun ImageDetailScreen(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 0.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
+                                    .padding(
+                                        top = Dimen.SearchSideEmptyPadding,
+                                        bottom = Dimen.ItemSpacingSmall,
+                                        start = Dimen.ItemSpacingMedium,
+                                        end = Dimen.ItemSpacingMedium,
+                                    ),
                             textAlign = TextAlign.Left,
                         )
                     }
@@ -558,10 +568,16 @@ fun ImageDetailScreen(
 
                     // Tags section at the bottom
                     if (isError) {
-                        Spacer(modifier = Modifier.fillMaxWidth().height(48.dp))
+                        Spacer(modifier = Modifier.fillMaxWidth().height(Dimen.SearchBarMinHeight))
                     } else {
                         TagsSection(
-                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
+                            modifier =
+                                Modifier.padding(
+                                    start = Dimen.ItemSpacingMedium,
+                                    end = Dimen.ItemSpacingMedium,
+                                    top = Dimen.ItemSpacingSmall,
+                                    bottom = Dimen.ItemSpacingMedium,
+                                ),
                             existingTags = existingTags,
                             recommendedTags = recommendedTags,
                             isExistingTagsLoading = isExistingLoading,
@@ -604,7 +620,7 @@ fun ImageDetailScreen(
                     modifier =
                         Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(16.dp),
+                            .padding(Dimen.ComponentPadding),
                 )
             }
         }
@@ -689,12 +705,12 @@ fun TagsSection(
 
     Row(
         modifier = modifier.horizontalScroll(scrollState),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // --- 1. 기존 태그 로딩 처리 ---
         if (isExistingTagsLoading) {
-            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
         } else {
             // Display existing tags - 개별 롱프레스로 해당 태그만 삭제 모드
             existingTags.forEach { tagItem ->
@@ -730,7 +746,7 @@ fun TagsSection(
 
         // --- 2. 추천 태그 로딩 처리 ---
         if (isRecommendedTagsLoading) {
-            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
         } else {
             // Display recommended tags (통일된 색상 사용)
             recommendedTags.forEach { tagName ->

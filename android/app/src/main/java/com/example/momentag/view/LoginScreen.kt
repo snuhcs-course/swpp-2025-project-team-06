@@ -41,25 +41,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController) {
-    // 1. Context 및 Platform 관련 변수
-    val context = LocalContext.current
-
     // 2. ViewModel 인스턴스
     val authViewModel: AuthViewModel = hiltViewModel()
 
@@ -151,10 +147,10 @@ fun LoginScreen(navController: NavController) {
                                     ),
                             ),
                     ).padding(paddingValues)
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = Dimen.FormScreenHorizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
             // MomenTag title
             Text(
                 text = "#MomenTag",
@@ -177,7 +173,7 @@ fun LoginScreen(navController: NavController) {
                     style = MaterialTheme.typography.displayLarge,
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
                 // "Don't have an account? Sign Up"
                 Row(
@@ -196,7 +192,7 @@ fun LoginScreen(navController: NavController) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
                 // username input
                 Text(text = "Username", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -204,7 +200,7 @@ fun LoginScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(Dimen.ButtonHeightLarge)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
                                     isUsernameTouched = true
@@ -230,7 +226,7 @@ fun LoginScreen(navController: NavController) {
                     },
                     placeholder = { Text("Username", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                     isError = isUsernameError,
                     colors =
                         OutlinedTextFieldDefaults.colors(
@@ -246,9 +242,9 @@ fun LoginScreen(navController: NavController) {
                 Box(
                     modifier =
                         Modifier
-                            .height(20.dp)
+                            .height(Dimen.InputHelperTextHeight)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (isUsernameError && username.isEmpty()) {
                         Text(
@@ -265,7 +261,7 @@ fun LoginScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(Dimen.ButtonHeightLarge)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
                                     isPasswordTouched = true
@@ -291,7 +287,7 @@ fun LoginScreen(navController: NavController) {
                     },
                     placeholder = { Text("Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
@@ -320,9 +316,9 @@ fun LoginScreen(navController: NavController) {
                 Box(
                     modifier =
                         Modifier
-                            .height(20.dp)
+                            .height(Dimen.InputHelperTextHeight)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (!isErrorBannerVisible && isPasswordError && password.isEmpty()) {
                         Text(
@@ -332,7 +328,7 @@ fun LoginScreen(navController: NavController) {
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         title = "Login Failed",
@@ -344,7 +340,7 @@ fun LoginScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                 Button(
                     onClick = {
                         val usernameEmpty = username.isEmpty()
@@ -358,8 +354,8 @@ fun LoginScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
+                            .height(Dimen.ButtonHeightLarge),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -369,9 +365,9 @@ fun LoginScreen(navController: NavController) {
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.height(24.dp),
+                            modifier = Modifier.height(Dimen.IconButtonSizeSmall),
                             color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
+                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                         )
                     } else {
                         Text("Log In", style = MaterialTheme.typography.headlineSmall)

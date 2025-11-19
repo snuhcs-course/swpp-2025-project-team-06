@@ -12,7 +12,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.momentag.repository.TokenRepository
-import com.example.momentag.ui.storytag.StoryTagSelectionScreen
 import com.example.momentag.view.AddTagScreen
 import com.example.momentag.view.AlbumScreen
 import com.example.momentag.view.HomeScreen
@@ -24,12 +23,13 @@ import com.example.momentag.view.MyTagsScreen
 import com.example.momentag.view.RegisterScreen
 import com.example.momentag.view.SearchResultScreen
 import com.example.momentag.view.SelectImageScreen
+import com.example.momentag.view.StoryTagSelectionScreen
 import com.example.momentag.viewmodel.StoryViewModel
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 @Composable
-fun appNavigation(tokenRepository: TokenRepository) {
+fun AppNavigation(tokenRepository: TokenRepository) {
     val navController = rememberNavController()
 
     val isLoaded by tokenRepository.isSessionLoaded.collectAsState()

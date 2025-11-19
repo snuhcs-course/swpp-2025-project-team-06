@@ -42,16 +42,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.momentag.Screen
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
 
@@ -59,9 +58,6 @@ import com.example.momentag.viewmodel.AuthViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController) {
-    // 1. Context 및 Platform 관련 변수
-    val context = LocalContext.current
-
     // 2. ViewModel 인스턴스
     val authViewModel: AuthViewModel = hiltViewModel()
 
@@ -176,11 +172,11 @@ fun RegisterScreen(navController: NavController) {
                                     ),
                             ),
                     ).padding(paddingValues)
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = Dimen.FormScreenHorizontalPadding)
                     .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
             // MomenTag title
             Text(
                 text = "MomenTag",
@@ -203,7 +199,7 @@ fun RegisterScreen(navController: NavController) {
                     style = MaterialTheme.typography.displayLarge,
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
                 // "Already have an account? Login"
                 Row(
@@ -222,7 +218,7 @@ fun RegisterScreen(navController: NavController) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
                 // email input
                 Text(text = "Email", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -230,7 +226,7 @@ fun RegisterScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(Dimen.ButtonHeightLarge)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
                                     isEmailTouched = true
@@ -256,7 +252,7 @@ fun RegisterScreen(navController: NavController) {
                     },
                     placeholder = { Text("Email", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                     isError = isEmailError || (isEmailTouched && email.isNotEmpty() && !isValidEmail(email)),
                     colors =
                         OutlinedTextFieldDefaults.colors(
@@ -274,9 +270,9 @@ fun RegisterScreen(navController: NavController) {
                 Box(
                     modifier =
                         Modifier
-                            .height(20.dp)
+                            .height(Dimen.InputHelperTextHeight)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (isEmailError && email.isEmpty()) {
                         Text(
@@ -300,7 +296,7 @@ fun RegisterScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(Dimen.ButtonHeightLarge)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
                                     isUsernameTouched = true
@@ -326,7 +322,7 @@ fun RegisterScreen(navController: NavController) {
                     },
                     placeholder = { Text("Username", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                     isError = isUsernameError,
                     colors =
                         OutlinedTextFieldDefaults.colors(
@@ -342,9 +338,9 @@ fun RegisterScreen(navController: NavController) {
                 Box(
                     modifier =
                         Modifier
-                            .height(20.dp)
+                            .height(Dimen.InputHelperTextHeight)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (isUsernameError && username.isEmpty()) {
                         Text(
@@ -361,7 +357,7 @@ fun RegisterScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(Dimen.ButtonHeightLarge)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
                                     isPasswordTouched = true
@@ -387,7 +383,7 @@ fun RegisterScreen(navController: NavController) {
                     },
                     placeholder = { Text("Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
@@ -411,9 +407,9 @@ fun RegisterScreen(navController: NavController) {
                 Box(
                     modifier =
                         Modifier
-                            .height(20.dp)
+                            .height(Dimen.InputHelperTextHeight)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (isPasswordError && password.isEmpty()) {
                         Text(
@@ -430,7 +426,7 @@ fun RegisterScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(Dimen.ButtonHeightLarge)
                             .onFocusChanged { focusState ->
                                 if (focusState.isFocused) {
                                     isPasswordCheckTouched = true
@@ -456,7 +452,7 @@ fun RegisterScreen(navController: NavController) {
                     },
                     placeholder = { Text("Password Check", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                     visualTransformation = if (passwordCheckVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         val image = if (passwordCheckVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
@@ -482,9 +478,9 @@ fun RegisterScreen(navController: NavController) {
                 Box(
                     modifier =
                         Modifier
-                            .height(20.dp)
+                            .height(Dimen.InputHelperTextHeight)
                             .fillMaxWidth()
-                            .padding(top = 4.dp, start = 4.dp),
+                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
                 ) {
                     if (!isErrorBannerVisible) { // 서버 에러(배너)가 없을 때만 로컬 에러 표시
                         if (isPasswordCheckError && passwordCheck.isEmpty()) {
@@ -504,7 +500,7 @@ fun RegisterScreen(navController: NavController) {
                 }
                 // --- 수정 끝 (기존 Box, AnimatedVisibility, if 블록 모두 삭제 후 Box로 대체) ---
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                 // --- 추가: WarningBanner를 버튼 바로 위로 이동 ---
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
@@ -518,7 +514,7 @@ fun RegisterScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp)) // 배너와 버튼 사이 간격
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall)) // 배너와 버튼 사이 간격
                 // --- 추가 끝 ---
 
                 // register button
@@ -543,8 +539,8 @@ fun RegisterScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
+                            .height(Dimen.ButtonHeightLarge),
+                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -554,9 +550,9 @@ fun RegisterScreen(navController: NavController) {
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.height(24.dp),
+                            modifier = Modifier.height(Dimen.IconButtonSizeSmall),
                             color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
+                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                         )
                     } else {
                         Text(text = "Register", style = MaterialTheme.typography.headlineMedium)

@@ -28,7 +28,7 @@ class ErrorDialogComposableTest {
     fun errorDialog_displaysDefaultTitle() {
         // Given
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "Test error",
                 onRetry = {},
             )
@@ -43,7 +43,7 @@ class ErrorDialogComposableTest {
         // Given
         val customTitle = "Connection Failed"
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "Test error",
                 onRetry = {},
                 title = customTitle,
@@ -59,7 +59,7 @@ class ErrorDialogComposableTest {
         // Given
         val errorMessage = "Network connection failed"
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = errorMessage,
                 onRetry = {},
             )
@@ -73,7 +73,7 @@ class ErrorDialogComposableTest {
     fun errorDialog_displaysDefaultRetryButton() {
         // Given
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "Test error",
                 onRetry = {},
             )
@@ -88,7 +88,7 @@ class ErrorDialogComposableTest {
         // Given
         val customRetryText = "Try Again"
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "Test error",
                 onRetry = {},
                 retryButtonText = customRetryText,
@@ -104,7 +104,7 @@ class ErrorDialogComposableTest {
         // Given
         var retryClicked = false
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "Test error",
                 onRetry = { retryClicked = true },
             )
@@ -122,7 +122,7 @@ class ErrorDialogComposableTest {
         // Given
         var retryCount = 0
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "Test error",
                 onRetry = { retryCount++ },
             )
@@ -146,7 +146,7 @@ class ErrorDialogComposableTest {
         var retryClicked = false
 
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = customMessage,
                 onRetry = { retryClicked = true },
                 title = customTitle,
@@ -171,7 +171,7 @@ class ErrorDialogComposableTest {
         // Given
         val multilineMessage = "Line 1\nLine 2\nLine 3"
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = multilineMessage,
                 onRetry = {},
             )
@@ -186,7 +186,7 @@ class ErrorDialogComposableTest {
         // Given
         val longMessage = "This is a very long error message that might need to wrap to multiple lines in the dialog"
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = longMessage,
                 onRetry = {},
             )
@@ -201,7 +201,7 @@ class ErrorDialogComposableTest {
         // Given
         var dismissCalled = false
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "Test error",
                 onRetry = {},
                 onDismiss = { dismissCalled = true },
@@ -456,7 +456,7 @@ class ErrorDialogComposableTest {
     fun bothComponents_displaySameContent() {
         // errorDialog
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "Test message",
                 onRetry = {},
                 title = "Test Title",
@@ -492,7 +492,7 @@ class ErrorDialogComposableTest {
     fun errorDialog_emptyErrorMessage() {
         // Given
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "",
                 onRetry = {},
             )
@@ -523,7 +523,7 @@ class ErrorDialogComposableTest {
         // Given
         val specialMessage = "Error: <Network> & \"Connection\" failed!"
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = specialMessage,
                 onRetry = {},
             )
@@ -552,7 +552,7 @@ class ErrorDialogComposableTest {
     fun errorDialog_koreanText() {
         // Given
         composeTestRule.setContent {
-            errorDialog(
+            ErrorDialog(
                 errorMessage = "네트워크 연결에 실패했습니다.",
                 onRetry = {},
                 title = "오류",

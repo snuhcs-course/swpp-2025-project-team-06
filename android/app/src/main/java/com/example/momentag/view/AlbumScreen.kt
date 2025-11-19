@@ -43,7 +43,6 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.LabelOff
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -88,11 +87,10 @@ import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.horizontalArrangement
-import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AlbumViewModel
 import kotlinx.coroutines.delay
@@ -138,7 +136,7 @@ fun AlbumScreen(
     var isSelectPhotosBannerUntagVisible by remember { mutableStateOf(false) }
 
     // 5. Derived 상태 및 계산된 값
-    val minPanelHeight = 200.dp
+    val minPanelHeight = Dimen.ExpandedPanelMinHeight
     val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
     var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
 
@@ -360,7 +358,7 @@ fun AlbumScreen(
                                         contentColor = MaterialTheme.colorScheme.primary,
                                         disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                                     ),
-                                modifier = Modifier.width(36.dp),
+                                modifier = Modifier.width(Dimen.IconButtonSizeMediumLarge),
                             ) {
                                 StandardIcon.Icon(
                                     imageVector = Icons.Default.Share,
@@ -414,13 +412,13 @@ fun AlbumScreen(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                             ) { submitAndClearFocus() },
                 ) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                     // 제목(태그명) 행
                     Row(
@@ -434,7 +432,7 @@ fun AlbumScreen(
                             modifier =
                                 Modifier
                                     .weight(1f)
-                                    .padding(end = 8.dp)
+                                    .padding(end = Dimen.ItemSpacingSmall)
                                     .onFocusChanged { isFocused = it.isFocused },
                             textStyle =
                                 MaterialTheme.typography.displayMedium.copy(
@@ -448,12 +446,12 @@ fun AlbumScreen(
                         if (editableTagName.isNotEmpty() && isFocused) {
                             IconButton(
                                 onClick = { editableTagName = "" },
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(Dimen.IconButtonSizeMedium),
                             ) {
                                 Box(
                                     modifier =
                                         Modifier
-                                            .size(24.dp)
+                                            .size(Dimen.IconButtonSizeSmall)
                                             .background(
                                                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                                 shape = CircleShape,
@@ -472,13 +470,13 @@ fun AlbumScreen(
                     }
 
                     HorizontalDivider(
-                        modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
 
                     AnimatedVisibility(visible = isSelectPhotosBannerShareVisible) {
                         WarningBanner(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                             title = "No Photos Selected",
                             message = "Please select photos to share.",
                             onActionClick = { isSelectPhotosBannerShareVisible = false },
@@ -490,7 +488,7 @@ fun AlbumScreen(
 
                     AnimatedVisibility(visible = isSelectPhotosBannerUntagVisible) {
                         WarningBanner(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                             title = "No Photos Selected",
                             message = "Please select photos to untag.",
                             onActionClick = { isSelectPhotosBannerUntagVisible = false },
@@ -502,7 +500,7 @@ fun AlbumScreen(
 
                     AnimatedVisibility(visible = isErrorBannerVisible) {
                         WarningBanner(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                             title = errorBannerTitle,
                             message = errorBannerMessage,
                             onActionClick = { isErrorBannerVisible = false },
@@ -590,11 +588,11 @@ private fun AlbumGridArea(
                 val photos = albumLoadState.photos
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    verticalArrangement = Arrangement.spacedBy(verticalArrangement),
-                    horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                     contentPadding =
                         PaddingValues(
-                            bottom = if (isRecommendationExpanded) panelHeight else 80.dp,
+                            bottom = if (isRecommendationExpanded) panelHeight else Dimen.FloatingButtonAreaPadding,
                         ),
                     modifier = Modifier.fillMaxSize(),
                 ) {
@@ -648,7 +646,7 @@ private fun AlbumGridArea(
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = Dimen.ItemSpacingLarge),
         ) {
             RecommendChip(
                 recommendLoadState = recommendLoadState,
@@ -666,22 +664,22 @@ private fun RecommendChip(
     Row(
         modifier =
             Modifier
-                .shadow(elevation = 4.dp, shape = RoundedCornerShape(20.dp))
-                .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(20.dp))
-                .clip(RoundedCornerShape(20.dp))
+                .shadow(elevation = Dimen.BottomNavTonalElevation, shape = RoundedCornerShape(Dimen.Radius20))
+                .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(Dimen.Radius20))
+                .clip(RoundedCornerShape(Dimen.Radius20))
                 .clickable(onClick = onExpand)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         when (recommendLoadState) {
             is AlbumViewModel.RecommendLoadingState.Loading -> {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
+                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "AI Recommending...",
                     style = MaterialTheme.typography.bodyMedium,
@@ -695,7 +693,7 @@ private fun RecommendChip(
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "AI Recommend",
                     style = MaterialTheme.typography.bodyMedium,
@@ -709,7 +707,7 @@ private fun RecommendChip(
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Error,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "Recommendation Failed",
                     style = MaterialTheme.typography.bodyMedium,
@@ -718,11 +716,11 @@ private fun RecommendChip(
             }
             is AlbumViewModel.RecommendLoadingState.Idle -> {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
+                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = "Preparing...",
                     style = MaterialTheme.typography.bodyMedium,
@@ -730,7 +728,7 @@ private fun RecommendChip(
                 )
             }
         }
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
         StandardIcon.Icon(
             imageVector = Icons.Default.ExpandLess,
             contentDescription = "Expand",
@@ -760,11 +758,13 @@ private fun RecommendExpandedPanel(
             modifier
                 .fillMaxWidth()
                 .height(panelHeight)
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(
+                .shadow(
+                    elevation = Dimen.BottomNavShadowElevation,
+                    shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
+                ).background(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                    shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
+                ).clip(RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius)),
     ) {
         Column {
             // Drag handle + Header 영역 (드래그 가능)
@@ -790,17 +790,17 @@ private fun RecommendExpandedPanel(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(40.dp),
+                            .height(Dimen.IconButtonSizeLarge),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
                         modifier =
                             Modifier
-                                .width(40.dp)
-                                .height(4.dp)
+                                .width(Dimen.IconButtonSizeLarge)
+                                .height(Dimen.GridItemSpacing)
                                 .background(
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    RoundedCornerShape(2.dp),
+                                    RoundedCornerShape(Dimen.Radius2),
                                 ),
                     )
                 }
@@ -810,7 +810,7 @@ private fun RecommendExpandedPanel(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -820,7 +820,7 @@ private fun RecommendExpandedPanel(
                     ) {
                         // 사진 선택 시: Add와 Cancel 버튼
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             TextButton(onClick = onResetRecommendSelection) {
@@ -836,8 +836,12 @@ private fun RecommendExpandedPanel(
                                     ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error,
                                     ),
-                                shape = RoundedCornerShape(20.dp),
-                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                                shape = RoundedCornerShape(Dimen.Radius20),
+                                contentPadding =
+                                    PaddingValues(
+                                        horizontal = Dimen.ButtonPaddingLargeHorizontal,
+                                        vertical = Dimen.ButtonPaddingVertical,
+                                    ),
                             ) {
                                 Text(
                                     text = "Add ${selectedRecommendPhotos.size} Photo${if (selectedRecommendPhotos.size > 1) "s" else ""}",
@@ -853,7 +857,7 @@ private fun RecommendExpandedPanel(
                                 sizeRole = IconSizeRole.Navigation,
                                 intent = IconIntent.Primary,
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                             Text(
                                 text = "AI Recommend",
                                 style = MaterialTheme.typography.titleMedium,
@@ -872,7 +876,7 @@ private fun RecommendExpandedPanel(
                 }
             }
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Column(modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding)) {
                 // Grid / states
                 when (recommendLoadState) {
                     is AlbumViewModel.RecommendLoadingState.Loading,
@@ -884,7 +888,12 @@ private fun RecommendExpandedPanel(
                                     .fillMaxWidth()
                                     .weight(1f),
                             contentAlignment = Alignment.Center,
-                        ) { CircularProgressIndicator(modifier = Modifier.size(48.dp), strokeWidth = 4.dp) }
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(Dimen.CircularProgressSizeBig),
+                                strokeWidth = Dimen.CircularProgressStrokeWidth,
+                            )
+                        }
                     }
                     is AlbumViewModel.RecommendLoadingState.Success -> {
                         val recommendPhotos = recommendLoadState.photos
@@ -904,8 +913,8 @@ private fun RecommendExpandedPanel(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
-                                verticalArrangement = Arrangement.spacedBy(verticalArrangement),
-                                horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                                verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                                 modifier = Modifier.weight(1f),
                                 userScrollEnabled = true,
                             ) {
@@ -926,7 +935,7 @@ private fun RecommendExpandedPanel(
                         }
                     }
                     is AlbumViewModel.RecommendLoadingState.Error -> {
-                        Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxWidth().height(Dimen.ExpandedPanelHeight), contentAlignment = Alignment.Center) {
                             WarningBanner(
                                 modifier = Modifier.fillMaxWidth(),
                                 title = "Recommendation Failed",
@@ -938,7 +947,7 @@ private fun RecommendExpandedPanel(
                         }
                     }
                     is AlbumViewModel.RecommendLoadingState.Idle -> {
-                        Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxWidth().height(Dimen.ExpandedPanelHeight), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
                         }
                     }
