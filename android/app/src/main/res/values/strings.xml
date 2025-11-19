@@ -82,6 +82,10 @@
     <string name="error_message_add_photo_failed">We couldn\'t add these photos. Please try again.</string>
     <string name="error_message_empty_query">Please enter a search query</string>
     <string name="error_message_upload_failed">We couldn\'t upload some photos</string>
+    <string name="error_message_rename_tag_id_mismatch">We couldn\'t rename this tag. Please try again.</string>
+    <string name="error_message_convert_photo_id">We couldn\'t process this photo. Please try again.</string>
+    <string name="error_message_tag_name_and_photos_required">Please enter a tag name and select at least one photo</string>
+    <string name="error_message_no_photo_ids">No photos to upload</string>
 
     <!-- ============================================ -->
     <!-- SUCCESS MESSAGES - Casual, friendly tone -->
