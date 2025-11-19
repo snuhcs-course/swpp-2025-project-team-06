@@ -54,7 +54,6 @@ class AlbumViewModelTest {
                 recommendRepository,
                 imageBrowserRepository,
                 photoSelectionRepository,
-                mainCoroutineRule.testDispatcher,
             )
     }
 
