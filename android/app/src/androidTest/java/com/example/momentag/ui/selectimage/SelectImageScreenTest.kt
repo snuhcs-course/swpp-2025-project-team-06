@@ -1,7 +1,6 @@
 package com.example.momentag.ui.selectimage
 
 import android.net.Uri
-import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
@@ -31,11 +30,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Hilt 환경에서 동작하도록 최소 변경한 버전.
+ * Hilt 환경에서 동작
  * - Hilt가 ViewModel을 생성하게 둠 (hiltRule.inject())
  * - 생성된 ViewModel 인스턴스를 가져와 reflection으로 내부 MutableStateFlow 값을 설정
- *
- * 복사 붙여넣기 후 바로 테스트 실행 가능해야 함.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -73,7 +70,7 @@ class SelectImageScreenTest {
         try {
             vm.clearDraft()
         } catch (_: Exception) {
-            // 일부 구현에서는 clearDraft가 없을 수 있음. 무시.
+            // 일부 구현에서는 clearDraft가 없을 수 있음.
         }
     }
 
@@ -81,17 +78,13 @@ class SelectImageScreenTest {
         composeRule.setContent {
             SelectImageScreen(
                 navController = rememberNavController(),
-//                selectImageViewModel = vm, // 기존 스크린이 파라미터로 받을 수 있으면 그대로 주고, 아니라면 SelectImageScreen()만 써도 Hilt VM이 사용됨
             )
         }
     }
 
     /**
      * reflection으로 ViewModel 내부 private MutableStateFlow 필드 값을 바꿔서
-     * UI에 데이터/상태를 주입한다.
-     *
-     * (필드명은 프로젝트의 ViewModel 내부 필드명과 정확히 맞아야 함.
-     *  네가 제공한 코드 기준으로 `_allPhotos`, `_isLoading`, 등으로 가정.)
+     * UI에 데이터/상태를 주입
      */
     @Suppress("UNCHECKED_CAST")
     private fun <T> setFlow(name: String, value: T) {
@@ -110,7 +103,9 @@ class SelectImageScreenTest {
         }
     }
 
-    // ------------------ 테스트들 ------------------
+    // ----------------------------------------------------------
+    // 1. 기본 UI 요소 표시 테스트
+    // ----------------------------------------------------------
 
     @Test
     fun selectImageScreen_initialState_showsTitleAndButton() {
@@ -119,15 +114,22 @@ class SelectImageScreenTest {
         composeRule.onNodeWithText("Add to Tag").assertIsDisplayed()
     }
 
+    // ----------------------------------------------------------
+    // 2. 초기 로딩 상태 (메인 ProgressIndicator 표시)
+    // ----------------------------------------------------------
+
     @Test
     fun selectImageScreen_initialLoading_showsProgressIndicator() {
         setFlow("_isLoading", true)
         setContent()
 
         waitForProgress()
-        // 화면 설계에 따라 indicator 개수는 다를 수 있음. 원래 테스트는 2개였으므로 그대로 둠.
         composeRule.onAllNodes(hasProgress()).assertCountEquals(2)
     }
+
+    // ----------------------------------------------------------
+    // 3. 사진 그리드 표시
+    // ----------------------------------------------------------
 
     @Test
     fun selectImageScreen_photos_displayedInGrid() {
@@ -146,6 +148,10 @@ class SelectImageScreenTest {
         composeRule.onNodeWithContentDescription("Photo p2").assertIsDisplayed()
     }
 
+    // ----------------------------------------------------------
+    // 4. 사진 선택 → 카운터 표시
+    // ----------------------------------------------------------
+
     @Test
     fun selectImageScreen_photoSelection_showsCounter() {
         val p = listOf(Photo("p1", Uri.parse("content://1"), "2024"))
@@ -157,6 +163,10 @@ class SelectImageScreenTest {
 
         composeRule.onNodeWithText("1 selected").assertIsDisplayed()
     }
+
+    // ----------------------------------------------------------
+    // 5. 선택 해제
+    // ----------------------------------------------------------
 
     @Test
     fun selectImageScreen_photoSelection_toggle() {
@@ -175,6 +185,10 @@ class SelectImageScreenTest {
         composeRule.onAllNodes(hasText("1 selected")).assertCountEquals(0)
     }
 
+    // ----------------------------------------------------------
+    // 6. Add to Tag 버튼 활성화 조건
+    // ----------------------------------------------------------
+
     @Test
     fun selectImageScreen_doneButton_enabledOnlyWhenSelected() {
         val p = listOf(Photo("p1", Uri.parse("content://1"), "2024"))
@@ -190,6 +204,10 @@ class SelectImageScreenTest {
         btn.assertIsEnabled()
     }
 
+    // ----------------------------------------------------------
+    // 7. 추천 Chip - Idle
+    // ----------------------------------------------------------
+
     @Test
     fun selectImageScreen_recommendChip_idle() {
         setFlow("_recommendState", SelectImageViewModel.RecommendState.Idle)
@@ -198,6 +216,10 @@ class SelectImageScreenTest {
         composeRule.onNodeWithText("Getting ready...").assertIsDisplayed()
     }
 
+    // ----------------------------------------------------------
+    // 8. 추천 Chip - Loading
+    // ----------------------------------------------------------
+
     @Test
     fun selectImageScreen_recommendChip_loading() {
         setFlow("_recommendState", SelectImageViewModel.RecommendState.Loading)
@@ -205,6 +227,10 @@ class SelectImageScreenTest {
 
         composeRule.onNodeWithText("Finding suggestions...").assertIsDisplayed()
     }
+
+    // ----------------------------------------------------------
+    // 9. 추천 확장 패널 + 사진 선택
+    // ----------------------------------------------------------
 
     @Test
     fun selectImageScreen_recommendPhotos_expandable() {
