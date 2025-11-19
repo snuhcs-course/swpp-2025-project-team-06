@@ -442,7 +442,8 @@ fun HomeScreen(navController: NavController) {
             }
             is AuthViewModel.LogoutState.Error -> {
                 errorBannerTitle = context.getString(R.string.error_title_logout_failed)
-                errorBannerMessage = (logoutState as AuthViewModel.LogoutState.Error).message ?: context.getString(R.string.error_message_logout)
+                errorBannerMessage =
+                    (logoutState as AuthViewModel.LogoutState.Error).message ?: context.getString(R.string.error_message_logout)
                 isErrorBannerVisible = true
             }
             else -> Unit

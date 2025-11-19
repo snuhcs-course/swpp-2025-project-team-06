@@ -57,7 +57,7 @@ val MomenTagTypography =
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
                 lineHeight = 24.sp,
-                letterSpacing = 0.15.sp
+                letterSpacing = 0.15.sp,
             ),
         titleSmall =
             TextStyle(
@@ -65,7 +65,7 @@ val MomenTagTypography =
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
-                letterSpacing = 0.1.sp
+                letterSpacing = 0.1.sp,
             ),
         // 큰 제목
         headlineLarge =
