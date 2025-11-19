@@ -16,7 +16,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.example.momentag.R
-import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.ui.theme.Dimen
 
 @Composable
