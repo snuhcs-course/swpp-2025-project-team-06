@@ -187,9 +187,11 @@
     <string name="notification_upload_error">Upload error</string>
     <string name="notification_uploading_photos">Uploading photos</string>
     <string name="notification_uploading_albums">Uploading albums</string>
+    <string name="notification_progress_text">Uploading \'%1$s\' (%2$d / %3$d)...</string>
     <string name="fallback_unknown_album">Unknown Album</string>
     <string name="fallback_unknown_date">Unknown date</string>
     <string name="fallback_unknown_location">Unknown location</string>
+    <string name="foreground_preparing_upload">Preparing upload...</string>
 
     <!-- ============================================ -->
     <!-- CONTENT DESCRIPTIONS (Accessibility) -->
@@ -393,5 +395,11 @@
     <!-- ADD TAG SCREEN -->
     <!-- ============================================ -->
     <string name="add_tag_hash_prefix">#</string>
+
+    <!-- ============================================ -->
+    <!-- LOCAL REPOSITORY -->
+    <!-- ============================================ -->
+    <string name="localrepo_unknown_date">Unknown date</string>
+    <string name="localrepo_unknown_location">Unknown location</string>
 
 </resources>

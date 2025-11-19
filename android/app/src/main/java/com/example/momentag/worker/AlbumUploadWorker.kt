@@ -140,7 +140,7 @@ class AlbumUploadWorker
                 )?.use { cursor ->
                     if (cursor.moveToFirst()) {
                         // 앨범 이름을 찾아 반환
-                        return cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)) ?: "알 수 없는 앨범"
+                        return cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)) ?: applicationContext.getString(R.string.fallback_unknown_album)
                     }
                 }
             return applicationContext.getString(R.string.fallback_unknown_album)
@@ -154,7 +154,7 @@ class AlbumUploadWorker
 
             val albumName = getAlbumName(albumId)
 
-            val initialProgress = "Preparing upload..."
+            val initialProgress = applicationContext.getString(R.string.foreground_preparing_upload)
             setForeground(createForegroundInfo(initialProgress))
 
             albumUploadJobCount.update { it + 1 }
@@ -272,7 +272,12 @@ class AlbumUploadWorker
 
                 if (currentChunk.size == chunkSize || (currentChunk.isNotEmpty() && cursor.isLast)) {
                     chunkCount++
-                    val progressText = "Uploading '$albumName' ($chunkCount / $totalChunks)..."
+                    val progressText = applicationContext.getString(
+                        R.string.notification_progress_text,
+                        albumName,
+                        chunkCount,
+                        totalChunks
+                    )
                     setProgress(workDataOf(KEY_PROGRESS to progressText))
                     updateNotification(
                         applicationContext.getString(R.string.notification_uploading_albums),

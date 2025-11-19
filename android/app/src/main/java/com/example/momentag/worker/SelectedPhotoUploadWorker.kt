@@ -138,7 +138,7 @@ class SelectedPhotoUploadWorker
                 return Result.failure()
             }
 
-            val initialProgress = "Preparing upload..."
+            val initialProgress = applicationContext.getString(R.string.foreground_preparing_upload)
             setForeground(createForegroundInfo(initialProgress))
 
             albumUploadJobCount.update { it + 1 }

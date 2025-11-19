@@ -10,6 +10,7 @@ import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import com.example.momentag.R
 import com.example.momentag.model.Album
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoMeta
@@ -418,10 +419,10 @@ class LocalRepository
                                 }
                             }
                         }
-                        "Unknown date"
-                    } ?: "Unknown date"
+                        context.getString(R.string.localrepo_unknown_date)
+                    } ?: context.getString(R.string.localrepo_unknown_date)
             } catch (e: Exception) {
-                "Unknown date"
+                context.getString(R.string.localrepo_unknown_date)
             }
         }
 
@@ -447,11 +448,11 @@ class LocalRepository
                         val lng = String.format(Locale.US, "%.3f", latLong[1])
                         "$lat, $lng"
                     } else {
-                        "Unknown location"
+                        context.getString(R.string.localrepo_unknown_location)
                     }
-                } ?: "Unknown location"
+                } ?: context.getString(R.string.localrepo_unknown_location)
             } catch (e: Exception) {
-                "Unknown location"
+                context.getString(R.string.localrepo_unknown_location)
             }
 
         fun getAlbumPhotoInfo(albumId: Long): List<PhotoInfoForUpload> {
