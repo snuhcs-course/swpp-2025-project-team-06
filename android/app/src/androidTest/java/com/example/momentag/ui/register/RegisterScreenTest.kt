@@ -1,6 +1,5 @@
 package com.example.momentag.ui.register
 
-import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -13,18 +12,70 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.example.momentag.HiltTestActivity
 import com.example.momentag.ui.theme.MomenTagTheme
 import com.example.momentag.view.RegisterScreen
+import com.example.momentag.viewmodel.AuthViewModel
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/**
+ * Hilt 환경에서 동작
+ * - Hilt가 ViewModel을 생성하게 둠 (hiltRule.inject())
+ * - 생성된 ViewModel 인스턴스를 가져와 reflection으로 내부 MutableStateFlow 값을 설정
+ */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class RegisterScreenTest {
-    @get:Rule
-    val composeRule = createAndroidComposeRule<ComponentActivity>()
+    // Hilt rule
+    @get:Rule(order = 0)
+    val hiltRule = HiltAndroidRule(this)
+
+    // Compose rule using HiltTestActivity so Hilt VM factory is available
+    @get:Rule(order = 1)
+    val composeRule = createAndroidComposeRule<HiltTestActivity>()
+
+    private lateinit var vm: AuthViewModel
+
+    @Before
+    fun setup() {
+        // must inject Hilt BEFORE requesting the ViewModel
+        hiltRule.inject()
+
+        // get the Hilt-created ViewModel from the activity's ViewModelProvider
+        vm = ViewModelProvider(composeRule.activity)[AuthViewModel::class.java]
+
+        // For example, to set initial states for tests:
+        // setFlow("_email", "")
+        // setFlow("_username", "")
+        // setFlow("_password", "")
+    }
+
+    /**
+     * reflection으로 ViewModel 내부 private MutableStateFlow 필드 값을 바꿔서
+     * UI에 데이터/상태를 주입
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> setFlow(name: String, value: T) {
+        try {
+            val field = AuthViewModel::class.java.getDeclaredField(name)
+            field.isAccessible = true
+            val flow = field.get(vm) as MutableStateFlow<T>
+            flow.value = value
+        } catch (e: NoSuchFieldException) {
+            // This can happen if the ViewModel's internal fields change.
+            // For this test setup, we can ignore it, but in a real scenario,
+            // this would indicate the test needs to be updated.
+        }
+    }
 
     // ---------- 1. 초기 화면 상태 ----------
 
