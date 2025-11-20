@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -76,6 +77,7 @@ import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.TagItem
+import com.example.momentag.ui.component.VerticalScrollbar
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
@@ -855,29 +857,43 @@ private fun SearchResultsFromState(
             }
 
             is SearchViewModel.SearchUiState.Success -> {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = modifier,
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                ) {
-                    items(
-                        count = uiState.results.size,
-                        key = { index -> index },
-                    ) { index ->
-                        val result = uiState.results[index]
-                        val photo = result.photo
-                        ImageGridUriItem(
-                            photo = photo,
-                            navController = navController,
-                            isSelectionMode = isSelectionMode,
-                            isSelected = selectedPhotos.contains(photo),
-                            onToggleSelection = { onToggleImageSelection(photo) },
-                            onLongPress = {
-                                onImageLongPress()
-                            },
-                        )
+                val gridState = rememberLazyGridState()
+
+                Box(modifier = modifier) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        state = gridState,
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                    ) {
+                        items(
+                            count = uiState.results.size,
+                            key = { index -> index },
+                        ) { index ->
+                            val result = uiState.results[index]
+                            val photo = result.photo
+                            ImageGridUriItem(
+                                photo = photo,
+                                navController = navController,
+                                isSelectionMode = isSelectionMode,
+                                isSelected = selectedPhotos.contains(photo),
+                                onToggleSelection = { onToggleImageSelection(photo) },
+                                onLongPress = {
+                                    onImageLongPress()
+                                },
+                            )
+                        }
                     }
+
+                    VerticalScrollbar(
+                        state = gridState,
+                        modifier =
+                            Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .padding(end = 4.dp),
+                    )
                 }
             }
 
