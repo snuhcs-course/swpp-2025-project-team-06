@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.momentag.HiltTestActivity
 import com.example.momentag.model.StoryModel
+import com.example.momentag.view.StoryTagSelectionScreen
 import com.example.momentag.viewmodel.StoryViewModel
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
