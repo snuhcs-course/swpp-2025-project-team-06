@@ -572,7 +572,7 @@ fun AlbumScreen(
                             .align(Alignment.CenterEnd)
                             .fillMaxHeight()
                             .padding(
-                                top = Dimen.ItemSpacingLarge + 56.dp + Dimen.SectionSpacing, // Spacer + Title row + Divider
+                                top = Dimen.ItemSpacingLarge + Dimen.TopBarHeight + Dimen.SectionSpacing, // Spacer + Title row + Divider
                                 end = Dimen.ScreenHorizontalPadding / 2,
                             ),
                 )

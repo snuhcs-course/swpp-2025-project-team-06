@@ -32,7 +32,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
+import com.example.momentag.ui.theme.Dimen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -63,14 +63,14 @@ import kotlin.math.roundToInt
 fun VerticalScrollbar(
     state: LazyGridState,
     modifier: Modifier = Modifier,
-    scrollbarWidth: Dp = 6.dp,
-    scrollbarWidthActive: Dp = 8.dp,
-    scrollbarPadding: Dp = 2.dp,
+    scrollbarWidth: Dp = Dimen.ScrollbarWidth,
+    scrollbarWidthActive: Dp = Dimen.ScrollbarWidthActive,
+    scrollbarPadding: Dp = Dimen.SpacingXXSmall,
     thumbColor: Color = MaterialTheme.colorScheme.primary,
     thumbColorActive: Color = MaterialTheme.colorScheme.primary,
     trackColor: Color = Color.Transparent,
     autoHideDelay: Long = 1500L,
-    minThumbHeight: Dp = 48.dp,
+    minThumbHeight: Dp = Dimen.ScrollbarMinThumbHeight,
 ) {
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
@@ -216,7 +216,7 @@ fun VerticalScrollbar(
                             with(density) { currentWidth.toDp() },
                         ).height(
                             with(density) { scrollbarMetrics.thumbHeight.toDp() },
-                        ).clip(RoundedCornerShape(2.dp))
+                        ).clip(RoundedCornerShape(Dimen.Radius2))
                         .background(currentThumbColor)
                         .pointerInput(Unit) {
                             detectVerticalDragGestures(

@@ -56,7 +56,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -393,7 +392,7 @@ fun LocalAlbumScreen(
                                 .align(Alignment.CenterEnd)
                                 .fillMaxHeight()
                                 .padding(
-                                    top = Dimen.ItemSpacingLarge + 40.dp + Dimen.SectionSpacing, // Spacer + Title + Divider
+                                    top = Dimen.ItemSpacingLarge + Dimen.TitleRowHeight + Dimen.SectionSpacing, // Spacer + Title + Divider
                                     end = Dimen.ScreenHorizontalPadding / 2,
                                 ),
                     )
