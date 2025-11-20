@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -222,9 +223,13 @@ fun MyTagsScreen(navController: NavController) {
                             val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
                             IconButton(
                                 onClick = {
-                                    if (isEditMode && hasSelectedTags) {
-                                        isBulkDeleteConfirmVisible = true
-                                    } else if (!isEditMode) {
+                                    if (isEditMode) {
+                                        if (hasSelectedTags) {
+                                            isBulkDeleteConfirmVisible = true
+                                        } else {
+                                            myTagsViewModel.toggleEditMode()
+                                        }
+                                    } else {
                                         myTagsViewModel.toggleEditMode()
                                     }
                                 },
@@ -232,12 +237,22 @@ fun MyTagsScreen(navController: NavController) {
                                 val deleteIntent =
                                     when {
                                         isEditMode && hasSelectedTags -> IconIntent.Error
-                                        isEditMode -> IconIntent.Disabled
+                                        isEditMode -> IconIntent.Primary
                                         else -> IconIntent.Neutral
                                     }
                                 StandardIcon.Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.LabelOff,
-                                    contentDescription = stringResource(R.string.cd_delete_action),
+                                    imageVector =
+                                        when {
+                                            isEditMode && hasSelectedTags -> Icons.AutoMirrored.Filled.LabelOff
+                                            isEditMode -> Icons.Default.Close
+                                            else -> Icons.AutoMirrored.Filled.LabelOff
+                                        },
+                                    contentDescription =
+                                        when {
+                                            isEditMode && hasSelectedTags -> stringResource(R.string.cd_delete_action)
+                                            isEditMode -> stringResource(R.string.cd_close_dialog)
+                                            else -> stringResource(R.string.cd_delete_action)
+                                        },
                                     intent = deleteIntent,
                                 )
                             }
@@ -807,6 +822,12 @@ private fun SortOptionsSheet(
         )
 
         SortOptionItem(
+            text = stringResource(R.string.tag_sort_recently_added),
+            icon = Icons.Default.FiberNew,
+            isSelected = currentOrder == TagSortOrder.CREATED_DESC,
+            onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
+        )
+        SortOptionItem(
             text = stringResource(R.string.tag_sort_name_az),
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.NAME_ASC,
@@ -819,22 +840,16 @@ private fun SortOptionsSheet(
             onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
         )
         SortOptionItem(
-            text = stringResource(R.string.tag_sort_recently_added),
-            icon = Icons.Default.FiberNew,
-            isSelected = currentOrder == TagSortOrder.CREATED_DESC,
-            onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
+            text = stringResource(R.string.tag_sort_count_asc),
+            icon = Icons.Default.ArrowUpward,
+            isSelected = currentOrder == TagSortOrder.COUNT_ASC,
+            onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
         )
         SortOptionItem(
             text = stringResource(R.string.tag_sort_count_desc),
-            icon = Icons.Default.ArrowUpward,
+            icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
             onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
-        )
-        SortOptionItem(
-            text = stringResource(R.string.tag_sort_count_asc),
-            icon = Icons.Default.ArrowDownward,
-            isSelected = currentOrder == TagSortOrder.COUNT_ASC,
-            onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
         )
     }
 }
