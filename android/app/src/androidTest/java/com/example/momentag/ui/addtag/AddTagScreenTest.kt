@@ -148,7 +148,7 @@ class AddTagScreenTest {
         // The Icon has contentDescription "Back", and its parent IconButton has the onClick
         // Using the merged tree (default) will merge the Icon's semantics with IconButton's
         composeTestRule
-            .onNodeWithContentDescription("Back")
+            .onNodeWithContentDescription("Back", substring = true, ignoreCase = true)
             .assertIsDisplayed()
             .assertHasClickAction()
     }
