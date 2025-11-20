@@ -177,8 +177,7 @@ fun LoginScreen(navController: NavController) {
                                     dampingRatio = Spring.DampingRatioNoBouncy,
                                     stiffness = Spring.StiffnessMedium,
                                 ),
-                        )
-                        .verticalScroll(rememberScrollState()),
+                        ).verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top,
             ) {

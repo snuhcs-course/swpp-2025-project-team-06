@@ -79,5 +79,4 @@ object Animation {
      */
     val QuickFadeIn: EnterTransition = fadeIn(animationSpec = shortTween())
     val QuickFadeOut: ExitTransition = fadeOut(animationSpec = shortTween())
-
 }

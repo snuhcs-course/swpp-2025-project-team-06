@@ -790,7 +790,7 @@ fun TagsSection(
         }
 
         // --- 2. 추천 태그 로딩 처리 ---
-        if(isRecommendedTagsLoading) CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
+        if (isRecommendedTagsLoading) CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
         // 여기는 애니메이션 없애고, 추천태그 나올 때 FadeIn
 
         AnimatedVisibility(visible = !isRecommendedTagsLoading, enter = Animation.DefaultFadeIn) {

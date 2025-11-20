@@ -443,7 +443,7 @@ fun SelectImageScreen(navController: NavController) {
             }
 
             // Done Button - AI Recommendation이 확장되지 않았을 때만 표시
-            if(!isRecommendationExpanded){
+            if (!isRecommendationExpanded) {
                 Button(
                     onClick = {
                         if (selectImageViewModel.isAddingToExistingTag()) {
