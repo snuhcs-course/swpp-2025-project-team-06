@@ -5,7 +5,13 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -57,6 +63,7 @@ import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
@@ -185,7 +192,13 @@ fun LoginScreen(navController: NavController) {
                     Modifier
                         .fillMaxWidth(0.95f)
                         .weight(1f)
-                        .verticalScroll(rememberScrollState()),
+                        .animateContentSize(
+                            animationSpec =
+                                spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium,
+                                ),
+                        ).verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top,
             ) {
@@ -399,14 +412,24 @@ fun LoginScreen(navController: NavController) {
                         ),
                     enabled = !isLoading,
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.height(Dimen.IconButtonSizeSmall),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                        )
-                    } else {
-                        Text(stringResource(R.string.action_login), style = MaterialTheme.typography.headlineSmall)
+                    AnimatedContent(
+                        targetState = isLoading,
+                        transitionSpec = {
+                            (Animation.QuickFadeIn)
+                                .togetherWith(Animation.QuickFadeOut)
+                                .using(SizeTransform(clip = false))
+                        },
+                        label = "LoginButtonContent",
+                    ) { loading ->
+                        if (loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.height(Dimen.IconButtonSizeSmall),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                            )
+                        } else {
+                            Text(stringResource(R.string.action_login), style = MaterialTheme.typography.headlineSmall)
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.weight(1f))
