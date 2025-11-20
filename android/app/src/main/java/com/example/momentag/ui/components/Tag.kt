@@ -1,7 +1,6 @@
 package com.example.momentag.ui.components
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -132,11 +131,7 @@ fun TagChip(
                 }
             }
             is TagVariant.CloseWhen -> {
-                AnimatedVisibility(
-                    visible = variant.isDeleteMode,
-                    enter = fadeIn(animationSpec = Animation.shortTween()) + scaleIn(animationSpec = Animation.shortTween()),
-                    exit = fadeOut(animationSpec = Animation.shortTween()) + scaleOut(animationSpec = Animation.shortTween()),
-                ) {
+                if (variant.isDeleteMode) {
                     IconButton(
                         onClick = variant.onDismiss,
                         modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
@@ -238,17 +233,13 @@ fun TagChipWithCount(
                         },
                     )
                 }.padding(
-                    horizontal = if (isEditMode) Dimen.CountTagEditHorizontalPadding else Dimen.CountTagEditHorizontalPadding * 2,
+                    horizontal = Dimen.CountTagEditHorizontalPadding,
                     vertical = Dimen.TagChipVerticalPadding,
-                ).animateContentSize(animationSpec = Animation.mediumTween()),
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 왼쪽: Edit 모드일 때 연필 아이콘 표시 (수정/확인)
-        AnimatedVisibility(
-            visible = isEditMode && onEdit != null,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut(),
-        ) {
+        if (isEditMode && onEdit != null) {
             Row {
                 IconButton(
                     onClick = onEdit!!,
@@ -275,61 +266,46 @@ fun TagChipWithCount(
             onTextLayout = { textLayoutResult -> textOverflow = textLayoutResult.hasVisualOverflow },
         )
 
-        AnimatedContent(
-            targetState = isEditMode,
-            transitionSpec = {
-                (fadeIn(animationSpec = Animation.shortTween()) + scaleIn(initialScale = 0.8f))
-                    .togetherWith(fadeOut(animationSpec = Animation.shortTween()) + scaleOut(targetScale = 0.8f))
-            },
-            label = "TagChipContent",
-        ) { isEditing ->
-            if (isEditing) {
-                // In edit mode, nothing is shown here
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(modifier = Modifier.width(Dimen.TagChipWithCountSpacer))
-                    // showCheckbox가 true면 체크박스, 아니면 카운트
-                    if (showCheckbox) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(Dimen.IconButtonsSizeXSmall)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (isChecked) {
-                                            MaterialTheme.colorScheme.onPrimary
-                                        } else {
-                                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-                                        },
-                                    ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (isChecked) {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Checked",
-                                    sizeRole = IconSizeRole.ChipAction,
-                                    tintOverride = color,
-                                )
-                            }
+        if (!isEditMode) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.width(Dimen.TagChipWithCountSpacer))
+                // showCheckbox가 true면 체크박스, 아니면 카운트
+                if (showCheckbox) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(Dimen.IconButtonsSizeXSmall)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isChecked) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+                                    },
+                                ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (isChecked) {
+                            StandardIcon.Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Checked",
+                                sizeRole = IconSizeRole.ChipAction,
+                                tintOverride = color,
+                            )
                         }
-                    } else {
-                        Text(
-                            text = count.toString(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                        )
                     }
+                } else {
+                    Text(
+                        text = count.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                    )
                 }
             }
         }
 
         // 오른쪽: Edit 모드일 때 휴지통 아이콘 표시 (삭제/취소)
-        AnimatedVisibility(
-            visible = isEditMode && onDelete != null,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut(),
-        ) {
+        if (isEditMode && onDelete != null) {
             Row {
                 Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
                 IconButton(

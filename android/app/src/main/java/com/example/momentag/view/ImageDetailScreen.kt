@@ -790,10 +790,11 @@ fun TagsSection(
         }
 
         // --- 2. 추천 태그 로딩 처리 ---
-        AnimatedVisibility(visible = isRecommendedTagsLoading, enter = Animation.DefaultFadeIn, exit = Animation.DefaultFadeOut) {
-            CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
-        }
-        if (!isRecommendedTagsLoading) {
+        if(isRecommendedTagsLoading) CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
+        // 여기는 애니메이션 없애고, 추천태그 나올 때 FadeIn
+
+        AnimatedVisibility(visible = !isRecommendedTagsLoading, enter = Animation.DefaultFadeIn) {
+//            if (!isRecommendedTagsLoading) {
             // Display recommended tags (통일된 색상 사용)
             recommendedTags.forEach { tagName ->
                 ConfirmableRecommendedTag(
