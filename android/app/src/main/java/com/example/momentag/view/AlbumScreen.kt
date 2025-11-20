@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
@@ -144,6 +145,7 @@ fun AlbumScreen(
     val minPanelHeight = Dimen.ExpandedPanelMinHeight
     val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
     var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
+    val gridState = rememberLazyGridState()
 
     // 6. rememberCoroutineScope & ActivityResultLauncher
     val scope = rememberCoroutineScope()
@@ -555,9 +557,25 @@ fun AlbumScreen(
                             albumViewModel = albumViewModel,
                             tagId = tagId,
                             tagName = currentTagName,
+                            gridState = gridState,
                         )
                     }
                 }
+            }
+
+            // Scrollbar positioned outside Column to span padding boundary
+            if (hasPermission && imageLoadState is AlbumViewModel.AlbumLoadingState.Success) {
+                VerticalScrollbar(
+                    state = gridState,
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .padding(
+                                top = Dimen.ItemSpacingLarge + 56.dp + Dimen.SectionSpacing, // Spacer + Title row + Divider
+                                end = Dimen.ScreenHorizontalPadding / 2,
+                            ),
+                )
             }
 
             // === Edge-to-edge 오버레이 (Column 바깥, 동일 Box의 sibling) ===
@@ -599,6 +617,7 @@ private fun AlbumGridArea(
     albumViewModel: AlbumViewModel,
     tagId: String,
     tagName: String,
+    gridState: LazyGridState,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (albumLoadState) {
@@ -609,7 +628,6 @@ private fun AlbumGridArea(
             }
             is AlbumViewModel.AlbumLoadingState.Success -> {
                 val photos = albumLoadState.photos
-                val gridState = rememberLazyGridState()
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     LazyVerticalGrid(
@@ -651,15 +669,6 @@ private fun AlbumGridArea(
                             )
                         }
                     }
-
-                    VerticalScrollbar(
-                        state = gridState,
-                        modifier =
-                            Modifier
-                                .align(Alignment.CenterEnd)
-                                .fillMaxHeight()
-                                .padding(end = 4.dp),
-                    )
                 }
             }
             is AlbumViewModel.AlbumLoadingState.Error -> {

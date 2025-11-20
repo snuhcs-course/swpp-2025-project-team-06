@@ -953,6 +953,23 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
 
+                // Scrollbar positioned outside Column to span padding boundary
+                if (hasPermission && isShowingAllPhotos && groupedPhotos.isNotEmpty()) {
+                    VerticalScrollbar(
+                        state = allPhotosGridState,
+                        modifier =
+                            Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .padding(
+                                    top =
+                                        topSpacerHeight + with(LocalDensity.current) { searchBarRowHeight.toDp() } +
+                                            Dimen.ItemSpacingLarge + Dimen.SearchBarMinHeight + Dimen.ItemSpacingSmall,
+                                    end = Dimen.ScreenHorizontalPadding / 2,
+                                ),
+                    )
+                }
+
                 // search history dropdown
                 AnimatedVisibility(
                     visible = shouldShowSearchHistoryDropdown,
@@ -1262,15 +1279,6 @@ private fun MainContent(
                         }
                     }
                 }
-
-                VerticalScrollbar(
-                    state = allPhotosGridState,
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .fillMaxHeight()
-                            .padding(end = 4.dp),
-                )
             }
         }
 
