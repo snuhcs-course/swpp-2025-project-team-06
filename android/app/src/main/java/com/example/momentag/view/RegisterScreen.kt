@@ -545,11 +545,7 @@ fun RegisterScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                 // Warning banner for registration errors
-                AnimatedVisibility(
-                    visible = isErrorBannerVisible && errorMessage != null,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
+                AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         title = stringResource(R.string.error_title_register_failed),
                         message = errorMessage ?: stringResource(R.string.error_message_unknown),

@@ -73,4 +73,14 @@ object Animation {
      */
     val EnterFromBottom: EnterTransition = DefaultFadeIn + DefaultSlideInVertically
     val ExitToBottom: ExitTransition = DefaultFadeOut + DefaultSlideOutVertically
+
+    /**
+     * Faster variants for micro-interactions where a snappier feel is preferred.
+     */
+    val QuickFadeIn: EnterTransition = fadeIn(animationSpec = shortTween())
+    val QuickFadeOut: ExitTransition = fadeOut(animationSpec = shortTween())
+    val QuickEnterFromBottom: EnterTransition =
+        QuickFadeIn + slideInVertically(animationSpec = shortTween()) { fullHeight -> fullHeight / 2 }
+    val QuickExitToBottom: ExitTransition =
+        QuickFadeOut + slideOutVertically(animationSpec = shortTween()) { fullHeight -> fullHeight / 2 }
 }

@@ -2,6 +2,10 @@ package com.example.momentag.view
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -62,9 +65,6 @@ import com.example.momentag.viewmodel.AuthViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController) {
-    // Context and platform-related variables
-    val context = LocalContext.current
-
     // ViewModel instance
     val authViewModel: AuthViewModel = hiltViewModel()
 
@@ -171,6 +171,13 @@ fun LoginScreen(navController: NavController) {
                     Modifier
                         .fillMaxWidth(0.95f)
                         .weight(1f)
+                        .animateContentSize(
+                            animationSpec =
+                                spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium,
+                                ),
+                        )
                         .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top,
@@ -353,11 +360,7 @@ fun LoginScreen(navController: NavController) {
                     }
                 }
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
-                AnimatedVisibility(
-                    visible = isErrorBannerVisible && errorMessage != null,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
+                AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
                         title = stringResource(R.string.error_title_login_failed),
                         message = errorMessage ?: stringResource(R.string.error_message_unknown),
@@ -394,7 +397,9 @@ fun LoginScreen(navController: NavController) {
                     AnimatedContent(
                         targetState = isLoading,
                         transitionSpec = {
-                            (Animation.DefaultFadeIn).togetherWith(Animation.DefaultFadeOut)
+                            (Animation.QuickFadeIn)
+                                .togetherWith(Animation.QuickFadeOut)
+                                .using(SizeTransform(clip = false))
                         },
                         label = "LoginButtonContent",
                     ) { loading ->
