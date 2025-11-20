@@ -2,7 +2,6 @@ package com.example.momentag.ui.home
 
 import android.Manifest
 import android.os.Build
-import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -15,11 +14,12 @@ import androidx.compose.ui.test.performTextInput
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
-import com.example.momentag.repository.PhotoSelectionRepository
+import com.example.momentag.HiltTestActivity
+import com.example.momentag.R
 import com.example.momentag.ui.theme.MomenTagTheme
 import com.example.momentag.view.HomeScreen
-import com.example.momentag.viewmodel.ViewModelFactory
-import org.junit.After
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -27,8 +27,12 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalTestApi::class)
+@HiltAndroidTest
 class HomeScreenTest {
     @get:Rule(order = 0)
+    val hiltRule = HiltAndroidRule(this)
+
+    @get:Rule(order = 1)
     val permissionRule: GrantPermissionRule =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             GrantPermissionRule.grant(Manifest.permission.READ_MEDIA_IMAGES)
@@ -36,39 +40,12 @@ class HomeScreenTest {
             GrantPermissionRule.grant(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
-    @get:Rule(order = 1)
-    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule(order = 2)
+    val composeTestRule = createAndroidComposeRule<HiltTestActivity>()
 
     @Before
     fun setup() {
-        // Clear any existing state from the singleton repository
-        clearSharedRepositoryState()
-    }
-
-    @After
-    fun tearDown() {
-        // Clean up after each test to prevent state pollution
-        clearSharedRepositoryState()
-    }
-
-    private fun clearSharedRepositoryState() {
-        // Access the singleton ViewModelFactory and clear the PhotoSelectionRepository
-        val context = composeTestRule.activity.applicationContext
-        val viewModelFactory = ViewModelFactory.getInstance(context)
-
-        // Use reflection to access and clear the private photoSelectionRepository
-        try {
-            val field = ViewModelFactory::class.java.getDeclaredField("photoSelectionRepository\$delegate")
-            field.isAccessible = true
-            val lazyDelegate = field.get(viewModelFactory) as? Lazy<*>
-            if (lazyDelegate?.isInitialized() == true) {
-                val repository = lazyDelegate.value as PhotoSelectionRepository
-                repository.clear()
-            }
-        } catch (e: Exception) {
-            // If reflection fails, we can't clear the state
-            // This is acceptable as it's a test-only concern
-        }
+        hiltRule.inject()
     }
 
     // ---------- 1. 초기 화면 상태 ----------
@@ -88,12 +65,12 @@ class HomeScreenTest {
         composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
 
         // Verify logout button exists
-        composeTestRule.onNodeWithContentDescription("Logout").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_logout)).assertIsDisplayed()
 
         // Verify bottom navigation is displayed
-        composeTestRule.onNodeWithText("Home").assertIsDisplayed()
-        composeTestRule.onNodeWithText("My Tags").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Moment").assertIsDisplayed()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_home)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_my_tags)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_moment)).assertIsDisplayed()
     }
 
     // ---------- 2. 검색 기능 ----------
@@ -110,7 +87,7 @@ class HomeScreenTest {
         composeTestRule.waitForIdle()
 
         // Search bar should be displayed with placeholder
-        composeTestRule.onNodeWithText("Search with \"#tag\"").assertIsDisplayed()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag)).assertIsDisplayed()
     }
 
     @Test
@@ -126,7 +103,7 @@ class HomeScreenTest {
 
         // Search bar should be clickable
         composeTestRule
-            .onNodeWithText("Search with \"#tag\"")
+            .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
             .assertHasClickAction()
     }
 
@@ -145,13 +122,13 @@ class HomeScreenTest {
 
         // Tag Albums icon should be displayed
         composeTestRule
-            .onNodeWithContentDescription("Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_tag_albums))
             .assertIsDisplayed()
             .assertHasClickAction()
 
         // All Photos icon should be displayed
         composeTestRule
-            .onNodeWithContentDescription("All Photos")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
             .assertIsDisplayed()
             .assertHasClickAction()
     }
@@ -169,14 +146,14 @@ class HomeScreenTest {
 
         // Switch to All Photos
         composeTestRule
-            .onNodeWithContentDescription("All Photos")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
             .performClick()
 
         composeTestRule.waitForIdle()
 
         // Switch back to Tag Albums
         composeTestRule
-            .onNodeWithContentDescription("Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_tag_albums))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -199,8 +176,8 @@ class HomeScreenTest {
         composeTestRule.waitForIdle()
 
         // Verify all bottom navigation items are clickable
-        composeTestRule.onNodeWithText("Home").assertHasClickAction()
-        composeTestRule.onNodeWithText("My Tags").assertHasClickAction()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_home)).assertHasClickAction()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_my_tags)).assertHasClickAction()
         composeTestRule.onNodeWithText("Moment").assertHasClickAction()
     }
 
@@ -219,7 +196,7 @@ class HomeScreenTest {
 
         // Logout button should be visible and clickable
         composeTestRule
-            .onNodeWithContentDescription("Logout")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_logout))
             .assertIsDisplayed()
             .assertHasClickAction()
     }
@@ -258,7 +235,7 @@ class HomeScreenTest {
 
         // Initial view is Tag Albums, so sort button should already be displayed
         composeTestRule
-            .onNodeWithContentDescription("Sort Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .assertIsDisplayed()
             .assertHasClickAction()
     }
@@ -276,14 +253,14 @@ class HomeScreenTest {
 
         // Switch to All Photos view
         composeTestRule
-            .onNodeWithContentDescription("All Photos")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
             .performClick()
 
         composeTestRule.waitForIdle()
 
         // Sort button should not exist in All Photos view
         composeTestRule
-            .onNodeWithContentDescription("Sort Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .assertDoesNotExist()
     }
 
@@ -318,13 +295,13 @@ class HomeScreenTest {
         // Switch multiple times between views
         repeat(2) {
             composeTestRule
-                .onNodeWithContentDescription("All Photos")
+                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
                 .performClick()
 
             composeTestRule.waitForIdle()
 
             composeTestRule
-                .onNodeWithContentDescription("Tag Albums")
+                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_tag_albums))
                 .performClick()
 
             composeTestRule.waitForIdle()
@@ -350,7 +327,7 @@ class HomeScreenTest {
         // Click search bar multiple times to test focus handling
         repeat(3) {
             composeTestRule
-                .onNodeWithText("Search with \"#tag\"")
+                .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
                 .performClick()
 
             composeTestRule.waitForIdle()
@@ -375,7 +352,7 @@ class HomeScreenTest {
 
         // Click sort button (in Tag Albums view)
         composeTestRule
-            .onNodeWithContentDescription("Sort Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -397,7 +374,7 @@ class HomeScreenTest {
 
         // Click sort button to open bottom sheet
         composeTestRule
-            .onNodeWithContentDescription("Sort Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -424,7 +401,7 @@ class HomeScreenTest {
 
         // Open sort bottom sheet
         composeTestRule
-            .onNodeWithContentDescription("Sort Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -455,12 +432,12 @@ class HomeScreenTest {
 
         // Initial view should be Tag Albums, so sort button should be visible
         composeTestRule
-            .onNodeWithContentDescription("Sort Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .assertIsDisplayed()
 
         // Tag Albums icon should be displayed
         composeTestRule
-            .onNodeWithContentDescription("Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_tag_albums))
             .assertIsDisplayed()
     }
 
@@ -480,13 +457,13 @@ class HomeScreenTest {
         // Rapidly toggle between views
         repeat(5) {
             composeTestRule
-                .onNodeWithContentDescription("All Photos")
+                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
                 .performClick()
 
             composeTestRule.waitForIdle()
 
             composeTestRule
-                .onNodeWithContentDescription("Tag Albums")
+                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_tag_albums))
                 .performClick()
 
             composeTestRule.waitForIdle()
@@ -495,7 +472,7 @@ class HomeScreenTest {
         // Screen should still be functional after rapid toggling
         composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
         composeTestRule
-            .onNodeWithContentDescription("Sort Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .assertIsDisplayed()
     }
 
@@ -531,7 +508,7 @@ class HomeScreenTest {
 
         // Click search bar to focus
         composeTestRule
-            .onNodeWithText("Search with \"#tag\"")
+            .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -566,7 +543,7 @@ class HomeScreenTest {
 
         // Click search bar to focus
         composeTestRule
-            .onNodeWithText("Search with \"#tag\"")
+            .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -603,16 +580,16 @@ class HomeScreenTest {
 
         // Switch to All Photos view
         composeTestRule
-            .onNodeWithContentDescription("All Photos")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
             .performClick()
 
         composeTestRule.waitForIdle()
 
         // Verify essential elements are still displayed
         composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Search with \"#tag\"").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("All Photos").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Tag Albums").assertIsDisplayed()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_tag_albums)).assertIsDisplayed()
     }
 
     @Test
@@ -629,12 +606,12 @@ class HomeScreenTest {
         // Initial view is Tag Albums
         // Verify essential elements are displayed
         composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Search with \"#tag\"").assertIsDisplayed()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag)).assertIsDisplayed()
         composeTestRule
-            .onNodeWithContentDescription("Sort Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Tag Albums").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("All Photos").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_tag_albums)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos)).assertIsDisplayed()
     }
 
     // ---------- 16. Search Bar and Toggle Interaction ----------
@@ -652,21 +629,21 @@ class HomeScreenTest {
 
         // Click search bar
         composeTestRule
-            .onNodeWithText("Search with \"#tag\"")
+            .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
             .performClick()
 
         composeTestRule.waitForIdle()
 
         // Then toggle view
         composeTestRule
-            .onNodeWithContentDescription("All Photos")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
             .performClick()
 
         composeTestRule.waitForIdle()
 
         // Screen should still be functional
         composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Search with \"#tag\"").assertIsDisplayed()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag)).assertIsDisplayed()
     }
 
     @Test
@@ -683,19 +660,19 @@ class HomeScreenTest {
         // Alternate between search bar clicks and view toggles
         repeat(2) {
             composeTestRule
-                .onNodeWithText("Search with \"#tag\"")
+                .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
                 .performClick()
 
             composeTestRule.waitForIdle()
 
             composeTestRule
-                .onNodeWithContentDescription("All Photos")
+                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
                 .performClick()
 
             composeTestRule.waitForIdle()
 
             composeTestRule
-                .onNodeWithContentDescription("Tag Albums")
+                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_tag_albums))
                 .performClick()
 
             composeTestRule.waitForIdle()
@@ -722,7 +699,7 @@ class HomeScreenTest {
 
         // Click search bar to focus
         composeTestRule
-            .onNodeWithText("Search with \"#tag\"")
+            .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -758,7 +735,7 @@ class HomeScreenTest {
 
         // Click search bar to focus
         composeTestRule
-            .onNodeWithText("Search with \"#tag\"")
+            .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -798,7 +775,7 @@ class HomeScreenTest {
 
         // Click search bar after data is loaded
         composeTestRule
-            .onNodeWithText("Search with \"#tag\"")
+            .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -822,7 +799,7 @@ class HomeScreenTest {
         repeat(3) {
             // Focus on search bar
             composeTestRule
-                .onNodeWithText("Search with \"#tag\"")
+                .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
                 .performClick()
 
             composeTestRule.waitForIdle()
@@ -859,14 +836,14 @@ class HomeScreenTest {
 
         // Click search bar
         composeTestRule
-            .onNodeWithText("Search with \"#tag\"")
+            .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
             .performClick()
 
         composeTestRule.waitForIdle()
 
         // Then click sort button
         composeTestRule
-            .onNodeWithContentDescription("Sort Tag Albums")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .performClick()
 
         composeTestRule.waitForIdle()
@@ -898,14 +875,14 @@ class HomeScreenTest {
 
         // Click search bar to focus
         composeTestRule
-            .onNodeWithText("Search with \"#tag\"")
+            .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
             .performClick()
 
         composeTestRule.waitForIdle()
 
         // Verify logout button is still accessible
         composeTestRule
-            .onNodeWithContentDescription("Logout")
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_logout))
             .assertIsDisplayed()
             .assertHasClickAction()
 
