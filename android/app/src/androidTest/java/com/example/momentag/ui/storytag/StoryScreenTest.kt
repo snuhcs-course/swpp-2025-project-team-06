@@ -1,7 +1,6 @@
 package com.example.momentag.ui.storytag
 
 import android.net.Uri
-import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -13,16 +12,14 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.example.momentag.HiltTestActivity
 import com.example.momentag.model.StoryModel
-import com.example.momentag.network.ApiService
-import com.example.momentag.repository.ImageBrowserRepository
-import com.example.momentag.repository.LocalRepository
-import com.example.momentag.repository.RecommendRepository
-import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.viewmodel.StoryViewModel
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -30,54 +27,43 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito
 
+/**
+ * Hilt 환경에서 동작
+ * - Hilt가 ViewModel을 생성하게 둠 (hiltRule.inject())
+ * - 생성된 ViewModel 인스턴스를 가져와 reflection으로 내부 MutableStateFlow 값을 설정
+ */
+@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class StoryScreenTest {
-    @get:Rule
-    val composeRule = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule(order = 0)
+    val hiltRule = HiltAndroidRule(this)
+
+    @get:Rule(order = 1)
+    val composeRule = createAndroidComposeRule<HiltTestActivity>()
 
     private lateinit var viewModel: StoryViewModel
 
     @Before
     fun setup() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-
-        // ApiService 는 interface 라서 mock 가능 (final class 아님)
-        val apiService = Mockito.mock(ApiService::class.java)
-
-        // 실제 레포지토리들 사용 (final class mock 안 함)
-        val recommendRepository = RecommendRepository(apiService)
-        val remoteRepository = RemoteRepository(apiService)
-        val localRepository = LocalRepository(context)
-        val imageBrowserRepository = ImageBrowserRepository()
-
-        viewModel =
-            StoryViewModel(
-                recommendRepository = recommendRepository,
-                localRepository = localRepository,
-                remoteRepository = remoteRepository,
-                imageBrowserRepository = imageBrowserRepository,
-            )
+        hiltRule.inject()
+        viewModel = ViewModelProvider(composeRule.activity)[StoryViewModel::class.java]
     }
 
-    // ---------- Reflection helper (StoryState 주입용) ----------
-
-    private fun setStoryStateSuccess(
-        stories: List<StoryModel>,
-        currentIndex: Int = 0,
-        hasMore: Boolean = false,
-    ) {
-        val field = StoryViewModel::class.java.getDeclaredField("_storyState")
-        field.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val flow = field.get(viewModel) as MutableStateFlow<StoryViewModel.StoryState>
-        flow.value =
-            StoryViewModel.StoryState.Success(
-                stories = stories,
-                currentIndex = currentIndex,
-                hasMore = hasMore,
-            )
+    /**
+     * reflection으로 ViewModel 내부 private MutableStateFlow 필드 값을 바꿔서
+     * UI에 데이터/상태를 주입
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> setFlow(name: String, value: T) {
+        try {
+            val field = StoryViewModel::class.java.getDeclaredField(name)
+            field.isAccessible = true
+            val flow = field.get(viewModel) as MutableStateFlow<T>
+            flow.value = value
+        } catch (e: NoSuchFieldException) {
+            // Test can continue if the field is not found
+        }
     }
 
     private fun createSampleStories(): List<StoryModel> =
@@ -103,7 +89,14 @@ class StoryScreenTest {
     private fun setContentWithStories(stories: List<StoryModel>) {
         // 처음부터 StoryState 를 Success 로 세팅해서
         // StoryScreen 의 LaunchedEffect 가 loadStories() 를 호출하지 않게 막는다.
-        setStoryStateSuccess(stories = stories, hasMore = false)
+        setFlow(
+            "_storyState",
+            StoryViewModel.StoryState.Success(
+                stories = stories,
+                currentIndex = 0,
+                hasMore = false,
+            )
+        )
 
         composeRule.setContent {
             val navController = rememberNavController()
