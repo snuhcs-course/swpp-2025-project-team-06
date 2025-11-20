@@ -44,6 +44,29 @@ val MomenTagTypography =
                 lineHeight = 32.sp,
                 letterSpacing = 0.sp,
             ),
+        titleLarge =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                lineHeight = 28.sp,
+            ),
+        titleMedium =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                letterSpacing = 0.15.sp,
+            ),
+        titleSmall =
+            TextStyle(
+                fontFamily = Pretendard,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                letterSpacing = 0.1.sp,
+            ),
         // 큰 제목
         headlineLarge =
             TextStyle(

@@ -71,6 +71,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -78,17 +79,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.horizontalArrangement
-import com.example.momentag.ui.theme.verticalArrangement
 import com.example.momentag.viewmodel.SelectImageViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -135,7 +136,7 @@ fun SelectImageScreen(navController: NavController) {
     val listState = selectImageViewModel.lazyGridState
 
     // 5. Derived 상태 및 계산된 값
-    val minHeight = 200.dp
+    val minHeight = Dimen.ExpandedPanelMinHeight
     val maxHeight = (configuration.screenHeightDp * 0.6f).dp
     var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
 
@@ -244,7 +245,7 @@ fun SelectImageScreen(navController: NavController) {
     Scaffold(
         topBar = {
             CommonTopBar(
-                title = "Select Photos",
+                title = stringResource(R.string.select_image_title),
                 showBackButton = true,
                 onBackClick = {
                     navController.popBackStack()
@@ -298,9 +299,9 @@ fun SelectImageScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 24.dp),
+                        .padding(horizontal = Dimen.FormScreenHorizontalPadding),
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 // Pictures Header with count
                 Row(
@@ -309,7 +310,7 @@ fun SelectImageScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Add to #$tagName",
+                        text = stringResource(R.string.select_image_add_to_tag, tagName),
                         color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.headlineMedium,
                         maxLines = 1,
@@ -318,10 +319,10 @@ fun SelectImageScreen(navController: NavController) {
                     )
 
                     if (isSelectionMode && selectedPhotos.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
 
                         Text(
-                            text = "${selectedPhotos.size} selected",
+                            text = stringResource(R.string.select_image_selected_count, selectedPhotos.size),
                             color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
@@ -329,7 +330,7 @@ fun SelectImageScreen(navController: NavController) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 if (isLoading) {
                     Box(
@@ -341,21 +342,26 @@ fun SelectImageScreen(navController: NavController) {
                         CircularProgressIndicator(
                             modifier =
                                 Modifier
-                                    .size(56.dp),
+                                    .size(Dimen.BottomNavBarHeight),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 5.dp,
+                            strokeWidth = Dimen.CircularProgressStrokeWidthBig,
                         )
                     }
                 } else if (hasPermission) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         state = listState,
-                        verticalArrangement = Arrangement.spacedBy(verticalArrangement),
-                        horizontalArrangement = Arrangement.spacedBy(horizontalArrangement),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding =
                             PaddingValues(
-                                bottom = if (isRecommendationExpanded) panelHeight + 80.dp else 200.dp,
+                                bottom =
+                                    if (isRecommendationExpanded) {
+                                        panelHeight + Dimen.FloatingButtonAreaPadding
+                                    } else {
+                                        Dimen.FloatingButtonAreaPaddingLarge
+                                    },
                             ),
                     ) {
                         items(
@@ -384,13 +390,13 @@ fun SelectImageScreen(navController: NavController) {
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
-                                            .padding(16.dp),
+                                            .padding(Dimen.ComponentPadding),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(36.dp),
+                                        modifier = Modifier.size(Dimen.IconButtonSizeMediumLarge),
                                         color = MaterialTheme.colorScheme.primary,
-                                        strokeWidth = 3.dp,
+                                        strokeWidth = Dimen.CircularProgressStrokeWidthMedium,
                                     )
                                 }
                             }
@@ -419,7 +425,7 @@ fun SelectImageScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 80.dp),
+                        .padding(bottom = Dimen.FloatingButtonAreaPadding),
             ) {
                 // 축소 상태: 화면 하단 중앙 칩
                 RecommendChip(
@@ -461,7 +467,7 @@ fun SelectImageScreen(navController: NavController) {
                             }
                         }
                     },
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                     colors =
                         ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -473,25 +479,30 @@ fun SelectImageScreen(navController: NavController) {
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .padding(bottom = 8.dp)
-                            .height(52.dp)
+                            .padding(horizontal = Dimen.FormScreenHorizontalPadding)
+                            .padding(bottom = Dimen.ItemSpacingSmall)
+                            .height(Dimen.ButtonHeightLarge)
                             .shadow(
-                                elevation = if (selectedPhotos.isNotEmpty()) 6.dp else 2.dp,
-                                shape = RoundedCornerShape(24.dp),
+                                elevation =
+                                    if (selectedPhotos.isNotEmpty()) {
+                                        Dimen.ButtonShadowElevation
+                                    } else {
+                                        Dimen.ButtonDisabledShadowElevation
+                                    },
+                                shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                                 clip = false,
                             ),
                     enabled = selectedPhotos.isNotEmpty() && addPhotosState !is SelectImageViewModel.AddPhotosState.Loading,
                 ) {
                     if (addPhotosState is SelectImageViewModel.AddPhotosState.Loading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                             color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp,
+                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                         )
                     } else {
                         Text(
-                            text = "Add to Tag",
+                            text = stringResource(R.string.tag_add_to_tag),
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
@@ -513,7 +524,7 @@ private fun PhotoSelectableItem(
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .combinedClickable(
                     onClick = onClick,
@@ -522,7 +533,7 @@ private fun PhotoSelectableItem(
     ) {
         AsyncImage(
             model = photo.contentUri,
-            contentDescription = "Photo ${photo.photoId}",
+            contentDescription = stringResource(R.string.cd_photo, photo.photoId),
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -544,9 +555,9 @@ private fun PhotoSelectableItem(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .padding(Dimen.GridItemSpacing)
+                        .size(Dimen.IconButtonSizeSmall)
+                        .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
                         .background(
                             if (isSelected) {
                                 MaterialTheme.colorScheme.primaryContainer
@@ -559,9 +570,9 @@ private fun PhotoSelectableItem(
                 if (isSelected) {
                     StandardIcon.Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
                         sizeRole = IconSizeRole.InlineAction,
                         intent = IconIntent.OnPrimaryContainer,
+                        contentDescription = stringResource(R.string.cd_photo_selected),
                     )
                 }
             }
@@ -577,26 +588,26 @@ private fun RecommendChip(
     Row(
         modifier =
             Modifier
-                .shadow(elevation = 4.dp, shape = RoundedCornerShape(20.dp))
+                .shadow(elevation = Dimen.BottomNavTonalElevation, shape = RoundedCornerShape(Dimen.TagCornerRadius))
                 .background(
                     color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(20.dp),
-                ).clip(RoundedCornerShape(20.dp))
+                    shape = RoundedCornerShape(Dimen.TagCornerRadius),
+                ).clip(RoundedCornerShape(Dimen.TagCornerRadius))
                 .clickable(onClick = onExpand)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         when (recommendState) {
             is SelectImageViewModel.RecommendState.Loading -> {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
+                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = "Finding suggestions...",
+                    text = stringResource(R.string.photos_finding_suggestions),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -604,51 +615,57 @@ private fun RecommendChip(
             is SelectImageViewModel.RecommendState.Success -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = "AI",
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Primary,
+                    contentDescription = stringResource(R.string.cd_ai),
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = "Suggested for You",
+                    text = stringResource(R.string.photos_suggested_for_you),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
+            is SelectImageViewModel.RecommendState.Error -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = "Error",
+                    contentDescription = stringResource(R.string.error_title),
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Error,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
+                val errorMessage =
+                    when (recommendState.error) {
+                        SelectImageViewModel.SelectImageError.NetworkError -> stringResource(R.string.error_message_network)
+                        SelectImageViewModel.SelectImageError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                        SelectImageViewModel.SelectImageError.UnknownError -> stringResource(R.string.error_message_unknown)
+                    }
                 Text(
-                    text = "Could not load suggestions",
+                    text = errorMessage,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
             else -> {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
+                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = "Getting ready...",
+                    text = stringResource(R.string.photos_getting_ready),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
 
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
         StandardIcon.Icon(
             imageVector = Icons.Default.ExpandLess,
-            contentDescription = "Expand",
             sizeRole = IconSizeRole.StatusIndicator,
+            contentDescription = stringResource(R.string.cd_expand),
         )
     }
 }
@@ -672,11 +689,13 @@ private fun RecommendExpandedPanel(
             Modifier
                 .fillMaxWidth()
                 .height(panelHeight)
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(
+                .shadow(
+                    elevation = Dimen.BottomNavShadowElevation,
+                    shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
+                ).background(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                ).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                    shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
+                ).clip(RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius)),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -704,17 +723,17 @@ private fun RecommendExpandedPanel(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(40.dp),
+                            .height(Dimen.IconButtonSizeLarge),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
                         modifier =
                             Modifier
-                                .width(40.dp)
-                                .height(4.dp)
+                                .width(Dimen.IconButtonSizeLarge)
+                                .height(Dimen.GridItemSpacing)
                                 .background(
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    RoundedCornerShape(2.dp),
+                                    RoundedCornerShape(Dimen.SpacingXXSmall),
                                 ),
                     )
                 }
@@ -724,7 +743,7 @@ private fun RecommendExpandedPanel(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -733,50 +752,50 @@ private fun RecommendExpandedPanel(
                         when (recommendState) {
                             is SelectImageViewModel.RecommendState.Loading -> {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
+                                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                                 )
                             }
                             is SelectImageViewModel.RecommendState.Success -> {
                                 StandardIcon.Icon(
                                     imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = "AI",
                                     sizeRole = IconSizeRole.Navigation,
                                     intent = IconIntent.Primary,
+                                    contentDescription = stringResource(R.string.cd_ai),
                                 )
                             }
                             else -> {
                                 StandardIcon.Icon(
                                     imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = "AI",
                                     sizeRole = IconSizeRole.Navigation,
                                     intent = IconIntent.Primary,
+                                    contentDescription = stringResource(R.string.cd_ai),
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                         Text(
-                            text = "Suggested for You",
+                            text = stringResource(R.string.photos_suggested_for_you),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
 
-                    // 오른쪽: 닫기 버튼
+                    // Right side: Close button
                     IconButton(onClick = onCollapse) {
                         StandardIcon.Icon(
                             imageVector = Icons.Default.ExpandMore,
-                            contentDescription = "Collapse",
                             sizeRole = IconSizeRole.DefaultAction,
+                            contentDescription = stringResource(R.string.cd_collapse),
                         )
                     }
                 }
             }
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Column(modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding)) {
                 // Header
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 // Grid
                 when (recommendState) {
@@ -789,8 +808,8 @@ private fun RecommendExpandedPanel(
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(48.dp),
-                                strokeWidth = 4.dp,
+                                modifier = Modifier.size(Dimen.CircularProgressSizeBig),
+                                strokeWidth = Dimen.CircularProgressStrokeWidth,
                             )
                         }
                     }
@@ -804,15 +823,15 @@ private fun RecommendExpandedPanel(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    "No suggestions at this time",
+                                    stringResource(R.string.select_image_no_suggestions),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                                 modifier = Modifier.weight(1f),
                                 userScrollEnabled = true,
                             ) {
@@ -833,7 +852,7 @@ private fun RecommendExpandedPanel(
                             }
                         }
                     }
-                    is SelectImageViewModel.RecommendState.Error, is SelectImageViewModel.RecommendState.NetworkError -> {
+                    is SelectImageViewModel.RecommendState.Error -> {
                         Box(
                             modifier =
                                 Modifier
@@ -842,10 +861,16 @@ private fun RecommendExpandedPanel(
                             contentAlignment = Alignment.BottomCenter,
                         ) {
                             val (title, message) =
-                                if (recommendState is SelectImageViewModel.RecommendState.Error) {
-                                    "Couldn't load suggestions" to recommendState.message
-                                } else {
-                                    "Connection lost" to (recommendState as SelectImageViewModel.RecommendState.NetworkError).message
+                                when (recommendState.error) {
+                                    SelectImageViewModel.SelectImageError.NetworkError ->
+                                        stringResource(R.string.select_image_connection_lost) to
+                                            stringResource(R.string.error_message_network)
+                                    SelectImageViewModel.SelectImageError.Unauthorized ->
+                                        stringResource(R.string.select_image_couldnt_load) to
+                                            stringResource(R.string.error_message_authentication_required)
+                                    SelectImageViewModel.SelectImageError.UnknownError ->
+                                        stringResource(R.string.select_image_couldnt_load) to
+                                            stringResource(R.string.error_message_unknown)
                                 }
 
                             WarningBanner(
@@ -855,7 +880,7 @@ private fun RecommendExpandedPanel(
                                 showActionButton = true,
                                 actionIcon = Icons.Default.Refresh,
                                 showDismissButton = false,
-                                modifier = Modifier.padding(16.dp),
+                                modifier = Modifier.padding(Dimen.ComponentPadding),
                             )
                         }
                     }

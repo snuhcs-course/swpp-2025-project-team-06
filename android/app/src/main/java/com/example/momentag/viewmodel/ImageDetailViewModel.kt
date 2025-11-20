@@ -39,7 +39,7 @@ class ImageDetailViewModel
             object Success : TagAddState()
 
             data class Error(
-                val message: String,
+                val error: ImageDetailError,
             ) : TagAddState()
         }
 
@@ -51,7 +51,7 @@ class ImageDetailViewModel
             object Success : TagDeleteState()
 
             data class Error(
-                val message: String,
+                val error: ImageDetailError,
             ) : TagDeleteState()
         }
 
@@ -59,7 +59,7 @@ class ImageDetailViewModel
             data object Idle : ImageDetailTagState()
 
             data class Error(
-                val message: String,
+                val error: ImageDetailError,
             ) : ImageDetailTagState()
 
             // 데이터 상태: 기존 태그와 추천 태그 목록을 각각 관리
@@ -69,6 +69,16 @@ class ImageDetailViewModel
                 val isExistingLoading: Boolean = true, // 기존 태그 로딩 중 여부
                 val isRecommendedLoading: Boolean = true, // 추천 태그 로딩 중 여부
             ) : ImageDetailTagState()
+        }
+
+        sealed class ImageDetailError {
+            object NetworkError : ImageDetailError()
+
+            object Unauthorized : ImageDetailError()
+
+            object NotFound : ImageDetailError()
+
+            object UnknownError : ImageDetailError()
         }
 
         // 2. Private MutableStateFlow
@@ -199,27 +209,27 @@ class ImageDetailViewModel
 
                     is RemoteRepository.Result.Error -> {
                         _imageDetailTagState.value =
-                            ImageDetailTagState.Error(photoDetailResult.message)
+                            ImageDetailTagState.Error(ImageDetailError.UnknownError)
                     }
 
                     is RemoteRepository.Result.BadRequest -> {
                         _imageDetailTagState.value =
-                            ImageDetailTagState.Error(photoDetailResult.message)
+                            ImageDetailTagState.Error(ImageDetailError.UnknownError)
                     }
 
                     is RemoteRepository.Result.Unauthorized -> {
                         _imageDetailTagState.value =
-                            ImageDetailTagState.Error(photoDetailResult.message)
+                            ImageDetailTagState.Error(ImageDetailError.Unauthorized)
                     }
 
                     is RemoteRepository.Result.NetworkError -> {
                         _imageDetailTagState.value =
-                            ImageDetailTagState.Error(photoDetailResult.message)
+                            ImageDetailTagState.Error(ImageDetailError.NetworkError)
                     }
 
                     is RemoteRepository.Result.Exception -> {
                         _imageDetailTagState.value =
-                            ImageDetailTagState.Error(photoDetailResult.e.message ?: "Unknown error")
+                            ImageDetailTagState.Error(ImageDetailError.UnknownError)
                     }
                 }
             }
@@ -241,7 +251,7 @@ class ImageDetailViewModel
                     }
 
                 if (actualPhotoId == null) {
-                    _tagDeleteState.value = TagDeleteState.Error("Photo not found in backend")
+                    _tagDeleteState.value = TagDeleteState.Error(ImageDetailError.NotFound)
                     return@launch
                 }
 
@@ -251,24 +261,24 @@ class ImageDetailViewModel
                     }
 
                     is RemoteRepository.Result.Error -> {
-                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        _tagDeleteState.value = TagDeleteState.Error(ImageDetailError.UnknownError)
                     }
 
                     is RemoteRepository.Result.Unauthorized -> {
-                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        _tagDeleteState.value = TagDeleteState.Error(ImageDetailError.Unauthorized)
                     }
 
                     is RemoteRepository.Result.BadRequest -> {
-                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        _tagDeleteState.value = TagDeleteState.Error(ImageDetailError.UnknownError)
                     }
 
                     is RemoteRepository.Result.NetworkError -> {
-                        _tagDeleteState.value = TagDeleteState.Error(result.message)
+                        _tagDeleteState.value = TagDeleteState.Error(ImageDetailError.NetworkError)
                     }
 
                     is RemoteRepository.Result.Exception -> {
                         _tagDeleteState.value =
-                            TagDeleteState.Error(result.e.message ?: "Unknown error")
+                            TagDeleteState.Error(ImageDetailError.UnknownError)
                     }
                 }
             }
@@ -293,7 +303,7 @@ class ImageDetailViewModel
                     }
 
                 if (actualPhotoId == null) {
-                    _tagAddState.value = TagAddState.Error("Photo not found in backend")
+                    _tagAddState.value = TagAddState.Error(ImageDetailError.NotFound)
                     return@launch
                 }
 
@@ -308,22 +318,22 @@ class ImageDetailViewModel
                                 // Reload tags to show the new tag
                                 loadPhotoTags(actualPhotoId)
                             }
-                            is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
-                            is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
-                            is RemoteRepository.Result.Unauthorized -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
-                            is RemoteRepository.Result.NetworkError -> _tagAddState.value = TagAddState.Error(postToPhotoResult.message)
+                            is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(ImageDetailError.UnknownError)
+                            is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(ImageDetailError.UnknownError)
+                            is RemoteRepository.Result.Unauthorized -> _tagAddState.value = TagAddState.Error(ImageDetailError.Unauthorized)
+                            is RemoteRepository.Result.NetworkError -> _tagAddState.value = TagAddState.Error(ImageDetailError.NetworkError)
                             is RemoteRepository.Result.Exception ->
                                 _tagAddState.value =
-                                    TagAddState.Error(postToPhotoResult.e.message ?: "Unknown error")
+                                    TagAddState.Error(ImageDetailError.UnknownError)
                         }
                     }
-                    is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(postTagResult.message)
-                    is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(postTagResult.message)
-                    is RemoteRepository.Result.Unauthorized -> _tagAddState.value = TagAddState.Error(postTagResult.message)
-                    is RemoteRepository.Result.NetworkError -> _tagAddState.value = TagAddState.Error(postTagResult.message)
+                    is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(ImageDetailError.UnknownError)
+                    is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(ImageDetailError.UnknownError)
+                    is RemoteRepository.Result.Unauthorized -> _tagAddState.value = TagAddState.Error(ImageDetailError.Unauthorized)
+                    is RemoteRepository.Result.NetworkError -> _tagAddState.value = TagAddState.Error(ImageDetailError.NetworkError)
                     is RemoteRepository.Result.Exception ->
                         _tagAddState.value =
-                            TagAddState.Error(postTagResult.e.message ?: "Unknown error")
+                            TagAddState.Error(ImageDetailError.UnknownError)
                 }
             }
         }

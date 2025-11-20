@@ -19,8 +19,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import com.example.momentag.R
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconBlueprints
 
 @Composable
@@ -33,31 +35,34 @@ fun BottomNavBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(Dimen.BottomNavBarHeight),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
+        tonalElevation = Dimen.BottomNavTonalElevation,
+        shadowElevation = Dimen.BottomNavShadowElevation,
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 30.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = Dimen.BottomNavHorizontalPadding),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BottomNavItem(
                 icon = Icons.Default.Home,
-                text = "Home",
+                text = stringResource(R.string.nav_home),
+                contentDescription = stringResource(R.string.cd_nav_home),
                 isSelected = currentTab == BottomTab.HomeScreen,
             ) { onTabSelected(BottomTab.HomeScreen) }
 
             BottomNavItem(
                 icon = Icons.AutoMirrored.Filled.Label,
-                text = "My Tags",
+                text = stringResource(R.string.nav_my_tags),
+                contentDescription = stringResource(R.string.cd_nav_my_tags),
                 isSelected = currentTab == BottomTab.MyTagsScreen,
             ) { onTabSelected(BottomTab.MyTagsScreen) }
 
             BottomNavItem(
                 icon = Icons.Default.AutoStories,
-                text = "Moment",
+                text = stringResource(R.string.nav_moment),
+                contentDescription = stringResource(R.string.cd_nav_moment),
                 isSelected = currentTab == BottomTab.StoryScreen,
             ) { onTabSelected(BottomTab.StoryScreen) }
         }
@@ -74,6 +79,7 @@ enum class BottomTab {
 private fun BottomNavItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
+    contentDescription: String,
     isSelected: Boolean = false,
     onClick: () -> Unit,
 ) {
@@ -89,15 +95,15 @@ private fun BottomNavItem(
         modifier =
             Modifier
                 .clickable { onClick() }
-                .padding(vertical = 6.dp),
+                .padding(vertical = Dimen.BottomNavItemVerticalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         iconBlueprint.Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = contentDescription,
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(Dimen.GridItemSpacing))
 
         Text(
             text = text,
@@ -107,6 +113,6 @@ private fun BottomNavItem(
             overflow = TextOverflow.Ellipsis,
         )
 
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(Dimen.SpacingXXSmall))
     }
 }

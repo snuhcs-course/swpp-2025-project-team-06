@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material.icons.filled.LabelOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -67,9 +66,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -81,10 +80,11 @@ import com.example.momentag.model.TagCntData
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.RenameTagDialog
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
-import com.example.momentag.ui.components.confirmDialog
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -97,14 +97,14 @@ import kotlin.math.abs
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MyTagsScreen(navController: NavController) {
-    // 1. Context 및 Platform 관련 변수
+    // 1. Context and Platform-related variables
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // 2. ViewModel 인스턴스
+    // 2. ViewModel instance
     val myTagsViewModel: MyTagsViewModel = hiltViewModel()
 
-    // 3. ViewModel에서 가져온 상태 (collectAsState)
+    // 3. States collected from ViewModel (collectAsState)
     val uiState by myTagsViewModel.uiState.collectAsState()
     val isEditMode by myTagsViewModel.isEditMode.collectAsState()
     val selectedTagsForBulkEdit by myTagsViewModel.selectedTagsForBulkEdit.collectAsState()
@@ -128,7 +128,7 @@ fun MyTagsScreen(navController: NavController) {
     // 5. rememberCoroutineScope
     val scope = rememberCoroutineScope()
 
-    // 6. Remember된 객체들
+    // 6. Remembered objects
     val sheetState = rememberModalBottomSheetState()
     DisposableEffect(lifecycleOwner) {
         val observer =
@@ -152,14 +152,14 @@ fun MyTagsScreen(navController: NavController) {
                 myTagsViewModel.clearActionState()
             }
             is MyTagsViewModel.TagActionState.Error -> {
-                errorMessage = state.message
+                errorMessage = context.getString(state.error.toMessageResId())
                 isErrorBannerVisible = true
                 myTagsViewModel.clearActionState()
             }
             is MyTagsViewModel.TagActionState.Idle -> {
             }
             is MyTagsViewModel.TagActionState.Loading -> {
-                // TODO: 필요시 로딩 인디케이터 표시 (현재는 Dialog가 닫히므로 생략)
+                // TODO: Show loading indicator if needed (currently skipped as Dialog closes)
             }
         }
     }
@@ -186,7 +186,7 @@ fun MyTagsScreen(navController: NavController) {
             }
             is MyTagsViewModel.SaveState.Error -> {
                 isErrorBannerVisible = true
-                delay(2000) // 2초 후 자동 사라짐
+                delay(2000) // Auto-dismiss after 2 seconds
                 isErrorBannerVisible = false
             }
             else -> { }
@@ -198,7 +198,7 @@ fun MyTagsScreen(navController: NavController) {
             topBar = {
                 val currentState = uiState
                 CommonTopBar(
-                    title = "#Tag",
+                    title = stringResource(R.string.tag_screen_title),
                     showBackButton = true,
                     onBackClick = {
                         navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
@@ -213,8 +213,8 @@ fun MyTagsScreen(navController: NavController) {
                             IconButton(onClick = { isSortSheetVisible = true }) {
                                 StandardIcon.Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
-                                    contentDescription = "Sort",
                                     sizeRole = IconSizeRole.DefaultAction,
+                                    contentDescription = stringResource(R.string.cd_sort_action),
                                 )
                             }
                             // Delete Button (always visible, enters edit mode on click)
@@ -236,7 +236,7 @@ fun MyTagsScreen(navController: NavController) {
                                     }
                                 StandardIcon.Icon(
                                     imageVector = Icons.AutoMirrored.Filled.LabelOff,
-                                    contentDescription = "Untag",
+                                    contentDescription = stringResource(R.string.cd_delete_action),
                                     intent = deleteIntent,
                                 )
                             }
@@ -254,14 +254,14 @@ fun MyTagsScreen(navController: NavController) {
                     // Error Banner
                     if (isErrorBannerVisible && saveState is MyTagsViewModel.SaveState.Error) {
                         WarningBanner(
-                            title = "Save failed",
-                            message = (saveState as MyTagsViewModel.SaveState.Error).message,
+                            title = stringResource(R.string.error_title_save_failed),
+                            message = stringResource((saveState as MyTagsViewModel.SaveState.Error).error.toMessageResId()),
                             onActionClick = { },
                             onDismiss = { isErrorBannerVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                     }
 
                     AnimatedVisibility(visible = isSelectingForPhotos) {
@@ -269,16 +269,16 @@ fun MyTagsScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                                    .padding(bottom = 8.dp)
+                                    .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                    .padding(bottom = Dimen.ItemSpacingSmall)
                                     .background(
                                         MaterialTheme.colorScheme.secondaryContainer,
-                                        shape = RoundedCornerShape(12.dp),
-                                    ).padding(horizontal = 16.dp, vertical = 10.dp),
+                                        shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
+                                    ).padding(horizontal = Dimen.ButtonPaddingHorizontal, vertical = Dimen.ButtonPaddingVertical),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                text = "Select a tag or create a new one",
+                                text = stringResource(R.string.empty_state_select_tag),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 textAlign = TextAlign.Center,
@@ -286,7 +286,7 @@ fun MyTagsScreen(navController: NavController) {
                         }
                     }
 
-                    // Create New Tag 버튼
+                    // Create New Tag button
                     Button(
                         onClick = {
                             navController.previousBackStackEntry?.savedStateHandle?.set(
@@ -298,18 +298,18 @@ fun MyTagsScreen(navController: NavController) {
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                                .padding(top = 8.dp, bottom = 8.dp)
-                                .height(52.dp),
+                                .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                .padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingSmall)
+                                .height(Dimen.ButtonHeightLarge),
                         colors =
                             ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
-                        shape = RoundedCornerShape(26.dp),
+                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                     ) {
                         Text(
-                            text = "+ Create New Tag",
+                            text = stringResource(R.string.tag_create_new),
                             style =
                                 MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = FontWeight.Bold,
@@ -322,10 +322,10 @@ fun MyTagsScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                                    .padding(bottom = 8.dp),
-                            title = "Action Failed",
-                            message = errorMessage ?: "Unknown error",
+                                    .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                    .padding(bottom = Dimen.ItemSpacingSmall),
+                            title = stringResource(R.string.error_title_action_failed),
+                            message = errorMessage ?: stringResource(R.string.error_message_unknown),
                             onActionClick = { isErrorBannerVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
@@ -400,12 +400,12 @@ fun MyTagsScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 24.dp),
+                                    .padding(horizontal = Dimen.FormScreenHorizontalPadding),
                             contentAlignment = Alignment.Center,
                         ) {
                             WarningBanner(
-                                title = "Failed to Load Tags",
-                                message = state.message,
+                                title = stringResource(R.string.error_title_load_tags_failed),
+                                message = stringResource(state.error.toMessageResId()),
                                 onActionClick = { myTagsViewModel.refreshTags() },
                                 showActionButton = true,
                                 showDismissButton = false,
@@ -466,24 +466,24 @@ fun MyTagsScreen(navController: NavController) {
                 CircularProgressIndicator(
                     modifier =
                         Modifier
-                            .size(56.dp)
+                            .size(Dimen.BottomNavBarHeight)
                             .shadow(
-                                elevation = 8.dp,
+                                elevation = Dimen.BottomNavShadowElevation,
                                 shape = CircleShape,
                                 clip = false,
                             ),
                     color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 5.dp,
+                    strokeWidth = Dimen.CircularProgressStrokeWidthBig,
                 )
             }
         }
     }
 
     if (isDeleteDialogVisible && tagToDelete != null) {
-        confirmDialog(
-            title = "Delete Tag",
-            message = "Are you sure you want to delete '${tagToDelete?.second}' tag?",
-            confirmButtonText = "Delete",
+        ConfirmDialog(
+            title = stringResource(R.string.dialog_delete_tag_title),
+            message = stringResource(R.string.dialog_delete_tag_message, tagToDelete?.second ?: ""),
+            confirmButtonText = stringResource(R.string.action_delete),
             onConfirm = {
                 tagToDelete?.first?.let { myTagsViewModel.deleteTag(it) }
                 isDeleteDialogVisible = false
@@ -498,8 +498,8 @@ fun MyTagsScreen(navController: NavController) {
     }
     if (isEditDialogVisible && tagToEdit != null) {
         RenameTagDialog(
-            title = "Edit Tag Name",
-            message = "Enter the new tag name",
+            title = stringResource(R.string.dialog_rename_tag_title),
+            message = stringResource(R.string.dialog_rename_tag_message),
             initialValue = editedTagName,
             onConfirm = { newName ->
                 if (newName.isNotBlank()) {
@@ -521,10 +521,10 @@ fun MyTagsScreen(navController: NavController) {
     }
 
     if (isAddTagConfirmDialogVisible && tagToAddPhotosTo != null) {
-        confirmDialog(
-            title = "Add to Tag",
-            message = "Are you sure you want to add the selected photos to '${tagToAddPhotosTo?.tagName}'?",
-            confirmButtonText = "Add",
+        ConfirmDialog(
+            title = stringResource(R.string.dialog_add_to_tag_title),
+            message = stringResource(R.string.dialog_add_to_tag_message, tagToAddPhotosTo?.tagName ?: ""),
+            confirmButtonText = stringResource(R.string.dialog_add),
             onConfirm = {
                 tagToAddPhotosTo?.tagId?.let {
                     myTagsViewModel.savePhotosToExistingTag(it)
@@ -587,7 +587,7 @@ private fun MyTagsContent(
 
     // Exit individual edit mode when entering/exiting global edit mode
     LaunchedEffect(isEditMode) {
-        // 글로벌 선택 모드 진입 시에도 개별 편집 모드 해제
+        // Exit individual edit mode when entering global selection mode
         individualEditTagId = null
     }
 
@@ -614,11 +614,11 @@ private fun MyTagsContent(
                                 },
                         ) {
                             onExitEditMode()
-                            // 빈 공간 클릭 시 개별 편집 모드도 해제
+                            // Exit individual edit mode when clicking empty space
                             individualEditTagId = null
-                        }.padding(horizontal = 24.dp),
+                        }.padding(horizontal = Dimen.FormScreenHorizontalPadding),
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -626,28 +626,41 @@ private fun MyTagsContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = if (isSelectingTagForPhotos) "Choose Tag to add photos" else "My Tags",
+                        text =
+                            if (isSelectingTagForPhotos) {
+                                stringResource(R.string.tag_choose_to_add_photos)
+                            } else {
+                                stringResource(R.string.tag_my_tags_title)
+                            },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = if (tags.size >= 2) "${tags.size} tags" else "${tags.size} tag",
+                        text =
+                            if (tags.size >= 2) {
+                                stringResource(R.string.tag_count_plural, tags.size)
+                            } else {
+                                stringResource(R.string.tag_count_singular, tags.size)
+                            },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                 ) {
                     tags.forEach { tagData ->
                         val tagModifier =
                             if (isSelectingTagForPhotos) {
-                                Modifier.shadow(elevation = 4.dp, shape = RoundedCornerShape(16.dp))
+                                Modifier.shadow(
+                                    elevation = Dimen.BottomNavTonalElevation,
+                                    shape = RoundedCornerShape(Dimen.TagCornerRadius),
+                                )
                             } else {
                                 Modifier
                             }
@@ -692,15 +705,15 @@ private fun MyTagsContent(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(80.dp))
+                Spacer(modifier = Modifier.height(Dimen.FloatingButtonAreaPadding))
             }
 
             // Bulk delete confirmation dialog
             if (isBulkDeleteConfirmVisible && selectedTagsForBulkEdit.isNotEmpty()) {
-                confirmDialog(
-                    title = "Delete Tags",
-                    message = "Are you sure you want to delete ${selectedTagsForBulkEdit.size} tag(s)?",
-                    confirmButtonText = "Delete",
+                ConfirmDialog(
+                    title = stringResource(R.string.dialog_delete_tags_title),
+                    message = stringResource(R.string.dialog_delete_tags_message, selectedTagsForBulkEdit.size),
+                    confirmButtonText = stringResource(R.string.action_delete),
                     onConfirm = {
                         onDeleteSelectedTags(selectedTagsForBulkEdit)
                         onShowBulkDeleteConfirmChange(false)
@@ -723,25 +736,25 @@ private fun MyTagsContent(
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.tag),
-                    contentDescription = "Empty Tag",
+                    contentDescription = stringResource(R.string.cd_empty_tag),
                     modifier =
                         Modifier
-                            .size(200.dp)
+                            .size(Dimen.FloatingButtonAreaPaddingLarge)
                             .rotate(45f),
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
                 Text(
-                    text = "Create memories",
+                    text = stringResource(R.string.tag_create_memories),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                 Text(
-                    text = "Organize your memories\nby keyword",
+                    text = stringResource(R.string.tag_organize_memories),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -753,13 +766,13 @@ private fun MyTagsContent(
 
 private val tagColors =
     listOf(
-        Color(0xFF5A8DE1), // 미디엄 블루
-        Color(0xFFC0405A), // 딥 로즈
-        Color(0xFF759D5A), // 모스 그린
-        Color(0xFF865FAD), // 미디엄 퍼플
-        Color(0xFFD1A82A), // 머스타드/골드
-        Color(0xFF5F9191), // 미디엄 틸
-        Color(0xFFD9661E), // 번트 오렌지
+        Color(0xFF5A8DE1), // Medium blue
+        Color(0xFFC0405A), // Deep rose
+        Color(0xFF759D5A), // Moss green
+        Color(0xFF865FAD), // Medium purple
+        Color(0xFFD1A82A), // Mustard/gold
+        Color(0xFF5F9191), // Medium teal
+        Color(0xFFD9661E), // Burnt orange
     )
 
 private fun getTagColor(tagId: String): Color = tagColors[abs(tagId.hashCode()) % tagColors.size]
@@ -769,39 +782,39 @@ private fun SortOptionsSheet(
     currentOrder: TagSortOrder,
     onOrderChange: (TagSortOrder) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+    Column(modifier = Modifier.padding(vertical = Dimen.ItemSpacingLarge)) {
         Text(
-            "Sort by",
+            stringResource(R.string.tag_sort_by),
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
         )
 
         SortOptionItem(
-            text = "Name (A-Z)",
+            text = stringResource(R.string.tag_sort_name_az),
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.NAME_ASC,
             onClick = { onOrderChange(TagSortOrder.NAME_ASC) },
         )
         SortOptionItem(
-            text = "Name (Z-A)",
+            text = stringResource(R.string.tag_sort_name_za),
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.NAME_DESC,
             onClick = { onOrderChange(TagSortOrder.NAME_DESC) },
         )
         SortOptionItem(
-            text = "Recently Added",
+            text = stringResource(R.string.tag_sort_recently_added),
             icon = Icons.Default.FiberNew,
             isSelected = currentOrder == TagSortOrder.CREATED_DESC,
             onClick = { onOrderChange(TagSortOrder.CREATED_DESC) },
         )
         SortOptionItem(
-            text = "Count (Descending)",
+            text = stringResource(R.string.tag_sort_count_desc),
             icon = Icons.Default.ArrowUpward,
             isSelected = currentOrder == TagSortOrder.COUNT_DESC,
             onClick = { onOrderChange(TagSortOrder.COUNT_DESC) },
         )
         SortOptionItem(
-            text = "Count (Ascending)",
+            text = stringResource(R.string.tag_sort_count_asc),
             icon = Icons.Default.ArrowDownward,
             isSelected = currentOrder == TagSortOrder.COUNT_ASC,
             onClick = { onOrderChange(TagSortOrder.COUNT_ASC) },
@@ -821,7 +834,7 @@ private fun SortOptionItem(
             Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingMedium),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val optionIntent = if (isSelected) IconIntent.Primary else IconIntent.Muted
@@ -830,7 +843,7 @@ private fun SortOptionItem(
             contentDescription = text,
             intent = optionIntent,
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingLarge))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
@@ -840,8 +853,8 @@ private fun SortOptionItem(
         if (isSelected) {
             StandardIcon.Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
                 intent = IconIntent.Primary,
+                contentDescription = stringResource(R.string.cd_photo_selected),
             )
         }
     }

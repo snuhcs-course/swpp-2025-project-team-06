@@ -12,19 +12,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import com.example.momentag.ui.theme.imageCornerRadius
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.example.momentag.R
+import com.example.momentag.ui.theme.Dimen
 
 @Composable
 fun AddPhotosButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier.Companion,
 ) {
+    val addPhotosText = stringResource(R.string.tag_add_photos)
+    val contentDesc = stringResource(R.string.cd_add_photos)
+
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(imageCornerRadius))
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(MaterialTheme.colorScheme.primaryContainer)
-                .clickable(onClick = onClick),
+                .clickable(onClick = onClick)
+                .semantics {
+                    contentDescription = contentDesc
+                },
         contentAlignment = Alignment.Companion.Center,
     ) {
         Column(
@@ -37,7 +47,7 @@ fun AddPhotosButton(
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(
-                text = "Add Photos",
+                text = addPhotosText,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )

@@ -58,11 +58,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
@@ -70,35 +71,35 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
-import com.example.momentag.ui.theme.imageCornerRadius
 import com.example.momentag.viewmodel.AddTagViewModel
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTagScreen(navController: NavController) {
-    // 1. Context 및 Platform 관련 변수
+    // Context and platform-related variables
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
-    // 2. ViewModel 인스턴스
+    // ViewModel instance
     val addTagViewModel: AddTagViewModel = hiltViewModel()
 
-    // 3. ViewModel에서 가져온 상태 (collectAsState)
+    // State collected from ViewModel
     val tagName by addTagViewModel.tagName.collectAsState()
     val selectedPhotos by addTagViewModel.selectedPhotos.collectAsState()
     val saveState by addTagViewModel.saveState.collectAsState()
     val isTagNameDuplicate by addTagViewModel.isTagNameDuplicate.collectAsState()
 
-    // 4. 로컬 상태 변수
+    // Local state variables
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
 
-    // 5. ActivityResultLauncher
+    // Permission launcher
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -109,13 +110,13 @@ fun AddTagScreen(navController: NavController) {
             },
         )
 
-    // 6. 콜백 함수 정의
+    // Callback functions
     val onDeselectPhoto: (Photo) -> Unit = { photo ->
         isChanged = true
         addTagViewModel.removePhoto(photo)
     }
 
-    // 7. LaunchedEffect
+    // Request permissions on first launch
     LaunchedEffect(key1 = true) {
         val permission =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -141,7 +142,7 @@ fun AddTagScreen(navController: NavController) {
         }
     }
 
-    // 8. BackHandler
+    // Handle back button
     BackHandler {
         addTagViewModel.clearDraft()
         navController.popBackStack()
@@ -150,7 +151,7 @@ fun AddTagScreen(navController: NavController) {
     Scaffold(
         topBar = {
             BackTopBar(
-                title = "Create Tag",
+                title = stringResource(R.string.tag_create_title),
                 onBackClick = {
                     addTagViewModel.clearDraft()
                     navController.popBackStack()
@@ -211,7 +212,7 @@ fun AddTagScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp),
+                            .padding(horizontal = Dimen.FormScreenHorizontalPadding),
                 ) {
                     // Tag Name Section
                     TagNameSection(
@@ -220,16 +221,21 @@ fun AddTagScreen(navController: NavController) {
                         isDuplicate = isTagNameDuplicate,
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     // Added Pictures Section
                     Text(
-                        text = if (selectedPhotos.isEmpty()) "Photos" else "Photos (${selectedPhotos.size})",
+                        text =
+                            if (selectedPhotos.isEmpty()) {
+                                stringResource(R.string.tag_photos_label)
+                            } else {
+                                stringResource(R.string.tag_photos_count, selectedPhotos.size)
+                            },
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
                     if (hasPermission) {
                         SelectedPhotosGrid(
@@ -249,19 +255,28 @@ fun AddTagScreen(navController: NavController) {
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                            .padding(horizontal = Dimen.FormScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
                 ) {
                     // Error Banner - Floating above Done button
                     if (isErrorBannerVisible && saveState is AddTagViewModel.SaveState.Error) {
+                        val errorState = saveState as AddTagViewModel.SaveState.Error
+                        val errorMessage =
+                            when (errorState.error) {
+                                AddTagViewModel.AddTagError.NetworkError -> stringResource(R.string.error_message_network)
+                                AddTagViewModel.AddTagError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                                AddTagViewModel.AddTagError.EmptyName -> stringResource(R.string.validation_required_tag_name)
+                                AddTagViewModel.AddTagError.NoPhotos -> stringResource(R.string.help_select_photos)
+                                AddTagViewModel.AddTagError.UnknownError -> stringResource(R.string.error_message_save_tag)
+                            }
                         WarningBanner(
-                            title = "Couldn't save tag",
-                            message = (saveState as AddTagViewModel.SaveState.Error).message,
+                            title = stringResource(R.string.error_message_save_tag),
+                            message = errorMessage,
                             onActionClick = { },
                             onDismiss = { isErrorBannerVisible = false },
                             showActionButton = false,
                             showDismissButton = true,
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                     }
 
                     // Done Button
@@ -273,7 +288,7 @@ fun AddTagScreen(navController: NavController) {
                             onClick = {
                                 addTagViewModel.saveTagAndPhotos()
                             },
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                             colors =
                                 ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
@@ -284,16 +299,16 @@ fun AddTagScreen(navController: NavController) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(52.dp)
+                                    .height(Dimen.ButtonHeightLarge)
                                     .shadow(
-                                        elevation = if (canSubmit) 6.dp else 2.dp,
-                                        shape = RoundedCornerShape(24.dp),
+                                        elevation = if (canSubmit) Dimen.ButtonShadowElevation else Dimen.ButtonDisabledShadowElevation,
+                                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
                                         clip = false,
                                     ),
                             enabled = canSubmit,
                         ) {
                             Text(
-                                "Done",
+                                stringResource(R.string.action_done),
                                 style = MaterialTheme.typography.labelLarge,
                             )
                         }
@@ -312,14 +327,14 @@ fun AddTagScreen(navController: NavController) {
                         CircularProgressIndicator(
                             modifier =
                                 Modifier
-                                    .size(56.dp)
+                                    .size(Dimen.BottomNavBarHeight)
                                     .shadow(
-                                        elevation = 8.dp,
+                                        elevation = Dimen.BottomNavShadowElevation,
                                         shape = CircleShape,
                                         clip = false,
                                     ),
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 5.dp,
+                            strokeWidth = Dimen.CircularProgressStrokeWidthBig,
                         )
                     }
                 }
@@ -343,17 +358,28 @@ private fun TagNameSection(
             textStyle = MaterialTheme.typography.headlineSmall,
             placeholder = {
                 Text(
-                    "Enter tag name",
+                    stringResource(R.string.field_enter_tag_name),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 )
             },
             leadingIcon = {
                 Text(
-                    text = "#",
+                    text = stringResource(R.string.add_tag_hash_prefix),
                     style = MaterialTheme.typography.headlineSmall,
                 )
             },
+            supportingText =
+                if (!isDuplicate && tagName.isEmpty()) {
+                    {
+                        Text(
+                            text = stringResource(R.string.help_tag_name),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                } else {
+                    null
+                },
             colors =
                 TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -367,10 +393,10 @@ private fun TagNameSection(
         )
         if (isDuplicate) {
             Text(
-                text = "The tag '$tagName' already exists. This will add photos to it.",
+                text = stringResource(R.string.validation_tag_exists, tagName),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = Dimen.ErrorMessagePadding),
             )
         }
     }
@@ -385,10 +411,10 @@ private fun SelectedPhotosGrid(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
         modifier = modifier,
-        contentPadding = PaddingValues(bottom = 8.dp),
+        contentPadding = PaddingValues(bottom = Dimen.ItemSpacingSmall),
     ) {
         // Add Picture Button - Always first
         item {
@@ -418,13 +444,13 @@ private fun PhotoItem(
     Box(
         modifier =
             modifier
-                .clip(RoundedCornerShape(imageCornerRadius))
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .clickable(onClick = onClick),
     ) {
         AsyncImage(
             model = photo.contentUri,
-            contentDescription = "Photo ${photo.photoId}",
+            contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -443,9 +469,9 @@ private fun CheckboxOverlay(
     Box(
         modifier =
             modifier
-                .padding(4.dp)
-                .size(24.dp)
-                .clip(RoundedCornerShape(imageCornerRadius))
+                .padding(Dimen.GridItemSpacing)
+                .size(Dimen.IconButtonSizeSmall)
+                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                 .background(
                     if (isSelected) {
                         MaterialTheme.colorScheme.primaryContainer
@@ -458,7 +484,7 @@ private fun CheckboxOverlay(
         if (isSelected) {
             StandardIcon.Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.cd_photo_selected),
                 sizeRole = IconSizeRole.InlineAction,
                 intent = IconIntent.OnPrimaryContainer,
             )

@@ -39,7 +39,7 @@ class AlbumViewModel
             ) : AlbumLoadingState()
 
             data class Error(
-                val message: String,
+                val error: AlbumError,
             ) : AlbumLoadingState()
         }
 
@@ -53,7 +53,7 @@ class AlbumViewModel
             ) : RecommendLoadingState()
 
             data class Error(
-                val message: String,
+                val error: AlbumError,
             ) : RecommendLoadingState()
         }
 
@@ -65,7 +65,7 @@ class AlbumViewModel
             object Success : TagDeleteState()
 
             data class Error(
-                val message: String,
+                val error: AlbumError,
             ) : TagDeleteState()
         }
 
@@ -77,7 +77,7 @@ class AlbumViewModel
             object Success : TagRenameState()
 
             data class Error(
-                val message: String,
+                val error: AlbumError,
             ) : TagRenameState()
         }
 
@@ -89,8 +89,18 @@ class AlbumViewModel
             object Success : TagAddState()
 
             data class Error(
-                val message: String,
+                val error: AlbumError,
             ) : TagAddState()
+        }
+
+        sealed class AlbumError {
+            object NetworkError : AlbumError()
+
+            object Unauthorized : AlbumError()
+
+            object NotFound : AlbumError()
+
+            object UnknownError : AlbumError()
         }
 
         // 2. Private MutableStateFlow
@@ -131,19 +141,19 @@ class AlbumViewModel
                         loadRecommendations(tagId)
                     }
                     is RemoteRepository.Result.Error -> {
-                        _albumLoadingState.value = AlbumLoadingState.Error(result.message)
+                        _albumLoadingState.value = AlbumLoadingState.Error(AlbumError.UnknownError)
                     }
                     is RemoteRepository.Result.Unauthorized -> {
-                        _albumLoadingState.value = AlbumLoadingState.Error("Please login again")
+                        _albumLoadingState.value = AlbumLoadingState.Error(AlbumError.Unauthorized)
                     }
                     is RemoteRepository.Result.NetworkError -> {
-                        _albumLoadingState.value = AlbumLoadingState.Error(result.message)
+                        _albumLoadingState.value = AlbumLoadingState.Error(AlbumError.NetworkError)
                     }
                     is RemoteRepository.Result.BadRequest -> {
-                        _albumLoadingState.value = AlbumLoadingState.Error(result.message)
+                        _albumLoadingState.value = AlbumLoadingState.Error(AlbumError.UnknownError)
                     }
                     is RemoteRepository.Result.Exception -> {
-                        _albumLoadingState.value = AlbumLoadingState.Error(result.e.message ?: "Unknown error")
+                        _albumLoadingState.value = AlbumLoadingState.Error(AlbumError.UnknownError)
                     }
                 }
             }
@@ -159,16 +169,16 @@ class AlbumViewModel
                         _recommendLoadingState.value = RecommendLoadingState.Success(photos)
                     }
                     is RecommendRepository.RecommendResult.Error -> {
-                        _recommendLoadingState.value = RecommendLoadingState.Error(result.message)
+                        _recommendLoadingState.value = RecommendLoadingState.Error(AlbumError.UnknownError)
                     }
                     is RecommendRepository.RecommendResult.Unauthorized -> {
-                        _recommendLoadingState.value = RecommendLoadingState.Error("Please login again")
+                        _recommendLoadingState.value = RecommendLoadingState.Error(AlbumError.Unauthorized)
                     }
                     is RecommendRepository.RecommendResult.NetworkError -> {
-                        _recommendLoadingState.value = RecommendLoadingState.Error(result.message)
+                        _recommendLoadingState.value = RecommendLoadingState.Error(AlbumError.NetworkError)
                     }
                     is RecommendRepository.RecommendResult.BadRequest -> {
-                        _recommendLoadingState.value = RecommendLoadingState.Error(result.message)
+                        _recommendLoadingState.value = RecommendLoadingState.Error(AlbumError.UnknownError)
                     }
                 }
             }
@@ -223,7 +233,7 @@ class AlbumViewModel
                         }
 
                     if (actualPhotoId == null) {
-                        _tagDeleteState.value = TagDeleteState.Error("Photo not found in backend")
+                        _tagDeleteState.value = TagDeleteState.Error(AlbumError.NotFound)
                         return@launch // exit for one or more error
                     }
 
@@ -233,28 +243,28 @@ class AlbumViewModel
                         }
 
                         is RemoteRepository.Result.Error -> {
-                            _tagDeleteState.value = TagDeleteState.Error(result.message)
+                            _tagDeleteState.value = TagDeleteState.Error(AlbumError.UnknownError)
                             return@launch
                         }
 
                         is RemoteRepository.Result.Unauthorized -> {
-                            _tagDeleteState.value = TagDeleteState.Error(result.message)
+                            _tagDeleteState.value = TagDeleteState.Error(AlbumError.Unauthorized)
                             return@launch
                         }
 
                         is RemoteRepository.Result.BadRequest -> {
-                            _tagDeleteState.value = TagDeleteState.Error(result.message)
+                            _tagDeleteState.value = TagDeleteState.Error(AlbumError.UnknownError)
                             return@launch
                         }
 
                         is RemoteRepository.Result.NetworkError -> {
-                            _tagDeleteState.value = TagDeleteState.Error(result.message)
+                            _tagDeleteState.value = TagDeleteState.Error(AlbumError.NetworkError)
                             return@launch
                         }
 
                         is RemoteRepository.Result.Exception -> {
                             _tagDeleteState.value =
-                                TagDeleteState.Error(result.e.message ?: "Unknown error")
+                                TagDeleteState.Error(AlbumError.UnknownError)
                             return@launch
                         }
                     }
@@ -306,30 +316,30 @@ class AlbumViewModel
                     is RemoteRepository.Result.Success -> {
                         returnTagId = result.data.id
                         if (returnTagId != tagId) {
-                            _tagRenameState.value = TagRenameState.Error("Rename failed: Returned tag id is different")
+                            _tagRenameState.value = TagRenameState.Error(AlbumError.UnknownError)
                         } else {
                             _tagRenameState.value = TagRenameState.Success
                         }
                     }
 
                     is RemoteRepository.Result.Error -> {
-                        _tagRenameState.value = TagRenameState.Error(result.message)
+                        _tagRenameState.value = TagRenameState.Error(AlbumError.UnknownError)
                     }
 
                     is RemoteRepository.Result.Unauthorized -> {
-                        _tagRenameState.value = TagRenameState.Error(result.message)
+                        _tagRenameState.value = TagRenameState.Error(AlbumError.Unauthorized)
                     }
 
                     is RemoteRepository.Result.BadRequest -> {
-                        _tagRenameState.value = TagRenameState.Error(result.message)
+                        _tagRenameState.value = TagRenameState.Error(AlbumError.UnknownError)
                     }
 
                     is RemoteRepository.Result.NetworkError -> {
-                        _tagRenameState.value = TagRenameState.Error(result.message)
+                        _tagRenameState.value = TagRenameState.Error(AlbumError.NetworkError)
                     }
 
                     is RemoteRepository.Result.Exception -> {
-                        _tagRenameState.value = TagRenameState.Error(result.e.message ?: "Unknown error")
+                        _tagRenameState.value = TagRenameState.Error(AlbumError.UnknownError)
                     }
                 }
             }
@@ -358,7 +368,7 @@ class AlbumViewModel
                         }
 
                     if (actualPhotoId == null) {
-                        _tagAddState.value = TagAddState.Error("Convert Photo Id Error")
+                        _tagAddState.value = TagAddState.Error(AlbumError.UnknownError)
                         continue
                     }
 
@@ -372,23 +382,23 @@ class AlbumViewModel
                         }
 
                         is RemoteRepository.Result.Error -> {
-                            _tagAddState.value = TagAddState.Error(result.message)
+                            _tagAddState.value = TagAddState.Error(AlbumError.UnknownError)
                         }
 
                         is RemoteRepository.Result.Unauthorized -> {
-                            _tagAddState.value = TagAddState.Error(result.message)
+                            _tagAddState.value = TagAddState.Error(AlbumError.Unauthorized)
                         }
 
                         is RemoteRepository.Result.BadRequest -> {
-                            _tagAddState.value = TagAddState.Error(result.message)
+                            _tagAddState.value = TagAddState.Error(AlbumError.UnknownError)
                         }
 
                         is RemoteRepository.Result.NetworkError -> {
-                            _tagAddState.value = TagAddState.Error(result.message)
+                            _tagAddState.value = TagAddState.Error(AlbumError.NetworkError)
                         }
 
                         is RemoteRepository.Result.Exception -> {
-                            _tagAddState.value = TagAddState.Error(result.e.message ?: "Unknown error")
+                            _tagAddState.value = TagAddState.Error(AlbumError.UnknownError)
                         }
                     }
                 }
