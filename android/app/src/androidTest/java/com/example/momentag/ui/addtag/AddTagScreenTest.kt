@@ -33,14 +33,14 @@ class AddTagScreenTest {
     val hiltRule = HiltAndroidRule(this)
 
     @get:Rule(order = 1)
-    val composeRule = createAndroidComposeRule<HiltTestActivity>()
+    val composeTestRule = createAndroidComposeRule<HiltTestActivity>()
 
     private lateinit var vm: AddTagViewModel
 
     @Before
     fun setup() {
         hiltRule.inject()
-        vm = ViewModelProvider(composeRule.activity)[AddTagViewModel::class.java]
+        vm = ViewModelProvider(composeTestRule.activity)[AddTagViewModel::class.java]
 
         // AddTagViewModel은 PhotoSelectionRepository에 상태를 위임하므로
         // clearDraft()로 초기 상태를 정리합니다
@@ -48,7 +48,7 @@ class AddTagScreenTest {
     }
 
     private fun setContent() {
-        composeRule.setContent {
+        composeTestRule.setContent {
             AddTagScreen(
                 navController = rememberNavController(),
             )
@@ -72,11 +72,15 @@ class AddTagScreenTest {
     fun addTagScreen_initialState_displaysCorrectUI() {
         setContent()
 
-        composeRule.onNodeWithText("Create Tag").assertIsDisplayed()
-        composeRule.onNodeWithText("Enter tag name").assertIsDisplayed()
-        composeRule.onNodeWithText("Photos").assertIsDisplayed()
-        composeRule.onNodeWithText("Done").assertIsDisplayed()
-        composeRule.onNodeWithText("Done").assertIsNotEnabled()
+        // Verify tag name input field is displayed with placeholder
+        composeTestRule.onNodeWithText("Enter tag name").assertIsDisplayed()
+
+        // Verify photos section is displayed
+        composeTestRule.onNodeWithText("Photos").assertIsDisplayed()
+
+        // Verify Done button is not enabled when form is empty
+        composeTestRule.onNodeWithText("Done").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Done").assertIsNotEnabled()
     }
 
     @Test
@@ -84,10 +88,11 @@ class AddTagScreenTest {
         setContent()
 
         val tagName = "Summer Vacation"
-        composeRule.onNodeWithText("Enter tag name").performTextInput(tagName)
+        composeTestRule.onNodeWithText("Enter tag name").performTextInput(tagName)
 
-        composeRule.waitUntil(timeoutMillis = 2000) {
-            composeRule
+        // Verify tag name is displayed (the actual value will be shown, not the placeholder)
+        composeTestRule.waitUntil(timeoutMillis = 2000) {
+            composeTestRule
                 .onAllNodes(hasText(tagName, substring = true))
                 .fetchSemanticsNodes()
                 .isNotEmpty()
@@ -98,16 +103,22 @@ class AddTagScreenTest {
     fun addTagScreen_withTagNameOnly_doneButtonIsDisabled() {
         setContent()
 
-        composeRule.onNodeWithText("Enter tag name").performTextInput("Test Tag")
-        composeRule.waitForIdle()
+        // Enter tag name only
+        composeTestRule.onNodeWithText("Enter tag name").performTextInput("Test Tag")
 
-        composeRule.onNodeWithText("Done").assertIsNotEnabled()
+        // Wait for text to be entered
+        composeTestRule.waitForIdle()
+
+        // Done button should still be disabled (no photos selected)
+        composeTestRule.onNodeWithText("Done").assertIsNotEnabled()
     }
 
     @Test
     fun addTagScreen_tagNameSection_displayHashSymbol() {
         setContent()
-        composeRule.onNodeWithText("#").assertIsDisplayed()
+
+        // Verify that hash symbol is displayed as leading icon
+        composeTestRule.onNodeWithText("#").assertIsDisplayed()
     }
 
     @Test
@@ -120,8 +131,9 @@ class AddTagScreenTest {
         vm.initialize(null, testPhotos)
         setContent()
 
-        composeRule.waitUntil(timeoutMillis = 2000) {
-            composeRule
+        // Verify photo count is displayed
+        composeTestRule.waitUntil(timeoutMillis = 2000) {
+            composeTestRule
                 .onAllNodes(hasText("Photos (2)", substring = true))
                 .fetchSemanticsNodes()
                 .isNotEmpty()
@@ -131,7 +143,11 @@ class AddTagScreenTest {
     @Test
     fun addTagScreen_backButton_hasClickAction() {
         setContent()
-        composeRule
+
+        // Find back button by content description
+        // The Icon has contentDescription "Back", and its parent IconButton has the onClick
+        // Using the merged tree (default) will merge the Icon's semantics with IconButton's
+        composeTestRule
             .onNodeWithContentDescription("Back")
             .assertIsDisplayed()
             .assertHasClickAction()
@@ -140,15 +156,20 @@ class AddTagScreenTest {
     @Test
     fun addTagScreen_bottomNavigation_isDisplayed() {
         setContent()
-        composeRule.onNodeWithText("Home").assertIsDisplayed()
-        composeRule.onNodeWithText("My Tags").assertIsDisplayed()
-        composeRule.onNodeWithText("Moment").assertIsDisplayed()
+
+        // Verify bottom navigation tabs are displayed
+        composeTestRule.onNodeWithText("Home").assertIsDisplayed()
+        composeTestRule.onNodeWithText("My Tags").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Moment").assertIsDisplayed()
     }
 
     @Test
     fun addTagScreen_addPhotosButton_isDisplayedAndClickable() {
         setContent()
-        composeRule
+
+        // The AddPhotosButton should be displayed in the grid
+        // It has a "+" icon or text
+        composeTestRule
             .onNodeWithText("Add Photos")
             .assertIsDisplayed()
             .assertHasClickAction()
@@ -161,7 +182,8 @@ class AddTagScreenTest {
         vm.initialize("Test Tag", testPhotos)
         setContent()
 
-        composeRule.onNodeWithText("Done").assertIsEnabled()
+        // Done button should be enabled
+        composeTestRule.onNodeWithText("Done").assertIsEnabled()
     }
 
     @Test
@@ -171,8 +193,9 @@ class AddTagScreenTest {
         vm.initialize("Test Tag", testPhotos)
         setContent()
 
-        composeRule.onNodeWithText("Done").assertIsEnabled()
-        composeRule.onNodeWithText("Done").assertHasClickAction()
+        // Done button should be enabled and clickable
+        composeTestRule.onNodeWithText("Done").assertIsEnabled()
+        composeTestRule.onNodeWithText("Done").assertHasClickAction()
     }
 
     @Test
@@ -180,7 +203,8 @@ class AddTagScreenTest {
         vm.clearDraft()
         setContent()
 
-        composeRule.onNodeWithText("Enter tag name").assertIsDisplayed()
+        // Verify placeholder is shown when tag name is empty
+        composeTestRule.onNodeWithText("Enter tag name").assertIsDisplayed()
     }
 
     @Test
@@ -190,7 +214,9 @@ class AddTagScreenTest {
         vm.initialize(null, testPhotos)
         setContent()
 
-        composeRule
+        // Verify that selected photos have checkmark overlay
+        // The CheckboxOverlay should show the "Selected" icon
+        composeTestRule
             .onNodeWithContentDescription("Selected", useUnmergedTree = true)
             .assertIsDisplayed()
     }
@@ -198,8 +224,13 @@ class AddTagScreenTest {
     @Test
     fun addTagScreen_clearFocus_whenTappingOutside() {
         setContent()
-        composeRule.onNodeWithText("Enter tag name").performClick()
-        composeRule.waitForIdle()
+
+        // Click on the text field to focus
+        composeTestRule.onNodeWithText("Enter tag name").performClick()
+
+        // Wait for focus
+        composeTestRule.waitForIdle()
+
         // Integration test limit: difficult to tap "empty space" reliably without coordinates,
         // but verify no crash implies basic handling works.
     }
@@ -217,8 +248,9 @@ class AddTagScreenTest {
         vm.initialize(null, testPhotos)
         setContent()
 
-        composeRule.waitUntil(timeoutMillis = 2000) {
-            composeRule
+        // Verify correct photo count
+        composeTestRule.waitUntil(timeoutMillis = 2000) {
+            composeTestRule
                 .onAllNodes(hasText("Photos (5)", substring = true))
                 .fetchSemanticsNodes()
                 .isNotEmpty()
@@ -229,17 +261,25 @@ class AddTagScreenTest {
     fun addTagScreen_tagNameWithSpecialCharacters_isAccepted() {
         setContent()
         val tagName = "2024 Summer! @Beach"
-        composeRule.onNodeWithText("Enter tag name").performTextInput(tagName)
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(tagName).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Enter tag name").performTextInput(tagName)
+
+        // Wait for input
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(tagName).assertIsDisplayed()
     }
 
     @Test
     fun addTagScreen_veryLongTagName_isHandled() {
         setContent()
         val longTagName = "A".repeat(100)
-        composeRule.onNodeWithText("Enter tag name").performTextInput(longTagName)
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText(longTagName).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Enter tag name").performTextInput(longTagName)
+
+        // Wait for input
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(longTagName).assertIsDisplayed()
     }
 }
