@@ -2,6 +2,12 @@ package com.example.momentag.ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -39,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
@@ -124,9 +131,12 @@ fun TagChip(
                     )
                 }
             }
-
             is TagVariant.CloseWhen -> {
-                AnimatedVisibility(visible = variant.isDeleteMode) {
+                AnimatedVisibility(
+                    visible = variant.isDeleteMode,
+                    enter = fadeIn(animationSpec = Animation.shortTween()) + scaleIn(animationSpec = Animation.shortTween()),
+                    exit = fadeOut(animationSpec = Animation.shortTween()) + scaleOut(animationSpec = Animation.shortTween()),
+                ) {
                     IconButton(
                         onClick = variant.onDismiss,
                         modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
@@ -191,6 +201,7 @@ fun tagRecommended(
  * 태그와 개수를 함께 보여주는 컴포넌트 (MyTags 화면용)
  * 롱프레스 시 개별 수정 모드로 확장되며, 가로 길이 변화를 최소화하고 카운트를 숨김
  */
+
 @Composable
 fun TagChipWithCount(
     tagName: String,
@@ -229,23 +240,29 @@ fun TagChipWithCount(
                 }.padding(
                     horizontal = if (isEditMode) Dimen.CountTagEditHorizontalPadding else Dimen.CountTagEditHorizontalPadding * 2,
                     vertical = Dimen.TagChipVerticalPadding,
-                ),
+                ).animateContentSize(animationSpec = Animation.mediumTween()),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 왼쪽: Edit 모드일 때 연필 아이콘 표시 (수정/확인)
-        if (isEditMode && onEdit != null) {
-            IconButton(
-                onClick = onEdit,
-                modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
-            ) {
-                StandardIcon.Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit Tag",
-                    sizeRole = IconSizeRole.InlineAction,
-                    intent = IconIntent.Inverse,
-                )
+        AnimatedVisibility(
+            visible = isEditMode && onEdit != null,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
+        ) {
+            Row {
+                IconButton(
+                    onClick = onEdit!!,
+                    modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
+                ) {
+                    StandardIcon.Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Tag",
+                        sizeRole = IconSizeRole.InlineAction,
+                        intent = IconIntent.Inverse,
+                    )
+                }
+                Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
             }
-            Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
         }
 
         Text(
@@ -258,57 +275,74 @@ fun TagChipWithCount(
             onTextLayout = { textLayoutResult -> textOverflow = textLayoutResult.hasVisualOverflow },
         )
 
-        // Edit 모드가 아닐 때만 카운트 표시
-        if (!isEditMode) {
-            Spacer(modifier = Modifier.width(Dimen.TagChipWithCountSpacer))
-
-            // showCheckbox가 true면 체크박스, 아니면 카운트
-            if (showCheckbox) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(Dimen.IconButtonsSizeXSmall)
-                            .clip(CircleShape)
-                            .background(
-                                if (isChecked) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-                                },
-                            ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isChecked) {
-                        StandardIcon.Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Checked",
-                            sizeRole = IconSizeRole.ChipAction,
-                            tintOverride = color,
+        AnimatedContent(
+            targetState = isEditMode,
+            transitionSpec = {
+                (fadeIn(animationSpec = Animation.shortTween()) + scaleIn(initialScale = 0.8f))
+                    .togetherWith(fadeOut(animationSpec = Animation.shortTween()) + scaleOut(targetScale = 0.8f))
+            },
+            label = "TagChipContent",
+        ) { isEditing ->
+            if (isEditing) {
+                // In edit mode, nothing is shown here
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(modifier = Modifier.width(Dimen.TagChipWithCountSpacer))
+                    // showCheckbox가 true면 체크박스, 아니면 카운트
+                    if (showCheckbox) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(Dimen.IconButtonsSizeXSmall)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isChecked) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+                                        },
+                                    ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (isChecked) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Checked",
+                                    sizeRole = IconSizeRole.ChipAction,
+                                    tintOverride = color,
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = count.toString(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
                         )
                     }
                 }
-            } else {
-                Text(
-                    text = count.toString(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                )
             }
         }
 
         // 오른쪽: Edit 모드일 때 휴지통 아이콘 표시 (삭제/취소)
-        if (isEditMode && onDelete != null) {
-            Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
-            ) {
-                StandardIcon.Icon(
-                    imageVector = Icons.AutoMirrored.Filled.LabelOff,
-                    contentDescription = "UnTag",
-                    sizeRole = IconSizeRole.InlineAction,
-                    intent = IconIntent.Inverse,
-                )
+        AnimatedVisibility(
+            visible = isEditMode && onDelete != null,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
+        ) {
+            Row {
+                Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
+                IconButton(
+                    onClick = onDelete!!,
+                    modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
+                ) {
+                    StandardIcon.Icon(
+                        imageVector = Icons.AutoMirrored.Filled.LabelOff,
+                        contentDescription = "UnTag",
+                        sizeRole = IconSizeRole.InlineAction,
+                        intent = IconIntent.Inverse,
+                    )
+                }
             }
         }
     }
@@ -394,6 +428,18 @@ fun CustomTagChip(
     // 13. UI (AnimatedContent)
     AnimatedContent(
         targetState = isExpanded,
+        transitionSpec = {
+            (
+                fadeIn(
+                    animationSpec = Animation.mediumTween(),
+                ) +
+                    scaleIn(initialScale = 0.9f, animationSpec = Animation.mediumTween())
+            ).togetherWith(
+                fadeOut(
+                    animationSpec = Animation.mediumTween(),
+                ) + scaleOut(targetScale = 0.9f, animationSpec = Animation.mediumTween()),
+            )
+        },
         label = "expand_collapse",
         modifier = modifier,
     ) { expanded ->

@@ -6,7 +6,10 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +63,7 @@ import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
@@ -173,24 +177,34 @@ fun LocalAlbumScreen(
                     )
                 },
                 navigationIcon = {
-                    if (isSelectionMode) {
-                        IconButton(onClick = {
-                            isSelectionMode = false
-                            localViewModel.clearPhotoSelection()
-                        }) {
-                            StandardIcon.Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = stringResource(R.string.cd_cancel_selection),
-                                sizeRole = IconSizeRole.DefaultAction,
-                            )
-                        }
-                    } else {
-                        IconButton(onClick = onNavigateBack) {
-                            StandardIcon.Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.cd_navigate_back),
-                                sizeRole = IconSizeRole.Navigation,
-                            )
+                    AnimatedContent(
+                        targetState = isSelectionMode,
+                        transitionSpec = {
+                            (Animation.DefaultFadeIn)
+                                .togetherWith(Animation.DefaultFadeOut)
+                                .using(SizeTransform(clip = false))
+                        },
+                        label = "TopAppBarNavIcon",
+                    ) { selectionMode ->
+                        if (selectionMode) {
+                            IconButton(onClick = {
+                                isSelectionMode = false
+                                localViewModel.clearPhotoSelection()
+                            }) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.cd_cancel_selection),
+                                    sizeRole = IconSizeRole.DefaultAction,
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = onNavigateBack) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.cd_navigate_back),
+                                    sizeRole = IconSizeRole.Navigation,
+                                )
+                            }
                         }
                     }
                 },
@@ -201,27 +215,47 @@ fun LocalAlbumScreen(
             )
         },
         floatingActionButton = {
-            if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = isSelectionMode && selectedPhotos.isNotEmpty(),
+                enter = Animation.EnterFromBottom,
+                exit = Animation.ExitToBottom,
+            ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        if (uploadState.isLoading) {
-                            Text(stringResource(R.string.banner_upload_check_notification))
-                        } else {
-                            Text(stringResource(R.string.photos_upload_selected_photos, selectedPhotos.size))
+                        AnimatedContent(
+                            targetState = uploadState.isLoading,
+                            transitionSpec = {
+                                (Animation.DefaultFadeIn).togetherWith(Animation.DefaultFadeOut)
+                            },
+                            label = "FabText",
+                        ) { isLoading ->
+                            if (isLoading) {
+                                Text(stringResource(R.string.banner_upload_check_notification))
+                            } else {
+                                Text(stringResource(R.string.photos_upload_selected_photos, selectedPhotos.size))
+                            }
                         }
                     },
                     icon = {
-                        if (uploadState.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
-                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                            )
-                        } else {
-                            StandardIcon.Icon(
-                                imageVector = Icons.Default.Upload,
-                                contentDescription = stringResource(R.string.cd_upload),
-                                sizeRole = IconSizeRole.DefaultAction,
-                            )
+                        AnimatedContent(
+                            targetState = uploadState.isLoading,
+                            transitionSpec = {
+                                (Animation.DefaultFadeIn).togetherWith(Animation.DefaultFadeOut)
+                            },
+                            label = "FabIcon",
+                        ) { isLoading ->
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                                )
+                            } else {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Upload,
+                                    contentDescription = stringResource(R.string.cd_upload),
+                                    sizeRole = IconSizeRole.DefaultAction,
+                                )
+                            }
                         }
                     },
                     onClick = {
@@ -268,7 +302,11 @@ fun LocalAlbumScreen(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
 
-                AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
+                AnimatedVisibility(
+                    visible = isErrorBannerVisible && errorMessage != null,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
                     WarningBanner(
                         modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                         title = stringResource(R.string.notification_upload_failed),

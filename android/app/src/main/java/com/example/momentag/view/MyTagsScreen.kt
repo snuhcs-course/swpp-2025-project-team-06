@@ -84,6 +84,7 @@ import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.RenameTagDialog
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
@@ -252,7 +253,11 @@ fun MyTagsScreen(navController: NavController) {
                             .fillMaxWidth(),
                 ) {
                     // Error Banner
-                    if (isErrorBannerVisible && saveState is MyTagsViewModel.SaveState.Error) {
+                    AnimatedVisibility(
+                        visible = isErrorBannerVisible && saveState is MyTagsViewModel.SaveState.Error,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         WarningBanner(
                             title = stringResource(R.string.error_title_save_failed),
                             message = stringResource((saveState as MyTagsViewModel.SaveState.Error).error.toMessageResId()),
@@ -264,7 +269,11 @@ fun MyTagsScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                     }
 
-                    AnimatedVisibility(visible = isSelectingForPhotos) {
+                    AnimatedVisibility(
+                        visible = isSelectingForPhotos,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         Box(
                             modifier =
                                 Modifier
@@ -317,7 +326,11 @@ fun MyTagsScreen(navController: NavController) {
                         )
                     }
 
-                    AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
+                    AnimatedVisibility(
+                        visible = isErrorBannerVisible && errorMessage != null,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         WarningBanner(
                             modifier =
                                 Modifier
@@ -455,7 +468,11 @@ fun MyTagsScreen(navController: NavController) {
         }
 
         // Full Screen Loading Overlay
-        if (saveState == MyTagsViewModel.SaveState.Loading) {
+        AnimatedVisibility(
+            visible = saveState == MyTagsViewModel.SaveState.Loading,
+            enter = Animation.DefaultFadeIn,
+            exit = Animation.DefaultFadeOut,
+        ) {
             Box(
                 modifier =
                     Modifier

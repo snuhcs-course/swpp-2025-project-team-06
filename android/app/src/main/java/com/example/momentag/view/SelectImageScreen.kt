@@ -6,12 +6,11 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -86,6 +85,7 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
@@ -408,20 +408,8 @@ fun SelectImageScreen(navController: NavController) {
             // AI Recommendation Section - 축소/확장 가능
             AnimatedVisibility(
                 visible = !isRecommendationExpanded,
-                enter =
-                    fadeIn(
-                        tween(300),
-                    ) +
-                        expandVertically(
-                            tween(300),
-                        ),
-                exit =
-                    fadeOut(
-                        tween(300),
-                    ) +
-                        shrinkVertically(
-                            tween(300),
-                        ),
+                enter = Animation.DefaultFadeIn + expandVertically(animationSpec = Animation.mediumTween()),
+                exit = Animation.DefaultFadeOut + shrinkVertically(animationSpec = Animation.mediumTween()),
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
@@ -434,27 +422,32 @@ fun SelectImageScreen(navController: NavController) {
                 )
             }
 
-            if (isRecommendationExpanded) {
-                Box(
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                ) {
-                    // 확장 상태: 하단 패널
-                    RecommendExpandedPanel(
-                        recommendState = recommendState,
-                        recommendedPhotos = recommendedPhotos,
-                        onPhotoClick = onRecommendedPhotoClick,
-                        onRetry = { selectImageViewModel.recommendPhoto() },
-                        panelHeight = panelHeight,
-                        onHeightChange = { delta ->
-                            panelHeight = (panelHeight - delta).coerceIn(minHeight, maxHeight)
-                        },
-                        onCollapse = { isRecommendationExpanded = false },
-                    )
-                }
+            AnimatedVisibility(
+                visible = isRecommendationExpanded,
+                enter = Animation.EnterFromBottom,
+                exit = Animation.ExitToBottom,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                // 확장 상태: 하단 패널
+                RecommendExpandedPanel(
+                    recommendState = recommendState,
+                    recommendedPhotos = recommendedPhotos,
+                    onPhotoClick = onRecommendedPhotoClick,
+                    onRetry = { selectImageViewModel.recommendPhoto() },
+                    panelHeight = panelHeight,
+                    onHeightChange = { delta ->
+                        panelHeight = (panelHeight - delta).coerceIn(minHeight, maxHeight)
+                    },
+                    onCollapse = { isRecommendationExpanded = false },
+                )
             }
 
             // Done Button - AI Recommendation이 확장되지 않았을 때만 표시
-            if (!isRecommendationExpanded) {
+            AnimatedVisibility(
+                visible = !isRecommendationExpanded,
+                enter = Animation.EnterFromBottom,
+                exit = Animation.ExitToBottom,
+            ) {
                 Button(
                     onClick = {
                         if (selectImageViewModel.isAddingToExistingTag()) {
@@ -494,17 +487,25 @@ fun SelectImageScreen(navController: NavController) {
                             ),
                     enabled = selectedPhotos.isNotEmpty() && addPhotosState !is SelectImageViewModel.AddPhotosState.Loading,
                 ) {
-                    if (addPhotosState is SelectImageViewModel.AddPhotosState.Loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(Dimen.IconButtonSizeSmall),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.tag_add_to_tag),
-                            style = MaterialTheme.typography.labelLarge,
-                        )
+                    AnimatedContent(
+                        targetState = addPhotosState is SelectImageViewModel.AddPhotosState.Loading,
+                        transitionSpec = {
+                            (Animation.DefaultFadeIn).togetherWith(Animation.DefaultFadeOut)
+                        },
+                        label = "DoneButtonContent",
+                    ) { isLoading ->
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.tag_add_to_tag),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
                     }
                 }
             }

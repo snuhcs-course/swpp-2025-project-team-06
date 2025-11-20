@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -82,6 +83,7 @@ import com.example.momentag.ui.components.ConfirmableRecommendedTag
 import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.tagXMode
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import kotlinx.coroutines.Job
@@ -517,7 +519,11 @@ fun ImageDetailScreen(
             }
         },
         topBar = {
-            if (!isFocusMode) {
+            AnimatedVisibility(
+                visible = !isFocusMode,
+                enter = Animation.DefaultFadeIn,
+                exit = Animation.DefaultFadeOut,
+            ) {
                 BackTopBar(
                     title = stringResource(R.string.app_name),
                     onBackClick = onNavigateBack,
@@ -551,7 +557,11 @@ fun ImageDetailScreen(
             }
 
             // UI elements as the foreground layer, conditionally visible
-            if (!isFocusMode) {
+            AnimatedVisibility(
+                visible = !isFocusMode,
+                enter = Animation.DefaultFadeIn,
+                exit = Animation.DefaultFadeOut,
+            ) {
                 Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
                     // Date and Address
                     if (dateTime != null) {
@@ -639,7 +649,12 @@ fun ImageDetailScreen(
             }
 
             // WarningBanner always at the bottom of the main content Box, on top of everything
-            if (isWarningBannerVisible && !isFocusMode) {
+            AnimatedVisibility(
+                visible = isWarningBannerVisible && !isFocusMode,
+                enter = Animation.EnterFromBottom,
+                exit = Animation.ExitToBottom,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
                 WarningBanner(
                     title = stringResource(R.string.error_title),
                     message = warningBannerMessage,
@@ -649,7 +664,6 @@ fun ImageDetailScreen(
                     showDismissButton = true,
                     modifier =
                         Modifier
-                            .align(Alignment.BottomCenter)
                             .padding(Dimen.ComponentPadding),
                 )
             }
@@ -739,9 +753,10 @@ fun TagsSection(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // --- 1. 기존 태그 로딩 처리 ---
-        if (isExistingTagsLoading) {
+        AnimatedVisibility(visible = isExistingTagsLoading, enter = Animation.DefaultFadeIn, exit = Animation.DefaultFadeOut) {
             CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
-        } else {
+        }
+        if (!isExistingTagsLoading) {
             // Display existing tags - 개별 롱프레스로 해당 태그만 삭제 모드
             existingTags.forEach { tagItem ->
                 val isThisTagInDeleteMode = deleteModeTagId == tagItem.tagId
@@ -775,9 +790,10 @@ fun TagsSection(
         }
 
         // --- 2. 추천 태그 로딩 처리 ---
-        if (isRecommendedTagsLoading) {
+        AnimatedVisibility(visible = isRecommendedTagsLoading, enter = Animation.DefaultFadeIn, exit = Animation.DefaultFadeOut) {
             CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
-        } else {
+        }
+        if (!isRecommendedTagsLoading) {
             // Display recommended tags (통일된 색상 사용)
             recommendedTags.forEach { tagName ->
                 ConfirmableRecommendedTag(

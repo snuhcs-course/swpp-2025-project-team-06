@@ -8,10 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,6 +86,7 @@ import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
@@ -494,7 +492,11 @@ fun AlbumScreen(
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
 
-                    AnimatedVisibility(visible = isSelectPhotosBannerShareVisible) {
+                    AnimatedVisibility(
+                        visible = isSelectPhotosBannerShareVisible,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                             title = stringResource(R.string.album_no_photos_selected_title),
@@ -506,7 +508,11 @@ fun AlbumScreen(
                         )
                     }
 
-                    AnimatedVisibility(visible = isSelectPhotosBannerUntagVisible) {
+                    AnimatedVisibility(
+                        visible = isSelectPhotosBannerUntagVisible,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                             title = stringResource(R.string.album_no_photos_selected_title),
@@ -518,7 +524,11 @@ fun AlbumScreen(
                         )
                     }
 
-                    AnimatedVisibility(visible = isErrorBannerVisible) {
+                    AnimatedVisibility(
+                        visible = isErrorBannerVisible,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         WarningBanner(
                             modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
                             title = errorBannerTitle,
@@ -558,7 +568,12 @@ fun AlbumScreen(
             }
 
             // === Edge-to-edge 오버레이 (Column 바깥, 동일 Box의 sibling) ===
-            if (isRecommendationExpanded) {
+            AnimatedVisibility(
+                visible = isRecommendationExpanded,
+                enter = Animation.EnterFromBottom,
+                exit = Animation.ExitToBottom,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
                 RecommendExpandedPanel(
                     recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
                     selectedRecommendPhotos = albumViewModel.selectedRecommendPhotos.collectAsState().value,
@@ -573,7 +588,6 @@ fun AlbumScreen(
                         panelHeight = (panelHeight - delta).coerceIn(minPanelHeight, maxPanelHeight)
                     },
                     onCollapse = { isRecommendationExpanded = false },
-                    modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
         }
@@ -668,8 +682,8 @@ private fun AlbumGridArea(
         // 축소 상태의 Chip (그리드 위에)
         AnimatedVisibility(
             visible = !isRecommendationExpanded,
-            enter = fadeIn(tween(300)) + expandVertically(tween(300)),
-            exit = fadeOut(tween(300)) + shrinkVertically(tween(300)),
+            enter = Animation.DefaultFadeIn + expandVertically(animationSpec = Animation.mediumTween()),
+            exit = Animation.DefaultFadeOut + shrinkVertically(animationSpec = Animation.mediumTween()),
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)

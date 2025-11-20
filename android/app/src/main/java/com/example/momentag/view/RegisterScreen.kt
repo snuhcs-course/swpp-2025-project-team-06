@@ -1,7 +1,9 @@
 package com.example.momentag.view
 
 import android.util.Patterns
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +55,7 @@ import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
@@ -542,7 +545,11 @@ fun RegisterScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                 // Warning banner for registration errors
-                AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
+                AnimatedVisibility(
+                    visible = isErrorBannerVisible && errorMessage != null,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
                     WarningBanner(
                         title = stringResource(R.string.error_title_register_failed),
                         message = errorMessage ?: stringResource(R.string.error_message_unknown),
@@ -586,14 +593,22 @@ fun RegisterScreen(navController: NavController) {
                         ),
                     enabled = !isLoading,
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.height(Dimen.IconButtonSizeSmall),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                        )
-                    } else {
-                        Text(text = stringResource(R.string.action_register), style = MaterialTheme.typography.headlineMedium)
+                    AnimatedContent(
+                        targetState = isLoading,
+                        transitionSpec = {
+                            (Animation.DefaultFadeIn).togetherWith(Animation.DefaultFadeOut)
+                        },
+                        label = "RegisterButtonContent",
+                    ) { loading ->
+                        if (loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.height(Dimen.IconButtonSizeSmall),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                            )
+                        } else {
+                            Text(text = stringResource(R.string.action_register), style = MaterialTheme.typography.headlineMedium)
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.weight(1f))

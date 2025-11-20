@@ -8,7 +8,10 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -66,6 +69,7 @@ import com.example.momentag.Screen
 import com.example.momentag.model.Album
 import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
@@ -162,69 +166,99 @@ fun LocalGalleryScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            if (isSelectionMode) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.photos_selected_count, selectedAlbumIds.size)) },
-                    navigationIcon = {
-                        IconButton(onClick = { localViewModel.clearAlbumSelection() }) {
-                            StandardIcon.Icon(
-                                contentDescription = stringResource(R.string.cd_navigate_back),
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                sizeRole = IconSizeRole.Navigation,
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            if (selectedAlbumIds.size == albumSet.size) {
-                                localViewModel.clearAlbumSelection()
-                            } else {
-                                localViewModel.selectAllAlbums(albumSet)
+            AnimatedContent(
+                targetState = isSelectionMode,
+                transitionSpec = {
+                    (Animation.DefaultFadeIn)
+                        .togetherWith(Animation.DefaultFadeOut)
+                        .using(SizeTransform(clip = false))
+                },
+                label = "TopAppBarAnimation",
+            ) { selectionMode ->
+                if (selectionMode) {
+                    TopAppBar(
+                        title = { Text(stringResource(R.string.photos_selected_count, selectedAlbumIds.size)) },
+                        navigationIcon = {
+                            IconButton(onClick = { localViewModel.clearAlbumSelection() }) {
+                                StandardIcon.Icon(
+                                    contentDescription = stringResource(R.string.cd_navigate_back),
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    sizeRole = IconSizeRole.Navigation,
+                                )
                             }
-                        }) {
-                            val selectAllIcon =
+                        },
+                        actions = {
+                            IconButton(onClick = {
                                 if (selectedAlbumIds.size == albumSet.size) {
-                                    Icons.Default.CheckBox
+                                    localViewModel.clearAlbumSelection()
                                 } else {
-                                    Icons.Default.CheckBoxOutlineBlank
+                                    localViewModel.selectAllAlbums(albumSet)
                                 }
-                            StandardIcon.Icon(
-                                imageVector = selectAllIcon,
-                                contentDescription = stringResource(R.string.cd_select_all),
-                                intent = if (selectedAlbumIds.size == albumSet.size) IconIntent.Primary else IconIntent.Muted,
-                            )
-                        }
-                    },
-                )
-            } else {
-                BackTopBar(
-                    title = stringResource(R.string.app_name),
-                    onBackClick = onNavigateBack,
-                )
+                            }) {
+                                val selectAllIcon =
+                                    if (selectedAlbumIds.size == albumSet.size) {
+                                        Icons.Default.CheckBox
+                                    } else {
+                                        Icons.Default.CheckBoxOutlineBlank
+                                    }
+                                StandardIcon.Icon(
+                                    imageVector = selectAllIcon,
+                                    contentDescription = stringResource(R.string.cd_select_all),
+                                    intent = if (selectedAlbumIds.size == albumSet.size) IconIntent.Primary else IconIntent.Muted,
+                                )
+                            }
+                        },
+                    )
+                } else {
+                    BackTopBar(
+                        title = stringResource(R.string.app_name),
+                        onBackClick = onNavigateBack,
+                    )
+                }
             }
         },
         floatingActionButton = {
-            if (isSelectionMode) {
+            AnimatedVisibility(
+                visible = isSelectionMode,
+                enter = Animation.EnterFromBottom,
+                exit = Animation.ExitToBottom,
+            ) {
                 ExtendedFloatingActionButton(
                     text = {
-                        if (uploadState.isLoading) {
-                            Text(stringResource(R.string.banner_upload_check_notification))
-                        } else {
-                            Text(stringResource(R.string.photos_upload_selected_albums, selectedAlbumIds.size))
+                        AnimatedContent(
+                            targetState = uploadState.isLoading,
+                            transitionSpec = {
+                                (Animation.DefaultFadeIn).togetherWith(Animation.DefaultFadeOut)
+                            },
+                            label = "FabText",
+                        ) { isLoading ->
+                            if (isLoading) {
+                                Text(stringResource(R.string.banner_upload_check_notification))
+                            } else {
+                                Text(stringResource(R.string.photos_upload_selected_albums, selectedAlbumIds.size))
+                            }
                         }
                     },
                     icon = {
-                        if (uploadState.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
-                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                            )
-                        } else {
-                            StandardIcon.Icon(
-                                imageVector = Icons.Default.Upload,
-                                contentDescription = stringResource(R.string.cd_upload),
-                                intent = IconIntent.Inverse,
-                            )
+                        AnimatedContent(
+                            targetState = uploadState.isLoading,
+                            transitionSpec = {
+                                (Animation.DefaultFadeIn).togetherWith(Animation.DefaultFadeOut)
+                            },
+                            label = "FabIcon",
+                        ) { isLoading ->
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                                )
+                            } else {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Upload,
+                                    contentDescription = stringResource(R.string.cd_upload),
+                                    intent = IconIntent.Inverse,
+                                )
+                            }
                         }
                     },
                     onClick = {
@@ -312,7 +346,11 @@ fun LocalGalleryScreen(
                     }
                 }
 
-                AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
+                AnimatedVisibility(
+                    visible = isErrorBannerVisible && errorMessage != null,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
                     WarningBanner(
                         modifier = Modifier.fillMaxWidth(),
                         title = stringResource(R.string.notification_upload_failed),
