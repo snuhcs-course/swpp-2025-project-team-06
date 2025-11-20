@@ -1,5 +1,10 @@
 package com.example.momentag.view
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -61,6 +66,7 @@ import com.example.momentag.viewmodel.AuthViewModel
 fun LoginScreen(navController: NavController) {
     // Context and platform-related variables
     val context = LocalContext.current
+    val activity = LocalContext.current.findActivity()
 
     // ViewModel instance
     val authViewModel: AuthViewModel = hiltViewModel()
@@ -79,6 +85,7 @@ fun LoginScreen(navController: NavController) {
     var isPasswordTouched by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
+    var backPressedTime by remember { mutableStateOf(0L) }
 
     // Callback function to clear all errors
     val clearAllErrors = {
@@ -137,6 +144,16 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
+    BackHandler(enabled = true) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - backPressedTime < 2000) {
+            activity?.finish()
+        } else {
+            backPressedTime = currentTime
+            Toast.makeText(context, context.getString(R.string.home_exit_prompt), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold { paddingValues ->
         Column(
             modifier =
@@ -190,9 +207,7 @@ fun LoginScreen(navController: NavController) {
                         text = stringResource(R.string.login_sign_up),
                         modifier =
                             Modifier.clickable {
-                                navController.navigate(Screen.Register.route) {
-                                    popUpTo(Screen.Login.route) { inclusive = true }
-                                }
+                                navController.navigate(Screen.Register.route)
                             },
                         style = TextStyle(color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold),
                     )
@@ -398,4 +413,13 @@ fun LoginScreen(navController: NavController) {
             }
         }
     }
+}
+
+private fun Context.findActivity(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
 }

@@ -217,7 +217,7 @@ fun RegisterScreen(navController: NavController) {
                         modifier =
                             Modifier.clickable {
                                 navController.navigate(Screen.Login.route) {
-                                    popUpTo(Screen.Register.route) { inclusive = true }
+                                    popUpTo(Screen.Login.route) { inclusive = true }
                                 }
                             },
                         style = TextStyle(color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold),
