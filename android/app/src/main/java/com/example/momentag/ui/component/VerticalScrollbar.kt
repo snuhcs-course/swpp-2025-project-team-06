@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -213,6 +214,8 @@ fun VerticalScrollbar(
                             )
                         }.width(
                             with(density) { currentWidth.toDp() },
+                        ).height(
+                            with(density) { scrollbarMetrics.thumbHeight.toDp() },
                         ).clip(RoundedCornerShape(2.dp))
                         .background(currentThumbColor)
                         .pointerInput(Unit) {
@@ -251,15 +254,7 @@ fun VerticalScrollbar(
                                 },
                             )
                         },
-            ) {
-                // Invisible box to ensure minimum thumb height
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxHeight()
-                            .alpha(0f),
-                )
-            }
+            )
         }
     }
 }
