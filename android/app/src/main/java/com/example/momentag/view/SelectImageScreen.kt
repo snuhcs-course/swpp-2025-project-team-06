@@ -443,11 +443,7 @@ fun SelectImageScreen(navController: NavController) {
             }
 
             // Done Button - AI Recommendation이 확장되지 않았을 때만 표시
-            AnimatedVisibility(
-                visible = !isRecommendationExpanded,
-                enter = Animation.EnterFromBottom,
-                exit = Animation.ExitToBottom,
-            ) {
+            if(!isRecommendationExpanded){
                 Button(
                     onClick = {
                         if (selectImageViewModel.isAddingToExistingTag()) {
