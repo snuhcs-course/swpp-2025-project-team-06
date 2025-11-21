@@ -66,6 +66,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.FilterList
@@ -558,13 +559,31 @@ fun HomeScreen(navController: NavController) {
         topBar = {
             CommonTopBar(
                 title = stringResource(R.string.app_name),
-                onTitleClick = {
-                    navController.navigate(Screen.LocalGallery.route)
-                },
-                showLogout = true,
-                onLogoutClick = { authViewModel.logout() },
-                isLogoutLoading = logoutState is AuthViewModel.LogoutState.Loading,
+                onTitleClick = null,
+                showLogout = false,
+                onLogoutClick = null,
+                isLogoutLoading = false,
                 actions = {
+                    // Upload button - leftmost, visible when not in selection mode
+                    AnimatedVisibility(
+                        visible = !(isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode),
+                        enter = Animation.DefaultFadeIn,
+                        exit = Animation.DefaultFadeOut,
+                    ) {
+                        IconButton(
+                            onClick = {
+                                navController.navigate(Screen.LocalGallery.route)
+                            },
+                        ) {
+                            StandardIcon.Icon(
+                                imageVector = Icons.Default.CloudUpload,
+                                contentDescription = stringResource(R.string.cd_upload),
+                                sizeRole = IconSizeRole.DefaultAction,
+                            )
+                        }
+                    }
+
+                    // Share button - visible when in selection mode
                     if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
                         val isEnabled = selectedPhotos.isNotEmpty()
                         IconButton(

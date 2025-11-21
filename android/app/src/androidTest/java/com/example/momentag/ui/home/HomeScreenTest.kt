@@ -67,8 +67,8 @@ class HomeScreenTest {
         // Verify top bar title
         composeTestRule.onNodeWithText(appName).assertIsDisplayed()
 
-        // Verify logout button exists
-        composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_logout)).assertIsDisplayed()
+        // Verify upload button exists
+        composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_upload)).assertIsDisplayed()
 
         // Verify bottom navigation is displayed
         composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_home)).assertIsDisplayed()
@@ -187,10 +187,10 @@ class HomeScreenTest {
         composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_moment)).assertHasClickAction()
     }
 
-    // ---------- 5. Logout 기능 ----------
+    // ---------- 5. Upload 기능 ----------
 
     @Test
-    fun homeScreen_logoutButton_isClickable() {
+    fun homeScreen_uploadButton_isClickable() {
         composeTestRule.setContent {
             MomenTagTheme {
                 val navController = rememberNavController()
@@ -200,36 +200,14 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
-        // Logout button should be visible and clickable
+        // Upload button should be visible and clickable
         composeTestRule
-            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_logout))
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_upload))
             .assertIsDisplayed()
             .assertHasClickAction()
     }
 
-    // ---------- 6. Title 클릭 ----------
-
-    @Test
-    fun homeScreen_title_isClickable() {
-        composeTestRule.setContent {
-            MomenTagTheme {
-                val navController = rememberNavController()
-                HomeScreen(navController = navController)
-            }
-        }
-
-        composeTestRule.waitForIdle()
-
-        // 문자열 리소스 가져오기
-        val appName = composeTestRule.activity.getString(R.string.app_name)
-
-        // Title should be clickable to navigate to LocalGallery
-        composeTestRule
-            .onNodeWithText(appName)
-            .assertHasClickAction()
-    }
-
-    // ---------- 7. 정렬 버튼 (Tag Albums View) ----------
+    // ---------- 6. 정렬 버튼 (Tag Albums View) ----------
 
     @Test
     fun homeScreen_tagAlbumsView_sortButtonIsDisplayed() {
@@ -273,7 +251,7 @@ class HomeScreenTest {
             .assertDoesNotExist()
     }
 
-    // ---------- 8. 화면 렌더링 안정성 ----------
+    // ---------- 7. 화면 렌더링 안정성 ----------
 
     @Test
     fun homeScreen_renders_withoutCrashing() {
@@ -326,7 +304,7 @@ class HomeScreenTest {
         composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
-    // ---------- 9. 검색바 반복 클릭 ----------
+    // ---------- 8. 검색바 반복 클릭 ----------
 
     @Test
     fun homeScreen_searchBar_repeatedClicks_doesNotCrash() {
@@ -355,7 +333,7 @@ class HomeScreenTest {
         composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
-    // ---------- 10. 정렬 Bottom Sheet ----------
+    // ---------- 9. 정렬 Bottom Sheet ----------
 
     @Test
     fun homeScreen_sortButton_opensBottomSheet() {
@@ -450,7 +428,7 @@ class HomeScreenTest {
         composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
-    // ---------- 11. View Toggle 상태 확인 ----------
+    // ---------- 10. View Toggle 상태 확인 ----------
 
     @Test
     fun homeScreen_initialView_isTagAlbums() {
@@ -474,7 +452,7 @@ class HomeScreenTest {
             .assertIsDisplayed()
     }
 
-    // ---------- 12. 빠른 View Toggle 전환 ----------
+    // ---------- 11. 빠른 View Toggle 전환 ----------
 
     @Test
     fun homeScreen_rapidViewToggle_worksCorrectly() {
@@ -512,7 +490,7 @@ class HomeScreenTest {
             .assertIsDisplayed()
     }
 
-    // ---------- 13. Bottom Navigation Tabs 상세 테스트 ----------
+    // ---------- 12. Bottom Navigation Tabs 상세 테스트 ----------
 
     @Test
     fun homeScreen_bottomNavigation_homeTabIsSelected() {
@@ -532,7 +510,7 @@ class HomeScreenTest {
         composeTestRule.onNodeWithText(home).assertIsDisplayed()
     }
 
-    // ---------- 14. Search Bar Text Input ----------
+    // ---------- 13. Search Bar Text Input ----------
 
     @Test
     fun homeScreen_searchBar_canReceiveTextInput() {
@@ -610,7 +588,7 @@ class HomeScreenTest {
         }
     }
 
-    // ---------- 15. View Stability Tests ----------
+    // ---------- 14. View Stability Tests ----------
 
     @Test
     fun homeScreen_allPhotosView_displaysCorrectElements() {
@@ -665,7 +643,7 @@ class HomeScreenTest {
         composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos)).assertIsDisplayed()
     }
 
-    // ---------- 16. Search Bar and Toggle Interaction ----------
+    // ---------- 15. Search Bar and Toggle Interaction ----------
 
     @Test
     fun homeScreen_searchBarClick_thenViewToggle_worksCorrectly() {
@@ -739,7 +717,7 @@ class HomeScreenTest {
         composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
-    // ---------- 17. Tag Chip Suggestions ----------
+    // ---------- 16. Tag Chip Suggestions ----------
 
     @Test
     fun homeScreen_searchBar_triggersTagSuggestions() {
@@ -891,7 +869,7 @@ class HomeScreenTest {
         composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
-    // ---------- 18. Search Bar Complex Interactions ----------
+    // ---------- 17. Search Bar Complex Interactions ----------
 
     @Test
     fun homeScreen_searchBar_withSort_worksCorrectly() {
@@ -938,7 +916,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun homeScreen_searchBar_withLogout_doesNotCrash() {
+    fun homeScreen_searchBar_withUpload_doesNotCrash() {
         composeTestRule.setContent {
             MomenTagTheme {
                 val navController = rememberNavController()
@@ -958,9 +936,9 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
-        // Verify logout button is still accessible
+        // Verify upload button is still accessible
         composeTestRule
-            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_logout))
+            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_upload))
             .assertIsDisplayed()
             .assertHasClickAction()
 
@@ -968,7 +946,7 @@ class HomeScreenTest {
         composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
-    // ---------- 19. Pull to Refresh ----------
+    // ---------- 18. Pull to Refresh ----------
 
     @Test
     fun homeScreen_pullToRefresh_doesNotCrash() {
