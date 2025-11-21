@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -71,6 +72,7 @@ import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
@@ -258,7 +260,11 @@ fun AddTagScreen(navController: NavController) {
                             .padding(horizontal = Dimen.FormScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
                 ) {
                     // Error Banner - Floating above Done button
-                    if (isErrorBannerVisible && saveState is AddTagViewModel.SaveState.Error) {
+                    AnimatedVisibility(
+                        visible = isErrorBannerVisible && saveState is AddTagViewModel.SaveState.Error,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         val errorState = saveState as AddTagViewModel.SaveState.Error
                         val errorMessage =
                             when (errorState.error) {
@@ -276,11 +282,15 @@ fun AddTagScreen(navController: NavController) {
                             showActionButton = false,
                             showDismissButton = true,
                         )
-                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                     }
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     // Done Button
-                    if (isChanged) {
+                    AnimatedVisibility(
+                        visible = isChanged,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         val isFormValid = selectedPhotos.isNotEmpty() && tagName.isNotBlank()
                         val canSubmit = isFormValid && saveState != AddTagViewModel.SaveState.Loading
 
@@ -316,7 +326,11 @@ fun AddTagScreen(navController: NavController) {
                 }
 
                 // Full Screen Loading Overlay
-                if (saveState == AddTagViewModel.SaveState.Loading) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = saveState == AddTagViewModel.SaveState.Loading,
+                    enter = Animation.DefaultFadeIn,
+                    exit = Animation.DefaultFadeOut,
+                ) {
                     Box(
                         modifier =
                             Modifier

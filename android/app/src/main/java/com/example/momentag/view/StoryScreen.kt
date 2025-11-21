@@ -3,6 +3,7 @@
 
 package com.example.momentag.view
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -10,6 +11,11 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -76,6 +82,7 @@ import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.ErrorOverlay
 import com.example.momentag.ui.components.StoryTagChip
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
@@ -578,7 +585,11 @@ internal fun TagSelectionCard(
             val canSubmit = if (isEditMode) true else hasSelection
 
             // Show error message if submission failed
-            AnimatedVisibility(visible = storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Error) {
+            AnimatedVisibility(
+                visible = storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Error,
+                enter = Animation.DefaultFadeIn,
+                exit = Animation.DefaultFadeOut,
+            ) {
                 val errorMessage =
                     when ((storyTagSubmissionState as? StoryViewModel.StoryTagSubmissionState.Error)?.error) {
                         StoryViewModel.StoryError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
@@ -668,35 +679,56 @@ internal fun GradientPillButton(
                 .clickable(enabled = isClickable) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        when {
-            isLoading -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+        AnimatedContent(
+            targetState = storyTagSubmissionState,
+            transitionSpec = {
+                (
+                    fadeIn(animationSpec = Animation.Spec.shortTween()) +
+                        scaleIn(animationSpec = Animation.Spec.shortTween(), initialScale = 0.8f)
+                ).togetherWith(
+                    fadeOut(animationSpec = Animation.Spec.shortTween()) +
+                        scaleOut(animationSpec = Animation.Spec.shortTween(), targetScale = 0.8f),
                 )
-            }
-            isSuccess -> {
-                StandardIcon.Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = stringResource(R.string.cd_success),
-                    sizeRole = IconSizeRole.DefaultAction,
-                    intent = IconIntent.Inverse,
-                )
-            }
-            isError -> {
-                Text(
-                    text = stringResource(R.string.story_retry),
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-            else -> {
-                Text(
-                    text = text,
-                    color = if (enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                    style = MaterialTheme.typography.labelLarge,
-                )
+            },
+            label = "PillButtonContent",
+        ) { targetState ->
+            when (targetState) {
+                is StoryViewModel.StoryTagSubmissionState.Loading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                    )
+                }
+                is StoryViewModel.StoryTagSubmissionState.Success -> {
+                    StandardIcon.Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = stringResource(R.string.cd_success),
+                        sizeRole = IconSizeRole.DefaultAction,
+                        intent = IconIntent.Inverse,
+                    )
+                }
+                is StoryViewModel.StoryTagSubmissionState.Error -> {
+                    Text(
+                        text = stringResource(R.string.story_retry),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+                is StoryViewModel.StoryTagSubmissionState.Idle -> {
+                    Text(
+                        text = text,
+                        color =
+                            if (enabled) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.38f,
+                                )
+                            },
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
             }
         }
     }
