@@ -541,12 +541,11 @@ fun ImageDetailScreen(
                     .fillMaxSize()
                     .background(
                         if (isFocusMode) {
-                            SolidColor(Color.Black)    // Brush 객체
+                            SolidColor(Color.Black) // Brush 객체
                         } else {
-                            backgroundBrush             // Brush 객체
-                        }
-                    )
-                    .padding(paddingValues),
+                            backgroundBrush // Brush 객체
+                        },
+                    ).padding(paddingValues),
         ) {
             // Image Pager as the background layer, always filling the screen
             HorizontalPager(
@@ -574,7 +573,7 @@ fun ImageDetailScreen(
                 enter = Animation.DefaultFadeIn,
                 exit = Animation.DefaultFadeOut,
             ) {
-                Column() {
+                Column {
                     // Date and Address
                     if (dateTime != null) {
                         val datePart = dateTime!!.split(" ")[0]

@@ -202,7 +202,7 @@ fun StoryTagSelectionScreen(
                             Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                             Text(
                                 stringResource(R.string.story_loading_memories),
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }
@@ -265,8 +265,9 @@ fun StoryTagSelectionScreen(
                         val story = stories[page]
                         val isFirstStory = page == 0
                         val selectedForThisStory = selectedTags[story.id] ?: emptySet()
-                        val storyTagSubmissionState = submissionStates[story.id]
-                            ?: StoryViewModel.StoryTagSubmissionState.Idle
+                        val storyTagSubmissionState =
+                            submissionStates[story.id]
+                                ?: StoryViewModel.StoryTagSubmissionState.Idle
                         val isViewed = viewedStories.contains(story.id)
                         val isEditMode = editModeStory == story.id
 
@@ -294,8 +295,9 @@ fun StoryTagSelectionScreen(
                                             val photo =
                                                 com.example.momentag.model.Photo(
                                                     photoId = story.photoId,
-                                                    contentUri = story.images.firstOrNull()
-                                                        ?: android.net.Uri.EMPTY,
+                                                    contentUri =
+                                                        story.images.firstOrNull()
+                                                            ?: android.net.Uri.EMPTY,
                                                     createdAt = "",
                                                 )
                                             // Set browsing session

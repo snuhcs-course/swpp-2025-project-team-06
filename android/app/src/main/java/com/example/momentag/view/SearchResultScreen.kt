@@ -547,7 +547,7 @@ fun SearchResultScreenUi(
                     .background(backgroundBrush)
                     .padding(paddingValues),
 //                    .padding(horizontal = 16.dp),
-        listState = listState,
+            listState = listState,
             gridState = gridState,
             contentItems = contentItems,
             textStates = textStates,

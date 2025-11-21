@@ -84,11 +84,11 @@ import com.example.momentag.ui.components.RenameTagDialog
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
-import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import kotlinx.coroutines.delay
