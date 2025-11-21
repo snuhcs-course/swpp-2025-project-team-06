@@ -307,24 +307,24 @@ fun LocalAlbumScreen(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     )
 
-                AnimatedVisibility(
-                    visible = isErrorBannerVisible && errorMessage != null,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                        title = stringResource(R.string.notification_upload_failed),
-                        message = errorMessage ?: stringResource(R.string.error_message_generic),
-                        onActionClick = { isErrorBannerVisible = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = {
-                            isErrorBannerVisible = false
-                            photoViewModel.errorMessageShown()
-                        },
-                    )
-                }
+                    AnimatedVisibility(
+                        visible = isErrorBannerVisible && errorMessage != null,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
+                            title = stringResource(R.string.notification_upload_failed),
+                            message = errorMessage ?: stringResource(R.string.error_message_generic),
+                            onActionClick = { isErrorBannerVisible = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = {
+                                isErrorBannerVisible = false
+                                photoViewModel.errorMessageShown()
+                            },
+                        )
+                    }
 
                     Box(modifier = Modifier.weight(1f)) {
                         LazyVerticalGrid(
