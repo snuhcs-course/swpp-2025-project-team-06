@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.momentag.HiltTestActivity
+import com.example.momentag.R
 import com.example.momentag.ui.theme.MomenTagTheme
 import com.example.momentag.view.LoginScreen
 import com.example.momentag.viewmodel.AuthViewModel
@@ -90,14 +91,22 @@ class LoginScreenTest {
             }
         }
 
+        // 문자열 리소스 가져오기
+        val appTitleWithHash = composeTestRule.activity.getString(R.string.app_title_with_hash)
+        val loginTitle = composeTestRule.activity.getString(R.string.login_title)
+        val signUp = composeTestRule.activity.getString(R.string.login_sign_up)
+        val username = composeTestRule.activity.getString(R.string.field_username)
+        val password = composeTestRule.activity.getString(R.string.field_password)
+        val logIn = composeTestRule.activity.getString(R.string.action_login)
+
         // 주요 UI 요소 확인
-        composeTestRule.onNodeWithText("#MomenTag").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Login").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Sign Up").assertIsDisplayed()
-        composeTestRule.onAllNodesWithText("Username").assertCountEquals(2)
-        composeTestRule.onAllNodesWithText("Password").assertCountEquals(2)
-        composeTestRule.onNodeWithText("Log In").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Log In").assertIsEnabled()
+        composeTestRule.onNodeWithText(appTitleWithHash).assertIsDisplayed()
+        composeTestRule.onNodeWithText(loginTitle).assertIsDisplayed()
+        composeTestRule.onNodeWithText(signUp).assertIsDisplayed()
+        composeTestRule.onAllNodesWithText(username).assertCountEquals(2)
+        composeTestRule.onAllNodesWithText(password).assertCountEquals(2)
+        composeTestRule.onNodeWithText(logIn).assertIsDisplayed()
+        composeTestRule.onNodeWithText(logIn).assertIsEnabled()
     }
 
     // ---------- 2. 입력 필드 상호작용 ----------
@@ -111,9 +120,13 @@ class LoginScreenTest {
             }
         }
 
+        // 문자열 리소스 가져오기
+        val username = composeTestRule.activity.getString(R.string.field_username)
+        val password = composeTestRule.activity.getString(R.string.field_password)
+
         // Username 입력
         composeTestRule
-            .onAllNodesWithText("Username")
+            .onAllNodesWithText(username)
             .filter(hasSetTextAction())
             .onFirst()
             .performTextInput("testuser")
@@ -122,7 +135,7 @@ class LoginScreenTest {
 
         // Password 입력
         composeTestRule
-            .onAllNodesWithText("Password")
+            .onAllNodesWithText(password)
             .filter(hasSetTextAction())
             .onFirst()
             .performTextInput("password123")
@@ -139,14 +152,18 @@ class LoginScreenTest {
             }
         }
 
+        // 문자열 리소스 가져오기
+        val showPassword = composeTestRule.activity.getString(R.string.cd_password_show)
+        val hidePassword = composeTestRule.activity.getString(R.string.cd_password_hide)
+
         // 초기에는 "Show password"
-        composeTestRule.onNodeWithContentDescription("Show password").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(showPassword).assertIsDisplayed()
 
         // 토글 클릭
-        composeTestRule.onNodeWithContentDescription("Show password").performClick()
+        composeTestRule.onNodeWithContentDescription(showPassword).performClick()
 
         // 클릭 후에는 "Hide password"로 변경
-        composeTestRule.onNodeWithContentDescription("Hide password").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(hidePassword).assertIsDisplayed()
     }
 
     // ---------- 4. 유효성 검증 에러 ----------
@@ -160,14 +177,19 @@ class LoginScreenTest {
             }
         }
 
+        // 문자열 리소스 가져오기
+        val logIn = composeTestRule.activity.getString(R.string.action_login)
+        val errorUsername = composeTestRule.activity.getString(R.string.validation_required_username)
+        val errorPassword = composeTestRule.activity.getString(R.string.validation_required_password)
+
         // 아무것도 입력하지 않고 Log In 버튼 클릭
-        composeTestRule.onNodeWithText("Log In").performClick()
+        composeTestRule.onNodeWithText(logIn).performClick()
 
         composeTestRule.waitForIdle()
 
         // 에러 메시지 확인
-        composeTestRule.onNodeWithText("Please enter your username").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Please enter your password").assertIsDisplayed()
+        composeTestRule.onNodeWithText(errorUsername).assertIsDisplayed()
+        composeTestRule.onNodeWithText(errorPassword).assertIsDisplayed()
     }
 
     // ---------- 5. 전체 플로우 ----------
@@ -181,15 +203,20 @@ class LoginScreenTest {
             }
         }
 
+        // 문자열 리소스 가져오기
+        val username = composeTestRule.activity.getString(R.string.field_username)
+        val password = composeTestRule.activity.getString(R.string.field_password)
+        val logIn = composeTestRule.activity.getString(R.string.action_login)
+
         // 모든 필드 입력
         composeTestRule
-            .onAllNodesWithText("Username")
+            .onAllNodesWithText(username)
             .filter(hasSetTextAction())
             .onFirst()
             .performTextInput("validuser")
 
         composeTestRule
-            .onAllNodesWithText("Password")
+            .onAllNodesWithText(password)
             .filter(hasSetTextAction())
             .onFirst()
             .performTextInput("validpassword")
@@ -197,9 +224,9 @@ class LoginScreenTest {
         composeTestRule.waitForIdle()
 
         // Log In 버튼 활성화 확인
-        composeTestRule.onNodeWithText("Log In").assertIsEnabled()
+        composeTestRule.onNodeWithText(logIn).assertIsEnabled()
 
         // Log In 버튼 클릭
-        composeTestRule.onNodeWithText("Log In").performClick()
+        composeTestRule.onNodeWithText(logIn).performClick()
     }
 }

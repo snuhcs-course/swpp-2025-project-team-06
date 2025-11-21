@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.momentag.HiltTestActivity
+import com.example.momentag.R
 import com.example.momentag.model.Photo
 import com.example.momentag.view.SelectImageScreen
 import com.example.momentag.viewmodel.SelectImageViewModel
@@ -110,9 +111,14 @@ class SelectImageScreenTest {
 
     @Test
     fun selectImageScreen_initialState_showsTitleAndButton() {
+        // 문자열 리소스 가져오기
+        val selectPhotos = composeRule.activity.getString(R.string.select_image_title)
+        val addToTag = composeRule.activity.getString(R.string.tag_add_to_tag)
+
         setContent()
-        composeRule.onNodeWithText("Select Photos").assertIsDisplayed()
-        composeRule.onNodeWithText("Add to Tag").assertIsDisplayed()
+
+        composeRule.onNodeWithText(selectPhotos).assertIsDisplayed()
+        composeRule.onNodeWithText(addToTag).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -142,14 +148,20 @@ class SelectImageScreenTest {
                 Photo("p2", Uri.parse("content://2"), "2024-01-02"),
             )
         setFlow("_allPhotos", p)
+
+        // 문자열 리소스 가져오기
+        val selectPhotos = composeRule.activity.getString(R.string.select_image_title)
+        val photoP1 = composeRule.activity.getString(R.string.cd_photo, "p1")
+        val photoP2 = composeRule.activity.getString(R.string.cd_photo, "p2")
+
         setContent()
 
         composeRule.waitUntil(5000) {
-            composeRule.onAllNodes(hasText("Select Photos")).fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodes(hasText(selectPhotos)).fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onNodeWithContentDescription("Photo p1").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Photo p2").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(photoP1).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(photoP2).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -160,12 +172,17 @@ class SelectImageScreenTest {
     fun selectImageScreen_photoSelection_showsCounter() {
         val p = listOf(Photo("p1", Uri.parse("content://1"), "2024"))
         setFlow("_allPhotos", p)
+
+        // 문자열 리소스 가져오기
+        val photoP1 = composeRule.activity.getString(R.string.cd_photo, "p1")
+        val oneSelected = composeRule.activity.getString(R.string.select_image_selected_count, 1)
+
         setContent()
 
-        composeRule.onNodeWithContentDescription("Photo p1").performClick()
+        composeRule.onNodeWithContentDescription(photoP1).performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("1 selected").assertIsDisplayed()
+        composeRule.onNodeWithText(oneSelected).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -176,17 +193,22 @@ class SelectImageScreenTest {
     fun selectImageScreen_photoSelection_toggle() {
         val p = listOf(Photo("p1", Uri.parse("content://1"), "2024"))
         setFlow("_allPhotos", p)
+
+        // 문자열 리소스 가져오기
+        val photoP1 = composeRule.activity.getString(R.string.cd_photo, "p1")
+        val oneSelected = composeRule.activity.getString(R.string.select_image_selected_count, 1)
+
         setContent()
 
-        val photo = composeRule.onNodeWithContentDescription("Photo p1")
+        val photo = composeRule.onNodeWithContentDescription(photoP1)
 
         photo.performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("1 selected").assertIsDisplayed()
+        composeRule.onNodeWithText(oneSelected).assertIsDisplayed()
 
         photo.performClick()
         composeRule.waitForIdle()
-        composeRule.onAllNodes(hasText("1 selected")).assertCountEquals(0)
+        composeRule.onAllNodes(hasText(oneSelected)).assertCountEquals(0)
     }
 
     // ----------------------------------------------------------
@@ -197,12 +219,17 @@ class SelectImageScreenTest {
     fun selectImageScreen_doneButton_enabledOnlyWhenSelected() {
         val p = listOf(Photo("p1", Uri.parse("content://1"), "2024"))
         setFlow("_allPhotos", p)
+
+        // 문자열 리소스 가져오기
+        val addToTag = composeRule.activity.getString(R.string.tag_add_to_tag)
+        val photoP1 = composeRule.activity.getString(R.string.cd_photo, "p1")
+
         setContent()
 
-        val btn = composeRule.onNodeWithText("Add to Tag")
+        val btn = composeRule.onNodeWithText(addToTag)
         btn.assertIsNotEnabled()
 
-        composeRule.onNodeWithContentDescription("Photo p1").performClick()
+        composeRule.onNodeWithContentDescription(photoP1).performClick()
         composeRule.waitForIdle()
 
         btn.assertIsEnabled()
@@ -215,9 +242,13 @@ class SelectImageScreenTest {
     @Test
     fun selectImageScreen_recommendChip_idle() {
         setFlow("_recommendState", SelectImageViewModel.RecommendState.Idle)
+
+        // 문자열 리소스 가져오기
+        val gettingReady = composeRule.activity.getString(R.string.photos_getting_ready)
+
         setContent()
 
-        composeRule.onNodeWithText("Getting ready", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText(gettingReady, substring = true).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -227,9 +258,13 @@ class SelectImageScreenTest {
     @Test
     fun selectImageScreen_recommendChip_loading() {
         setFlow("_recommendState", SelectImageViewModel.RecommendState.Loading)
+
+        // 문자열 리소스 가져오기
+        val findingSuggestions = composeRule.activity.getString(R.string.photos_finding_suggestions)
+
         setContent()
 
-        composeRule.onNodeWithText("Finding suggestions", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText(findingSuggestions, substring = true).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -246,16 +281,22 @@ class SelectImageScreenTest {
 
         setFlow("_recommendState", SelectImageViewModel.RecommendState.Success(rec))
         setFlow("_recommendedPhotos", rec)
+
+        // 문자열 리소스 가져오기
+        val suggestedForYou = composeRule.activity.getString(R.string.photos_suggested_for_you)
+        val photoR1 = composeRule.activity.getString(R.string.cd_photo, "r1")
+        val photoR2 = composeRule.activity.getString(R.string.cd_photo, "r2")
+
         setContent()
 
-        val chip = composeRule.onNode(hasText("Suggested for You") and hasClickAction())
+        val chip = composeRule.onNode(hasText(suggestedForYou) and hasClickAction())
         chip.performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithContentDescription("Photo r1").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Photo r2").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(photoR1).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(photoR2).assertIsDisplayed()
 
-        composeRule.onNodeWithContentDescription("Photo r1").performClick()
+        composeRule.onNodeWithContentDescription(photoR1).performClick()
         composeRule.waitForIdle()
 
         assertEquals(1, vm.selectedPhotos.value.size)

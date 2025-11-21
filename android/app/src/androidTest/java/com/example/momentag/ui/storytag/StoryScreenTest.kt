@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.momentag.HiltTestActivity
+import com.example.momentag.R
 import com.example.momentag.model.StoryModel
 import com.example.momentag.view.StoryTagSelectionScreen
 import com.example.momentag.viewmodel.StoryViewModel
@@ -119,14 +120,18 @@ class StoryScreenTest {
         val stories = createSampleStories()
         setContentWithStories(stories)
 
+        // 문자열 리소스 가져오기
+        val scrollHint = composeRule.activity.getString(R.string.story_scroll_for_next)
+        val done = composeRule.activity.getString(R.string.action_done)
+
         // 첫 번째 스토리 날짜
         composeRule.onNodeWithText("2025.01.01").assertIsDisplayed()
         // 첫 번째 태그
         composeRule.onNodeWithText("#Tag1A").assertIsDisplayed()
         // 스크롤 힌트
-        composeRule.onNodeWithText("Scroll for next moments").assertIsDisplayed()
+        composeRule.onNodeWithText(scrollHint).assertIsDisplayed()
         // Done 버튼 비활성화
-        composeRule.onNodeWithText("Done").assertIsNotEnabled()
+        composeRule.onNodeWithText(done).assertIsNotEnabled()
     }
 
     // ---------- 2. 태그 선택 시 Done 활성화 ----------
@@ -136,14 +141,17 @@ class StoryScreenTest {
         val stories = createSampleStories()
         setContentWithStories(stories)
 
+        // 문자열 리소스 가져오기
+        val done = composeRule.activity.getString(R.string.action_done)
+
         // 초기에는 Done 비활성화
-        composeRule.onNodeWithText("Done").assertIsNotEnabled()
+        composeRule.onNodeWithText(done).assertIsNotEnabled()
 
         // 태그 선택
         composeRule.onNodeWithText("#Tag1A").performClick()
 
         // Done 버튼 활성화
-        composeRule.onNodeWithText("Done").assertIsEnabled()
+        composeRule.onNodeWithText(done).assertIsEnabled()
 
         // ViewModel 의 선택 상태도 확인
         val selected = viewModel.getSelectedTags("story1")
@@ -155,16 +163,19 @@ class StoryScreenTest {
         val stories = createSampleStories()
         setContentWithStories(stories)
 
+        // 문자열 리소스 가져오기
+        val done = composeRule.activity.getString(R.string.action_done)
+
         // 태그 선택
         composeRule.onNodeWithText("#Tag1A").performClick()
-        composeRule.onNodeWithText("Done").assertIsEnabled()
+        composeRule.onNodeWithText(done).assertIsEnabled()
         assertTrue(viewModel.getSelectedTags("story1").contains("#Tag1A"))
 
         // 다시 클릭해서 해제
         composeRule.onNodeWithText("#Tag1A").performClick()
 
         // Done 이 다시 비활성화
-        composeRule.onNodeWithText("Done").assertIsNotEnabled()
+        composeRule.onNodeWithText(done).assertIsNotEnabled()
 
         // ViewModel 선택 상태도 비어야 함
         assertTrue(viewModel.getSelectedTags("story1").isEmpty())
@@ -177,10 +188,13 @@ class StoryScreenTest {
         val stories = createSampleStories()
         setContentWithStories(stories)
 
+        // 문자열 리소스 가져오기
+        val scrollHint = composeRule.activity.getString(R.string.story_scroll_for_next)
+
         // 첫 페이지 확인
         composeRule.onNodeWithText("2025.01.01").assertIsDisplayed()
         // 처음에는 힌트가 존재
-        composeRule.onNodeWithText("Scroll for next moments").assertIsDisplayed()
+        composeRule.onNodeWithText(scrollHint).assertIsDisplayed()
 
         // Pager 노드 찾기 (스크롤 가능 노드)
         val pagerNode = composeRule.onNode(hasScrollAction())
@@ -198,7 +212,7 @@ class StoryScreenTest {
 
         // 스크롤 이후에는 힌트가 사라져야 한다
         composeRule
-            .onAllNodesWithText("Scroll for next moments")
+            .onAllNodesWithText(scrollHint)
             .assertCountEquals(0)
     }
 
@@ -207,6 +221,10 @@ class StoryScreenTest {
     @Test
     fun storyScreen_readOnlyMode_showsEditButtonAndHidesDone() {
         val stories = createSampleStories()
+
+        // 문자열 리소스 가져오기
+        val edit = composeRule.activity.getString(R.string.action_edit)
+        val done = composeRule.activity.getString(R.string.action_done)
 
         // 먼저 viewedStories 에 story1 을 넣어 둔다
         viewModel.markStoryAsViewed("story1")
@@ -217,11 +235,11 @@ class StoryScreenTest {
         composeRule.onNodeWithText("#Tag1A").assertIsDisplayed()
 
         // 읽기 전용이므로 하단 버튼 텍스트는 Edit 이어야 함
-        composeRule.onNodeWithText("Edit").assertIsDisplayed()
+        composeRule.onNodeWithText(edit).assertIsDisplayed()
 
         // Done 이라는 텍스트는 더 이상 없어야 함
         composeRule
-            .onAllNodesWithText("Done")
+            .onAllNodesWithText(done)
             .assertCountEquals(0)
 
         // ViewModel 의 viewedStories 에도 story1 이 포함되어 있어야 함

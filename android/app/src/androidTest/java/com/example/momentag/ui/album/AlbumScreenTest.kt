@@ -63,20 +63,23 @@ class AlbumScreenTest {
     // --- Helper function to handle loading/timeout/error conditions ---
 
     /**
-     * Waits up to 5 seconds for album content (+ Add Photos) or an error banner to appear.
+     * Waits up to 5 seconds for album content (Add Photos) or an error banner to appear.
      * Returns true if content loaded successfully, false otherwise.
      */
     private fun waitForAlbumContentOrError(): Boolean {
+        val addPhotosText = composeTestRule.activity.getString(R.string.tag_add_photos)
+        val failedToLoad = composeTestRule.activity.getString(R.string.album_failed_to_load)
+
         val successCondition = {
             try {
-                composeTestRule.onNodeWithText("+ Add Photos", substring = true).isDisplayed()
+                composeTestRule.onNodeWithText(addPhotosText, substring = true).isDisplayed()
             } catch (e: Exception) {
                 false
             }
         }
         val errorCondition = {
             try {
-                composeTestRule.onNodeWithText("Couldn't Load Album", substring = true).isDisplayed()
+                composeTestRule.onNodeWithText(failedToLoad, substring = true).isDisplayed()
             } catch (e: Exception) {
                 false
             }
@@ -123,10 +126,17 @@ class AlbumScreenTest {
         val loaded = waitForAlbumContentOrError()
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+        val navigateBack = composeTestRule.activity.getString(R.string.cd_navigate_back)
+        val addPhotos = composeTestRule.activity.getString(R.string.tag_add_photos)
+        val preparing = composeTestRule.activity.getString(R.string.album_preparing)
+        val failedToLoad = composeTestRule.activity.getString(R.string.album_failed_to_load)
+
         // Then: Verify Top Bar and core elements (always present)
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         composeTestRule
-            .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_navigate_back))
+            .onNodeWithContentDescription(navigateBack)
             .assertIsDisplayed()
             .assertHasClickAction()
 
@@ -135,14 +145,14 @@ class AlbumScreenTest {
 
         if (loaded) {
             // Then: Verify Success path elements
-            composeTestRule.onNodeWithText("+ Add Photos").assertIsDisplayed().assertHasClickAction()
+            composeTestRule.onNodeWithText(addPhotos).assertIsDisplayed().assertHasClickAction()
             composeTestRule
                 .onNode(
-                    hasText("AI", substring = true, ignoreCase = true) or hasText("Preparing", substring = true, ignoreCase = true),
+                    hasText("AI", substring = true, ignoreCase = true) or hasText(preparing, substring = true, ignoreCase = true),
                 ).assertIsDisplayed()
         } else {
             // Then: Verify Error path elements (content hidden, error banner shown)
-            composeTestRule.onNodeWithText("Couldn't Load Album", substring = true).assertIsDisplayed()
+            composeTestRule.onNodeWithText(failedToLoad, substring = true).assertIsDisplayed()
             // Note: Add Photos button should not exist in error state, but we don't check it explicitly
         }
     }
@@ -164,6 +174,11 @@ class AlbumScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+        val addPhotos = composeTestRule.activity.getString(R.string.tag_add_photos)
+        val failedToLoad = composeTestRule.activity.getString(R.string.album_failed_to_load)
+
         // When: Album loading completes (Success or Error)
         // Try to wait for content or error, but don't fail if timeout occurs
         var loaded = false
@@ -172,7 +187,7 @@ class AlbumScreenTest {
         } catch (e: Exception) {
             // If timeout occurs, just check current state
             try {
-                loaded = composeTestRule.onNodeWithText("+ Add Photos", substring = true).isDisplayed()
+                loaded = composeTestRule.onNodeWithText(addPhotos, substring = true).isDisplayed()
             } catch (e2: Exception) {
                 loaded = false
             }
@@ -184,14 +199,14 @@ class AlbumScreenTest {
         if (!loaded) {
             // Error path: Check for the error message shown in AlbumGridArea
             try {
-                composeTestRule.onNodeWithText("Couldn't Load Album", substring = true).assertIsDisplayed()
+                composeTestRule.onNodeWithText(failedToLoad, substring = true).assertIsDisplayed()
             } catch (e: AssertionError) {
                 // If neither success nor error state is reached, just verify basic UI
-                composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+                composeTestRule.onNodeWithText(appName).assertIsDisplayed()
             }
         } else {
             // Success path: Check stability
-            composeTestRule.onNodeWithText("+ Add Photos").assertIsDisplayed()
+            composeTestRule.onNodeWithText(addPhotos).assertIsDisplayed()
         }
     }
 
@@ -212,6 +227,10 @@ class AlbumScreenTest {
             }
         }
         composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+        val failedRename = composeTestRule.activity.getString(R.string.album_failed_rename_tag)
 
         // Wait for tag name to appear, skip test if it doesn't
         try {
@@ -247,7 +266,7 @@ class AlbumScreenTest {
                 timeoutMillis = 5.seconds.inWholeMilliseconds,
             ) {
                 try {
-                    composeTestRule.onNodeWithText("Couldn't Rename Tag", substring = true).assertExists()
+                    composeTestRule.onNodeWithText(failedRename, substring = true).assertExists()
                     true
                 } catch (e: AssertionError) {
                     false
@@ -255,14 +274,14 @@ class AlbumScreenTest {
             }
 
             // Then: Error banner should be displayed
-            composeTestRule.onNodeWithText("Couldn't Rename Tag", substring = true).assertIsDisplayed()
+            composeTestRule.onNodeWithText(failedRename, substring = true).assertIsDisplayed()
 
             // Then: Tag name should revert to original name
             composeTestRule.onNodeWithText(testTagName).assertIsDisplayed()
         } catch (e: Exception) {
             // Skip verification if rename operation doesn't complete in time
             // Just verify basic UI is still present
-            composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+            composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         }
     }
 
@@ -282,6 +301,10 @@ class AlbumScreenTest {
         }
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val share = composeTestRule.activity.getString(R.string.cd_share)
+        val untag = composeTestRule.activity.getString(R.string.cd_untag)
+
         // Ensure content is loaded before trying to find photos
         if (!waitForAlbumContentOrError()) return
 
@@ -295,11 +318,11 @@ class AlbumScreenTest {
 
             // Then: Selection mode actions appear, but are disabled (no photo selected yet).
             composeTestRule
-                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_share))
+                .onNodeWithContentDescription(share)
                 .assertIsDisplayed()
                 .assertIsNotEnabled()
             composeTestRule
-                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_untag))
+                .onNodeWithContentDescription(untag)
                 .assertIsDisplayed()
                 .assertIsNotEnabled()
 
@@ -309,12 +332,12 @@ class AlbumScreenTest {
 
             // Then: Share/Untag buttons become enabled
             composeTestRule
-                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_share))
+                .onNodeWithContentDescription(share)
                 .assertIsDisplayed()
                 .assertIsEnabled()
                 .assertHasClickAction()
             composeTestRule
-                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_untag))
+                .onNodeWithContentDescription(untag)
                 .assertIsDisplayed()
                 .assertIsEnabled()
                 .assertHasClickAction()
@@ -337,6 +360,9 @@ class AlbumScreenTest {
         }
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val preparing = composeTestRule.activity.getString(R.string.album_preparing)
+
         val loaded = waitForAlbumContentOrError() // Wait for chip state stabilization
 
         // Skip test if album is in error state (no chip to test)
@@ -345,7 +371,7 @@ class AlbumScreenTest {
         }
 
         // 1. Find the chip in the initial state (Preparing/Loading)
-        val chipMatcher = hasText("Preparing", substring = true, ignoreCase = true)
+        val chipMatcher = hasText(preparing, substring = true, ignoreCase = true)
         val chipNodes = composeTestRule.onAllNodes(chipMatcher)
 
         // Skip test if no Preparing chip found (might be in success state already)
@@ -380,6 +406,10 @@ class AlbumScreenTest {
         }
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val collapse = composeTestRule.activity.getString(R.string.cd_collapse)
+        val aiRecommend = composeTestRule.activity.getString(R.string.album_ai_recommend)
+
         // Ensure content is loaded before interacting with the chip
         if (!waitForAlbumContentOrError()) return
 
@@ -412,10 +442,10 @@ class AlbumScreenTest {
         // 3. Then: Verify the expanded panel appears
         try {
             composeTestRule
-                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_collapse))
+                .onNodeWithContentDescription(collapse)
                 .assertIsDisplayed()
                 .assertHasClickAction()
-            composeTestRule.onNodeWithText("AI Recommend", substring = true).assertIsDisplayed()
+            composeTestRule.onNodeWithText(aiRecommend, substring = true).assertIsDisplayed()
         } catch (e: AssertionError) {
             // Skip if panel didn't open (chip might not have been fully interactive)
         }
@@ -438,6 +468,9 @@ class AlbumScreenTest {
         }
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val collapse = composeTestRule.activity.getString(R.string.cd_collapse)
+
         // Ensure content is loaded before interacting with the chip
         if (!waitForAlbumContentOrError()) return
 
@@ -459,7 +492,7 @@ class AlbumScreenTest {
         composeTestRule.waitForIdle()
 
         val collapseButton =
-            composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_collapse))
+            composeTestRule.onNodeWithContentDescription(collapse)
 
         // Verify collapse button appeared (panel opened successfully)
         try {
@@ -497,9 +530,12 @@ class AlbumScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val addPhotos = composeTestRule.activity.getString(R.string.tag_add_photos)
+
         // Then: Verify "Add Photos" button is displayed and clickable
         composeTestRule
-            .onNodeWithText("+ Add Photos")
+            .onNodeWithText(addPhotos)
             .assertIsDisplayed()
             .assertHasClickAction()
     }
@@ -520,6 +556,13 @@ class AlbumScreenTest {
         }
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val untag = composeTestRule.activity.getString(R.string.cd_untag)
+        val removeTitle = composeTestRule.activity.getString(R.string.album_remove_photos_title)
+        val removeMessage = composeTestRule.activity.getString(R.string.album_remove_photos_message, 1, testTagName)
+        val remove = composeTestRule.activity.getString(R.string.album_remove)
+        val cancel = composeTestRule.activity.getString(R.string.action_cancel)
+
         // Enter selection mode and select a photo
         // Ensure content is loaded
         if (!waitForAlbumContentOrError()) return
@@ -534,18 +577,17 @@ class AlbumScreenTest {
 
             // When: Click the Untag button
             composeTestRule
-                .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_untag))
+                .onNodeWithContentDescription(untag)
                 .performClick()
             composeTestRule.waitForIdle()
 
             // Then: Confirmation dialog is displayed
-            composeTestRule.onNodeWithText("Remove Photos").assertIsDisplayed()
+            composeTestRule.onNodeWithText(removeTitle).assertIsDisplayed()
             composeTestRule
-                .onNodeWithText(
-                    "Are you sure you want to remove 1 photo(s) from '$testTagName' tag?",
-                ).assertIsDisplayed()
-            composeTestRule.onNodeWithText("Remove").assertIsDisplayed().assertHasClickAction()
-            composeTestRule.onNodeWithText("Cancel").assertIsDisplayed().assertHasClickAction()
+                .onNodeWithText(removeMessage)
+                .assertIsDisplayed()
+            composeTestRule.onNodeWithText(remove).assertIsDisplayed().assertHasClickAction()
+            composeTestRule.onNodeWithText(cancel).assertIsDisplayed().assertHasClickAction()
         }
     }
 
@@ -565,7 +607,10 @@ class AlbumScreenTest {
         }
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Then: Verify core screen element is displayed
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 }
