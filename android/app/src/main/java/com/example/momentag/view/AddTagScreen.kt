@@ -427,8 +427,8 @@ private fun TagNameSection(
 
         AnimatedVisibility(
             visible = isDuplicate,
-            enter = expandVertically(expandFrom = Alignment.Top) + Animation.DefaultFadeIn,
-            exit = shrinkVertically(shrinkTowards = Alignment.Top) + Animation.DefaultFadeOut,
+            enter = expandVertically(expandFrom = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeIn,
+            exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeOut,
         ) {
             Text(
                 text = stringResource(R.string.validation_tag_exists, tagName),
@@ -439,8 +439,8 @@ private fun TagNameSection(
 
         AnimatedVisibility(
             visible = showHelpText && tagName.isEmpty() && !isFocused,
-            enter = expandVertically(expandFrom = Alignment.Top) + Animation.DefaultFadeIn,
-            exit = shrinkVertically(shrinkTowards = Alignment.Top) + Animation.DefaultFadeOut,
+            enter = expandVertically(expandFrom = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeIn,
+            exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeOut,
         ) {
             Text(
                 text = stringResource(R.string.help_tag_name),
