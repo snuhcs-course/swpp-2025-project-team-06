@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,6 +64,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
+import com.example.momentag.ui.component.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
@@ -101,6 +104,7 @@ fun LocalAlbumScreen(
 
     // 6. rememberCoroutineScope
     val scope = rememberCoroutineScope()
+    val gridState = rememberLazyGridState()
 
     // 8. ActivityResultLauncher
     val permissionLauncher =
@@ -286,130 +290,150 @@ fun LocalAlbumScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = Dimen.ScreenHorizontalPadding),
-            ) {
-                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
-                Text(
-                    text = albumName,
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                )
-
-                AnimatedVisibility(
-                    visible = isErrorBannerVisible && errorMessage != null,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
                 ) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                        title = stringResource(R.string.notification_upload_failed),
-                        message = errorMessage ?: stringResource(R.string.error_message_generic),
-                        onActionClick = { isErrorBannerVisible = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = {
-                            isErrorBannerVisible = false
-                            photoViewModel.errorMessageShown()
-                        },
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+                    Text(
+                        text = albumName,
+                        style = MaterialTheme.typography.headlineMedium,
                     )
-                }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    )
 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
-                ) {
-                    items(
-                        count = photos.size,
-                        key = { index -> photos[index].photoId },
-                    ) { index ->
-                        val photo = photos[index]
-                        val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
+                    AnimatedVisibility(
+                        visible = isErrorBannerVisible && errorMessage != null,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
+                            title = stringResource(R.string.notification_upload_failed),
+                            message = errorMessage ?: stringResource(R.string.error_message_generic),
+                            onActionClick = { isErrorBannerVisible = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = {
+                                isErrorBannerVisible = false
+                                photoViewModel.errorMessageShown()
+                            },
+                        )
+                    }
 
-                        Box(
-                            modifier =
-                                Modifier
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
-                                    .combinedClickable(
-                                        onClick = {
-                                            if (isSelectionMode) {
-                                                localViewModel.togglePhotoSelection(photo)
-                                            } else {
-                                                localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
-                                                navController.navigate(
-                                                    Screen.Image.createRoute(
-                                                        uri = photo.contentUri,
-                                                        imageId = photo.photoId,
+                    Box(modifier = Modifier.weight(1f)) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            state = gridState,
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
+                        ) {
+                            items(
+                                count = photos.size,
+                                key = { index -> photos[index].photoId },
+                            ) { index ->
+                                val photo = photos[index]
+                                val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
+
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .aspectRatio(1f)
+                                            .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
+                                            .combinedClickable(
+                                                onClick = {
+                                                    if (isSelectionMode) {
+                                                        localViewModel.togglePhotoSelection(photo)
+                                                    } else {
+                                                        localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
+                                                        navController.navigate(
+                                                            Screen.Image.createRoute(
+                                                                uri = photo.contentUri,
+                                                                imageId = photo.photoId,
+                                                            ),
+                                                        )
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    if (!isSelectionMode) {
+                                                        isSelectionMode = true
+                                                        localViewModel.togglePhotoSelection(photo)
+                                                    }
+                                                },
+                                            ),
+                                ) {
+                                    AsyncImage(
+                                        model = photo.contentUri,
+                                        contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+
+                                    if (isSelectionMode) {
+                                        Box(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxSize()
+                                                    .background(
+                                                        if (isSelected) {
+                                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                                        } else {
+                                                            Color.Transparent
+                                                        },
                                                     ),
+                                        )
+
+                                        Box(
+                                            modifier =
+                                                Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .padding(Dimen.GridItemSpacing)
+                                                    .size(Dimen.IconButtonSizeSmall)
+                                                    .background(
+                                                        if (isSelected) {
+                                                            MaterialTheme.colorScheme.primaryContainer
+                                                        } else {
+                                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                                                        },
+                                                        CircleShape,
+                                                    ),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            if (isSelected) {
+                                                StandardIcon.Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = stringResource(R.string.cd_photo_selected),
+                                                    sizeRole = IconSizeRole.InlineAction,
+                                                    intent = IconIntent.OnPrimaryContainer,
                                                 )
                                             }
-                                        },
-                                        onLongClick = {
-                                            if (!isSelectionMode) {
-                                                isSelectionMode = true
-                                                localViewModel.togglePhotoSelection(photo)
-                                            }
-                                        },
-                                    ),
-                        ) {
-                            AsyncImage(
-                                model = photo.contentUri,
-                                contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-
-                            if (isSelectionMode) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .background(
-                                                if (isSelected) {
-                                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                                                } else {
-                                                    Color.Transparent
-                                                },
-                                            ),
-                                )
-
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(Dimen.GridItemSpacing)
-                                            .size(Dimen.IconButtonSizeSmall)
-                                            .background(
-                                                if (isSelected) {
-                                                    MaterialTheme.colorScheme.primaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
-                                                },
-                                                CircleShape,
-                                            ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    if (isSelected) {
-                                        StandardIcon.Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = stringResource(R.string.cd_photo_selected),
-                                            sizeRole = IconSizeRole.InlineAction,
-                                            intent = IconIntent.OnPrimaryContainer,
-                                        )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                }
+
+                // Scrollbar positioned outside Column to span padding boundary
+                if (hasPermission && photos.isNotEmpty()) {
+                    VerticalScrollbar(
+                        state = gridState,
+                        modifier =
+                            Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .padding(
+                                    top = Dimen.ItemSpacingLarge + Dimen.TitleRowHeight + Dimen.SectionSpacing, // Spacer + Title + Divider
+                                    end = Dimen.ScreenHorizontalPadding / 2,
+                                ),
+                    )
                 }
             }
         }

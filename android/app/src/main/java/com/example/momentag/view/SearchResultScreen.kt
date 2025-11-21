@@ -28,7 +28,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -76,6 +78,7 @@ import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.TagItem
+import com.example.momentag.ui.component.VerticalScrollbar
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
@@ -147,6 +150,7 @@ fun SearchResultScreen(
 
     // 6. Remember된 객체들
     val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
 
     LaunchedEffect(tagLoadingState) {
         if (tagLoadingState is SearchViewModel.TagLoadingState.Error) {
@@ -389,6 +393,7 @@ fun SearchResultScreen(
 
     SearchResultScreenUi(
         listState = listState,
+        gridState = gridState,
         contentItems = contentItems,
         textStates = textStates,
         focusRequesters = focusRequesters,
@@ -479,6 +484,7 @@ fun SearchResultScreen(
 fun SearchResultScreenUi(
     modifier: Modifier = Modifier,
     listState: LazyListState,
+    gridState: LazyGridState,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -539,6 +545,7 @@ fun SearchResultScreenUi(
                     .padding(paddingValues),
 //                    .padding(horizontal = 16.dp),
             listState = listState,
+            gridState = gridState,
             contentItems = contentItems,
             textStates = textStates,
             focusRequesters = focusRequesters,
@@ -587,6 +594,7 @@ fun SearchResultScreenUi(
 private fun SearchResultContent(
     modifier: Modifier = Modifier,
     listState: LazyListState,
+    gridState: LazyGridState,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -740,6 +748,7 @@ private fun SearchResultContent(
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
                 navController = navController,
+                gridState = gridState,
             )
 
             AnimatedVisibility(
@@ -759,6 +768,25 @@ private fun SearchResultContent(
             }
 
             Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+        }
+
+        // Scrollbar positioned outside Column to span padding boundary
+        if (uiState is SearchViewModel.SearchUiState.Success) {
+            VerticalScrollbar(
+                state = gridState,
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .padding(
+                            top =
+                                Dimen.ItemSpacingSmall +
+                                    with(
+                                        LocalDensity.current,
+                                    ) { searchBarRowHeight.toDp() } + Dimen.ItemSpacingLarge,
+                            end = Dimen.ScreenHorizontalPadding / 2,
+                        ),
+            )
         }
 
         // search history dropdown
@@ -846,6 +874,7 @@ private fun SearchResultsFromState(
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    gridState: LazyGridState,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
@@ -870,7 +899,8 @@ private fun SearchResultsFromState(
             is SearchViewModel.SearchUiState.Success -> {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    modifier = modifier,
+                    state = gridState,
+                    modifier = modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                     verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                 ) {

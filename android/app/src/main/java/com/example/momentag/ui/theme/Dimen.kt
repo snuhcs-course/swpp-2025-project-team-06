@@ -58,11 +58,18 @@ object Dimen {
     val IconButtonsSizeXSmall = 16.dp
 
     // --- Bars ---
+    val TopBarHeight = 56.dp
     val BottomNavBarHeight = 56.dp
     val SearchBarMinHeight = 48.dp
+    val TitleRowHeight = 40.dp
 
     // 검색바 내부 텍스트필드의 최소 너비
     val MinSearchBarMinHeight = 10.dp
+
+    // --- Scrollbar ---
+    val ScrollbarWidth = 6.dp
+    val ScrollbarWidthActive = 8.dp
+    val ScrollbarMinThumbHeight = 48.dp
 
     // --- Tags ---
     val TagHeight = 32.dp

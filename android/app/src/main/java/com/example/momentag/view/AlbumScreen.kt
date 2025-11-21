@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,7 +29,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -83,6 +86,7 @@ import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.component.VerticalScrollbar
 import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.WarningBanner
@@ -139,6 +143,7 @@ fun AlbumScreen(
     val minPanelHeight = Dimen.ExpandedPanelMinHeight
     val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
     var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
+    val gridState = rememberLazyGridState()
 
     // 6. rememberCoroutineScope & ActivityResultLauncher
     val scope = rememberCoroutineScope()
@@ -562,9 +567,25 @@ fun AlbumScreen(
                             albumViewModel = albumViewModel,
                             tagId = tagId,
                             tagName = currentTagName,
+                            gridState = gridState,
                         )
                     }
                 }
+            }
+
+            // Scrollbar positioned outside Column to span padding boundary
+            if (hasPermission && imageLoadState is AlbumViewModel.AlbumLoadingState.Success) {
+                VerticalScrollbar(
+                    state = gridState,
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .padding(
+                                top = Dimen.ItemSpacingLarge + Dimen.TopBarHeight + Dimen.SectionSpacing, // Spacer + Title row + Divider
+                                end = Dimen.ScreenHorizontalPadding / 2,
+                            ),
+                )
             }
 
             // === Edge-to-edge 오버레이 (Column 바깥, 동일 Box의 sibling) ===
@@ -610,6 +631,7 @@ private fun AlbumGridArea(
     albumViewModel: AlbumViewModel,
     tagId: String,
     tagName: String,
+    gridState: LazyGridState,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (albumLoadState) {
@@ -620,42 +642,46 @@ private fun AlbumGridArea(
             }
             is AlbumViewModel.AlbumLoadingState.Success -> {
                 val photos = albumLoadState.photos
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                    contentPadding =
-                        PaddingValues(
-                            bottom = if (isRecommendationExpanded) panelHeight else Dimen.FloatingButtonAreaPadding,
-                        ),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    // Add Photos Button as first item
-                    item(
-                        key = "add_photos_button",
-                    ) {
-                        AddPhotosButton(
-                            onClick = {
-                                albumViewModel.initializeAddPhotosFlow(tagId, tagName)
-                                navController.navigate(Screen.SelectImage.route)
-                            },
-                            modifier = Modifier.aspectRatio(1f),
-                        )
-                    }
 
-                    // Photo grid items
-                    items(
-                        count = photos.size,
-                        key = { index -> "photo_$index" },
-                    ) { index ->
-                        ImageGridUriItem(
-                            photo = photos[index],
-                            navController = navController,
-                            isSelectionMode = isTagAlbumPhotoSelectionMode,
-                            isSelected = selectedTagAlbumPhotos.contains(photos[index]),
-                            onToggleSelection = { onToggleTagAlbumPhoto(photos[index]) },
-                            onLongPress = { onSetTagAlbumPhotoSelectionMode(true) },
-                        )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        state = gridState,
+                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        contentPadding =
+                            PaddingValues(
+                                bottom = if (isRecommendationExpanded) panelHeight else Dimen.FloatingButtonAreaPadding,
+                            ),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        // Add Photos Button as first item
+                        item(
+                            key = "add_photos_button",
+                        ) {
+                            AddPhotosButton(
+                                onClick = {
+                                    albumViewModel.initializeAddPhotosFlow(tagId, tagName)
+                                    navController.navigate(Screen.SelectImage.route)
+                                },
+                                modifier = Modifier.aspectRatio(1f),
+                            )
+                        }
+
+                        // Photo grid items
+                        items(
+                            count = photos.size,
+                            key = { index -> "photo_$index" },
+                        ) { index ->
+                            ImageGridUriItem(
+                                photo = photos[index],
+                                navController = navController,
+                                isSelectionMode = isTagAlbumPhotoSelectionMode,
+                                isSelected = selectedTagAlbumPhotos.contains(photos[index]),
+                                onToggleSelection = { onToggleTagAlbumPhoto(photos[index]) },
+                                onLongPress = { onSetTagAlbumPhotoSelectionMode(true) },
+                            )
+                        }
                     }
                 }
             }
