@@ -50,6 +50,7 @@ import kotlin.math.roundToInt
  *
  * @param state The LazyGridState of the grid to control
  * @param modifier Modifier to be applied to the scrollbar
+ * @param enabled Whether the scrollbar accepts user interactions (dragging/tapping)
  * @param scrollbarWidth Width of the scrollbar track and thumb
  * @param scrollbarWidthActive Width of the scrollbar when being dragged
  * @param scrollbarPadding Padding from the edge
@@ -63,6 +64,7 @@ import kotlin.math.roundToInt
 fun VerticalScrollbar(
     state: LazyGridState,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     scrollbarWidth: Dp = Dimen.ScrollbarWidth,
     scrollbarWidthActive: Dp = Dimen.ScrollbarWidthActive,
     scrollbarPadding: Dp = Dimen.SpacingXXSmall,
@@ -132,6 +134,14 @@ fun VerticalScrollbar(
         }
     }
 
+    // Cancel dragging when disabled
+    LaunchedEffect(enabled) {
+        if (!enabled && isDragging) {
+            isDragging = false
+            lastInteractionTime = System.currentTimeMillis()
+        }
+    }
+
     // Auto-hide after delay
     LaunchedEffect(lastInteractionTime, isDragging) {
         if (lastInteractionTime > 0 && !isDragging) {
@@ -171,10 +181,10 @@ fun VerticalScrollbar(
                     .alpha(alpha)
                     .onSizeChanged { size ->
                         viewportHeight = size.height.toFloat()
-                    }.pointerInput(Unit) {
+                    }.pointerInput(enabled) {
                         // Handle tap on track to jump to position
                         detectTapGestures { offset ->
-                            if (!isDragging) {
+                            if (enabled && !isDragging) {
                                 val targetProgress = (offset.y / viewportHeight).coerceIn(0f, 1f)
                                 val layoutInfo = state.layoutInfo
                                 val totalItems = layoutInfo.totalItemsCount
@@ -216,14 +226,16 @@ fun VerticalScrollbar(
                             with(density) { currentWidth.toDp() },
                         ).height(
                             with(density) { scrollbarMetrics.thumbHeight.toDp() },
-                        ).clip(RoundedCornerShape(Dimen.Radius2))
+                        ).clip(RoundedCornerShape(Dimen.Radius6))
                         .background(currentThumbColor)
-                        .pointerInput(Unit) {
+                        .pointerInput(enabled) {
                             detectVerticalDragGestures(
                                 onDragStart = {
-                                    isDragging = true
-                                    dragOffset = scrollbarMetrics.thumbOffset
-                                    isVisible = true
+                                    if (enabled) {
+                                        isDragging = true
+                                        dragOffset = scrollbarMetrics.thumbOffset
+                                        isVisible = true
+                                    }
                                 },
                                 onDragEnd = {
                                     isDragging = false
@@ -234,22 +246,24 @@ fun VerticalScrollbar(
                                     lastInteractionTime = System.currentTimeMillis()
                                 },
                                 onVerticalDrag = { _, dragAmount ->
-                                    dragOffset += dragAmount
-                                    val maxScrollDistance =
-                                        viewportHeight - scrollbarMetrics.thumbHeight
-                                    val normalizedOffset =
-                                        (dragOffset / maxScrollDistance).coerceIn(0f, 1f)
+                                    if (enabled) {
+                                        dragOffset += dragAmount
+                                        val maxScrollDistance =
+                                            viewportHeight - scrollbarMetrics.thumbHeight
+                                        val normalizedOffset =
+                                            (dragOffset / maxScrollDistance).coerceIn(0f, 1f)
 
-                                    val layoutInfo = state.layoutInfo
-                                    val totalItems = layoutInfo.totalItemsCount
-                                    val visibleItems = layoutInfo.visibleItemsInfo.size
-                                    val targetIndex =
-                                        (normalizedOffset * (totalItems - visibleItems))
-                                            .roundToInt()
-                                            .coerceIn(0, totalItems - 1)
+                                        val layoutInfo = state.layoutInfo
+                                        val totalItems = layoutInfo.totalItemsCount
+                                        val visibleItems = layoutInfo.visibleItemsInfo.size
+                                        val targetIndex =
+                                            (normalizedOffset * (totalItems - visibleItems))
+                                                .roundToInt()
+                                                .coerceIn(0, totalItems - 1)
 
-                                    coroutineScope.launch {
-                                        state.scrollToItem(targetIndex)
+                                        coroutineScope.launch {
+                                            state.scrollToItem(targetIndex)
+                                        }
                                     }
                                 },
                             )

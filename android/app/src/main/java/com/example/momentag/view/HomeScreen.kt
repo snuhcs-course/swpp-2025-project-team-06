@@ -957,6 +957,7 @@ fun HomeScreen(navController: NavController) {
                 if (hasPermission && isShowingAllPhotos && groupedPhotos.isNotEmpty()) {
                     VerticalScrollbar(
                         state = allPhotosGridState,
+                        enabled = !isLoadingMorePhotos,
                         modifier =
                             Modifier
                                 .align(Alignment.CenterEnd)
