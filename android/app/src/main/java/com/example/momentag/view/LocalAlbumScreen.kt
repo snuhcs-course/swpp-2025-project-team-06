@@ -64,7 +64,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
-import com.example.momentag.ui.component.VerticalScrollbar
+import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen

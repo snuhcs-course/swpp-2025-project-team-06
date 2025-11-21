@@ -1,4 +1,4 @@
-package com.example.momentag.ui.component
+package com.example.momentag.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -63,14 +63,14 @@ import kotlin.math.roundToInt
 @Composable
 fun VerticalScrollbar(
     state: LazyGridState,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.Companion,
     enabled: Boolean = true,
     scrollbarWidth: Dp = Dimen.ScrollbarWidth,
     scrollbarWidthActive: Dp = Dimen.ScrollbarWidthActive,
     scrollbarPadding: Dp = Dimen.SpacingXXSmall,
     thumbColor: Color = MaterialTheme.colorScheme.primary,
     thumbColorActive: Color = MaterialTheme.colorScheme.primary,
-    trackColor: Color = Color.Transparent,
+    trackColor: Color = Color.Companion.Transparent,
     autoHideDelay: Long = 1500L,
     minThumbHeight: Dp = Dimen.ScrollbarMinThumbHeight,
 ) {
@@ -89,7 +89,7 @@ fun VerticalScrollbar(
         derivedStateOf {
             val layoutInfo = state.layoutInfo
             layoutInfo.totalItemsCount > 0 &&
-                layoutInfo.totalItemsCount > layoutInfo.visibleItemsInfo.size
+                    layoutInfo.totalItemsCount > layoutInfo.visibleItemsInfo.size
         }
     }
 
@@ -207,7 +207,7 @@ fun VerticalScrollbar(
             // Track background
             Box(
                 modifier =
-                    Modifier
+                    Modifier.Companion
                         .fillMaxHeight()
                         .width(scrollbarWidth)
                         .background(trackColor),
@@ -216,7 +216,7 @@ fun VerticalScrollbar(
             // Scrollbar thumb
             Box(
                 modifier =
-                    Modifier
+                    Modifier.Companion
                         .offset {
                             IntOffset(
                                 x = 0,

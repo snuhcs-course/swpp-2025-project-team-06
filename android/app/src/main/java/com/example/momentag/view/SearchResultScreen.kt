@@ -78,7 +78,7 @@ import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.TagItem
-import com.example.momentag.ui.component.VerticalScrollbar
+import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
