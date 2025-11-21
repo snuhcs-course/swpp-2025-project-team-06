@@ -88,6 +88,7 @@ import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.StandardIcon
@@ -750,7 +751,11 @@ private fun SearchResultContent(
                 gridState = gridState,
             )
 
-            AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
+            AnimatedVisibility(
+                visible = isErrorBannerVisible && errorMessage != null,
+                enter = Animation.EnterFromBottom,
+                exit = Animation.ExitToBottom,
+            ) {
                 WarningBanner(
                     modifier = Modifier.fillMaxWidth().padding(top = Dimen.ItemSpacingSmall),
                     title = stringResource(R.string.search_failed_title),
@@ -787,8 +792,12 @@ private fun SearchResultContent(
         // search history dropdown
         AnimatedVisibility(
             visible = shouldShowSearchHistoryDropdown,
-            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+            enter =
+                expandVertically(expandFrom = Alignment.Top, animationSpec = Animation.mediumTween()) +
+                    fadeIn(animationSpec = Animation.mediumTween()),
+            exit =
+                shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = Animation.mediumTween()) +
+                    fadeOut(animationSpec = Animation.mediumTween()),
             modifier =
                 Modifier
                     .offset(y = topSpacerHeight + with(LocalDensity.current) { searchBarRowHeight.toDp() } + Dimen.GridItemSpacing)
@@ -831,11 +840,15 @@ private fun SearchResultContent(
                         .padding(horizontal = Dimen.ScreenHorizontalPadding),
             ) {
                 // Only show CreateTagButton when in selection mode and photos are selected
-                if (isSelectionMode && selectedPhotos.isNotEmpty()) {
+                AnimatedVisibility(
+                    visible = isSelectionMode && selectedPhotos.isNotEmpty(),
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                ) {
                     CreateTagButton(
                         modifier =
                             Modifier
-                                .align(Alignment.BottomEnd)
                                 .padding(start = Dimen.ScreenHorizontalPadding),
                         text = stringResource(R.string.add_tag_with_count, selectedPhotos.size),
                         onClick = {

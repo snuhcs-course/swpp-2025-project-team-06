@@ -1,6 +1,17 @@
 package com.example.momentag.view
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +63,7 @@ import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.ui.components.WarningBanner
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.viewmodel.AuthViewModel
@@ -61,6 +73,7 @@ import com.example.momentag.viewmodel.AuthViewModel
 fun LoginScreen(navController: NavController) {
     // Context and platform-related variables
     val context = LocalContext.current
+    val activity = LocalContext.current.findActivity()
 
     // ViewModel instance
     val authViewModel: AuthViewModel = hiltViewModel()
@@ -79,6 +92,7 @@ fun LoginScreen(navController: NavController) {
     var isPasswordTouched by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
+    var backPressedTime by remember { mutableStateOf(0L) }
 
     // Callback function to clear all errors
     val clearAllErrors = {
@@ -137,6 +151,16 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
+    BackHandler(enabled = true) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - backPressedTime < 2000) {
+            activity?.finish()
+        } else {
+            backPressedTime = currentTime
+            Toast.makeText(context, context.getString(R.string.home_exit_prompt), Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold { paddingValues ->
         Column(
             modifier =
@@ -168,7 +192,13 @@ fun LoginScreen(navController: NavController) {
                     Modifier
                         .fillMaxWidth(0.95f)
                         .weight(1f)
-                        .verticalScroll(rememberScrollState()),
+                        .animateContentSize(
+                            animationSpec =
+                                spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium,
+                                ),
+                        ).verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top,
             ) {
@@ -190,9 +220,7 @@ fun LoginScreen(navController: NavController) {
                         text = stringResource(R.string.login_sign_up),
                         modifier =
                             Modifier.clickable {
-                                navController.navigate(Screen.Register.route) {
-                                    popUpTo(Screen.Login.route) { inclusive = true }
-                                }
+                                navController.navigate(Screen.Register.route)
                             },
                         style = TextStyle(color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold),
                     )
@@ -384,18 +412,37 @@ fun LoginScreen(navController: NavController) {
                         ),
                     enabled = !isLoading,
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.height(Dimen.IconButtonSizeSmall),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                        )
-                    } else {
-                        Text(stringResource(R.string.action_login), style = MaterialTheme.typography.headlineSmall)
+                    AnimatedContent(
+                        targetState = isLoading,
+                        transitionSpec = {
+                            (Animation.QuickFadeIn)
+                                .togetherWith(Animation.QuickFadeOut)
+                                .using(SizeTransform(clip = false))
+                        },
+                        label = "LoginButtonContent",
+                    ) { loading ->
+                        if (loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.height(Dimen.IconButtonSizeSmall),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                            )
+                        } else {
+                            Text(stringResource(R.string.action_login), style = MaterialTheme.typography.headlineSmall)
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
+}
+
+private fun Context.findActivity(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
 }

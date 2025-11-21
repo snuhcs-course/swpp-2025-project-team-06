@@ -137,6 +137,7 @@ import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.tagX
+import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
@@ -641,9 +642,11 @@ fun HomeScreen(navController: NavController) {
         },
         containerColor = MaterialTheme.colorScheme.surface,
         floatingActionButton = {
-            // Don't show Create Tag button in tag album view (!isShowingAllPhotos)
-            // Only show when in selection mode and photos are selected
-            if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode && selectedPhotos.isNotEmpty(),
+                enter = Animation.EnterFromBottom,
+                exit = Animation.ExitToBottom,
+            ) {
                 CreateTagButton(
                     text = stringResource(R.string.button_add_tag_count, selectedPhotos.size),
                     modifier = Modifier.padding(start = Dimen.ButtonStartPadding, bottom = Dimen.ItemSpacingLarge),
@@ -909,7 +912,11 @@ fun HomeScreen(navController: NavController) {
                             )
                         }
                     }
-                    AnimatedVisibility(visible = bannerVisible) {
+                    AnimatedVisibility(
+                        visible = bannerVisible,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         Column {
                             Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                             WarningBanner(
@@ -928,7 +935,11 @@ fun HomeScreen(navController: NavController) {
                             Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                         }
                     }
-                    AnimatedVisibility(visible = isErrorBannerVisible && errorBannerMessage != null) {
+                    AnimatedVisibility(
+                        visible = isErrorBannerVisible && errorBannerMessage != null,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
                         Column {
                             Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                             WarningBanner(
@@ -974,8 +985,12 @@ fun HomeScreen(navController: NavController) {
                 // search history dropdown
                 AnimatedVisibility(
                     visible = shouldShowSearchHistoryDropdown,
-                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+                    enter =
+                        expandVertically(expandFrom = Alignment.Top, animationSpec = Animation.mediumTween()) +
+                            fadeIn(animationSpec = Animation.mediumTween()),
+                    exit =
+                        shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = Animation.mediumTween()) +
+                            fadeOut(animationSpec = Animation.mediumTween()),
                     modifier =
                         Modifier
                             .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() + 16.dp }) // change to move y-axis
