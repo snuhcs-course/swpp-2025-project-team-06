@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -30,6 +32,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -38,11 +41,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -54,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -217,7 +220,7 @@ fun AddTagScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .padding(horizontal = Dimen.FormScreenHorizontalPadding),
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
                 ) {
                     // Tag Name Section
                     TagNameSection(
@@ -260,7 +263,7 @@ fun AddTagScreen(navController: NavController) {
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(horizontal = Dimen.FormScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
                 ) {
                     // Error Banner - Floating above Done button
                     AnimatedVisibility(
@@ -367,53 +370,64 @@ private fun TagNameSection(
     isDuplicate: Boolean,
 ) {
     val focusManager = LocalFocusManager.current
+    var isFocused by remember { mutableStateOf(false) }
+
     Column {
-        TextField(
-            value = tagName,
-            onValueChange = onTagNameChange,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            textStyle = MaterialTheme.typography.headlineSmall,
-            placeholder = {
-                Text(
-                    stringResource(R.string.field_enter_tag_name),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                )
-            },
-            leadingIcon = {
-                Text(
-                    text = stringResource(R.string.add_tag_hash_prefix),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-            },
-            supportingText =
-                if (!isDuplicate && tagName.isEmpty()) {
-                    {
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "#",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
+            BasicTextField(
+                value = tagName,
+                onValueChange = onTagNameChange,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .onFocusChanged { isFocused = it.isFocused },
+                textStyle =
+                    MaterialTheme.typography.headlineMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                singleLine = true,
+                decorationBox = { innerTextField ->
+                    if (tagName.isEmpty()) {
                         Text(
-                            text = stringResource(R.string.help_tag_name),
-                            style = MaterialTheme.typography.bodySmall,
+                            text = stringResource(R.string.field_enter_tag_name),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         )
                     }
-                } else {
-                    null
+                    innerTextField()
                 },
-            colors =
-                TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
-                ),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+            )
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = Dimen.ItemSpacingSmall),
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
         )
+
+        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+
         if (isDuplicate) {
             Text(
                 text = stringResource(R.string.validation_tag_exists, tagName),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = Dimen.ErrorMessagePadding),
+            )
+        } else if (tagName.isEmpty() && !isFocused) {
+            Text(
+                text = stringResource(R.string.help_tag_name),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

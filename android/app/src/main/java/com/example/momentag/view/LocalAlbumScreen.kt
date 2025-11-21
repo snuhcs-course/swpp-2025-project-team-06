@@ -334,8 +334,8 @@ fun LocalAlbumScreen(
                             columns = GridCells.Fixed(3),
                             state = gridState,
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
-                            horizontalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
+                            verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                         ) {
                             items(
                                 count = photos.size,
@@ -348,7 +348,7 @@ fun LocalAlbumScreen(
                                     modifier =
                                         Modifier
                                             .aspectRatio(1f)
-                                            .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
+                                            .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                                             .combinedClickable(
                                                 onClick = {
                                                     if (isSelectionMode) {

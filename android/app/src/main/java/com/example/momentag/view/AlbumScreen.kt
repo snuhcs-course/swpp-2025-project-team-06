@@ -452,32 +452,42 @@ fun AlbumScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        BasicTextField(
-                            value = editableTagName,
-                            onValueChange = { editableTagName = it },
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .padding(end = Dimen.ItemSpacingSmall)
-                                    .onFocusChanged { isFocused = it.isFocused },
-                            textStyle =
-                                MaterialTheme.typography.displayMedium.copy(
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                ),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { submitAndClearFocus() }),
-                            singleLine = true,
-                        )
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "#",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
+                            BasicTextField(
+                                value = editableTagName,
+                                onValueChange = { editableTagName = it },
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .onFocusChanged { isFocused = it.isFocused },
+                                textStyle =
+                                    MaterialTheme.typography.headlineMedium.copy(
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    ),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { submitAndClearFocus() }),
+                                singleLine = true,
+                            )
+                        }
 
                         if (editableTagName.isNotEmpty() && isFocused) {
                             IconButton(
                                 onClick = { editableTagName = "" },
-                                modifier = Modifier.size(Dimen.IconButtonSizeMedium),
+                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                             ) {
                                 Box(
                                     modifier =
                                         Modifier
-                                            .size(24.dp)
+                                            .size(20.dp)
                                             .background(
                                                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                                 shape = CircleShape,
