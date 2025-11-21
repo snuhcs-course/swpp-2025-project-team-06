@@ -255,33 +255,34 @@ fun SelectImageScreen(navController: NavController) {
                     navController.popBackStack()
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-                navigationIcon = if (isSelectionMode) {
-                    {
-                        IconButton(
-                            onClick = {
-                                isSelectionModeDelay = false
-                                selectImageViewModel.clearDraft()
-                                selectImageViewModel.setSelectionMode(false)
-                            },
-                        ) {
-                            StandardIcon.Icon(
-                                imageVector = Icons.Default.Close,
-                                sizeRole = IconSizeRole.Navigation,
-                                contentDescription = stringResource(R.string.cd_deselect_all),
-                            )
+                navigationIcon =
+                    if (isSelectionMode) {
+                        {
+                            IconButton(
+                                onClick = {
+                                    isSelectionModeDelay = false
+                                    selectImageViewModel.clearDraft()
+                                    selectImageViewModel.setSelectionMode(false)
+                                },
+                            ) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Close,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    contentDescription = stringResource(R.string.cd_deselect_all),
+                                )
+                            }
                         }
-                    }
-                } else {
-                    {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            StandardIcon.Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                sizeRole = IconSizeRole.Navigation,
-                                contentDescription = stringResource(R.string.cd_navigate_back),
-                            )
+                    } else {
+                        {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    contentDescription = stringResource(R.string.cd_navigate_back),
+                                )
+                            }
                         }
-                    }
-                },
+                    },
                 actions = {},
             )
         },
