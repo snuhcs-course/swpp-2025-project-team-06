@@ -95,6 +95,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AlbumViewModel
 import kotlinx.coroutines.delay
@@ -144,6 +145,7 @@ fun AlbumScreen(
     val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
     var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
     val gridState = rememberLazyGridState()
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // 6. rememberCoroutineScope & ActivityResultLauncher
     val scope = rememberCoroutineScope()
@@ -418,6 +420,7 @@ fun AlbumScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
             // 당겨서 새로고침은 본문 레이어에만

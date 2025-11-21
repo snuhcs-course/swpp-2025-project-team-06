@@ -100,7 +100,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -142,6 +141,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
@@ -377,15 +377,6 @@ fun HomeScreen(navController: NavController) {
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val gradientBrush =
-        Brush.verticalGradient(
-            colorStops =
-                arrayOf(
-                    0.5f to MaterialTheme.colorScheme.surface,
-                    1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                ),
-        )
-
     val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
     val isTagsLoaded =
         homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
@@ -393,8 +384,6 @@ fun HomeScreen(navController: NavController) {
     val isDataReady = isTagsLoaded && arePhotosLoaded
     val areTagsEmpty = tagItems.isEmpty()
     val arePhotosEmpty = groupedPhotos.isEmpty()
-
-    val showEmptyTagGradient = !isShowingAllPhotos && areTagsEmpty && isDataReady && !arePhotosEmpty
 
     LaunchedEffect(uiState.isLoading) {
         if (uiState.isLoading) {
@@ -418,6 +407,8 @@ fun HomeScreen(navController: NavController) {
             homeViewModel.setShouldReturnToAllPhotos(false) // flag reset
         }
     }
+
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -692,13 +683,8 @@ fun HomeScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .then(
-                                if (showEmptyTagGradient) {
-                                    Modifier.background(gradientBrush)
-                                } else {
-                                    Modifier
-                                },
-                            ).padding(horizontal = Dimen.ScreenHorizontalPadding)
+                            .background(backgroundBrush)
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,

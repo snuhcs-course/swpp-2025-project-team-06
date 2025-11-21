@@ -92,6 +92,7 @@ import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.SearchViewModel
 import kotlinx.coroutines.android.awaitFrame
@@ -526,6 +527,7 @@ fun SearchResultScreenUi(
     placeholder: String,
 ) {
     LocalFocusManager.current
+    val backgroundBrush = rememberAppBackgroundBrush()
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -542,6 +544,7 @@ fun SearchResultScreenUi(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
 //                    .padding(horizontal = 16.dp),
             listState = listState,

@@ -77,6 +77,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.AddTagViewModel
 import kotlinx.coroutines.delay
 
@@ -100,6 +101,7 @@ fun AddTagScreen(navController: NavController) {
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // Permission launcher
     val permissionLauncher =
@@ -198,6 +200,7 @@ fun AddTagScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
             Box(

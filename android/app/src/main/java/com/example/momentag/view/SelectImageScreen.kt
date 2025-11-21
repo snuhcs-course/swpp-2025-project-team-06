@@ -90,6 +90,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.SelectImageViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -122,6 +123,7 @@ fun SelectImageScreen(navController: NavController) {
     var isRecommendationExpanded by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(true) }
     var currentTab by remember { mutableStateOf(BottomTab.MyTagsScreen) }
+    val backgroundBrush = rememberAppBackgroundBrush()
     val permission =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
@@ -292,6 +294,7 @@ fun SelectImageScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
             // Main Content
