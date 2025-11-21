@@ -40,7 +40,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.momentag.ui.theme.Animation
@@ -331,7 +333,10 @@ fun StoryTagChip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    // 5. Derived 상태 및 계산된 값
+    var textOverflow by remember { mutableStateOf(false) }
+    var showFullName by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
+
     val backgroundColor =
         when {
             isSelected -> MaterialTheme.colorScheme.primary
@@ -346,11 +351,28 @@ fun StoryTagChip(
             else -> MaterialTheme.colorScheme.onSurface
         }
 
-    // 13. UI (Box)
     Box(
         modifier =
             modifier
-                .clickable(enabled = enabled) { onClick() },
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    detectTapGestures(
+                        onTap = {
+                            showFullName = false
+                            onClick()
+                        },
+                        onLongPress = {
+                            if (textOverflow) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showFullName = true
+                            }
+                        },
+                        onPress = {
+                            tryAwaitRelease()
+                            showFullName = false
+                        },
+                    )
+                },
         contentAlignment = Alignment.CenterStart,
     ) {
         TagContainer(
@@ -359,15 +381,21 @@ fun StoryTagChip(
         ) {
             Text(
                 text = text,
+                modifier =
+                    if (showFullName) {
+                        Modifier
+                    } else {
+                        Modifier.widthIn(max = Dimen.TagMaxTextWidth)
+                    },
                 style = MaterialTheme.typography.bodyMedium,
                 color = textColor,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = if (showFullName) TextOverflow.Visible else TextOverflow.Ellipsis,
+                onTextLayout = { layoutResult -> textOverflow = layoutResult.hasVisualOverflow },
             )
             Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
         }
 
-        // 2) 선택된 경우에만 우상단 체크 뱃지 오버레이
         if (isSelected) {
             Box(
                 modifier =
