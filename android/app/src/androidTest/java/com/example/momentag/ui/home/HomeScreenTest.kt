@@ -61,8 +61,11 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Verify top bar title
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
 
         // Verify logout button exists
         composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_logout)).assertIsDisplayed()
@@ -144,6 +147,9 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Switch to All Photos
         composeTestRule
             .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
@@ -159,7 +165,7 @@ class HomeScreenTest {
         composeTestRule.waitForIdle()
 
         // Screen should still be functional
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ---------- 4. Bottom Navigation ----------
@@ -178,7 +184,7 @@ class HomeScreenTest {
         // Verify all bottom navigation items are clickable
         composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_home)).assertHasClickAction()
         composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_my_tags)).assertHasClickAction()
-        composeTestRule.onNodeWithText("Moment").assertHasClickAction()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.nav_moment)).assertHasClickAction()
     }
 
     // ---------- 5. Logout 기능 ----------
@@ -214,9 +220,12 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Title should be clickable to navigate to LocalGallery
         composeTestRule
-            .onNodeWithText("MomenTag")
+            .onNodeWithText(appName)
             .assertHasClickAction()
     }
 
@@ -277,8 +286,11 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Screen should render without crashes
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     @Test
@@ -291,6 +303,9 @@ class HomeScreenTest {
         }
 
         composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
 
         // Switch multiple times between views
         repeat(2) {
@@ -308,7 +323,7 @@ class HomeScreenTest {
         }
 
         // Should still work without crashes
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ---------- 9. 검색바 반복 클릭 ----------
@@ -324,6 +339,9 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Click search bar multiple times to test focus handling
         repeat(3) {
             composeTestRule
@@ -334,7 +352,7 @@ class HomeScreenTest {
         }
 
         // Screen should still be functional
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ---------- 10. 정렬 Bottom Sheet ----------
@@ -350,6 +368,9 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val sortBy = composeTestRule.activity.getString(R.string.tag_sort_by)
+
         // Click sort button (in Tag Albums view)
         composeTestRule
             .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
@@ -358,7 +379,7 @@ class HomeScreenTest {
         composeTestRule.waitForIdle()
 
         // Bottom sheet should appear with sort options
-        composeTestRule.onNodeWithText("Sort by").assertIsDisplayed()
+        composeTestRule.onNodeWithText(sortBy).assertIsDisplayed()
     }
 
     @Test
@@ -372,6 +393,14 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val sortBy = composeTestRule.activity.getString(R.string.tag_sort_by)
+        val mostRecentlyAdded = composeTestRule.activity.getString(R.string.tag_sort_most_recently_added)
+        val nameAZ = composeTestRule.activity.getString(R.string.tag_sort_name_az)
+        val nameZA = composeTestRule.activity.getString(R.string.tag_sort_name_za)
+        val countAsc = composeTestRule.activity.getString(R.string.tag_sort_count_asc)
+        val countDesc = composeTestRule.activity.getString(R.string.tag_sort_count_desc)
+
         // Click sort button to open bottom sheet
         composeTestRule
             .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
@@ -380,12 +409,12 @@ class HomeScreenTest {
         composeTestRule.waitForIdle()
 
         // Verify all sort options are displayed
-        composeTestRule.onNodeWithText("Sort by").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Most Recently Added").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Name (A-Z)").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Name (Z-A)").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Count (Ascending)").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Count (Descending)").assertIsDisplayed()
+        composeTestRule.onNodeWithText(sortBy).assertIsDisplayed()
+        composeTestRule.onNodeWithText(mostRecentlyAdded).assertIsDisplayed()
+        composeTestRule.onNodeWithText(nameAZ).assertIsDisplayed()
+        composeTestRule.onNodeWithText(nameZA).assertIsDisplayed()
+        composeTestRule.onNodeWithText(countAsc).assertIsDisplayed()
+        composeTestRule.onNodeWithText(countDesc).assertIsDisplayed()
     }
 
     @Test
@@ -399,6 +428,10 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+        val nameAZ = composeTestRule.activity.getString(R.string.tag_sort_name_az)
+
         // Open sort bottom sheet
         composeTestRule
             .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
@@ -408,13 +441,13 @@ class HomeScreenTest {
 
         // Click on a sort option
         composeTestRule
-            .onNodeWithText("Name (A-Z)")
+            .onNodeWithText(nameAZ)
             .performClick()
 
         composeTestRule.waitForIdle()
 
         // Bottom sheet should close and screen should still be functional
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ---------- 11. View Toggle 상태 확인 ----------
@@ -454,6 +487,9 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Rapidly toggle between views
         repeat(5) {
             composeTestRule
@@ -470,7 +506,7 @@ class HomeScreenTest {
         }
 
         // Screen should still be functional after rapid toggling
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         composeTestRule
             .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
             .assertIsDisplayed()
@@ -489,8 +525,11 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val home = composeTestRule.activity.getString(R.string.nav_home)
+
         // Home tab should be displayed
-        composeTestRule.onNodeWithText("Home").assertIsDisplayed()
+        composeTestRule.onNodeWithText(home).assertIsDisplayed()
     }
 
     // ---------- 14. Search Bar Text Input ----------
@@ -505,6 +544,9 @@ class HomeScreenTest {
         }
 
         composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
 
         // Click search bar to focus
         composeTestRule
@@ -522,11 +564,11 @@ class HomeScreenTest {
             composeTestRule.waitForIdle()
 
             // If text input succeeds, screen should still be functional
-            composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+            composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         } catch (e: Exception) {
             // If text input fails (multiple text fields or different structure),
             // just verify screen is still functional
-            composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+            composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         }
     }
 
@@ -541,6 +583,9 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Click search bar to focus
         composeTestRule
             .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
@@ -552,13 +597,13 @@ class HomeScreenTest {
         // Note: This might trigger navigation, so we handle it carefully
         try {
             composeTestRule
-                .onNodeWithText("MomenTag")
+                .onNodeWithText(appName)
                 .performClick()
 
             composeTestRule.waitForIdle()
 
             // Screen should still be displayed (focus should be cleared)
-            composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+            composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         } catch (e: Exception) {
             // If navigation occurs or other error, just ensure screen is stable
             composeTestRule.waitForIdle()
@@ -578,6 +623,9 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Switch to All Photos view
         composeTestRule
             .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos))
@@ -586,7 +634,7 @@ class HomeScreenTest {
         composeTestRule.waitForIdle()
 
         // Verify essential elements are still displayed
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag)).assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_all_photos)).assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_tag_albums)).assertIsDisplayed()
@@ -603,9 +651,12 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Initial view is Tag Albums
         // Verify essential elements are displayed
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag)).assertIsDisplayed()
         composeTestRule
             .onNodeWithContentDescription(composeTestRule.activity.getString(R.string.cd_sort_tag_albums))
@@ -627,6 +678,9 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Click search bar
         composeTestRule
             .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
@@ -642,7 +696,7 @@ class HomeScreenTest {
         composeTestRule.waitForIdle()
 
         // Screen should still be functional
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag)).assertIsDisplayed()
     }
 
@@ -656,6 +710,9 @@ class HomeScreenTest {
         }
 
         composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
 
         // Alternate between search bar clicks and view toggles
         repeat(2) {
@@ -679,7 +736,7 @@ class HomeScreenTest {
         }
 
         // Screen should still be functional
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ---------- 17. Tag Chip Suggestions ----------
@@ -696,6 +753,9 @@ class HomeScreenTest {
         // Wait for initial tags to load from server
         Thread.sleep(3000)
         composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
 
         // Click search bar to focus
         composeTestRule
@@ -715,10 +775,10 @@ class HomeScreenTest {
             composeTestRule.waitForIdle()
 
             // Screen should still be functional (suggestions may or may not appear)
-            composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+            composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         } catch (e: Exception) {
             // If text input fails, just verify screen is still functional
-            composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+            composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         }
     }
 
@@ -732,6 +792,9 @@ class HomeScreenTest {
         }
 
         composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
 
         // Click search bar to focus
         composeTestRule
@@ -753,10 +816,10 @@ class HomeScreenTest {
             }
 
             // Screen should still be functional after multiple inputs
-            composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+            composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         } catch (e: Exception) {
             // If text input fails, just verify screen stability
-            composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+            composeTestRule.onNodeWithText(appName).assertIsDisplayed()
         }
     }
 
@@ -773,6 +836,9 @@ class HomeScreenTest {
         Thread.sleep(2500)
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Click search bar after data is loaded
         composeTestRule
             .onNodeWithText(composeTestRule.activity.getString(R.string.search_placeholder_with_tag))
@@ -781,7 +847,7 @@ class HomeScreenTest {
         composeTestRule.waitForIdle()
 
         // Verify screen is still functional and search bar is accessible
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     @Test
@@ -795,6 +861,10 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+        val home = composeTestRule.activity.getString(R.string.nav_home)
+
         // Repeat focus and unfocus
         repeat(3) {
             // Focus on search bar
@@ -807,7 +877,7 @@ class HomeScreenTest {
             // Click elsewhere to unfocus (click on title area or bottom nav)
             try {
                 composeTestRule
-                    .onNodeWithText("Home")
+                    .onNodeWithText(home)
                     .performClick()
 
                 composeTestRule.waitForIdle()
@@ -818,7 +888,7 @@ class HomeScreenTest {
         }
 
         // Screen should still be functional
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ---------- 18. Search Bar Complex Interactions ----------
@@ -833,6 +903,11 @@ class HomeScreenTest {
         }
 
         composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+        val sortBy = composeTestRule.activity.getString(R.string.tag_sort_by)
+        val mostRecentlyAdded = composeTestRule.activity.getString(R.string.tag_sort_most_recently_added)
 
         // Click search bar
         composeTestRule
@@ -849,17 +924,17 @@ class HomeScreenTest {
         composeTestRule.waitForIdle()
 
         // Verify bottom sheet opens
-        composeTestRule.onNodeWithText("Sort by").assertIsDisplayed()
+        composeTestRule.onNodeWithText(sortBy).assertIsDisplayed()
 
         // Close bottom sheet by selecting an option
         composeTestRule
-            .onNodeWithText("Most Recently Added")
+            .onNodeWithText(mostRecentlyAdded)
             .performClick()
 
         composeTestRule.waitForIdle()
 
         // Screen should be functional
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     @Test
@@ -872,6 +947,9 @@ class HomeScreenTest {
         }
 
         composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
 
         // Click search bar to focus
         composeTestRule
@@ -887,7 +965,7 @@ class HomeScreenTest {
             .assertHasClickAction()
 
         // Screen should still be functional
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ---------- 19. Pull to Refresh ----------
@@ -903,14 +981,17 @@ class HomeScreenTest {
 
         composeTestRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeTestRule.activity.getString(R.string.app_name)
+
         // Screen should render and be ready for pull-to-refresh gesture
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
 
         // Note: Pull-to-refresh gesture is difficult to test in Compose UI tests
         // We just verify the screen is stable
         composeTestRule.waitForIdle()
 
         // Screen should still be functional
-        composeTestRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
 }

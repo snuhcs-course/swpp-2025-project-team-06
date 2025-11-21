@@ -82,14 +82,18 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 상단 바 제목 확인
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
         // Back 버튼 확인 (BackTopBar 내에서 정의된 컨텐츠 설명)
         composeRule
             .onNodeWithContentDescription(composeRule.activity.getString(R.string.cd_navigate_back))
             .assertIsDisplayed()
         // 이미지 확인 (HorizontalPager 내 ZoomableImage의 Content Description)
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -108,14 +112,18 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // Test Rule의 시계를 제어 모드로 변경하여 딜레이를 수동으로 처리할 수 있게 함
         composeRule.mainClock.autoAdvance = false
 
         // 1. 초기 상태: TopBar 표시
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
 
         // 2. 이미지 클릭 (Focus Mode 진입)
-        val imageNode = composeRule.onNodeWithContentDescription("Detail image")
+        val imageNode = composeRule.onNodeWithContentDescription(detailImage)
 
         // 터치 입력을 실행
         imageNode.performClick()
@@ -135,7 +143,7 @@ class ImageDetailScreenTest {
         composeRule.waitForIdle()
 
         // TopBar가 다시 표시되었는지 확인 (Focus Mode 해제 성공)
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -167,9 +175,13 @@ class ImageDetailScreenTest {
         // 데이터를 setContent 후에 주입
         setFlow("_imageContext", context)
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 1. 첫 번째 이미지 확인 (Index 0)
         composeRule
-            .onNodeWithContentDescription("Detail image")
+            .onNodeWithContentDescription(detailImage)
             .assertIsDisplayed()
 
         // 초기 로딩 후 첫 번째 사진의 태그가 로드되는지 확인
@@ -187,7 +199,7 @@ class ImageDetailScreenTest {
         composeRule.waitForIdle()
 
         // 화면이 정상적으로 표시되는지 확인
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -227,9 +239,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 화면이 정상적으로 표시되는지 확인 (태그 데이터는 LaunchedEffect에 의해 덮어쓰일 수 있음)
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     @Test
@@ -260,9 +276,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 화면이 정상적으로 표시되는지 확인
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     @Test
@@ -287,9 +307,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 기본 UI 요소들은 여전히 표시되어야 함
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     @Test
@@ -309,9 +333,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 에러 상태에서도 기본 UI는 표시되어야 함
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -341,11 +369,15 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 데이터를 setContent 후에 주입
         setFlow("_imageContext", context)
 
         // 이미지가 표시되는지 확인
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
 
         // 첫 번째 사진의 태그 설정
         val tags1 = listOf(Tag(tagId = "t1", tagName = "사진1태그"))
@@ -362,7 +394,7 @@ class ImageDetailScreenTest {
         composeRule.waitForIdle()
 
         // 화면이 정상적으로 표시되는지 확인
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -430,9 +462,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 화면이 정상적으로 표시되는지 확인
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     @Test
@@ -466,9 +502,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 화면이 정상적으로 표시되는지 확인
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -494,9 +534,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 화면이 정상적으로 표시되는지 확인
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     @Test
@@ -513,8 +557,11 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+
         // 기본 UI는 표시되어야 함
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -534,7 +581,11 @@ class ImageDetailScreenTest {
         composeRule.waitForIdle()
         composeRule.mainClock.autoAdvance = false
 
-        val imageNode = composeRule.onNodeWithContentDescription("Detail image")
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
+        val imageNode = composeRule.onNodeWithContentDescription(detailImage)
 
         // 여러 번 토글
         repeat(3) {
@@ -550,7 +601,7 @@ class ImageDetailScreenTest {
         }
 
         // 화면이 여전히 정상적으로 표시되어야 함
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     @Test
@@ -592,9 +643,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 화면이 정상적으로 표시되는지 확인 (모든 데이터를 주입했지만 크래시하지 않음)
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -623,9 +678,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 태그가 없어도 기본 UI는 표시되어야 함
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     @Test
@@ -642,9 +701,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // Idle 상태에서도 기본 UI는 표시되어야 함
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -677,9 +740,13 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
         // 로딩 상태에서도 화면은 정상 표시되어야 함 (크래시하지 않음)
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -709,8 +776,11 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+
         // 로딩 중에도 화면은 정상 표시되어야 함
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -741,8 +811,12 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 
     @Test
@@ -769,7 +843,11 @@ class ImageDetailScreenTest {
 
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("MomenTag").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Detail image").assertIsDisplayed()
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
 }
