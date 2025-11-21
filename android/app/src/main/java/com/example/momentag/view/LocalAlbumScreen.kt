@@ -71,6 +71,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import kotlinx.coroutines.launch
@@ -105,6 +106,7 @@ fun LocalAlbumScreen(
     // 6. rememberCoroutineScope
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // 8. ActivityResultLauncher
     val permissionLauncher =
@@ -288,6 +290,7 @@ fun LocalAlbumScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {

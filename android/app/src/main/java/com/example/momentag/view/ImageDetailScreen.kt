@@ -13,6 +13,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -59,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
@@ -85,6 +87,7 @@ import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.tagXMode
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -287,6 +290,7 @@ fun ImageDetailScreen(
     var hasPermission by remember { mutableStateOf(false) }
     var dateTime: String? by remember { mutableStateOf(null) }
     var latLong: DoubleArray? by remember { mutableStateOf(null) }
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // 5. Derived 상태 및 계산된 값
     val photos =
@@ -534,7 +538,15 @@ fun ImageDetailScreen(
         Box(
             modifier =
                 Modifier
-                    .fillMaxSize(),
+                    .fillMaxSize()
+                    .background(
+                        if (isFocusMode) {
+                            SolidColor(Color.Black)    // Brush 객체
+                        } else {
+                            backgroundBrush             // Brush 객체
+                        }
+                    )
+                    .padding(paddingValues),
         ) {
             // Image Pager as the background layer, always filling the screen
             HorizontalPager(
