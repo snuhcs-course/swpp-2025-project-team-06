@@ -45,6 +45,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,6 +61,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
@@ -94,6 +98,7 @@ fun LocalAlbumScreen(
     val photos by localViewModel.imagesInAlbum.collectAsState()
     val selectedPhotos by localViewModel.selectedPhotosInAlbum.collectAsState()
     val uploadState by photoViewModel.uiState.collectAsState()
+    val scrollToIndex by localViewModel.scrollToIndex.collectAsState()
 
     // 4. 로컬 상태 변수
     var hasPermission by remember { mutableStateOf(false) }
@@ -160,6 +165,32 @@ fun LocalAlbumScreen(
     LaunchedEffect(selectedPhotos) {
         if (selectedPhotos.isEmpty()) {
             isSelectionMode = false
+        }
+    }
+
+    // Scroll restoration: restore scroll position when returning from ImageDetailScreen
+    LaunchedEffect(scrollToIndex) {
+        scrollToIndex?.let { index ->
+            scope.launch {
+                gridState.scrollToItem(index)
+                localViewModel.clearScrollToIndex()
+            }
+        }
+    }
+
+    // Restore scroll position when screen becomes visible (returning from ImageDetailScreen)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    // Fetch last viewed index from ImageBrowserRepository and restore scroll
+                    localViewModel.restoreScrollPosition()
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 

@@ -370,6 +370,8 @@ fun ImageDetailScreen(
 
     LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
+        // Update current index in repository for scroll restoration
+        imageDetailViewModel.updateCurrentPhotoIndex(pagerState.currentPage)
     }
 
     LaunchedEffect(pagerState.currentPage, hasPermission, imageContext) {

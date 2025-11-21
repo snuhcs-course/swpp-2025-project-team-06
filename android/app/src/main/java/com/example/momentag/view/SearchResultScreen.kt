@@ -130,6 +130,7 @@ fun SearchResultScreen(
     val tagSuggestions by searchViewModel.tagSuggestions.collectAsState()
     val shouldShowSearchHistoryDropdown by searchViewModel.shouldShowSearchHistoryDropdown.collectAsState()
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
+    val scrollToIndex by searchViewModel.scrollToIndex.collectAsState()
 
     // 4. 로컬 상태 변수
     var searchBarWidth by remember { mutableStateOf(0) }
@@ -176,6 +177,8 @@ fun SearchResultScreen(
                 if (event == Lifecycle.Event.ON_RESUME) {
                     searchViewModel.loadServerTags()
                     isCursorHidden = false
+                    // Restore scroll position when returning from ImageDetailScreen
+                    searchViewModel.restoreScrollPosition()
                 }
             }
 
@@ -183,6 +186,14 @@ fun SearchResultScreen(
 
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Scroll restoration: restore scroll position when returning from ImageDetailScreen
+    LaunchedEffect(scrollToIndex) {
+        scrollToIndex?.let { index ->
+            gridState.scrollToItem(index)
+            searchViewModel.clearScrollToIndex()
         }
     }
 
