@@ -46,6 +46,10 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
+
+        <activity
+            android:name=".HiltTestActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
