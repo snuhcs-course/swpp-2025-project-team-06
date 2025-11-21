@@ -574,7 +574,7 @@ fun ImageDetailScreen(
                 enter = Animation.DefaultFadeIn,
                 exit = Animation.DefaultFadeOut,
             ) {
-                Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                Column() {
                     // Date and Address
                     if (dateTime != null) {
                         val datePart = dateTime!!.split(" ")[0]
