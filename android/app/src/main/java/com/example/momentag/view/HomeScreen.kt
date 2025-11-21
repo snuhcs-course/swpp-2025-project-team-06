@@ -564,25 +564,6 @@ fun HomeScreen(navController: NavController) {
                 onLogoutClick = null,
                 isLogoutLoading = false,
                 actions = {
-                    // Upload button - leftmost, visible when not in selection mode
-                    AnimatedVisibility(
-                        visible = !(isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode),
-                        enter = Animation.DefaultFadeIn,
-                        exit = Animation.DefaultFadeOut,
-                    ) {
-                        IconButton(
-                            onClick = {
-                                navController.navigate(Screen.LocalGallery.route)
-                            },
-                        ) {
-                            StandardIcon.Icon(
-                                imageVector = Icons.Default.CloudUpload,
-                                contentDescription = stringResource(R.string.cd_upload),
-                                sizeRole = IconSizeRole.DefaultAction,
-                            )
-                        }
-                    }
-
                     // Share button - visible when in selection mode
                     if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
                         val isEnabled = selectedPhotos.isNotEmpty()
@@ -613,6 +594,19 @@ fun HomeScreen(navController: NavController) {
                                 intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                             )
                         }
+                    }
+
+                    // upload button
+                    IconButton(
+                        onClick = {
+                            navController.navigate(Screen.LocalGallery.route)
+                        },
+                    ) {
+                        StandardIcon.Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = stringResource(R.string.cd_upload),
+                            sizeRole = IconSizeRole.DefaultAction,
+                        )
                     }
                 },
             )
