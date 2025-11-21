@@ -63,14 +63,14 @@ import kotlin.math.roundToInt
 @Composable
 fun VerticalScrollbar(
     state: LazyGridState,
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     scrollbarWidth: Dp = Dimen.ScrollbarWidth,
     scrollbarWidthActive: Dp = Dimen.ScrollbarWidthActive,
     scrollbarPadding: Dp = Dimen.SpacingXXSmall,
     thumbColor: Color = MaterialTheme.colorScheme.primary,
     thumbColorActive: Color = MaterialTheme.colorScheme.primary,
-    trackColor: Color = Color.Companion.Transparent,
+    trackColor: Color = Color.Transparent,
     autoHideDelay: Long = 1500L,
     minThumbHeight: Dp = Dimen.ScrollbarMinThumbHeight,
 ) {
