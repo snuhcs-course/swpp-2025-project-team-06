@@ -66,15 +66,14 @@ class SearchResultScreenTest {
     /**
      * 테스트용 가짜 사진 데이터 생성
      */
-    private fun createFakePhotos(count: Int): List<Photo> {
-        return (1..count).map {
+    private fun createFakePhotos(count: Int): List<Photo> =
+        (1..count).map {
             Photo(
                 photoId = "photo$it",
                 contentUri = Uri.parse("content://fake/photo$it"),
-                createdAt = "2024-01-01"
+                createdAt = "2024-01-01",
             )
         }
-    }
 
     private fun setContent(initialQuery: String = "") {
         composeTestRule.setContent {

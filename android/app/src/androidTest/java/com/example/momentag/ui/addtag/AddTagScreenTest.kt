@@ -28,7 +28,6 @@ import org.junit.runner.RunWith
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class AddTagScreenTest {
-
     @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
 
@@ -58,11 +57,12 @@ class AddTagScreenTest {
     private fun createTestPhoto(
         id: String,
         mediaId: String = id,
-    ): Photo = Photo(
-        photoId = id,
-        contentUri = Uri.parse("content://media/external/images/media/$mediaId"),
-        createdAt = "2024-01-01T00:00:00Z",
-    )
+    ): Photo =
+        Photo(
+            photoId = id,
+            contentUri = Uri.parse("content://media/external/images/media/$mediaId"),
+            createdAt = "2024-01-01T00:00:00Z",
+        )
 
     // ----------------------------------------------------------
     // 테스트 케이스
@@ -123,10 +123,11 @@ class AddTagScreenTest {
 
     @Test
     fun addTagScreen_photosSection_displaysCount() {
-        val testPhotos = listOf(
-            createTestPhoto("1"),
-            createTestPhoto("2"),
-        )
+        val testPhotos =
+            listOf(
+                createTestPhoto("1"),
+                createTestPhoto("2"),
+            )
 
         vm.initialize(null, testPhotos)
         setContent()
@@ -237,13 +238,14 @@ class AddTagScreenTest {
 
     @Test
     fun addTagScreen_multiplePhotos_displaysCorrectCount() {
-        val testPhotos = listOf(
-            createTestPhoto("1"),
-            createTestPhoto("2"),
-            createTestPhoto("3"),
-            createTestPhoto("4"),
-            createTestPhoto("5"),
-        )
+        val testPhotos =
+            listOf(
+                createTestPhoto("1"),
+                createTestPhoto("2"),
+                createTestPhoto("3"),
+                createTestPhoto("4"),
+                createTestPhoto("5"),
+            )
 
         vm.initialize(null, testPhotos)
         setContent()

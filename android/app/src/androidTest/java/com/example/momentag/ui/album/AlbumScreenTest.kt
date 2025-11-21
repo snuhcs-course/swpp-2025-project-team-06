@@ -25,11 +25,11 @@ import com.example.momentag.ui.theme.MomenTagTheme
 import com.example.momentag.view.AlbumScreen
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import kotlin.time.Duration.Companion.seconds
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalTestApi::class)

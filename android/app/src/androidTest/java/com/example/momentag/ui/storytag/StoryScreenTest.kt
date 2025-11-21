@@ -56,7 +56,10 @@ class StoryScreenTest {
      * UI에 데이터/상태를 주입
      */
     @Suppress("UNCHECKED_CAST")
-    private fun <T> setFlow(name: String, value: T) {
+    private fun <T> setFlow(
+        name: String,
+        value: T,
+    ) {
         try {
             val field = StoryViewModel::class.java.getDeclaredField(name)
             field.isAccessible = true
@@ -96,7 +99,7 @@ class StoryScreenTest {
                 stories = stories,
                 currentIndex = 0,
                 hasMore = false,
-            )
+            ),
         )
 
         composeRule.setContent {

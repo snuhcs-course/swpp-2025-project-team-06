@@ -16,12 +16,12 @@ import androidx.compose.ui.test.performClick
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.example.momentag.HiltTestActivity
 import com.example.momentag.model.Photo
 import com.example.momentag.view.SelectImageScreen
 import com.example.momentag.viewmodel.SelectImageViewModel
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import com.example.momentag.HiltTestActivity
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -37,7 +37,6 @@ import org.junit.runner.RunWith
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class SelectImageScreenTest {
-
     // Hilt rule
     @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
@@ -87,15 +86,17 @@ class SelectImageScreenTest {
      * UI에 데이터/상태를 주입
      */
     @Suppress("UNCHECKED_CAST")
-    private fun <T> setFlow(name: String, value: T) {
+    private fun <T> setFlow(
+        name: String,
+        value: T,
+    ) {
         val field = SelectImageViewModel::class.java.getDeclaredField(name)
         field.isAccessible = true
         val flow = field.get(vm) as MutableStateFlow<T>
         flow.value = value
     }
 
-    private fun hasProgress(): SemanticsMatcher =
-        SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
+    private fun hasProgress(): SemanticsMatcher = SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
 
     private fun waitForProgress() {
         composeRule.waitUntil(timeoutMillis = 5_000) {

@@ -66,7 +66,10 @@ class RegisterScreenTest {
      * UI에 데이터/상태를 주입
      */
     @Suppress("UNCHECKED_CAST")
-    private fun <T> setFlow(name: String, value: T) {
+    private fun <T> setFlow(
+        name: String,
+        value: T,
+    ) {
         try {
             val field = AuthViewModel::class.java.getDeclaredField(name)
             field.isAccessible = true
