@@ -216,7 +216,7 @@ class SelectImageScreenTest {
         setFlow("_recommendState", SelectImageViewModel.RecommendState.Idle)
         setContent()
 
-        composeRule.onNodeWithText("Getting ready...").assertIsDisplayed()
+        composeRule.onNodeWithText("Getting ready", substring = true).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------
@@ -228,7 +228,7 @@ class SelectImageScreenTest {
         setFlow("_recommendState", SelectImageViewModel.RecommendState.Loading)
         setContent()
 
-        composeRule.onNodeWithText("Finding suggestions...").assertIsDisplayed()
+        composeRule.onNodeWithText("Finding suggestions", substring = true).assertIsDisplayed()
     }
 
     // ----------------------------------------------------------

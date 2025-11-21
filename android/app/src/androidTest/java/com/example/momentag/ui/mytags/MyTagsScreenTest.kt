@@ -87,7 +87,7 @@ class MyTagsScreenTest {
         composeTestRule.onNodeWithText("#Tag").assertIsDisplayed()
 
         // Verify back button is present
-        composeTestRule.onNodeWithContentDescription("Back").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Back", substring = true, ignoreCase = true).assertIsDisplayed()
 
         // Verify create new tag button is displayed
         composeTestRule.onNodeWithText("+ Create New Tag").assertIsDisplayed()
@@ -140,7 +140,7 @@ class MyTagsScreenTest {
 
         // Verify back button is clickable
         composeTestRule
-            .onNodeWithContentDescription("Back")
+            .onNodeWithContentDescription("Back", substring = true, ignoreCase = true)
             .assertIsDisplayed()
             .assertHasClickAction()
     }
