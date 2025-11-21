@@ -6,6 +6,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -222,6 +224,8 @@ fun AddTagScreen(navController: NavController) {
                             .fillMaxSize()
                             .padding(horizontal = Dimen.ScreenHorizontalPadding),
                 ) {
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+
                     // Tag Name Section
                     TagNameSection(
                         tagName = tagName,
@@ -371,6 +375,12 @@ private fun TagNameSection(
 ) {
     val focusManager = LocalFocusManager.current
     var isFocused by remember { mutableStateOf(false) }
+    var showHelpText by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        showHelpText = true
+    }
 
     Column {
         Row(
@@ -411,19 +421,27 @@ private fun TagNameSection(
         }
 
         HorizontalDivider(
-            modifier = Modifier.padding(top = Dimen.ItemSpacingSmall),
+            modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingSmall),
             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
         )
 
-        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
-
-        if (isDuplicate) {
+        AnimatedVisibility(
+            visible = isDuplicate,
+            enter = expandVertically(expandFrom = Alignment.Top) + Animation.DefaultFadeIn,
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + Animation.DefaultFadeOut,
+        ) {
             Text(
                 text = stringResource(R.string.validation_tag_exists, tagName),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )
-        } else if (tagName.isEmpty() && !isFocused) {
+        }
+
+        AnimatedVisibility(
+            visible = showHelpText && tagName.isEmpty() && !isFocused,
+            enter = expandVertically(expandFrom = Alignment.Top) + Animation.DefaultFadeIn,
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + Animation.DefaultFadeOut,
+        ) {
             Text(
                 text = stringResource(R.string.help_tag_name),
                 style = MaterialTheme.typography.bodySmall,
