@@ -89,7 +89,7 @@ fun VerticalScrollbar(
         derivedStateOf {
             val layoutInfo = state.layoutInfo
             layoutInfo.totalItemsCount > 0 &&
-                    layoutInfo.totalItemsCount > layoutInfo.visibleItemsInfo.size
+                layoutInfo.totalItemsCount > layoutInfo.visibleItemsInfo.size
         }
     }
 
