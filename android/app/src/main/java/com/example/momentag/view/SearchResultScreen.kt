@@ -78,7 +78,6 @@ import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.TagItem
-import com.example.momentag.ui.component.VerticalScrollbar
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
@@ -87,6 +86,7 @@ import com.example.momentag.ui.components.SearchEmptyStateCustom
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.SuggestionChip
+import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen

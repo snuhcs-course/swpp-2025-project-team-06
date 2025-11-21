@@ -126,7 +126,6 @@ import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.TagItem
-import com.example.momentag.ui.component.VerticalScrollbar
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.ChipSearchBar
@@ -135,6 +134,7 @@ import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SuggestionChip
+import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.tagX
 import com.example.momentag.ui.theme.Animation

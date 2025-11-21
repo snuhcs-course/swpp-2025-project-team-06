@@ -1,4 +1,4 @@
-package com.example.momentag.ui.component
+package com.example.momentag.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -207,7 +207,7 @@ fun VerticalScrollbar(
             // Track background
             Box(
                 modifier =
-                    Modifier
+                    Modifier.Companion
                         .fillMaxHeight()
                         .width(scrollbarWidth)
                         .background(trackColor),
@@ -216,7 +216,7 @@ fun VerticalScrollbar(
             // Scrollbar thumb
             Box(
                 modifier =
-                    Modifier
+                    Modifier.Companion
                         .offset {
                             IntOffset(
                                 x = 0,
