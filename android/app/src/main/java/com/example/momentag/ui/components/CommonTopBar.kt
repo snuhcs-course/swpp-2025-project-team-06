@@ -38,6 +38,7 @@ import com.example.momentag.ui.theme.StandardIcon
  * @param showLogout Whether to show logout button
  * @param onLogoutClick Logout click handler
  * @param isLogoutLoading Logout loading state
+ * @param navigationIcon Custom navigation icon composable (overrides default back/logout icons)
  * @param actions Additional custom action buttons
  * @param modifier Modifier
  */
@@ -52,6 +53,7 @@ fun CommonTopBar(
     onLogoutClick: (() -> Unit)? = null,
     isLogoutLoading: Boolean = false,
     onTitleClick: (() -> Unit)? = null,
+    navigationIcon: (@Composable () -> Unit)? = null,
     actions: @Composable () -> Unit = {},
 ) {
     CenterAlignedTopAppBar(
@@ -68,45 +70,49 @@ fun CommonTopBar(
             )
         },
         navigationIcon = {
-            var isLogoutConfirmVisible by remember { mutableStateOf(false) }
-            if (showLogout && onLogoutClick != null) {
-                if (isLogoutLoading) {
-                    Box(modifier = Modifier.padding(start = Dimen.ItemSpacingSmall)) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
-                            strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                        )
+            if (navigationIcon != null) {
+                navigationIcon()
+            } else {
+                var isLogoutConfirmVisible by remember { mutableStateOf(false) }
+                if (showLogout && onLogoutClick != null) {
+                    if (isLogoutLoading) {
+                        Box(modifier = Modifier.padding(start = Dimen.ItemSpacingSmall)) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
+                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = { isLogoutConfirmVisible = true }) {
+                            StandardIcon.Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = stringResource(R.string.cd_logout),
+                                sizeRole = IconSizeRole.Navigation,
+                            )
+                        }
                     }
-                } else {
-                    IconButton(onClick = { isLogoutConfirmVisible = true }) {
-                        StandardIcon.Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = stringResource(R.string.cd_logout),
-                            sizeRole = IconSizeRole.Navigation,
-                        )
-                    }
-                }
 
-                if (isLogoutConfirmVisible) {
-                    ConfirmDialog(
-                        title = stringResource(R.string.dialog_logout_title),
-                        message = stringResource(R.string.dialog_logout_message),
-                        onConfirm = {
-                            isLogoutConfirmVisible = false
-                            onLogoutClick()
-                        },
-                        onDismiss = { isLogoutConfirmVisible = false },
-                        confirmButtonText = stringResource(R.string.action_logout),
-                        dismissible = true,
-                    )
-                }
-            } else if (showBackButton && onBackClick != null) {
-                IconButton(onClick = onBackClick) {
-                    StandardIcon.Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        sizeRole = IconSizeRole.Navigation,
-                        contentDescription = stringResource(R.string.cd_navigate_back),
-                    )
+                    if (isLogoutConfirmVisible) {
+                        ConfirmDialog(
+                            title = stringResource(R.string.dialog_logout_title),
+                            message = stringResource(R.string.dialog_logout_message),
+                            onConfirm = {
+                                isLogoutConfirmVisible = false
+                                onLogoutClick()
+                            },
+                            onDismiss = { isLogoutConfirmVisible = false },
+                            confirmButtonText = stringResource(R.string.action_logout),
+                            dismissible = true,
+                        )
+                    }
+                } else if (showBackButton && onBackClick != null) {
+                    IconButton(onClick = onBackClick) {
+                        StandardIcon.Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            sizeRole = IconSizeRole.Navigation,
+                            contentDescription = stringResource(R.string.cd_navigate_back),
+                        )
+                    }
                 }
             }
         },

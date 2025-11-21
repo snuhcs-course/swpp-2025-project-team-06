@@ -199,6 +199,7 @@
     <string name="cd_navigate_back">Navigate back to previous screen</string>
     <string name="cd_logout">Log out from your account</string>
     <string name="cd_close_dialog">Close dialog</string>
+    <string name="cd_deselect_all">Deselect all photos</string>
     <string name="cd_warning_icon">Warning notification</string>
     <string name="cd_refresh_action">Refresh content</string>
     <string name="cd_dismiss_notification">Dismiss notification</string>
