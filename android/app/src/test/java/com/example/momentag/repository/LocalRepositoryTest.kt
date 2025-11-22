@@ -958,7 +958,6 @@ class LocalRepositoryTest {
         } throws RuntimeException("Test exception")
         every { mockContext.getString(any()) } returns "Unknown date"
 
-
         val repo = LocalRepository(mockContext, mockGson)
 
         // When
@@ -1076,7 +1075,6 @@ class LocalRepositoryTest {
         every { mockCursor.moveToFirst() } throws RuntimeException("Cursor error")
         every { mockCursor.close() } just Runs
         every { mockContext.getString(any()) } returns "Unknown date"
-
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -1201,7 +1199,6 @@ class LocalRepositoryTest {
         every { mockContentResolver.openInputStream(any()) } throws RuntimeException("Test exception")
         every { mockContext.getString(any()) } returns "Unknown location"
 
-
         val repo = LocalRepository(mockContext, mockGson)
 
         // When
@@ -1223,7 +1220,6 @@ class LocalRepositoryTest {
         every { mockContext.contentResolver } returns mockContentResolver
         every { mockContentResolver.openInputStream(any()) } returns mockInputStream
         every { mockContext.getString(any()) } returns "Unknown location"
-
 
         val repo = LocalRepository(mockContext, mockGson)
 

@@ -150,7 +150,10 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.imageDetailTagState.value
             assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
-            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.ImageDetailTagState.Error).error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.UnknownError,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     // Delete tag tests
@@ -289,7 +292,10 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.imageDetailTagState.value
             assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
-            assertEquals(ImageDetailViewModel.ImageDetailError.Unauthorized, (state as ImageDetailViewModel.ImageDetailTagState.Error).error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.Unauthorized,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     @Test
@@ -308,7 +314,10 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.imageDetailTagState.value
             assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
-            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.ImageDetailTagState.Error).error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.UnknownError,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     @Test
@@ -327,7 +336,10 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.imageDetailTagState.value
             assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
-            assertEquals(ImageDetailViewModel.ImageDetailError.NetworkError, (state as ImageDetailViewModel.ImageDetailTagState.Error).error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.NetworkError,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     @Test
@@ -346,7 +358,10 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.imageDetailTagState.value
             assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
-            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.ImageDetailTagState.Error).error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.UnknownError,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     @Test
