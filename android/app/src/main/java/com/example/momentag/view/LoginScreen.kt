@@ -51,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -66,6 +65,7 @@ import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,6 +74,7 @@ fun LoginScreen(navController: NavController) {
     // Context and platform-related variables
     val context = LocalContext.current
     val activity = LocalContext.current.findActivity()
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // ViewModel instance
     val authViewModel: AuthViewModel = hiltViewModel()
@@ -167,16 +168,8 @@ fun LoginScreen(navController: NavController) {
                 Modifier
                     .fillMaxSize()
                     .imePadding()
-                    .background(
-                        brush =
-                            Brush.verticalGradient(
-                                colorStops =
-                                    arrayOf(
-                                        0.5f to MaterialTheme.colorScheme.surface,
-                                        1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                                    ),
-                            ),
-                    ).padding(paddingValues)
+                    .background(backgroundBrush)
+                    .padding(paddingValues)
                     .padding(horizontal = Dimen.FormScreenHorizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

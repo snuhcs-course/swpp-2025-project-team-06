@@ -28,13 +28,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -84,11 +86,13 @@ import com.example.momentag.ui.components.SearchEmptyStateCustom
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.SuggestionChip
+import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.SearchViewModel
 import kotlinx.coroutines.android.awaitFrame
@@ -147,6 +151,7 @@ fun SearchResultScreen(
 
     // 6. Remember된 객체들
     val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
 
     LaunchedEffect(tagLoadingState) {
         if (tagLoadingState is SearchViewModel.TagLoadingState.Error) {
@@ -389,6 +394,7 @@ fun SearchResultScreen(
 
     SearchResultScreenUi(
         listState = listState,
+        gridState = gridState,
         contentItems = contentItems,
         textStates = textStates,
         focusRequesters = focusRequesters,
@@ -479,6 +485,7 @@ fun SearchResultScreen(
 fun SearchResultScreenUi(
     modifier: Modifier = Modifier,
     listState: LazyListState,
+    gridState: LazyGridState,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -520,6 +527,7 @@ fun SearchResultScreenUi(
     placeholder: String,
 ) {
     LocalFocusManager.current
+    val backgroundBrush = rememberAppBackgroundBrush()
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -536,9 +544,11 @@ fun SearchResultScreenUi(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
 //                    .padding(horizontal = 16.dp),
             listState = listState,
+            gridState = gridState,
             contentItems = contentItems,
             textStates = textStates,
             focusRequesters = focusRequesters,
@@ -587,6 +597,7 @@ fun SearchResultScreenUi(
 private fun SearchResultContent(
     modifier: Modifier = Modifier,
     listState: LazyListState,
+    gridState: LazyGridState,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -682,10 +693,7 @@ private fun SearchResultContent(
                     placeholder = placeholder,
                 )
                 IconButton(
-                    onClick = {
-                        // TODO: Show filter dialog
-                        Toast.makeText(context, context.getString(R.string.filter), Toast.LENGTH_SHORT).show()
-                    },
+                    onClick = { onPerformSearch() },
                     modifier =
                         Modifier
                             .size(Dimen.SearchBarMinHeight)
@@ -695,8 +703,8 @@ private fun SearchResultContent(
                             ),
                 ) {
                     StandardIcon.Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = stringResource(R.string.cd_filter),
+                        imageVector = Icons.Default.Search,
+                        contentDescription = stringResource(R.string.cd_search),
                         intent = IconIntent.Inverse,
                     )
                 }
@@ -740,6 +748,7 @@ private fun SearchResultContent(
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
                 navController = navController,
+                gridState = gridState,
             )
 
             AnimatedVisibility(
@@ -759,6 +768,25 @@ private fun SearchResultContent(
             }
 
             Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+        }
+
+        // Scrollbar positioned outside Column to span padding boundary
+        if (uiState is SearchViewModel.SearchUiState.Success) {
+            VerticalScrollbar(
+                state = gridState,
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .padding(
+                            top =
+                                Dimen.ItemSpacingSmall +
+                                    with(
+                                        LocalDensity.current,
+                                    ) { searchBarRowHeight.toDp() } + Dimen.ItemSpacingLarge,
+                            end = Dimen.ScreenHorizontalPadding / 2,
+                        ),
+            )
         }
 
         // search history dropdown
@@ -846,6 +874,7 @@ private fun SearchResultsFromState(
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
     navController: NavController,
+    gridState: LazyGridState,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
@@ -870,9 +899,10 @@ private fun SearchResultsFromState(
             is SearchViewModel.SearchUiState.Success -> {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    modifier = modifier,
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                    state = gridState,
+                    modifier = modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                 ) {
                     items(
                         count = uiState.results.size,

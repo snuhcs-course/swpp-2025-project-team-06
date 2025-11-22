@@ -18,7 +18,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.example.momentag.HiltTestRunner"
     }
 
     buildTypes {
@@ -42,7 +42,6 @@ android {
     }
     testOptions {
         unitTests {
-            isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
     }
@@ -75,6 +74,7 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
+    implementation(libs.androidx.compose.foundation.layout)
     ksp(libs.hilt.android.compiler)
     implementation(libs.hilt.work)
     implementation(libs.hilt.navigation.compose)

@@ -62,7 +62,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -90,6 +89,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.MyTagsViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import kotlinx.coroutines.delay
@@ -194,6 +194,8 @@ fun MyTagsScreen(navController: NavController) {
             else -> { }
         }
     }
+
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -399,19 +401,8 @@ fun MyTagsScreen(navController: NavController) {
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(
-                            brush =
-                                Brush.verticalGradient(
-                                    colorStops =
-                                        arrayOf(
-                                            0.5f to MaterialTheme.colorScheme.surface,
-                                            1.0f to
-                                                MaterialTheme.colorScheme.primaryContainer.copy(
-                                                    alpha = 0.7f,
-                                                ),
-                                        ),
-                                ),
-                        ).padding(paddingValues),
+                        .background(backgroundBrush)
+                        .padding(paddingValues),
             ) {
                 when (val state = uiState) {
                     is MyTagsViewModel.MyTagsUiState.Loading -> {

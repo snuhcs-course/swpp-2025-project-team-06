@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -65,10 +66,11 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
@@ -99,7 +101,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -133,6 +134,7 @@ import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SuggestionChip
+import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.tagX
 import com.example.momentag.ui.theme.Animation
@@ -140,6 +142,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
@@ -375,15 +378,6 @@ fun HomeScreen(navController: NavController) {
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val gradientBrush =
-        Brush.verticalGradient(
-            colorStops =
-                arrayOf(
-                    0.5f to MaterialTheme.colorScheme.surface,
-                    1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                ),
-        )
-
     val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
     val isTagsLoaded =
         homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
@@ -391,8 +385,6 @@ fun HomeScreen(navController: NavController) {
     val isDataReady = isTagsLoaded && arePhotosLoaded
     val areTagsEmpty = tagItems.isEmpty()
     val arePhotosEmpty = groupedPhotos.isEmpty()
-
-    val showEmptyTagGradient = !isShowingAllPhotos && areTagsEmpty && isDataReady && !arePhotosEmpty
 
     LaunchedEffect(uiState.isLoading) {
         if (uiState.isLoading) {
@@ -416,6 +408,8 @@ fun HomeScreen(navController: NavController) {
             homeViewModel.setShouldReturnToAllPhotos(false) // flag reset
         }
     }
+
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -565,13 +559,12 @@ fun HomeScreen(navController: NavController) {
         topBar = {
             CommonTopBar(
                 title = stringResource(R.string.app_name),
-                onTitleClick = {
-                    navController.navigate(Screen.LocalGallery.route)
-                },
-                showLogout = true,
-                onLogoutClick = { authViewModel.logout() },
-                isLogoutLoading = logoutState is AuthViewModel.LogoutState.Loading,
+                onTitleClick = null,
+                showLogout = false,
+                onLogoutClick = null,
+                isLogoutLoading = false,
                 actions = {
+                    // Share button - visible when in selection mode
                     if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
                         val isEnabled = selectedPhotos.isNotEmpty()
                         IconButton(
@@ -601,6 +594,19 @@ fun HomeScreen(navController: NavController) {
                                 intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                             )
                         }
+                    }
+
+                    // upload button
+                    IconButton(
+                        onClick = {
+                            navController.navigate(Screen.LocalGallery.route)
+                        },
+                    ) {
+                        StandardIcon.Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = stringResource(R.string.cd_upload),
+                            sizeRole = IconSizeRole.DefaultAction,
+                        )
                     }
                 },
             )
@@ -690,13 +696,8 @@ fun HomeScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .then(
-                                if (showEmptyTagGradient) {
-                                    Modifier.background(gradientBrush)
-                                } else {
-                                    Modifier
-                                },
-                            ).padding(horizontal = Dimen.ScreenHorizontalPadding)
+                            .background(backgroundBrush)
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -740,10 +741,7 @@ fun HomeScreen(navController: NavController) {
                         )
 
                         IconButton(
-                            onClick = {
-                                // TODO: Show filter dialog
-                                Toast.makeText(context, context.getString(R.string.filter), Toast.LENGTH_SHORT).show()
-                            },
+                            onClick = { performSearch() },
                             modifier =
                                 Modifier
                                     .size(Dimen.SearchBarMinHeight)
@@ -753,8 +751,8 @@ fun HomeScreen(navController: NavController) {
                                     ),
                         ) {
                             StandardIcon.Icon(
-                                imageVector = Icons.Default.FilterList,
-                                contentDescription = stringResource(R.string.cd_filter),
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.cd_search),
                                 intent = IconIntent.Inverse,
                             )
                         }
@@ -962,6 +960,24 @@ fun HomeScreen(navController: NavController) {
                     }
                 }
 
+                // Scrollbar positioned outside Column to span padding boundary
+                if (hasPermission && isShowingAllPhotos && groupedPhotos.isNotEmpty()) {
+                    VerticalScrollbar(
+                        state = allPhotosGridState,
+                        enabled = !isLoadingMorePhotos,
+                        modifier =
+                            Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .padding(
+                                    top =
+                                        topSpacerHeight + with(LocalDensity.current) { searchBarRowHeight.toDp() } +
+                                            Dimen.ItemSpacingLarge + Dimen.SearchBarMinHeight + Dimen.ItemSpacingSmall,
+                                    end = Dimen.ScreenHorizontalPadding / 2,
+                                ),
+                    )
+                }
+
                 // search history dropdown
                 AnimatedVisibility(
                     visible = shouldShowSearchHistoryDropdown,
@@ -1142,133 +1158,135 @@ private fun MainContent(
 
         // 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
         isShowingAllPhotos -> {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                state = allPhotosGridState,
-                modifier = modifier,
-                horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
-                verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
-            ) {
-                groupedPhotos.forEach { group ->
-                    item(
-                        key = group.date,
-                        span = { GridItemSpan(3) },
-                    ) {
-                        Text(
-                            text = group.date,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier =
-                                Modifier
-                                    .padding(horizontal = Dimen.GridItemSpacing)
-                                    .padding(vertical = Dimen.GridItemSpacing),
-                        )
-                    }
-
-                    items(
-                        items = group.photos,
-                        key = { photo -> photo.photoId },
-                    ) { photo ->
-                        val isSelected = selectedItems.contains(photo.photoId)
-
-                        Box(modifier = Modifier.aspectRatio(1f)) {
-                            AsyncImage(
-                                model = photo.contentUri,
-                                contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
+            Box(modifier = modifier) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    state = allPhotosGridState,
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                ) {
+                    groupedPhotos.forEach { group ->
+                        item(
+                            key = group.date,
+                            span = { GridItemSpan(3) },
+                        ) {
+                            Text(
+                                text = group.date,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier =
                                     Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
-                                        .combinedClickable(
-                                            onClick = {
-                                                if (isSelectionMode) {
-                                                    onItemSelectionToggle(photo.photoId)
-                                                } else {
-                                                    homeViewModel?.setGalleryBrowsingSession()
-                                                    homeViewModel?.setShouldReturnToAllPhotos(true)
-
-                                                    navController.navigate(
-                                                        Screen.Image.createRoute(
-                                                            uri = photo.contentUri,
-                                                            imageId = photo.photoId,
-                                                        ),
-                                                    )
-                                                }
-                                            },
-                                            onLongClick = {
-                                                if (!isSelectionMode) {
-                                                    onEnterSelectionMode()
-                                                    onItemSelectionToggle(photo.photoId)
-                                                }
-                                            },
-                                        ),
-                                contentScale = ContentScale.Crop,
+                                        .padding(horizontal = Dimen.GridItemSpacing)
+                                        .padding(vertical = Dimen.GridItemSpacing),
                             )
+                        }
 
-                            if (isSelectionMode) {
-                                Box(
+                        items(
+                            items = group.photos,
+                            key = { photo -> photo.photoId },
+                        ) { photo ->
+                            val isSelected = selectedItems.contains(photo.photoId)
+
+                            Box(modifier = Modifier.aspectRatio(1f)) {
+                                AsyncImage(
+                                    model = photo.contentUri,
+                                    contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
                                     modifier =
                                         Modifier
                                             .fillMaxSize()
                                             .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
-                                            .background(
-                                                if (isSelected) {
-                                                    MaterialTheme.colorScheme.onSurface.copy(
-                                                        alpha = 0.3f,
-                                                    )
-                                                } else {
-                                                    Color.Transparent
+                                            .combinedClickable(
+                                                onClick = {
+                                                    if (isSelectionMode) {
+                                                        onItemSelectionToggle(photo.photoId)
+                                                    } else {
+                                                        homeViewModel?.setGalleryBrowsingSession()
+                                                        homeViewModel?.setShouldReturnToAllPhotos(true)
+
+                                                        navController.navigate(
+                                                            Screen.Image.createRoute(
+                                                                uri = photo.contentUri,
+                                                                imageId = photo.photoId,
+                                                            ),
+                                                        )
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    if (!isSelectionMode) {
+                                                        onEnterSelectionMode()
+                                                        onItemSelectionToggle(photo.photoId)
+                                                    }
                                                 },
                                             ),
+                                    contentScale = ContentScale.Crop,
                                 )
 
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(Dimen.GridItemSpacing)
-                                            .size(Dimen.IconButtonSizeSmall)
-                                            .background(
-                                                if (isSelected) {
-                                                    MaterialTheme.colorScheme.primaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.surface
-                                                        .copy(
-                                                            alpha = 0.8f,
+                                if (isSelectionMode) {
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
+                                                .background(
+                                                    if (isSelected) {
+                                                        MaterialTheme.colorScheme.onSurface.copy(
+                                                            alpha = 0.3f,
                                                         )
-                                                },
-                                                RoundedCornerShape(Dimen.ComponentCornerRadius),
-                                            ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    if (isSelected) {
-                                        StandardIcon.Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = stringResource(R.string.cd_photo_selected),
-                                            sizeRole = IconSizeRole.InlineAction,
-                                            intent = IconIntent.OnPrimaryContainer,
-                                        )
+                                                    } else {
+                                                        Color.Transparent
+                                                    },
+                                                ),
+                                    )
+
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(Dimen.GridItemSpacing)
+                                                .size(Dimen.IconButtonSizeSmall)
+                                                .background(
+                                                    if (isSelected) {
+                                                        MaterialTheme.colorScheme.primaryContainer
+                                                    } else {
+                                                        MaterialTheme.colorScheme.surface
+                                                            .copy(
+                                                                alpha = 0.8f,
+                                                            )
+                                                    },
+                                                    RoundedCornerShape(Dimen.ComponentCornerRadius),
+                                                ),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (isSelected) {
+                                            StandardIcon.Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = stringResource(R.string.cd_photo_selected),
+                                                sizeRole = IconSizeRole.InlineAction,
+                                                intent = IconIntent.OnPrimaryContainer,
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    // 로딩 인디케이터
-                    if (isLoadingMorePhotos) {
-                        item(span = { GridItemSpan(3) }) {
-                            // 3칸 모두 차지
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(Dimen.ComponentPadding),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(Dimen.IconButtonSizeMedium),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
+                        // 로딩 인디케이터
+                        if (isLoadingMorePhotos) {
+                            item(span = { GridItemSpan(3) }) {
+                                // 3칸 모두 차지
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(Dimen.ComponentPadding),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(Dimen.IconButtonSizeMedium),
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
                             }
                         }
                     }
