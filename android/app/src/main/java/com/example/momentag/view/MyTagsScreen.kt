@@ -395,10 +395,16 @@ fun MyTagsScreen(navController: NavController) {
             ) {
                 when (val state = uiState) {
                     is MyTagsViewModel.MyTagsUiState.Loading -> {
-                        SearchLoadingStateCustom(
-                            onRefresh = { myTagsViewModel.refreshTags() },
-                            text = stringResource(R.string.loading_tags),
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = Dimen.ScreenHorizontalPadding),
+                        ) {
+                            SearchLoadingStateCustom(
+                                onRefresh = { myTagsViewModel.refreshTags() },
+                                text = stringResource(R.string.loading_tags),
+                            )
+                        }
                     }
 
                     is MyTagsViewModel.MyTagsUiState.Error -> {
