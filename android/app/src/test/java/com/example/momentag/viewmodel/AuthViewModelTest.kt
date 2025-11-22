@@ -33,7 +33,6 @@ class AuthViewModelTest {
         tokenRepository = mockk()
         sessionExpirationManager = mockk()
 
-
         // Mock the StateFlows from TokenRepository
         every { tokenRepository.isLoggedIn } returns MutableStateFlow(null)
         every { tokenRepository.isSessionLoaded } returns MutableStateFlow(false)
