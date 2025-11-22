@@ -758,7 +758,7 @@ private fun MyTagsContent(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.tag),
+                    painter = painterResource(id = R.drawable.ic_empty_tags),
                     contentDescription = stringResource(R.string.cd_empty_tag),
                     modifier =
                         Modifier
