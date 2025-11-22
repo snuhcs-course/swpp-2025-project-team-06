@@ -111,6 +111,7 @@ class AlbumViewModel
         private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
         private val _tagRenameState = MutableStateFlow<TagRenameState>(TagRenameState.Idle)
         private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
+        private val _scrollToIndex = MutableStateFlow<Int?>(null)
 
         // 3. Public StateFlow (exposed state)
         val albumLoadingState = _albumLoadingState.asStateFlow()
@@ -120,6 +121,7 @@ class AlbumViewModel
         val tagDeleteState = _tagDeleteState.asStateFlow()
         val tagRenameState = _tagRenameState.asStateFlow()
         val tagAddState = _tagAddState.asStateFlow()
+        val scrollToIndex = _scrollToIndex.asStateFlow()
 
         fun loadAlbum(
             tagId: String,
@@ -433,5 +435,27 @@ class AlbumViewModel
                 initialPhotos = emptyList(),
                 existingTagId = tagId,
             )
+        }
+
+        /**
+         * Set scroll position to restore after returning from ImageDetailScreen
+         */
+        fun setScrollToIndex(index: Int?) {
+            _scrollToIndex.value = index
+        }
+
+        /**
+         * Clear scroll position after restoration
+         */
+        fun clearScrollToIndex() {
+            _scrollToIndex.value = null
+        }
+
+        /**
+         * Restore scroll position from ImageBrowserRepository (when returning from ImageDetailScreen)
+         */
+        fun restoreScrollPosition() {
+            val lastViewedIndex = imageBrowserRepository.getCurrentIndex()
+            lastViewedIndex?.let { setScrollToIndex(it) }
         }
     }

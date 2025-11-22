@@ -80,6 +80,7 @@ import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CustomTagChip
 import com.example.momentag.ui.components.ErrorOverlay
+import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.StoryTagChip
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
@@ -189,23 +190,11 @@ fun StoryTagSelectionScreen(
 
                 is StoryViewModel.StoryState.Loading -> {
                     // Show loading screen
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.primary,
-                                strokeWidth = Dimen.CircularProgressStrokeWidth,
-                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
-                            )
-                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
-                            Text(
-                                stringResource(R.string.story_loading_memories),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                    }
+                    SearchLoadingStateCustom(
+                        onRefresh = { viewModel.loadStories(10) },
+                        text = stringResource(R.string.story_loading_memories),
+                        horizontalPadding = Dimen.ScreenHorizontalPadding,
+                    )
                 }
 
                 is StoryViewModel.StoryState.Success -> {

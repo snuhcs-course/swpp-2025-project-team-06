@@ -100,12 +100,22 @@ data class ImageContext(
     val currentIndex: Int,
     val contextType: ContextType,
 ) {
-    enum class ContextType {
-        ALBUM, // 로컬 앨범
-        TAG_ALBUM, // 태그 앨범
-        SEARCH_RESULT, // 검색 결과
-        GALLERY, // 전체 갤러리
-        STORY, // 스토리
+    sealed class ContextType {
+        data class Album(
+            val albumName: String,
+        ) : ContextType()
+
+        data class TagAlbum(
+            val tagName: String,
+        ) : ContextType()
+
+        data class SearchResult(
+            val query: String,
+        ) : ContextType()
+
+        object Gallery : ContextType()
+
+        object Story : ContextType()
     }
 }
 

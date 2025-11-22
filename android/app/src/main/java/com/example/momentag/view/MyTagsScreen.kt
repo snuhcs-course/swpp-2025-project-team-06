@@ -84,6 +84,7 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.RenameTagDialog
+import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
@@ -112,7 +113,6 @@ fun MyTagsScreen(navController: NavController) {
     val uiState by myTagsViewModel.uiState.collectAsState()
     val isEditMode by myTagsViewModel.isEditMode.collectAsState()
     val selectedTagsForBulkEdit by myTagsViewModel.selectedTagsForBulkEdit.collectAsState()
-    val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
     val sortOrder by myTagsViewModel.sortOrder.collectAsState()
     val saveState by myTagsViewModel.saveState.collectAsState()
     val actionState by myTagsViewModel.tagActionState.collectAsState()
@@ -130,6 +130,8 @@ fun MyTagsScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isBulkDeleteConfirmVisible by remember { mutableStateOf(false) }
     var isExitUntagConfirmVisible by remember { mutableStateOf(false) }
+    var individualEditTagId by remember { mutableStateOf<String?>(null) }
+    val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
 
     // 5. rememberCoroutineScope
     val scope = rememberCoroutineScope()
@@ -171,15 +173,21 @@ fun MyTagsScreen(navController: NavController) {
     }
 
     BackHandler(enabled = true) {
-        if (isEditMode) {
-            if (hasSelectedTags) {
-                isExitUntagConfirmVisible = true
-            } else {
-                myTagsViewModel.toggleEditMode()
+        when {
+            individualEditTagId != null -> {
+                individualEditTagId = null
             }
-        } else {
-            navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
-            navController.popBackStack()
+            isEditMode -> {
+                if (hasSelectedTags) {
+                    isExitUntagConfirmVisible = true
+                } else {
+                    myTagsViewModel.toggleEditMode()
+                }
+            }
+            else -> {
+                navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                navController.popBackStack()
+            }
         }
     }
 
@@ -218,34 +226,46 @@ fun MyTagsScreen(navController: NavController) {
                 CommonTopBar(
                     title = stringResource(R.string.tag_screen_title),
                     navigationIcon = {
-                        if (isEditMode) {
-                            IconButton(
-                                onClick = {
-                                    if (hasSelectedTags) {
-                                        isExitUntagConfirmVisible = true
-                                    } else {
-                                        myTagsViewModel.toggleEditMode()
-                                    }
-                                },
-                            ) {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.cd_cancel_selection),
-                                    sizeRole = IconSizeRole.Navigation,
-                                )
+                        when {
+                            individualEditTagId != null -> {
+                                IconButton(onClick = { individualEditTagId = null }) {
+                                    StandardIcon.Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = stringResource(R.string.cd_navigate_back),
+                                        sizeRole = IconSizeRole.Navigation,
+                                    )
+                                }
                             }
-                        } else {
-                            IconButton(
-                                onClick = {
-                                    navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
-                                    navController.popBackStack()
-                                },
-                            ) {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = stringResource(R.string.cd_navigate_back),
-                                    sizeRole = IconSizeRole.Navigation,
-                                )
+                            isEditMode -> {
+                                IconButton(
+                                    onClick = {
+                                        if (hasSelectedTags) {
+                                            isExitUntagConfirmVisible = true
+                                        } else {
+                                            myTagsViewModel.toggleEditMode()
+                                        }
+                                    },
+                                ) {
+                                    StandardIcon.Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.cd_cancel_selection),
+                                        sizeRole = IconSizeRole.Navigation,
+                                    )
+                                }
+                            }
+                            else -> {
+                                IconButton(
+                                    onClick = {
+                                        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                                        navController.popBackStack()
+                                    },
+                                ) {
+                                    StandardIcon.Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = stringResource(R.string.cd_navigate_back),
+                                        sizeRole = IconSizeRole.Navigation,
+                                    )
+                                }
                             }
                         }
                     },
@@ -263,7 +283,6 @@ fun MyTagsScreen(navController: NavController) {
                                 )
                             }
                             // Delete Button (always visible, enters edit mode on click)
-                            val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
                             val isDeleteEnabled = !isEditMode || hasSelectedTags
                             IconButton(
                                 onClick = {
@@ -323,15 +342,18 @@ fun MyTagsScreen(navController: NavController) {
                         enter = Animation.EnterFromBottom,
                         exit = Animation.ExitToBottom,
                     ) {
-                        WarningBanner(
-                            title = stringResource(R.string.error_title_save_failed),
-                            message = stringResource((saveState as MyTagsViewModel.SaveState.Error).error.toMessageResId()),
-                            onActionClick = { },
-                            onDismiss = { isErrorBannerVisible = false },
-                            showActionButton = false,
-                            showDismissButton = true,
-                        )
-                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        Column {
+                            WarningBanner(
+                                modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding),
+                                title = stringResource(R.string.error_title_save_failed),
+                                message = stringResource((saveState as MyTagsViewModel.SaveState.Error).error.toMessageResId()),
+                                onActionClick = { },
+                                onDismiss = { isErrorBannerVisible = false },
+                                showActionButton = false,
+                                showDismissButton = true,
+                            )
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        }
                     }
 
                     AnimatedVisibility(
@@ -455,10 +477,15 @@ fun MyTagsScreen(navController: NavController) {
                 when (val state = uiState) {
                     is MyTagsViewModel.MyTagsUiState.Loading -> {
                         Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
                         ) {
-                            CircularProgressIndicator()
+                            SearchLoadingStateCustom(
+                                onRefresh = { myTagsViewModel.refreshTags() },
+                                text = stringResource(R.string.loading_tags),
+                            )
                         }
                     }
 
@@ -507,6 +534,7 @@ fun MyTagsScreen(navController: NavController) {
                             onRefresh = { myTagsViewModel.refreshTags() },
                             onEnterEditMode = { myTagsViewModel.toggleEditMode() },
                             onExitEditMode = { if (isEditMode) myTagsViewModel.toggleEditMode() },
+                            individualEditTagId = individualEditTagId,
                             onDeleteSelectedTags = { selectedTagIds ->
                                 // Delete each selected tag
                                 selectedTagIds.forEach { tagId ->
@@ -514,6 +542,7 @@ fun MyTagsScreen(navController: NavController) {
                                     myTagsViewModel.deleteTag(tagId)
                                 }
                             },
+                            onIndividualEditTagChange = { newId -> individualEditTagId = newId },
                             myTagsViewModel = myTagsViewModel,
                         )
                     }
@@ -651,6 +680,7 @@ private fun MyTagsContent(
     navController: NavController,
     isEditMode: Boolean = false,
     selectedTagsForBulkEdit: Set<String>,
+    individualEditTagId: String?,
     onToggleTagSelection: (String) -> Unit,
     isBulkDeleteConfirmVisible: Boolean,
     onShowBulkDeleteConfirmChange: (Boolean) -> Unit,
@@ -661,19 +691,17 @@ private fun MyTagsContent(
     onExitEditMode: () -> Unit = {},
     onConfirmAddTag: (TagCntData) -> Unit = {},
     onDeleteSelectedTags: (Set<String>) -> Unit = {},
+    onIndividualEditTagChange: (String?) -> Unit,
     myTagsViewModel: MyTagsViewModel,
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
     val isSelectingTagForPhotos = !myTagsViewModel.isSelectedPhotosEmpty()
 
-    // Track which tags are in individual edit mode (long-pressed)
-    var individualEditTagId by remember { mutableStateOf<String?>(null) }
-
     // Exit individual edit mode when entering/exiting global edit mode
     LaunchedEffect(isEditMode) {
         // Exit individual edit mode when entering global selection mode
-        individualEditTagId = null
+        onIndividualEditTagChange(null)
     }
 
     PullToRefreshBox(
@@ -700,7 +728,7 @@ private fun MyTagsContent(
                         ) {
                             onExitEditMode()
                             // Exit individual edit mode when clicking empty space
-                            individualEditTagId = null
+                            onIndividualEditTagChange(null)
                         }.padding(horizontal = Dimen.FormScreenHorizontalPadding),
             ) {
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
@@ -778,10 +806,10 @@ private fun MyTagsContent(
                             onLongClick = {
                                 if (isThisTagInEditMode) {
                                     // Exit individual edit mode for this tag
-                                    individualEditTagId = null
+                                    onIndividualEditTagChange(null)
                                 } else {
                                     // Enter individual edit mode for this tag
-                                    individualEditTagId = tagData.tagId
+                                    onIndividualEditTagChange(tagData.tagId)
                                 }
                             },
                             showCheckbox = isEditMode && !isThisTagInEditMode,
