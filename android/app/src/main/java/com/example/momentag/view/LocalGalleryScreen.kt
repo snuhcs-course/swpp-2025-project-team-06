@@ -314,8 +314,8 @@ fun LocalGalleryScreen(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                 ) {
                     items(albumSet) { album ->
                         val isSelected = selectedAlbumIds.contains(album.albumId)

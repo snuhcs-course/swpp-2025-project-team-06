@@ -384,8 +384,8 @@ fun SelectImageScreen(navController: NavController) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         state = listState,
-                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding =
                             PaddingValues(
@@ -860,8 +860,8 @@ private fun RecommendExpandedPanel(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
-                                verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                                horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                                verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                                 modifier = Modifier.weight(1f),
                                 userScrollEnabled = true,
                             ) {
