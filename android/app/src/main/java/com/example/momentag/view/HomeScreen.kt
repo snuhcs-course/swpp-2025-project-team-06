@@ -69,8 +69,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
@@ -741,10 +741,7 @@ fun HomeScreen(navController: NavController) {
                         )
 
                         IconButton(
-                            onClick = {
-                                // TODO: Show filter dialog
-                                Toast.makeText(context, context.getString(R.string.filter), Toast.LENGTH_SHORT).show()
-                            },
+                            onClick = { performSearch() },
                             modifier =
                                 Modifier
                                     .size(Dimen.SearchBarMinHeight)
@@ -754,8 +751,8 @@ fun HomeScreen(navController: NavController) {
                                     ),
                         ) {
                             StandardIcon.Icon(
-                                imageVector = Icons.Default.FilterList,
-                                contentDescription = stringResource(R.string.cd_filter),
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.cd_search),
                                 intent = IconIntent.Inverse,
                             )
                         }

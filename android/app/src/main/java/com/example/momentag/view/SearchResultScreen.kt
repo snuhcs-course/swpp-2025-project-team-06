@@ -36,7 +36,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -693,10 +693,7 @@ private fun SearchResultContent(
                     placeholder = placeholder,
                 )
                 IconButton(
-                    onClick = {
-                        // TODO: Show filter dialog
-                        Toast.makeText(context, context.getString(R.string.filter), Toast.LENGTH_SHORT).show()
-                    },
+                    onClick = { onPerformSearch() },
                     modifier =
                         Modifier
                             .size(Dimen.SearchBarMinHeight)
@@ -706,8 +703,8 @@ private fun SearchResultContent(
                             ),
                 ) {
                     StandardIcon.Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = stringResource(R.string.cd_filter),
+                        imageVector = Icons.Default.Search,
+                        contentDescription = stringResource(R.string.cd_search),
                         intent = IconIntent.Inverse,
                     )
                 }
