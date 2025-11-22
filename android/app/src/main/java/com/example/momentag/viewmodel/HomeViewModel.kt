@@ -1,5 +1,6 @@
 package com.example.momentag.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Photo
@@ -106,6 +107,7 @@ class HomeViewModel
         private val _tagAlbumScrollIndex = MutableStateFlow(0)
         private val _tagAlbumScrollOffset = MutableStateFlow(0)
         private val _groupedPhotos = MutableStateFlow<List<DatedPhotoGroup>>(emptyList())
+        private val _scrollToIndex = MutableStateFlow<Int?>(null)
 
         // 4. Public StateFlow (exposed state)
         val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
@@ -124,6 +126,7 @@ class HomeViewModel
         val tagAlbumScrollIndex: StateFlow<Int> = _tagAlbumScrollIndex.asStateFlow()
         val tagAlbumScrollOffset: StateFlow<Int> = _tagAlbumScrollOffset.asStateFlow()
         val groupedPhotos = _groupedPhotos.asStateFlow()
+        val scrollToIndex = _scrollToIndex.asStateFlow()
 
         // 5. Private 변수
         private var currentOffset = 0
@@ -354,6 +357,32 @@ class HomeViewModel
             imageBrowserRepository.setGallery(_allPhotos.value)
         }
 
+        private fun getGridIndexForPhotoIndex(photoIndex: Int): Int? {
+            if (photoIndex < 0 || photoIndex >= _allPhotos.value.size) {
+                return null
+            }
+
+            val targetPhoto = _allPhotos.value[photoIndex]
+            var gridIndex = 0
+
+            for (group in _groupedPhotos.value) {
+                val photoIndexInGroup = group.photos.indexOf(targetPhoto)
+
+                if (photoIndexInGroup != -1) {
+                    // Found the photo in this group
+                    gridIndex += 1 // For the date header
+                    gridIndex += photoIndexInGroup
+                    return gridIndex
+                } else {
+                    // This group is before the target photo's group
+                    gridIndex += 1 // For the date header
+                    gridIndex += group.photos.size
+                }
+            }
+
+            return null // Should not happen if photo is in _allPhotos
+        }
+
         private fun sortAndPublishTags() {
             val currentList = _rawTagList.value
 
@@ -388,5 +417,32 @@ class HomeViewModel
                     TagSortOrder.COUNT_DESC -> currentList.sortedByDescending { it.photoCount }
                 }
             _homeLoadingState.value = HomeLoadingState.Success(tags = sortedList)
+        }
+
+        /**
+         * Set scroll position to restore after returning from ImageDetailScreen
+         */
+        fun setScrollToIndex(index: Int?) {
+            _scrollToIndex.value = index
+        }
+
+        /**
+         * Clear scroll position after restoration
+         */
+        fun clearScrollToIndex() {
+            _scrollToIndex.value = null
+        }
+
+        /**
+         * Restore scroll position from ImageBrowserRepository (when returning from ImageDetailScreen)
+         */
+        fun restoreScrollPosition() {
+            val lastViewedPhotoIndex = imageBrowserRepository.getCurrentIndex()
+            lastViewedPhotoIndex?.let { photoIndex ->
+                val gridIndex = getGridIndexForPhotoIndex(photoIndex)
+                gridIndex?.let {
+                    setScrollToIndex(it)
+                }
+            }
         }
     }

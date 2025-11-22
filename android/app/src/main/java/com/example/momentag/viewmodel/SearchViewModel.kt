@@ -124,6 +124,7 @@ class SearchViewModel
         private val _isSelectionMode = MutableStateFlow(false)
         private val _requestFocus = MutableSharedFlow<String>()
         private val _bringIntoView = MutableSharedFlow<String>()
+        private val _scrollToIndex = MutableStateFlow<Int?>(null)
 
         // 3. Public StateFlow (exposed state)
         val tagLoadingState = _tagLoadingState.asStateFlow()
@@ -134,6 +135,7 @@ class SearchViewModel
         val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
         val requestFocus = _requestFocus.asSharedFlow()
         val bringIntoView = _bringIntoView.asSharedFlow()
+        val scrollToIndex = _scrollToIndex.asStateFlow()
 
         // 4. Private 변수
         private val isLoggedInFlow = tokenRepository.isLoggedIn
@@ -798,5 +800,27 @@ class SearchViewModel
             textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
             focusRequesters[initialId] = FocusRequester()
             bringIntoViewRequesters[initialId] = BringIntoViewRequester()
+        }
+
+        /**
+         * Set scroll position to restore after returning from ImageDetailScreen
+         */
+        fun setScrollToIndex(index: Int?) {
+            _scrollToIndex.value = index
+        }
+
+        /**
+         * Clear scroll position after restoration
+         */
+        fun clearScrollToIndex() {
+            _scrollToIndex.value = null
+        }
+
+        /**
+         * Restore scroll position from ImageBrowserRepository (when returning from ImageDetailScreen)
+         */
+        fun restoreScrollPosition() {
+            val lastViewedIndex = imageBrowserRepository.getCurrentIndex()
+            lastViewedIndex?.let { setScrollToIndex(it) }
         }
     }

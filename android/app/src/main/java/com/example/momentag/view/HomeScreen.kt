@@ -196,6 +196,7 @@ fun HomeScreen(navController: NavController) {
     val shouldShowSearchHistoryDropdown by searchViewModel.shouldShowSearchHistoryDropdown.collectAsState()
     val focusedElementId by searchViewModel.focusedElementId
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
+    val scrollToIndex by homeViewModel.scrollToIndex.collectAsState()
 
     // 4. Local state variables (remember, mutableStateOf)
     var hasPermission by remember { mutableStateOf(false) }
@@ -247,11 +248,20 @@ fun HomeScreen(navController: NavController) {
                     // When returning from SearchResultScreen, etc.
                     // Clear search bar content when HomeScreen becomes visible again.
                     searchViewModel.clearSearchContent()
+                    homeViewModel.restoreScrollPosition()
                 }
             }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Scroll restoration: restore scroll position when returning from ImageDetailScreen
+    LaunchedEffect(scrollToIndex) {
+        scrollToIndex?.let { index ->
+            allPhotosGridState.animateScrollToItem(index)
+            homeViewModel.clearScrollToIndex()
         }
     }
 
@@ -448,7 +458,7 @@ fun HomeScreen(navController: NavController) {
 
     // done once when got permission
     LaunchedEffect(hasPermission) {
-        if (hasPermission) {
+        if (hasPermission && allPhotos.isEmpty()) {
             homeViewModel.loadServerTags()
             searchViewModel.loadServerTags()
             homeViewModel.loadAllPhotos() // Fetch all photos from server

@@ -358,7 +358,9 @@ class SelectImageViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.recommendState.value is SelectImageViewModel.RecommendState.NetworkError)
+            val state = viewModel.recommendState.value
+            assertTrue(state is SelectImageViewModel.RecommendState.Error)
+            assertEquals(SelectImageViewModel.SelectImageError.NetworkError, (state as SelectImageViewModel.RecommendState.Error).error)
         }
 
     @Test
@@ -374,7 +376,9 @@ class SelectImageViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.recommendState.value is SelectImageViewModel.RecommendState.Error)
+            val state = viewModel.recommendState.value
+            assertTrue(state is SelectImageViewModel.RecommendState.Error)
+            assertEquals(SelectImageViewModel.SelectImageError.UnknownError, (state as SelectImageViewModel.RecommendState.Error).error)
         }
 
     @Test
@@ -390,7 +394,9 @@ class SelectImageViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.recommendState.value is SelectImageViewModel.RecommendState.Error)
+            val state = viewModel.recommendState.value
+            assertTrue(state is SelectImageViewModel.RecommendState.Error)
+            assertEquals(SelectImageViewModel.SelectImageError.UnknownError, (state as SelectImageViewModel.RecommendState.Error).error)
         }
 
     @Test
@@ -553,7 +559,9 @@ class SelectImageViewModelTest {
             // Then
             coVerify(exactly = 1) { remoteRepository.postTagsToPhoto("photo1", "tag1") }
             coVerify(exactly = 1) { remoteRepository.postTagsToPhoto("photo2", "tag1") }
-            assertTrue(newViewModel.addPhotosState.value is SelectImageViewModel.AddPhotosState.Error)
+            val state = newViewModel.addPhotosState.value
+            assertTrue(state is SelectImageViewModel.AddPhotosState.Error)
+            assertEquals(SelectImageViewModel.SelectImageError.UnknownError, (state as SelectImageViewModel.AddPhotosState.Error).error)
         }
 
     // Adding to existing tag tests

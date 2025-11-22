@@ -131,7 +131,7 @@ class StoryViewModelTest {
         }
 
     @Test
-    fun `loadStories with NetworkError updates state to NetworkError`() =
+    fun `loadStories with NetworkError updates state to Error`() =
         runTest {
             // Given
             val errorMessage = "Network error"
@@ -144,7 +144,8 @@ class StoryViewModelTest {
 
             // Then
             val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.NetworkError)
+            assertTrue(state is StoryViewModel.StoryState.Error)
+            assertEquals(StoryViewModel.StoryError.NetworkError, (state as StoryViewModel.StoryState.Error).error)
         }
 
     // Toggle tag tests
@@ -354,7 +355,7 @@ class StoryViewModelTest {
             // Then
             val state = viewModel.storyState.value
             assertTrue(state is StoryViewModel.StoryState.Error)
-            assertEquals("Please login again", (state as StoryViewModel.StoryState.Error).message)
+            assertEquals(StoryViewModel.StoryError.Unauthorized, (state as StoryViewModel.StoryState.Error).error)
         }
 
     @Test
@@ -372,7 +373,7 @@ class StoryViewModelTest {
             // Then
             val state = viewModel.storyState.value
             assertTrue(state is StoryViewModel.StoryState.Error)
-            assertEquals(errorMessage, (state as StoryViewModel.StoryState.Error).message)
+            assertEquals(StoryViewModel.StoryError.UnknownError, (state as StoryViewModel.StoryState.Error).error)
         }
 
     @Test
@@ -390,7 +391,7 @@ class StoryViewModelTest {
             // Then
             val state = viewModel.storyState.value
             assertTrue(state is StoryViewModel.StoryState.Error)
-            assertEquals(errorMessage, (state as StoryViewModel.StoryState.Error).message)
+            assertEquals(StoryViewModel.StoryError.UnknownError, (state as StoryViewModel.StoryState.Error).error)
         }
 
     @Test
@@ -1047,7 +1048,6 @@ class StoryViewModelTest {
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
         }
 
-    @Test
     fun `submitTagsForStory handles removeTagFromPhoto Unauthorized`() =
         runTest {
             // Given - load story state first
@@ -1088,7 +1088,7 @@ class StoryViewModelTest {
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals("Please login again", (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message)
+            assertEquals(StoryViewModel.StoryError.Unauthorized, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
         }
 
     @Test
@@ -1132,10 +1132,7 @@ class StoryViewModelTest {
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(
-                "Network error. Please try again.",
-                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
-            )
+            assertEquals(StoryViewModel.StoryError.NetworkError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
         }
 
     @Test
@@ -1179,10 +1176,7 @@ class StoryViewModelTest {
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(
-                "An error occurred. Please try again.",
-                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
-            )
+            assertEquals(StoryViewModel.StoryError.UnknownError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
         }
 
     @Test
@@ -1247,7 +1241,7 @@ class StoryViewModelTest {
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals("Please login again", (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message)
+            assertEquals(StoryViewModel.StoryError.Unauthorized, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
         }
 
     @Test
@@ -1280,10 +1274,7 @@ class StoryViewModelTest {
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(
-                "Network error. Please try again.",
-                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
-            )
+            assertEquals(StoryViewModel.StoryError.NetworkError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
         }
 
     @Test
@@ -1316,10 +1307,7 @@ class StoryViewModelTest {
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(
-                "An error occurred. Please try again.",
-                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
-            )
+            assertEquals(StoryViewModel.StoryError.UnknownError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
         }
 
     @Test
@@ -1394,7 +1382,7 @@ class StoryViewModelTest {
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals("Please login again", (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message)
+            assertEquals(StoryViewModel.StoryError.Unauthorized, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
         }
 
     @Test
@@ -1432,10 +1420,7 @@ class StoryViewModelTest {
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(
-                "Network error. Please try again.",
-                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
-            )
+            assertEquals(StoryViewModel.StoryError.NetworkError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
         }
 
     @Test
@@ -1473,10 +1458,7 @@ class StoryViewModelTest {
             // Then
             val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
             assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(
-                "An error occurred. Please try again.",
-                (submissionState as StoryViewModel.StoryTagSubmissionState.Error).message,
-            )
+            assertEquals(StoryViewModel.StoryError.UnknownError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
         }
 
     @Test

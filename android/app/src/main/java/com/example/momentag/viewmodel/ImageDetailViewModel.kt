@@ -369,4 +369,12 @@ class ImageDetailViewModel
             _imageContext.value = null
             _imageDetailTagState.value = ImageDetailTagState.Idle
         }
+
+        /**
+         * 현재 보고 있는 사진의 인덱스를 업데이트 (스크롤 복원을 위해)
+         * @param index 현재 pager의 페이지 인덱스
+         */
+        fun updateCurrentPhotoIndex(index: Int) {
+            imageBrowserRepository.updateCurrentIndex(index)
+        }
     }

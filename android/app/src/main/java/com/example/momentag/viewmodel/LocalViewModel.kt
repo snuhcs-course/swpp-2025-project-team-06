@@ -29,6 +29,7 @@ class LocalViewModel
         private val _imagesInAlbum = MutableStateFlow<List<Photo>>(emptyList())
         private val _selectedPhotosInAlbum = MutableStateFlow<Set<Photo>>(emptySet())
         private val _selectedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
+        private val _scrollToIndex = MutableStateFlow<Int?>(null)
 
         // 2. Public StateFlow (exposed state)
         val image = _image.asStateFlow()
@@ -36,6 +37,7 @@ class LocalViewModel
         val imagesInAlbum = _imagesInAlbum.asStateFlow()
         val selectedPhotosInAlbum = _selectedPhotosInAlbum.asStateFlow()
         val selectedAlbumIds = _selectedAlbumIds.asStateFlow()
+        val scrollToIndex = _scrollToIndex.asStateFlow()
 
         // 3. init 블록
         init {
@@ -142,5 +144,27 @@ class LocalViewModel
                     currentSet + albumId // 없으면 추가 (선택)
                 }
             }
+        }
+
+        /**
+         * Set scroll position to restore after returning from ImageDetailScreen
+         */
+        fun setScrollToIndex(index: Int?) {
+            _scrollToIndex.value = index
+        }
+
+        /**
+         * Clear scroll position after restoration
+         */
+        fun clearScrollToIndex() {
+            _scrollToIndex.value = null
+        }
+
+        /**
+         * Restore scroll position from ImageBrowserRepository (when returning from ImageDetailScreen)
+         */
+        fun restoreScrollPosition() {
+            val lastViewedIndex = imageBrowserRepository.getCurrentIndex()
+            lastViewedIndex?.let { setScrollToIndex(it) }
         }
     }
