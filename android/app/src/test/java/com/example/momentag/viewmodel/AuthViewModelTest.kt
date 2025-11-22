@@ -1,5 +1,6 @@
 package com.example.momentag.viewmodel
 
+import com.example.momentag.data.SessionExpirationManager
 import com.example.momentag.repository.TokenRepository
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
@@ -25,15 +26,19 @@ class AuthViewModelTest {
     private lateinit var viewModel: AuthViewModel
     private lateinit var tokenRepository: TokenRepository
 
+    private lateinit var sessionExpirationManager: SessionExpirationManager
+
     @Before
     fun setUp() {
         tokenRepository = mockk()
+        sessionExpirationManager = mockk()
+
 
         // Mock the StateFlows from TokenRepository
         every { tokenRepository.isLoggedIn } returns MutableStateFlow(null)
         every { tokenRepository.isSessionLoaded } returns MutableStateFlow(false)
 
-        viewModel = AuthViewModel(tokenRepository)
+        viewModel = AuthViewModel(tokenRepository, sessionExpirationManager)
     }
 
     @After
@@ -50,6 +55,7 @@ class AuthViewModelTest {
             val password = "password123"
             coEvery { tokenRepository.login(username, password) } returns
                 TokenRepository.LoginResult.Success
+            coEvery { sessionExpirationManager.resetSessionExpiration() } returns Unit
 
             // When
             viewModel.login(username, password)
@@ -148,6 +154,7 @@ class AuthViewModelTest {
             val password = "password123"
             coEvery { tokenRepository.login(username, password) } returns
                 TokenRepository.LoginResult.Success
+            coEvery { sessionExpirationManager.resetSessionExpiration() } returns Unit
             viewModel.login(username, password)
             advanceUntilIdle()
 
@@ -405,7 +412,7 @@ class AuthViewModelTest {
         every { tokenRepository.isLoggedIn } returns mockFlow
 
         // When
-        val newViewModel = AuthViewModel(tokenRepository)
+        val newViewModel = AuthViewModel(tokenRepository, sessionExpirationManager)
 
         // Then
         assertEquals(mockFlow, newViewModel.isLoggedIn)
@@ -418,7 +425,7 @@ class AuthViewModelTest {
         every { tokenRepository.isSessionLoaded } returns mockFlow
 
         // When
-        val newViewModel = AuthViewModel(tokenRepository)
+        val newViewModel = AuthViewModel(tokenRepository, sessionExpirationManager)
 
         // Then
         assertEquals(mockFlow, newViewModel.isSessionLoaded)
