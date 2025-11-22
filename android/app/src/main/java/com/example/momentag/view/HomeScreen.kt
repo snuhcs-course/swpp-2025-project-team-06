@@ -466,7 +466,7 @@ fun HomeScreen(navController: NavController) {
 
     // done once when got permission
     LaunchedEffect(hasPermission) {
-        if (hasPermission) {
+        if (hasPermission && allPhotos.isEmpty()) {
             homeViewModel.loadServerTags()
             searchViewModel.loadServerTags()
             homeViewModel.loadAllPhotos() // Fetch all photos from server
