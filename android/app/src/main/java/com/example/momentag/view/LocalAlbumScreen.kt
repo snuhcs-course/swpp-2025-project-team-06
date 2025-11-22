@@ -333,8 +333,8 @@ fun LocalAlbumScreen(
                             columns = GridCells.Fixed(3),
                             state = gridState,
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                            horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                            verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                         ) {
                             items(
                                 count = photos.size,
