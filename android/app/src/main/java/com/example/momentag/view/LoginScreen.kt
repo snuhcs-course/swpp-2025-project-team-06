@@ -118,7 +118,7 @@ fun LoginScreen(navController: NavController) {
             }
             is AuthViewModel.LoginState.BadRequest -> {
                 isLoading = false
-                errorMessage = state.message
+                errorMessage = context.getString(R.string.error_message_login_bad_request)
                 isUsernameError = true
                 isPasswordError = true
                 isErrorBannerVisible = true
@@ -126,7 +126,7 @@ fun LoginScreen(navController: NavController) {
             }
             is AuthViewModel.LoginState.Unauthorized -> {
                 isLoading = false
-                errorMessage = state.message
+                errorMessage = context.getString(R.string.error_message_login_invalid_credentials)
                 isUsernameError = true
                 isPasswordError = true
                 isErrorBannerVisible = true
@@ -134,7 +134,7 @@ fun LoginScreen(navController: NavController) {
             }
             is AuthViewModel.LoginState.NetworkError -> {
                 isLoading = false
-                errorMessage = state.message
+                errorMessage = context.getString(R.string.error_message_network)
                 isUsernameError = true
                 isPasswordError = true
                 isErrorBannerVisible = true
@@ -142,7 +142,7 @@ fun LoginScreen(navController: NavController) {
             }
             is AuthViewModel.LoginState.Error -> {
                 isLoading = false
-                errorMessage = state.message
+                errorMessage = context.getString(R.string.error_message_unknown)
                 isUsernameError = true
                 isPasswordError = true
                 isErrorBannerVisible = true

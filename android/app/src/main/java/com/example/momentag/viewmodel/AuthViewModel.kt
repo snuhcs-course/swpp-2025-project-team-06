@@ -34,21 +34,13 @@ class AuthViewModel
 
             object Success : LoginState()
 
-            data class BadRequest(
-                val message: String,
-            ) : LoginState()
+            data object BadRequest : LoginState()
 
-            data class Unauthorized(
-                val message: String,
-            ) : LoginState()
+            data object Unauthorized : LoginState()
 
-            data class NetworkError(
-                val message: String,
-            ) : LoginState()
+            data object NetworkError : LoginState()
 
-            data class Error(
-                val message: String,
-            ) : LoginState()
+            data object Error : LoginState()
         }
 
         sealed class RegisterState {
@@ -131,16 +123,16 @@ class AuthViewModel
                         _loginState.value = LoginState.Success
                     }
                     is TokenRepository.LoginResult.BadRequest -> {
-                        _loginState.value = LoginState.BadRequest(result.message)
+                        _loginState.value = LoginState.BadRequest
                     }
                     is TokenRepository.LoginResult.Unauthorized -> {
-                        _loginState.value = LoginState.Unauthorized(result.message)
+                        _loginState.value = LoginState.Unauthorized
                     }
                     is TokenRepository.LoginResult.NetworkError -> {
-                        _loginState.value = LoginState.NetworkError(result.message)
+                        _loginState.value = LoginState.NetworkError
                     }
                     is TokenRepository.LoginResult.Error -> {
-                        _loginState.value = LoginState.Error(result.message)
+                        _loginState.value = LoginState.Error
                     }
                 }
             }

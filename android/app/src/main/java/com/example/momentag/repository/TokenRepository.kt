@@ -43,21 +43,13 @@ class TokenRepository
         sealed class LoginResult {
             data object Success : LoginResult()
 
-            data class BadRequest(
-                val message: String,
-            ) : LoginResult()
+            data object BadRequest : LoginResult()
 
-            data class Unauthorized(
-                val message: String,
-            ) : LoginResult()
+            data object Unauthorized : LoginResult()
 
-            data class NetworkError(
-                val message: String,
-            ) : LoginResult()
+            data object NetworkError : LoginResult()
 
-            data class Error(
-                val message: String,
-            ) : LoginResult()
+            data object Error : LoginResult()
         }
 
         /**
@@ -125,21 +117,21 @@ class TokenRepository
                     }
 
                     response.code() == 400 -> {
-                        LoginResult.BadRequest("Request form mismatch or No such user")
+                        LoginResult.BadRequest
                     }
 
                     response.code() == 401 -> {
-                        LoginResult.Unauthorized("Wrong username or password")
+                        LoginResult.Unauthorized
                     }
 
                     else -> {
-                        LoginResult.Error("Unexpected error: ${response.code()}")
+                        LoginResult.Error
                     }
                 }
             } catch (e: IOException) {
-                LoginResult.NetworkError("Network error")
+                LoginResult.NetworkError
             } catch (e: Exception) {
-                LoginResult.Error("Unknown error: ${e.message}")
+                LoginResult.Error
             }
 
         /**
