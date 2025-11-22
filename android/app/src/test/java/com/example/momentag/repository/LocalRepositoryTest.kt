@@ -850,7 +850,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate returns formatted date when photo exists with valid date`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockCursor = mockk<Cursor>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
@@ -860,6 +860,7 @@ class LocalRepositoryTest {
         every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
         every { mockCursor.moveToFirst() } returns true
         every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns 0
+        every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED) } returns 1
         every { mockCursor.getLong(0) } returns dateTaken
         every { mockCursor.close() } just Runs
 
@@ -877,12 +878,13 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate returns Unknown date when cursor is null`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
 
         every { mockContext.contentResolver } returns mockContentResolver
         every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns null
+        every { mockContext.getString(any()) } returns "Unknown date"
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -896,7 +898,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate returns Unknown date when cursor is empty`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockCursor = mockk<Cursor>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
@@ -905,6 +907,7 @@ class LocalRepositoryTest {
         every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
         every { mockCursor.moveToFirst() } returns false
         every { mockCursor.close() } just Runs
+        every { mockContext.getString(any()) } returns "Unknown date"
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -919,7 +922,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate returns Unknown date when DATE_TAKEN column not found`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockCursor = mockk<Cursor>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
@@ -928,7 +931,9 @@ class LocalRepositoryTest {
         every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
         every { mockCursor.moveToFirst() } returns true
         every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns -1
+        every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED) } returns -1
         every { mockCursor.close() } just Runs
+        every { mockContext.getString(any()) } returns "Unknown date"
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -943,7 +948,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate returns Unknown date when exception occurs`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
 
@@ -951,6 +956,8 @@ class LocalRepositoryTest {
         every {
             mockContentResolver.query(any(), any(), any(), any(), any())
         } throws RuntimeException("Test exception")
+        every { mockContext.getString(any()) } returns "Unknown date"
+
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -964,7 +971,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate handles different date values correctly`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockCursor = mockk<Cursor>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
@@ -994,7 +1001,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate returns formatted date for recent photo`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockCursor = mockk<Cursor>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 99999L
@@ -1004,6 +1011,7 @@ class LocalRepositoryTest {
         every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
         every { mockCursor.moveToFirst() } returns true
         every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN) } returns 0
+        every { mockCursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED) } returns 1
         every { mockCursor.getLong(0) } returns dateTaken
         every { mockCursor.close() } just Runs
 
@@ -1022,7 +1030,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate verifies ContentUri is built correctly`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockCursor = mockk<Cursor>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
@@ -1038,10 +1046,9 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext, mockGson)
 
         // When
-        val result = repo.getPhotoDate(photoId)
+        repo.getPhotoDate(photoId)
 
         // Then
-        assertNotNull(result)
         verify {
             mockContentResolver.query(
                 match { uri ->
@@ -1059,7 +1066,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate ensures cursor is closed even when exception occurs in use block`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockCursor = mockk<Cursor>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
@@ -1068,6 +1075,8 @@ class LocalRepositoryTest {
         every { mockContentResolver.query(any(), any(), any(), any(), any()) } returns mockCursor
         every { mockCursor.moveToFirst() } throws RuntimeException("Cursor error")
         every { mockCursor.close() } just Runs
+        every { mockContext.getString(any()) } returns "Unknown date"
+
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -1082,7 +1091,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoDate handles multiple calls with different photoIds`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockCursor1 = mockk<Cursor>(relaxed = true)
         val mockCursor2 = mockk<Cursor>(relaxed = true)
         val mockGson = mockk<Gson>()
@@ -1141,13 +1150,14 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoLocation returns formatted coordinates when location exists`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
         val mockInputStream = ByteArrayInputStream(byteArrayOf())
 
         every { mockContext.contentResolver } returns mockContentResolver
         every { mockContentResolver.openInputStream(any()) } returns mockInputStream
+        every { mockContext.getString(any()) } returns "Unknown location"
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -1163,12 +1173,13 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoLocation returns Unknown location when inputStream is null`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
 
         every { mockContext.contentResolver } returns mockContentResolver
         every { mockContentResolver.openInputStream(any()) } returns null
+        every { mockContext.getString(any()) } returns "Unknown location"
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -1182,12 +1193,14 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoLocation returns Unknown location when exception occurs`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
 
         every { mockContext.contentResolver } returns mockContentResolver
         every { mockContentResolver.openInputStream(any()) } throws RuntimeException("Test exception")
+        every { mockContext.getString(any()) } returns "Unknown location"
+
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -1201,7 +1214,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoLocation returns Unknown location when EXIF has no location data`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
         // Create a minimal valid JPEG without EXIF location data
@@ -1209,6 +1222,8 @@ class LocalRepositoryTest {
 
         every { mockContext.contentResolver } returns mockContentResolver
         every { mockContentResolver.openInputStream(any()) } returns mockInputStream
+        every { mockContext.getString(any()) } returns "Unknown location"
+
 
         val repo = LocalRepository(mockContext, mockGson)
 
@@ -1222,7 +1237,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoLocation verifies ContentUri is built correctly`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
         val mockInputStream = ByteArrayInputStream(byteArrayOf())
@@ -1233,10 +1248,9 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext, mockGson)
 
         // When
-        val result = repo.getPhotoLocation(photoId)
+        repo.getPhotoLocation(photoId)
 
         // Then
-        assertNotNull(result)
         verify {
             mockContentResolver.openInputStream(
                 match { uri ->
@@ -1249,7 +1263,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoLocation handles multiple calls with different photoIds`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId1 = 111L
         val photoId2 = 222L
@@ -1282,7 +1296,7 @@ class LocalRepositoryTest {
     @Test
     fun `getPhotoLocation closes inputStream properly`() {
         // Given
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
         val mockGson = mockk<Gson>()
         val photoId = 12345L
         val mockInputStream = mockk<ByteArrayInputStream>(relaxed = true)
@@ -1294,10 +1308,9 @@ class LocalRepositoryTest {
         val repo = LocalRepository(mockContext, mockGson)
 
         // When
-        val result = repo.getPhotoLocation(photoId)
+        repo.getPhotoLocation(photoId)
 
         // Then
-        assertNotNull(result)
         verify { mockInputStream.close() }
     }
     // endregion
