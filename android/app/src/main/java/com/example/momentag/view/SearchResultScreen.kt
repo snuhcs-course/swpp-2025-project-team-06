@@ -897,6 +897,7 @@ private fun SearchResultsFromState(
                 SearchLoadingStateCustom(
                     modifier = modifier,
                     onRefresh = onRetry,
+                    text = stringResource(R.string.loading_results),
                 )
             }
 

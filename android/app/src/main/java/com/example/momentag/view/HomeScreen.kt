@@ -133,6 +133,7 @@ import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.CreateTagButton
 import com.example.momentag.ui.components.SearchHistoryItem
+import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.SuggestionChip
 import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
@@ -673,16 +674,18 @@ fun HomeScreen(navController: NavController) {
             }
         },
     ) { paddingValues ->
+        var isRefreshing by remember { mutableStateOf(false) }
+
         PullToRefreshBox(
-            isRefreshing =
-                (homeLoadingState is HomeViewModel.HomeLoadingState.Loading && groupedPhotos.isEmpty()) ||
-                    (isLoadingPhotos && groupedPhotos.isEmpty()),
+            isRefreshing = isRefreshing,
             onRefresh = {
                 if (hasPermission) {
+                    isRefreshing = true
                     isDeleteMode = false
                     homeViewModel.loadServerTags()
                     searchViewModel.loadServerTags()
                     homeViewModel.loadAllPhotos() // Refresh server photos too
+                    isRefreshing = false
                 }
             },
             modifier =
@@ -1162,6 +1165,16 @@ private fun MainContent(
     areTagsEmpty: Boolean,
 ) {
     when {
+        !isDataReady -> {
+            SearchLoadingStateCustom(
+                onRefresh = {
+                    homeViewModel?.loadServerTags()
+                    homeViewModel?.loadAllPhotos()
+                },
+                text = stringResource(R.string.loading_tag_albums),
+            )
+        }
+
         isDataReady && arePhotosEmpty -> {
             EmptyStatePhotos(modifier = modifier, navController = navController)
         }

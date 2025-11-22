@@ -81,6 +81,7 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.RenameTagDialog
+import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
@@ -277,15 +278,18 @@ fun MyTagsScreen(navController: NavController) {
                         enter = Animation.EnterFromBottom,
                         exit = Animation.ExitToBottom,
                     ) {
-                        WarningBanner(
-                            title = stringResource(R.string.error_title_save_failed),
-                            message = stringResource((saveState as MyTagsViewModel.SaveState.Error).error.toMessageResId()),
-                            onActionClick = { },
-                            onDismiss = { isErrorBannerVisible = false },
-                            showActionButton = false,
-                            showDismissButton = true,
-                        )
-                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        Column {
+                            WarningBanner(
+                                modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding),
+                                title = stringResource(R.string.error_title_save_failed),
+                                message = stringResource((saveState as MyTagsViewModel.SaveState.Error).error.toMessageResId()),
+                                onActionClick = { },
+                                onDismiss = { isErrorBannerVisible = false },
+                                showActionButton = false,
+                                showDismissButton = true,
+                            )
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        }
                     }
 
                     AnimatedVisibility(
@@ -409,10 +413,15 @@ fun MyTagsScreen(navController: NavController) {
                 when (val state = uiState) {
                     is MyTagsViewModel.MyTagsUiState.Loading -> {
                         Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
                         ) {
-                            CircularProgressIndicator()
+                            SearchLoadingStateCustom(
+                                onRefresh = { myTagsViewModel.refreshTags() },
+                                text = stringResource(R.string.loading_tags),
+                            )
                         }
                     }
 
