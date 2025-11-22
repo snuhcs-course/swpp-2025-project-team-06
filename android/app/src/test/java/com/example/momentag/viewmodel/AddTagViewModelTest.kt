@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -157,6 +158,7 @@ class AddTagViewModelTest {
             // Then
             val state = newViewModel.saveState.value
             assertTrue(state is AddTagViewModel.SaveState.Error)
+            assertEquals(AddTagViewModel.AddTagError.EmptyName, (state as AddTagViewModel.SaveState.Error).error)
         }
 
     @Test
@@ -174,6 +176,7 @@ class AddTagViewModelTest {
             // Then
             val state = newViewModel.saveState.value
             assertTrue(state is AddTagViewModel.SaveState.Error)
+            assertEquals(AddTagViewModel.AddTagError.NoPhotos, (state as AddTagViewModel.SaveState.Error).error)
         }
 
     @Test
@@ -220,8 +223,52 @@ class AddTagViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(newViewModel.saveState.value is AddTagViewModel.SaveState.Error)
+            val state = newViewModel.saveState.value
+            assertTrue(state is AddTagViewModel.SaveState.Error)
+            assertEquals(AddTagViewModel.AddTagError.UnknownError, (state as AddTagViewModel.SaveState.Error).error)
         }
+
+    @Test
+    fun `saveTagAndPhotos with tag creation unauthorized updates state to Error`() = runTest {
+        // Given
+        val tagName = "Test Tag"
+        val photos = listOf(createPhoto())
+        every { photoSelectionRepository.tagName } returns MutableStateFlow(tagName)
+        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(photos)
+        coEvery { remoteRepository.postTags(tagName) } returns RemoteRepository.Result.Unauthorized("Unauthorized")
+
+        val newViewModel = AddTagViewModel(photoSelectionRepository, localRepository, remoteRepository)
+
+        // When
+        newViewModel.saveTagAndPhotos()
+        advanceUntilIdle()
+
+        // Then
+        val state = newViewModel.saveState.value
+        assertTrue(state is AddTagViewModel.SaveState.Error)
+        assertEquals(AddTagViewModel.AddTagError.Unauthorized, (state as AddTagViewModel.SaveState.Error).error)
+    }
+
+    @Test
+    fun `saveTagAndPhotos with tag creation network error updates state to Error`() = runTest {
+        // Given
+        val tagName = "Test Tag"
+        val photos = listOf(createPhoto())
+        every { photoSelectionRepository.tagName } returns MutableStateFlow(tagName)
+        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(photos)
+        coEvery { remoteRepository.postTags(tagName) } returns RemoteRepository.Result.NetworkError("Network error")
+
+        val newViewModel = AddTagViewModel(photoSelectionRepository, localRepository, remoteRepository)
+
+        // When
+        newViewModel.saveTagAndPhotos()
+        advanceUntilIdle()
+
+        // Then
+        val state = newViewModel.saveState.value
+        assertTrue(state is AddTagViewModel.SaveState.Error)
+        assertEquals(AddTagViewModel.AddTagError.NetworkError, (state as AddTagViewModel.SaveState.Error).error)
+    }
 
     @Test
     fun `saveTagAndPhotos with photo association failure updates state to Error`() =
@@ -244,8 +291,56 @@ class AddTagViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(newViewModel.saveState.value is AddTagViewModel.SaveState.Error)
+            val state = newViewModel.saveState.value
+            assertTrue(state is AddTagViewModel.SaveState.Error)
+            assertEquals(AddTagViewModel.AddTagError.UnknownError, (state as AddTagViewModel.SaveState.Error).error)
         }
+
+    @Test
+    fun `saveTagAndPhotos with photo association unauthorized updates state to Error`() = runTest {
+        // Given
+        val tagName = "Test Tag"
+        val tagId = "tag-id-123"
+        val photos = listOf(createPhoto())
+        every { photoSelectionRepository.tagName } returns MutableStateFlow(tagName)
+        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(photos)
+        coEvery { remoteRepository.postTags(tagName) } returns RemoteRepository.Result.Success(TagId(tagId))
+        coEvery { remoteRepository.postTagsToPhoto(any(), tagId) } returns RemoteRepository.Result.Unauthorized("Unauthorized")
+
+        val newViewModel = AddTagViewModel(photoSelectionRepository, localRepository, remoteRepository)
+
+        // When
+        newViewModel.saveTagAndPhotos()
+        advanceUntilIdle()
+
+        // Then
+        val state = newViewModel.saveState.value
+        assertTrue(state is AddTagViewModel.SaveState.Error)
+        assertEquals(AddTagViewModel.AddTagError.Unauthorized, (state as AddTagViewModel.SaveState.Error).error)
+    }
+
+    @Test
+    fun `saveTagAndPhotos with photo association network error updates state to Error`() = runTest {
+        // Given
+        val tagName = "Test Tag"
+        val tagId = "tag-id-123"
+        val photos = listOf(createPhoto())
+        every { photoSelectionRepository.tagName } returns MutableStateFlow(tagName)
+        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(photos)
+        coEvery { remoteRepository.postTags(tagName) } returns RemoteRepository.Result.Success(TagId(tagId))
+        coEvery { remoteRepository.postTagsToPhoto(any(), tagId) } returns RemoteRepository.Result.NetworkError("Network error")
+
+        val newViewModel = AddTagViewModel(photoSelectionRepository, localRepository, remoteRepository)
+
+        // When
+        newViewModel.saveTagAndPhotos()
+        advanceUntilIdle()
+
+        // Then
+        val state = newViewModel.saveState.value
+        assertTrue(state is AddTagViewModel.SaveState.Error)
+        assertEquals(AddTagViewModel.AddTagError.NetworkError, (state as AddTagViewModel.SaveState.Error).error)
+    }
 
     // Has changes test
     @Test

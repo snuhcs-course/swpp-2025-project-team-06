@@ -163,7 +163,7 @@ class HomeViewModelTest {
         }
 
     @Test
-    fun `loadServerTags error updates state with error message`() =
+    fun `loadServerTags error updates state with error`() =
         runTest {
             // Given
             val errorMessage = "Network error"
@@ -177,7 +177,7 @@ class HomeViewModelTest {
             // Then
             val state = viewModel.homeLoadingState.value
             assertTrue(state is HomeViewModel.HomeLoadingState.Error)
-            assertEquals(errorMessage, (state as HomeViewModel.HomeLoadingState.Error).message)
+            assertEquals(HomeViewModel.HomeError.UnknownError, (state as HomeViewModel.HomeLoadingState.Error).error)
         }
 
     @Test
@@ -195,6 +195,7 @@ class HomeViewModelTest {
             // Then
             val state = viewModel.homeLoadingState.value
             assertTrue(state is HomeViewModel.HomeLoadingState.Error)
+            assertEquals(HomeViewModel.HomeError.Unauthorized, (state as HomeViewModel.HomeLoadingState.Error).error)
         }
 
     // Tag sorting tests
@@ -307,7 +308,7 @@ class HomeViewModelTest {
         }
 
     @Test
-    fun `deleteTag error updates state with error message`() =
+    fun `deleteTag error updates state with error`() =
         runTest {
             // Given
             val tagId = "tag1"
@@ -322,7 +323,7 @@ class HomeViewModelTest {
             // Then
             val state = viewModel.homeDeleteState.value
             assertTrue(state is HomeViewModel.HomeDeleteState.Error)
-            assertEquals(errorMessage, (state as HomeViewModel.HomeDeleteState.Error).message)
+            assertEquals(HomeViewModel.HomeError.UnknownError, (state as HomeViewModel.HomeDeleteState.Error).error)
         }
 
     @Test

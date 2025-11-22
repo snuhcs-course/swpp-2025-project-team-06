@@ -971,7 +971,7 @@ class DataModelsTest {
         // Then
         assertTrue(toString.contains("ImageContext"))
         assertTrue(toString.contains("currentIndex=0"))
-        assertTrue(toString.contains("SEARCH_RESULT"))
+        assertTrue(toString.contains("SearchResult"))
     }
 
     @Test

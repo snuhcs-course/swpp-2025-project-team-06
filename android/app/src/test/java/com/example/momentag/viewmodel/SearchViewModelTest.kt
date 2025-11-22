@@ -202,6 +202,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.searchState.value
             assertTrue(state is SearchViewModel.SemanticSearchState.Error)
+            assertEquals(SearchViewModel.SearchError.Unauthorized, (state as SearchViewModel.SemanticSearchState.Error).error)
         }
 
     @Test
@@ -220,7 +221,8 @@ class SearchViewModelTest {
 
             // Then
             val state = viewModel.searchState.value
-            assertTrue(state is SearchViewModel.SemanticSearchState.NetworkError)
+            assertTrue(state is SearchViewModel.SemanticSearchState.Error)
+            assertEquals(SearchViewModel.SearchError.NetworkError, (state as SearchViewModel.SemanticSearchState.Error).error)
         }
 
     // Selection mode tests
@@ -388,7 +390,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.tagLoadingState.value
             assertTrue(state is SearchViewModel.TagLoadingState.Error)
-            assertEquals(errorMessage, (state as SearchViewModel.TagLoadingState.Error).message)
+            assertEquals(SearchViewModel.SearchError.UnknownError, (state as SearchViewModel.TagLoadingState.Error).error)
         }
 
     @Test
@@ -405,6 +407,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.tagLoadingState.value
             assertTrue(state is SearchViewModel.TagLoadingState.Error)
+            assertEquals(SearchViewModel.SearchError.Unauthorized, (state as SearchViewModel.TagLoadingState.Error).error)
         }
 
     @Test
@@ -422,7 +425,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.tagLoadingState.value
             assertTrue(state is SearchViewModel.TagLoadingState.Error)
-            assertEquals(errorMessage, (state as SearchViewModel.TagLoadingState.Error).message)
+            assertEquals(SearchViewModel.SearchError.NetworkError, (state as SearchViewModel.TagLoadingState.Error).error)
         }
 
     @Test
@@ -672,7 +675,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.searchState.value
             assertTrue(state is SearchViewModel.SemanticSearchState.Error)
-            assertEquals(errorMessage, (state as SearchViewModel.SemanticSearchState.Error).message)
+            assertEquals(SearchViewModel.SearchError.UnknownError, (state as SearchViewModel.SemanticSearchState.Error).error)
         }
 
     @Test
@@ -692,7 +695,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.searchState.value
             assertTrue(state is SearchViewModel.SemanticSearchState.Error)
-            assertEquals(errorMessage, (state as SearchViewModel.SemanticSearchState.Error).message)
+            assertEquals(SearchViewModel.SearchError.UnknownError, (state as SearchViewModel.SemanticSearchState.Error).error)
         }
 
     @Test
@@ -708,7 +711,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.searchState.value
             assertTrue(state is SearchViewModel.SemanticSearchState.Error)
-            assertEquals("Query cannot be empty", (state as SearchViewModel.SemanticSearchState.Error).message)
+            assertEquals(SearchViewModel.SearchError.EmptyQuery, (state as SearchViewModel.SemanticSearchState.Error).error)
         }
 
     @Test
@@ -748,7 +751,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.tagLoadingState.value
             assertTrue(state is SearchViewModel.TagLoadingState.Error)
-            assertEquals(errorMessage, (state as SearchViewModel.TagLoadingState.Error).message)
+            assertEquals(SearchViewModel.SearchError.UnknownError, (state as SearchViewModel.TagLoadingState.Error).error)
         }
 
     @Test
@@ -766,7 +769,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.tagLoadingState.value
             assertTrue(state is SearchViewModel.TagLoadingState.Error)
-            assertEquals("Test exception", (state as SearchViewModel.TagLoadingState.Error).message)
+            assertEquals(SearchViewModel.SearchError.UnknownError, (state as SearchViewModel.TagLoadingState.Error).error)
         }
 
     @Test
@@ -784,7 +787,7 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.tagLoadingState.value
             assertTrue(state is SearchViewModel.TagLoadingState.Error)
-            assertEquals("Unknown error", (state as SearchViewModel.TagLoadingState.Error).message)
+            assertEquals(SearchViewModel.SearchError.UnknownError, (state as SearchViewModel.TagLoadingState.Error).error)
         }
 
     // getPhotosToShare test
