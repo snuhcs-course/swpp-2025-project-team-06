@@ -664,16 +664,18 @@ fun HomeScreen(navController: NavController) {
             }
         },
     ) { paddingValues ->
+        var isRefreshing by remember { mutableStateOf(false) }
+
         PullToRefreshBox(
-            isRefreshing =
-                (homeLoadingState is HomeViewModel.HomeLoadingState.Loading && groupedPhotos.isEmpty()) ||
-                    (isLoadingPhotos && groupedPhotos.isEmpty()),
+            isRefreshing = isRefreshing,
             onRefresh = {
                 if (hasPermission) {
+                    isRefreshing = true
                     isDeleteMode = false
                     homeViewModel.loadServerTags()
                     searchViewModel.loadServerTags()
                     homeViewModel.loadAllPhotos() // Refresh server photos too
+                    isRefreshing = false
                 }
             },
             modifier =

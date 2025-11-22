@@ -261,15 +261,18 @@ fun MyTagsScreen(navController: NavController) {
                         enter = Animation.EnterFromBottom,
                         exit = Animation.ExitToBottom,
                     ) {
-                        WarningBanner(
-                            title = stringResource(R.string.error_title_save_failed),
-                            message = stringResource((saveState as MyTagsViewModel.SaveState.Error).error.toMessageResId()),
-                            onActionClick = { },
-                            onDismiss = { isErrorBannerVisible = false },
-                            showActionButton = false,
-                            showDismissButton = true,
-                        )
-                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        Column {
+                            WarningBanner(
+                                modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding),
+                                title = stringResource(R.string.error_title_save_failed),
+                                message = stringResource((saveState as MyTagsViewModel.SaveState.Error).error.toMessageResId()),
+                                onActionClick = { },
+                                onDismiss = { isErrorBannerVisible = false },
+                                showActionButton = false,
+                                showDismissButton = true,
+                            )
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        }
                     }
 
                     AnimatedVisibility(

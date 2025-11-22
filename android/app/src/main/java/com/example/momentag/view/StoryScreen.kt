@@ -612,7 +612,10 @@ internal fun TagSelectionCard(
                     onActionClick = onRetry, // Retry button (GradientPillButton changes to Retry)
                     showActionButton = false, // Button is handled by GradientPillButton
                     showDismissButton = false,
-                    modifier = Modifier.padding(bottom = Dimen.ItemSpacingSmall),
+                    modifier =
+                        Modifier
+                            .padding(horizontal = Dimen.ItemSpacingSmall)
+                            .padding(bottom = Dimen.ItemSpacingSmall),
                 )
             }
 
