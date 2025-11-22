@@ -34,8 +34,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
@@ -85,6 +89,10 @@ import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.tagXMode
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -529,6 +537,32 @@ fun ImageDetailScreen(
                 BackTopBar(
                     title = stringResource(R.string.app_name),
                     onBackClick = onNavigateBack,
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                currentPhoto?.let { photo ->
+                                    ShareUtils.sharePhotos(context, listOf(photo))
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            context.getString(R.string.share_photos_count, 1),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                }
+                            },
+                            colors =
+                                IconButtonDefaults.iconButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.primary,
+                                ),
+                        ) {
+                            StandardIcon.Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = stringResource(R.string.cd_share),
+                                sizeRole = IconSizeRole.DefaultAction,
+                                intent = IconIntent.Primary,
+                            )
+                        }
+                    },
                 )
             }
         },

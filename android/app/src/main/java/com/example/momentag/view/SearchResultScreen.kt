@@ -36,7 +36,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -92,6 +92,7 @@ import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.SearchViewModel
 import kotlinx.coroutines.android.awaitFrame
@@ -537,6 +538,7 @@ fun SearchResultScreenUi(
     placeholder: String,
 ) {
     LocalFocusManager.current
+    val backgroundBrush = rememberAppBackgroundBrush()
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -553,6 +555,7 @@ fun SearchResultScreenUi(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
 //                    .padding(horizontal = 16.dp),
             listState = listState,
@@ -701,10 +704,7 @@ private fun SearchResultContent(
                     placeholder = placeholder,
                 )
                 IconButton(
-                    onClick = {
-                        // TODO: Show filter dialog
-                        Toast.makeText(context, context.getString(R.string.filter), Toast.LENGTH_SHORT).show()
-                    },
+                    onClick = { onPerformSearch() },
                     modifier =
                         Modifier
                             .size(Dimen.SearchBarMinHeight)
@@ -714,8 +714,8 @@ private fun SearchResultContent(
                             ),
                 ) {
                     StandardIcon.Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = stringResource(R.string.cd_filter),
+                        imageVector = Icons.Default.Search,
+                        contentDescription = stringResource(R.string.cd_search),
                         intent = IconIntent.Inverse,
                     )
                 }
@@ -912,8 +912,8 @@ private fun SearchResultsFromState(
                     columns = GridCells.Fixed(3),
                     state = gridState,
                     modifier = modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                 ) {
                     items(
                         count = uiState.results.size,

@@ -199,6 +199,7 @@
     <string name="cd_navigate_back">Navigate back to previous screen</string>
     <string name="cd_logout">Log out from your account</string>
     <string name="cd_close_dialog">Close dialog</string>
+    <string name="cd_deselect_all">Deselect all photos</string>
     <string name="cd_warning_icon">Warning notification</string>
     <string name="cd_refresh_action">Refresh content</string>
     <string name="cd_dismiss_notification">Dismiss notification</string>
@@ -211,6 +212,7 @@
     <string name="cd_password_hide">Hide password</string>
     <string name="cd_more_options">More options</string>
     <string name="cd_filter">Filter results</string>
+    <string name="cd_search">Search</string>
     <string name="cd_selected_photo">Selected photo</string>
     <string name="cd_photo_item">Photo %1$s</string>
     <string name="cd_photo_selected">Selected</string>

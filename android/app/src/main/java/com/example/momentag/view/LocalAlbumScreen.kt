@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -75,6 +74,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import kotlinx.coroutines.launch
@@ -110,6 +110,7 @@ fun LocalAlbumScreen(
     // 6. rememberCoroutineScope
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // 8. ActivityResultLauncher
     val permissionLauncher =
@@ -319,6 +320,7 @@ fun LocalAlbumScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -362,8 +364,8 @@ fun LocalAlbumScreen(
                             columns = GridCells.Fixed(3),
                             state = gridState,
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
-                            horizontalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
+                            verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                         ) {
                             items(
                                 count = photos.size,
@@ -372,38 +374,36 @@ fun LocalAlbumScreen(
                                 val photo = photos[index]
                                 val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
 
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .aspectRatio(1f)
-                                            .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
-                                            .combinedClickable(
-                                                onClick = {
-                                                    if (isSelectionMode) {
-                                                        localViewModel.togglePhotoSelection(photo)
-                                                    } else {
-                                                        localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
-                                                        navController.navigate(
-                                                            Screen.Image.createRoute(
-                                                                uri = photo.contentUri,
-                                                                imageId = photo.photoId,
-                                                            ),
-                                                        )
-                                                    }
-                                                },
-                                                onLongClick = {
-                                                    if (!isSelectionMode) {
-                                                        isSelectionMode = true
-                                                        localViewModel.togglePhotoSelection(photo)
-                                                    }
-                                                },
-                                            ),
-                                ) {
+                                Box(modifier = Modifier.aspectRatio(1f)) {
                                     AsyncImage(
                                         model = photo.contentUri,
                                         contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
+                                                .combinedClickable(
+                                                    onClick = {
+                                                        if (isSelectionMode) {
+                                                            localViewModel.togglePhotoSelection(photo)
+                                                        } else {
+                                                            localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
+                                                            navController.navigate(
+                                                                Screen.Image.createRoute(
+                                                                    uri = photo.contentUri,
+                                                                    imageId = photo.photoId,
+                                                                ),
+                                                            )
+                                                        }
+                                                    },
+                                                    onLongClick = {
+                                                        if (!isSelectionMode) {
+                                                            isSelectionMode = true
+                                                            localViewModel.togglePhotoSelection(photo)
+                                                        }
+                                                    },
+                                                ),
                                         contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize(),
                                     )
 
                                     if (isSelectionMode) {
@@ -411,9 +411,12 @@ fun LocalAlbumScreen(
                                             modifier =
                                                 Modifier
                                                     .fillMaxSize()
+                                                    .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
                                                     .background(
                                                         if (isSelected) {
-                                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                                            MaterialTheme.colorScheme.onSurface.copy(
+                                                                alpha = 0.3f,
+                                                            )
                                                         } else {
                                                             Color.Transparent
                                                         },
@@ -430,9 +433,12 @@ fun LocalAlbumScreen(
                                                         if (isSelected) {
                                                             MaterialTheme.colorScheme.primaryContainer
                                                         } else {
-                                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                                                            MaterialTheme.colorScheme.surface
+                                                                .copy(
+                                                                    alpha = 0.8f,
+                                                                )
                                                         },
-                                                        CircleShape,
+                                                        RoundedCornerShape(Dimen.ComponentCornerRadius),
                                                     ),
                                             contentAlignment = Alignment.Center,
                                         ) {

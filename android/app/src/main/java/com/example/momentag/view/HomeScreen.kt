@@ -66,10 +66,11 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
@@ -100,7 +101,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -142,6 +142,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AuthViewModel
 import com.example.momentag.viewmodel.DatedPhotoGroup
@@ -387,15 +388,6 @@ fun HomeScreen(navController: NavController) {
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val gradientBrush =
-        Brush.verticalGradient(
-            colorStops =
-                arrayOf(
-                    0.5f to MaterialTheme.colorScheme.surface,
-                    1.0f to MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                ),
-        )
-
     val tagItems = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
     val isTagsLoaded =
         homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
@@ -403,8 +395,6 @@ fun HomeScreen(navController: NavController) {
     val isDataReady = isTagsLoaded && arePhotosLoaded
     val areTagsEmpty = tagItems.isEmpty()
     val arePhotosEmpty = groupedPhotos.isEmpty()
-
-    val showEmptyTagGradient = !isShowingAllPhotos && areTagsEmpty && isDataReady && !arePhotosEmpty
 
     LaunchedEffect(uiState.isLoading) {
         if (uiState.isLoading) {
@@ -428,6 +418,8 @@ fun HomeScreen(navController: NavController) {
             homeViewModel.setShouldReturnToAllPhotos(false) // flag reset
         }
     }
+
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -577,13 +569,12 @@ fun HomeScreen(navController: NavController) {
         topBar = {
             CommonTopBar(
                 title = stringResource(R.string.app_name),
-                onTitleClick = {
-                    navController.navigate(Screen.LocalGallery.route)
-                },
-                showLogout = true,
-                onLogoutClick = { authViewModel.logout() },
-                isLogoutLoading = logoutState is AuthViewModel.LogoutState.Loading,
+                onTitleClick = null,
+                showLogout = false,
+                onLogoutClick = null,
+                isLogoutLoading = false,
                 actions = {
+                    // Share button - visible when in selection mode
                     if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
                         val isEnabled = selectedPhotos.isNotEmpty()
                         IconButton(
@@ -613,6 +604,19 @@ fun HomeScreen(navController: NavController) {
                                 intent = if (isEnabled) IconIntent.Primary else IconIntent.Disabled,
                             )
                         }
+                    }
+
+                    // upload button
+                    IconButton(
+                        onClick = {
+                            navController.navigate(Screen.LocalGallery.route)
+                        },
+                    ) {
+                        StandardIcon.Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = stringResource(R.string.cd_upload),
+                            sizeRole = IconSizeRole.DefaultAction,
+                        )
                     }
                 },
             )
@@ -702,13 +706,8 @@ fun HomeScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .then(
-                                if (showEmptyTagGradient) {
-                                    Modifier.background(gradientBrush)
-                                } else {
-                                    Modifier
-                                },
-                            ).padding(horizontal = Dimen.ScreenHorizontalPadding)
+                            .background(backgroundBrush)
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -752,10 +751,7 @@ fun HomeScreen(navController: NavController) {
                         )
 
                         IconButton(
-                            onClick = {
-                                // TODO: Show filter dialog
-                                Toast.makeText(context, context.getString(R.string.filter), Toast.LENGTH_SHORT).show()
-                            },
+                            onClick = { performSearch() },
                             modifier =
                                 Modifier
                                     .size(Dimen.SearchBarMinHeight)
@@ -765,8 +761,8 @@ fun HomeScreen(navController: NavController) {
                                     ),
                         ) {
                             StandardIcon.Icon(
-                                imageVector = Icons.Default.FilterList,
-                                contentDescription = stringResource(R.string.cd_filter),
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.cd_search),
                                 intent = IconIntent.Inverse,
                             )
                         }

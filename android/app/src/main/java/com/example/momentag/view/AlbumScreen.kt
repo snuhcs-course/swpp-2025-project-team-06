@@ -44,7 +44,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -92,6 +91,7 @@ import com.example.momentag.Screen
 import com.example.momentag.model.Photo
 import com.example.momentag.ui.components.AddPhotosButton
 import com.example.momentag.ui.components.CommonTopBar
+import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
@@ -99,6 +99,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AlbumViewModel
 import kotlinx.coroutines.delay
@@ -149,6 +150,7 @@ fun AlbumScreen(
     val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
     var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
     val gridState = rememberLazyGridState()
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // 6. rememberCoroutineScope & ActivityResultLauncher
     val scope = rememberCoroutineScope()
@@ -331,47 +333,30 @@ fun AlbumScreen(
     }
 
     if (isDeleteConfirmationDialogVisible) {
-        AlertDialog(
-            onDismissRequest = { isDeleteConfirmationDialogVisible = false },
-            title = {
-                Text(
-                    text = stringResource(R.string.album_remove_photos_title),
-                    style = MaterialTheme.typography.titleLarge,
+        ConfirmDialog(
+            title = stringResource(R.string.album_remove_photos_title),
+            message = stringResource(R.string.album_remove_photos_message, selectedTagAlbumPhotos.size, currentTagName),
+            confirmButtonText = stringResource(R.string.album_remove),
+            onConfirm = {
+                albumViewModel.deleteTagFromPhotos(
+                    photos = selectedTagAlbumPhotos,
+                    tagId = tagId,
                 )
-            },
-            text = {
-                Text(
-                    text = stringResource(R.string.album_remove_photos_message, selectedTagAlbumPhotos.size, currentTagName),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        albumViewModel.deleteTagFromPhotos(
-                            photos = selectedTagAlbumPhotos,
-                            tagId = tagId,
-                        )
-                        Toast
-                            .makeText(
-                                context,
-                                context.getString(R.string.album_photos_removed_count, selectedTagAlbumPhotos.size),
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                Toast
+                    .makeText(
+                        context,
+                        context.getString(R.string.album_photos_removed_count, selectedTagAlbumPhotos.size),
+                        Toast.LENGTH_SHORT,
+                    ).show()
 
-                        isDeleteConfirmationDialogVisible = false
-                        isTagAlbumPhotoSelectionMode = false
-                        albumViewModel.resetTagAlbumPhotoSelection()
-                    },
-                ) {
-                    Text(stringResource(R.string.album_remove), color = MaterialTheme.colorScheme.error)
-                }
+                isDeleteConfirmationDialogVisible = false
+                isTagAlbumPhotoSelectionMode = false
+                albumViewModel.resetTagAlbumPhotoSelection()
             },
-            dismissButton = {
-                TextButton(onClick = { isDeleteConfirmationDialogVisible = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
+            onDismiss = {
+                isDeleteConfirmationDialogVisible = false
             },
+            dismissible = true,
         )
     }
 
@@ -449,6 +434,7 @@ fun AlbumScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
             // 당겨서 새로고침은 본문 레이어에만
@@ -480,32 +466,42 @@ fun AlbumScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        BasicTextField(
-                            value = editableTagName,
-                            onValueChange = { editableTagName = it },
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .padding(end = Dimen.ItemSpacingSmall)
-                                    .onFocusChanged { isFocused = it.isFocused },
-                            textStyle =
-                                MaterialTheme.typography.displayMedium.copy(
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                ),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { submitAndClearFocus() }),
-                            singleLine = true,
-                        )
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "#",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
+                            BasicTextField(
+                                value = editableTagName,
+                                onValueChange = { editableTagName = it },
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .onFocusChanged { isFocused = it.isFocused },
+                                textStyle =
+                                    MaterialTheme.typography.headlineMedium.copy(
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    ),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { submitAndClearFocus() }),
+                                singleLine = true,
+                            )
+                        }
 
                         if (editableTagName.isNotEmpty() && isFocused) {
                             IconButton(
                                 onClick = { editableTagName = "" },
-                                modifier = Modifier.size(Dimen.IconButtonSizeMedium),
+                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                             ) {
                                 Box(
                                     modifier =
                                         Modifier
-                                            .size(24.dp)
+                                            .size(20.dp)
                                             .background(
                                                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                                 shape = CircleShape,
@@ -678,8 +674,8 @@ private fun AlbumGridArea(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         state = gridState,
-                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                         contentPadding =
                             PaddingValues(
                                 bottom = if (isRecommendationExpanded) panelHeight else Dimen.FloatingButtonAreaPadding,
@@ -1016,8 +1012,8 @@ private fun RecommendExpandedPanel(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
-                                verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                                horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                                verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                                 modifier = Modifier.weight(1f),
                                 userScrollEnabled = true,
                             ) {

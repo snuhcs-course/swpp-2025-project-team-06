@@ -87,6 +87,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -110,6 +111,7 @@ fun StoryTagSelectionScreen(
 
     // 3. rememberCoroutineScope
     val coroutineScope = rememberCoroutineScope()
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // 4. LaunchedEffect
     LaunchedEffect(Unit) {
@@ -157,11 +159,13 @@ fun StoryTagSelectionScreen(
                                 popUpTo(0) { inclusive = true }
                             }
                         }
+
                         BottomTab.MyTagsScreen -> {
                             navController.navigate(Screen.MyTags.route) {
                                 popUpTo(Screen.Home.route)
                             }
                         }
+
                         BottomTab.StoryScreen -> {
                         }
                     }
@@ -170,199 +174,216 @@ fun StoryTagSelectionScreen(
         },
         containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
-        // Handle different states
-        when (val state = storyState) {
-            is StoryViewModel.StoryState.Idle -> {
-                // Show nothing while idle
-            }
-            is StoryViewModel.StoryState.Loading -> {
-                // Show loading screen
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = Dimen.CircularProgressStrokeWidth,
-                            modifier = Modifier.size(Dimen.IconButtonSizeSmall),
-                        )
-                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
-                        Text(stringResource(R.string.story_loading_memories), color = MaterialTheme.colorScheme.onSurface)
-                    }
-                }
-            }
-            is StoryViewModel.StoryState.Success -> {
-                val stories = state.stories
-                val pagerState = rememberPagerState(pageCount = { stories.size })
-
-                // Track previous page to detect scroll direction
-                var previousPage by remember { mutableStateOf(0) }
-
-                // Lazy-load tags for current page
-                val currentPage = pagerState.currentPage
-                LaunchedEffect(currentPage) {
-                    if (currentPage < stories.size) {
-                        val currentStory = stories[currentPage]
-                        viewModel.loadTagsForStory(currentStory.id, currentStory.photoId)
-                    }
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(backgroundBrush)
+                    .padding(paddingValues),
+        ) {
+            // Handle different states
+            when (val state = storyState) {
+                is StoryViewModel.StoryState.Idle -> {
+                    // Show nothing while idle
                 }
 
-                // Handle scroll: mark as viewed when scrolling down, exit edit mode when scrolling
-                LaunchedEffect(currentPage) {
-                    if (currentPage != previousPage) {
-                        // Exit edit mode for any story being edited
-                        editModeStory?.let { editingStoryId ->
-                            viewModel.exitEditMode(editingStoryId)
-                        }
-
-                        // Mark story as viewed when scrolling down (to next page)
-                        if (currentPage > previousPage && previousPage < stories.size) {
-                            val previousStory = stories[previousPage]
-                            viewModel.markStoryAsViewed(previousStory.id)
-                        }
-                    }
-                    previousPage = currentPage
-                }
-
-                // Detect when to load more stories (when approaching the last page)
-                LaunchedEffect(currentPage) {
-                    if (currentPage >= stories.size - 2 && state.hasMore) {
-                        viewModel.loadMoreStories(10)
-                    }
-                }
-
-                // 스토리 페이저 (페이지 기반 스크롤)
-                val flingBehavior =
-                    PagerDefaults.flingBehavior(
-                        state = pagerState,
-                        snapPositionalThreshold = 0.35f, // 35% 스크롤하면 다음 페이지로 넘어감 (기본값 50%)
-                    )
-
-                VerticalPager(
-                    state = pagerState,
-                    flingBehavior = flingBehavior,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                ) { page ->
-                    val story = stories[page]
-                    val isFirstStory = page == 0
-                    val selectedForThisStory = selectedTags[story.id] ?: emptySet()
-                    val storyTagSubmissionState = submissionStates[story.id] ?: StoryViewModel.StoryTagSubmissionState.Idle
-                    val isViewed = viewedStories.contains(story.id)
-                    val isEditMode = editModeStory == story.id
-
-                    // 각 스토리 페이지
+                is StoryViewModel.StoryState.Loading -> {
+                    // Show loading screen
                     Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize(),
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            // 스토리 컨텐츠 영역
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth(),
-                            ) {
-                                StoryPageFullBlock(
-                                    story = story,
-                                    showScrollHint = isFirstStory,
-                                    onImageClick = {
-                                        // Create Photo object from story data
-                                        val photo =
-                                            com.example.momentag.model.Photo(
-                                                photoId = story.photoId,
-                                                contentUri = story.images.firstOrNull() ?: android.net.Uri.EMPTY,
-                                                createdAt = "",
-                                            )
-                                        // Set browsing session
-                                        viewModel.setStoryBrowsingSession(photo)
-                                        // Navigate to image detail
-                                        navController.navigate(
-                                            Screen.Image.createRoute(
-                                                uri = photo.contentUri,
-                                                imageId = photo.photoId,
-                                            ),
-                                        )
-                                    },
-                                )
-                            }
-
-                            // 태그 선택 카드
-                            TagSelectionCard(
-                                tags = story.suggestedTags,
-                                selectedTags = selectedForThisStory,
-                                storyTagSubmissionState = storyTagSubmissionState,
-                                isViewed = isViewed,
-                                isEditMode = isEditMode,
-                                onTagToggle = { tag ->
-                                    viewModel.toggleTag(story.id, tag)
-                                },
-                                onAddCustomTag = { customTag ->
-                                    viewModel.addCustomTagToStory(story.id, customTag)
-                                },
-                                onDone = {
-                                    viewModel.submitTagsForStory(story.id)
-                                },
-                                onRetry = {
-                                    viewModel.submitTagsForStory(story.id)
-                                },
-                                onEdit = {
-                                    viewModel.enterEditMode(story.id, story.photoId)
-                                },
-                                onSuccess = {
-                                    // Auto-advance to next story after success animation
-                                    coroutineScope.launch {
-                                        // Brief delay to show checkmark
-                                        delay(500)
-
-                                        // Clear edit mode and mark as viewed after showing checkmark
-                                        viewModel.clearEditMode()
-                                        viewModel.markStoryAsViewed(story.id)
-
-                                        if (page < stories.lastIndex) {
-                                            pagerState.animateScrollToPage(page + 1)
-                                            viewModel.setCurrentIndex(page + 1)
-                                            viewModel.resetSubmissionState(story.id)
-                                        } else if (!state.hasMore) {
-                                            viewModel.resetState()
-                                            onBack()
-                                        }
-                                    }
-                                },
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = Dimen.ScreenHorizontalPadding)
-                                        .padding(bottom = Dimen.ItemSpacingMedium),
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = Dimen.CircularProgressStrokeWidth,
+                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                            )
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+                            Text(
+                                stringResource(R.string.story_loading_memories),
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }
                 }
-            }
-            is StoryViewModel.StoryState.Error -> {
-                val errorMessage =
-                    when (state.error) {
-                        StoryViewModel.StoryError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
-                        StoryViewModel.StoryError.NetworkError -> stringResource(R.string.error_message_network)
-                        StoryViewModel.StoryError.UnknownError -> stringResource(R.string.error_message_unknown)
+
+                is StoryViewModel.StoryState.Success -> {
+                    val stories = state.stories
+                    val pagerState = rememberPagerState(pageCount = { stories.size })
+
+                    // Track previous page to detect scroll direction
+                    var previousPage by remember { mutableStateOf(0) }
+
+                    // Lazy-load tags for current page
+                    val currentPage = pagerState.currentPage
+                    LaunchedEffect(currentPage) {
+                        if (currentPage < stories.size) {
+                            val currentStory = stories[currentPage]
+                            viewModel.loadTagsForStory(currentStory.id, currentStory.photoId)
+                        }
                     }
-                ErrorOverlay(
-                    modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    title = stringResource(R.string.story_error_title),
-                    errorMessage = errorMessage,
-                    onRetry = { viewModel.loadStories(10) },
-                    onDismiss = {
-                        viewModel.resetState()
-                        onBack()
-                    },
-                )
+
+                    // Handle scroll: mark as viewed when scrolling down, exit edit mode when scrolling
+                    LaunchedEffect(currentPage) {
+                        if (currentPage != previousPage) {
+                            // Exit edit mode for any story being edited
+                            editModeStory?.let { editingStoryId ->
+                                viewModel.exitEditMode(editingStoryId)
+                            }
+
+                            // Mark story as viewed when scrolling down (to next page)
+                            if (currentPage > previousPage && previousPage < stories.size) {
+                                val previousStory = stories[previousPage]
+                                viewModel.markStoryAsViewed(previousStory.id)
+                            }
+                        }
+                        previousPage = currentPage
+                    }
+
+                    // Detect when to load more stories (when approaching the last page)
+                    LaunchedEffect(currentPage) {
+                        if (currentPage >= stories.size - 2 && state.hasMore) {
+                            viewModel.loadMoreStories(10)
+                        }
+                    }
+
+                    // 스토리 페이저 (페이지 기반 스크롤)
+                    val flingBehavior =
+                        PagerDefaults.flingBehavior(
+                            state = pagerState,
+                            snapPositionalThreshold = 0.35f, // 35% 스크롤하면 다음 페이지로 넘어감 (기본값 50%)
+                        )
+
+                    VerticalPager(
+                        state = pagerState,
+                        flingBehavior = flingBehavior,
+                        modifier =
+                            Modifier
+                                .fillMaxSize(),
+                    ) { page ->
+                        val story = stories[page]
+                        val isFirstStory = page == 0
+                        val selectedForThisStory = selectedTags[story.id] ?: emptySet()
+                        val storyTagSubmissionState =
+                            submissionStates[story.id]
+                                ?: StoryViewModel.StoryTagSubmissionState.Idle
+                        val isViewed = viewedStories.contains(story.id)
+                        val isEditMode = editModeStory == story.id
+
+                        // 각 스토리 페이지
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize(),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                // 스토리 컨텐츠 영역
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth(),
+                                ) {
+                                    StoryPageFullBlock(
+                                        story = story,
+                                        showScrollHint = isFirstStory,
+                                        onImageClick = {
+                                            // Create Photo object from story data
+                                            val photo =
+                                                com.example.momentag.model.Photo(
+                                                    photoId = story.photoId,
+                                                    contentUri =
+                                                        story.images.firstOrNull()
+                                                            ?: android.net.Uri.EMPTY,
+                                                    createdAt = "",
+                                                )
+                                            // Set browsing session
+                                            viewModel.setStoryBrowsingSession(photo)
+                                            // Navigate to image detail
+                                            navController.navigate(
+                                                Screen.Image.createRoute(
+                                                    uri = photo.contentUri,
+                                                    imageId = photo.photoId,
+                                                ),
+                                            )
+                                        },
+                                    )
+                                }
+
+                                // 태그 선택 카드
+                                TagSelectionCard(
+                                    tags = story.suggestedTags,
+                                    selectedTags = selectedForThisStory,
+                                    storyTagSubmissionState = storyTagSubmissionState,
+                                    isViewed = isViewed,
+                                    isEditMode = isEditMode,
+                                    onTagToggle = { tag ->
+                                        viewModel.toggleTag(story.id, tag)
+                                    },
+                                    onAddCustomTag = { customTag ->
+                                        viewModel.addCustomTagToStory(story.id, customTag)
+                                    },
+                                    onDone = {
+                                        viewModel.submitTagsForStory(story.id)
+                                    },
+                                    onRetry = {
+                                        viewModel.submitTagsForStory(story.id)
+                                    },
+                                    onEdit = {
+                                        viewModel.enterEditMode(story.id, story.photoId)
+                                    },
+                                    onSuccess = {
+                                        // Auto-advance to next story after success animation
+                                        coroutineScope.launch {
+                                            // Brief delay to show checkmark
+                                            delay(500)
+
+                                            // Clear edit mode and mark as viewed after showing checkmark
+                                            viewModel.clearEditMode()
+                                            viewModel.markStoryAsViewed(story.id)
+
+                                            if (page < stories.lastIndex) {
+                                                pagerState.animateScrollToPage(page + 1)
+                                                viewModel.setCurrentIndex(page + 1)
+                                                viewModel.resetSubmissionState(story.id)
+                                            } else if (!state.hasMore) {
+                                                viewModel.resetState()
+                                                onBack()
+                                            }
+                                        }
+                                    },
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                            .padding(bottom = Dimen.ItemSpacingMedium),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                is StoryViewModel.StoryState.Error -> {
+                    val errorMessage =
+                        when (state.error) {
+                            StoryViewModel.StoryError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                            StoryViewModel.StoryError.NetworkError -> stringResource(R.string.error_message_network)
+                            StoryViewModel.StoryError.UnknownError -> stringResource(R.string.error_message_unknown)
+                        }
+                    ErrorOverlay(
+                        modifier = Modifier.fillMaxSize(),
+                        title = stringResource(R.string.story_error_title),
+                        errorMessage = errorMessage,
+                        onRetry = { viewModel.loadStories(10) },
+                        onDismiss = {
+                            viewModel.resetState()
+                            onBack()
+                        },
+                    )
+                }
             }
         }
     }

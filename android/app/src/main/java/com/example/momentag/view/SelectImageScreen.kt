@@ -39,8 +39,10 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
@@ -90,6 +92,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.SelectImageViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -122,6 +125,7 @@ fun SelectImageScreen(navController: NavController) {
     var isRecommendationExpanded by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(true) }
     var currentTab by remember { mutableStateOf(BottomTab.MyTagsScreen) }
+    val backgroundBrush = rememberAppBackgroundBrush()
     val permission =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
@@ -251,6 +255,34 @@ fun SelectImageScreen(navController: NavController) {
                     navController.popBackStack()
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
+                navigationIcon =
+                    if (isSelectionMode) {
+                        {
+                            IconButton(
+                                onClick = {
+                                    isSelectionModeDelay = false
+                                    selectImageViewModel.clearDraft()
+                                    selectImageViewModel.setSelectionMode(false)
+                                },
+                            ) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Close,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    contentDescription = stringResource(R.string.cd_deselect_all),
+                                )
+                            }
+                        }
+                    } else {
+                        {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    contentDescription = stringResource(R.string.cd_navigate_back),
+                                )
+                            }
+                        }
+                    },
                 actions = {},
             )
         },
@@ -292,6 +324,7 @@ fun SelectImageScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
             // Main Content
@@ -351,8 +384,8 @@ fun SelectImageScreen(navController: NavController) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         state = listState,
-                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding =
                             PaddingValues(
@@ -827,8 +860,8 @@ private fun RecommendExpandedPanel(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
-                                verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                                horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                                verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                                 modifier = Modifier.weight(1f),
                                 userScrollEnabled = true,
                             ) {

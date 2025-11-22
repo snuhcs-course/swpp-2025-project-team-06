@@ -74,6 +74,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
 import kotlinx.coroutines.launch
@@ -107,6 +108,7 @@ fun LocalGalleryScreen(
 
     // 6. rememberCoroutineScope
     val scope = rememberCoroutineScope()
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // 8. ActivityResultLauncher
     val notificationPermissionLauncher =
@@ -291,6 +293,7 @@ fun LocalGalleryScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
             Column(
@@ -311,8 +314,8 @@ fun LocalGalleryScreen(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.AlbumGridItemSpacing),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                 ) {
                     items(albumSet) { album ->
                         val isSelected = selectedAlbumIds.contains(album.albumId)

@@ -6,6 +6,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -25,11 +28,13 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -38,11 +43,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -77,6 +81,7 @@ import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.AddTagViewModel
 import kotlinx.coroutines.delay
 
@@ -100,6 +105,7 @@ fun AddTagScreen(navController: NavController) {
     var hasPermission by remember { mutableStateOf(false) }
     var isChanged by remember { mutableStateOf(true) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
+    val backgroundBrush = rememberAppBackgroundBrush()
 
     // Permission launcher
     val permissionLauncher =
@@ -198,6 +204,7 @@ fun AddTagScreen(navController: NavController) {
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
             Box(
@@ -214,8 +221,10 @@ fun AddTagScreen(navController: NavController) {
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .padding(horizontal = Dimen.FormScreenHorizontalPadding),
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
                 ) {
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+
                     // Tag Name Section
                     TagNameSection(
                         tagName = tagName,
@@ -257,7 +266,7 @@ fun AddTagScreen(navController: NavController) {
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(horizontal = Dimen.FormScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingSmall),
                 ) {
                     // Error Banner - Floating above Done button
                     AnimatedVisibility(
@@ -364,53 +373,76 @@ private fun TagNameSection(
     isDuplicate: Boolean,
 ) {
     val focusManager = LocalFocusManager.current
+    var showHelpText by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        showHelpText = true
+    }
+
     Column {
-        TextField(
-            value = tagName,
-            onValueChange = onTagNameChange,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            textStyle = MaterialTheme.typography.headlineSmall,
-            placeholder = {
-                Text(
-                    stringResource(R.string.field_enter_tag_name),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                )
-            },
-            leadingIcon = {
-                Text(
-                    text = stringResource(R.string.add_tag_hash_prefix),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-            },
-            supportingText =
-                if (!isDuplicate && tagName.isEmpty()) {
-                    {
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "#",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
+            BasicTextField(
+                value = tagName,
+                onValueChange = onTagNameChange,
+                modifier =
+                    Modifier
+                        .weight(1f),
+                textStyle =
+                    MaterialTheme.typography.headlineMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                singleLine = true,
+                decorationBox = { innerTextField ->
+                    if (tagName.isEmpty()) {
                         Text(
-                            text = stringResource(R.string.help_tag_name),
-                            style = MaterialTheme.typography.bodySmall,
+                            text = stringResource(R.string.field_enter_tag_name),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         )
                     }
-                } else {
-                    null
+                    innerTextField()
                 },
-            colors =
-                TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
-                ),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+            )
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingSmall),
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
         )
-        if (isDuplicate) {
+
+        AnimatedVisibility(
+            visible = isDuplicate,
+            enter = expandVertically(expandFrom = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeIn,
+            exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeOut,
+        ) {
             Text(
                 text = stringResource(R.string.validation_tag_exists, tagName),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = Dimen.ErrorMessagePadding),
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showHelpText && tagName.isEmpty(),
+            enter = expandVertically(expandFrom = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeIn,
+            exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeOut,
+        ) {
+            Text(
+                text = stringResource(R.string.help_tag_name),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -425,8 +457,8 @@ private fun SelectedPhotosGrid(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
         modifier = modifier,
         contentPadding = PaddingValues(bottom = Dimen.ItemSpacingSmall),
     ) {
