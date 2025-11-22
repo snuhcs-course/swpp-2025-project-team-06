@@ -125,6 +125,7 @@ fun MyTagsScreen(navController: NavController) {
     var isErrorBannerVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isBulkDeleteConfirmVisible by remember { mutableStateOf(false) }
+    var individualEditTagId by remember { mutableStateOf<String?>(null) }
 
     // 5. rememberCoroutineScope
     val scope = rememberCoroutineScope()
@@ -166,11 +167,17 @@ fun MyTagsScreen(navController: NavController) {
     }
 
     BackHandler(enabled = true) {
-        if (isEditMode) {
-            myTagsViewModel.toggleEditMode()
-        } else {
-            navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
-            navController.popBackStack()
+        when {
+            individualEditTagId != null -> {
+                individualEditTagId = null
+            }
+            isEditMode -> {
+                myTagsViewModel.toggleEditMode()
+            }
+            else -> {
+                navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                navController.popBackStack()
+            }
         }
     }
 
@@ -204,8 +211,18 @@ fun MyTagsScreen(navController: NavController) {
                     title = stringResource(R.string.tag_screen_title),
                     showBackButton = true,
                     onBackClick = {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
-                        navController.popBackStack()
+                        when {
+                            individualEditTagId != null -> {
+                                individualEditTagId = null
+                            }
+                            isEditMode -> {
+                                myTagsViewModel.toggleEditMode()
+                            }
+                            else -> {
+                                navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                                navController.popBackStack()
+                            }
+                        }
                     },
                     actions = {
                         if (myTagsViewModel.isSelectedPhotosEmpty() &&
@@ -444,6 +461,7 @@ fun MyTagsScreen(navController: NavController) {
                             onRefresh = { myTagsViewModel.refreshTags() },
                             onEnterEditMode = { myTagsViewModel.toggleEditMode() },
                             onExitEditMode = { if (isEditMode) myTagsViewModel.toggleEditMode() },
+                            individualEditTagId = individualEditTagId,
                             onDeleteSelectedTags = { selectedTagIds ->
                                 // Delete each selected tag
                                 selectedTagIds.forEach { tagId ->
@@ -451,6 +469,7 @@ fun MyTagsScreen(navController: NavController) {
                                     myTagsViewModel.deleteTag(tagId)
                                 }
                             },
+                            onIndividualEditTagChange = { newId -> individualEditTagId = newId },
                             myTagsViewModel = myTagsViewModel,
                         )
                     }
@@ -574,6 +593,7 @@ private fun MyTagsContent(
     navController: NavController,
     isEditMode: Boolean = false,
     selectedTagsForBulkEdit: Set<String>,
+    individualEditTagId: String?,
     onToggleTagSelection: (String) -> Unit,
     isBulkDeleteConfirmVisible: Boolean,
     onShowBulkDeleteConfirmChange: (Boolean) -> Unit,
@@ -584,19 +604,17 @@ private fun MyTagsContent(
     onExitEditMode: () -> Unit = {},
     onConfirmAddTag: (TagCntData) -> Unit = {},
     onDeleteSelectedTags: (Set<String>) -> Unit = {},
+    onIndividualEditTagChange: (String?) -> Unit,
     myTagsViewModel: MyTagsViewModel,
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
     val isSelectingTagForPhotos = !myTagsViewModel.isSelectedPhotosEmpty()
 
-    // Track which tags are in individual edit mode (long-pressed)
-    var individualEditTagId by remember { mutableStateOf<String?>(null) }
-
     // Exit individual edit mode when entering/exiting global edit mode
     LaunchedEffect(isEditMode) {
         // Exit individual edit mode when entering global selection mode
-        individualEditTagId = null
+        onIndividualEditTagChange(null)
     }
 
     PullToRefreshBox(
@@ -623,7 +641,7 @@ private fun MyTagsContent(
                         ) {
                             onExitEditMode()
                             // Exit individual edit mode when clicking empty space
-                            individualEditTagId = null
+                            onIndividualEditTagChange(null)
                         }.padding(horizontal = Dimen.FormScreenHorizontalPadding),
             ) {
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
@@ -701,10 +719,10 @@ private fun MyTagsContent(
                             onLongClick = {
                                 if (isThisTagInEditMode) {
                                     // Exit individual edit mode for this tag
-                                    individualEditTagId = null
+                                    onIndividualEditTagChange(null)
                                 } else {
                                     // Enter individual edit mode for this tag
-                                    individualEditTagId = tagData.tagId
+                                    onIndividualEditTagChange(tagData.tagId)
                                 }
                             },
                             showCheckbox = isEditMode && !isThisTagInEditMode,
