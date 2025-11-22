@@ -192,7 +192,7 @@ fun SearchResultScreen(
     // Scroll restoration: restore scroll position when returning from ImageDetailScreen
     LaunchedEffect(scrollToIndex) {
         scrollToIndex?.let { index ->
-            gridState.scrollToItem(index)
+            gridState.animateScrollToItem(index)
             searchViewModel.clearScrollToIndex()
         }
     }

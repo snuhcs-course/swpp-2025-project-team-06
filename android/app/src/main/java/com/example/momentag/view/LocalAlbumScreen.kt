@@ -172,7 +172,7 @@ fun LocalAlbumScreen(
     LaunchedEffect(scrollToIndex) {
         scrollToIndex?.let { index ->
             scope.launch {
-                gridState.scrollToItem(index)
+                gridState.animateScrollToItem(index)
                 localViewModel.clearScrollToIndex()
             }
         }

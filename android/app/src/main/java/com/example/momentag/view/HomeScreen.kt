@@ -259,7 +259,7 @@ fun HomeScreen(navController: NavController) {
     // Scroll restoration: restore scroll position when returning from ImageDetailScreen
     LaunchedEffect(scrollToIndex) {
         scrollToIndex?.let { index ->
-            allPhotosGridState.scrollToItem(index)
+            allPhotosGridState.animateScrollToItem(index)
             homeViewModel.clearScrollToIndex()
         }
     }

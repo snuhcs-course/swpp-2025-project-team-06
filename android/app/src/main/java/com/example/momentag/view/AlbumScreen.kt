@@ -299,7 +299,7 @@ fun AlbumScreen(
     LaunchedEffect(scrollToIndex) {
         scrollToIndex?.let { index ->
             scope.launch {
-                gridState.scrollToItem(index)
+                gridState.animateScrollToItem(index)
                 albumViewModel.clearScrollToIndex()
             }
         }
