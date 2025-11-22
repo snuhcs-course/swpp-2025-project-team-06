@@ -374,7 +374,6 @@ private fun TagNameSection(
     isDuplicate: Boolean,
 ) {
     val focusManager = LocalFocusManager.current
-    var isFocused by remember { mutableStateOf(false) }
     var showHelpText by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -398,8 +397,7 @@ private fun TagNameSection(
                 onValueChange = onTagNameChange,
                 modifier =
                     Modifier
-                        .weight(1f)
-                        .onFocusChanged { isFocused = it.isFocused },
+                        .weight(1f),
                 textStyle =
                     MaterialTheme.typography.headlineMedium.copy(
                         color = MaterialTheme.colorScheme.onSurface,
@@ -438,7 +436,7 @@ private fun TagNameSection(
         }
 
         AnimatedVisibility(
-            visible = showHelpText && tagName.isEmpty() && !isFocused,
+            visible = showHelpText && tagName.isEmpty(),
             enter = expandVertically(expandFrom = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeIn,
             exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeOut,
         ) {
