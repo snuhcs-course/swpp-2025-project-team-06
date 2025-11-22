@@ -81,6 +81,7 @@ import com.example.momentag.ui.components.BottomTab
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.RenameTagDialog
+import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.TagChipWithCount
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
@@ -391,12 +392,10 @@ fun MyTagsScreen(navController: NavController) {
             ) {
                 when (val state = uiState) {
                     is MyTagsViewModel.MyTagsUiState.Loading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator()
-                        }
+                        SearchLoadingStateCustom(
+                            onRefresh = { myTagsViewModel.refreshTags() },
+                            text = stringResource(R.string.loading_tags),
+                        )
                     }
 
                     is MyTagsViewModel.MyTagsUiState.Error -> {

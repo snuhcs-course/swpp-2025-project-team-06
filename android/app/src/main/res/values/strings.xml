@@ -304,6 +304,9 @@
     <string name="loading_searching">Searching…</string>
     <string name="loading_saving">Saving…</string>
     <string name="loading_with_ellipsis">Loading…</string>
+    <string name="loading_results">Loading results…</string>
+    <string name="loading_tag_albums">Loading tag albums…</string>
+    <string name="loading_tags">Loading tags…</string>
 
     <!-- ============================================ -->
     <!-- GALLERY / LOCAL -->
