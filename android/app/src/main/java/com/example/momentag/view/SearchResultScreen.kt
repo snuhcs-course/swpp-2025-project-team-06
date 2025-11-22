@@ -904,8 +904,8 @@ private fun SearchResultsFromState(
                     columns = GridCells.Fixed(3),
                     state = gridState,
                     modifier = modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                 ) {
                     items(
                         count = uiState.results.size,
