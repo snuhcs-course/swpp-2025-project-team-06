@@ -58,7 +58,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -374,7 +373,6 @@ private fun TagNameSection(
     isDuplicate: Boolean,
 ) {
     val focusManager = LocalFocusManager.current
-    var isFocused by remember { mutableStateOf(false) }
     var showHelpText by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -398,8 +396,7 @@ private fun TagNameSection(
                 onValueChange = onTagNameChange,
                 modifier =
                     Modifier
-                        .weight(1f)
-                        .onFocusChanged { isFocused = it.isFocused },
+                        .weight(1f),
                 textStyle =
                     MaterialTheme.typography.headlineMedium.copy(
                         color = MaterialTheme.colorScheme.onSurface,
@@ -438,7 +435,7 @@ private fun TagNameSection(
         }
 
         AnimatedVisibility(
-            visible = showHelpText && tagName.isEmpty() && !isFocused,
+            visible = showHelpText && tagName.isEmpty(),
             enter = expandVertically(expandFrom = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeIn,
             exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeOut,
         ) {

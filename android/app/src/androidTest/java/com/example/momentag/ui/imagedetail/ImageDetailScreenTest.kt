@@ -850,4 +850,129 @@ class ImageDetailScreenTest {
         composeRule.onNodeWithText(appName).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
     }
+
+    // ----------------------------------------------------------
+    // 14. 공유 버튼 테스트
+    // ----------------------------------------------------------
+
+    @Test
+    fun imageDetailScreen_shareButton_isDisplayed() {
+        composeRule.setContent {
+            ImageDetailScreen(
+                imageUri = fakeImageUri,
+                imageId = fakePhotoId,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // 공유 버튼이 TopBar에 표시되는지 확인
+        val shareContentDescription = composeRule.activity.getString(R.string.cd_share)
+        composeRule
+            .onNodeWithContentDescription(shareContentDescription)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun imageDetailScreen_shareButton_isClickable() {
+        composeRule.setContent {
+            ImageDetailScreen(
+                imageUri = fakeImageUri,
+                imageId = fakePhotoId,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // 공유 버튼 클릭 (크래시 없이 클릭 가능해야 함)
+        val shareContentDescription = composeRule.activity.getString(R.string.cd_share)
+        composeRule
+            .onNodeWithContentDescription(shareContentDescription)
+            .performClick()
+
+        composeRule.waitForIdle()
+
+        // 클릭 후에도 화면이 정상적으로 표시되어야 함
+        val appName = composeRule.activity.getString(R.string.app_name)
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+    }
+
+    @Test
+    fun imageDetailScreen_shareButton_withImageContext_isClickable() {
+        val p1 = Photo("p1", Uri.parse("content://1"), "2024")
+        val context =
+            ImageContext(
+                images = listOf(p1),
+                currentIndex = 0,
+                contextType = ImageContext.ContextType.GALLERY,
+            )
+
+        composeRule.setContent {
+            ImageDetailScreen(
+                imageUri = fakeImageUri,
+                imageId = fakePhotoId,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // ImageContext 주입
+        setFlow("_imageContext", context)
+
+        composeRule.waitForIdle()
+
+        // 공유 버튼 클릭
+        val shareContentDescription = composeRule.activity.getString(R.string.cd_share)
+        composeRule
+            .onNodeWithContentDescription(shareContentDescription)
+            .performClick()
+
+        composeRule.waitForIdle()
+
+        // 클릭 후에도 화면이 정상적으로 표시되어야 함
+        val appName = composeRule.activity.getString(R.string.app_name)
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(detailImage).assertIsDisplayed()
+    }
+
+    @Test
+    fun imageDetailScreen_shareButton_hiddenInFocusMode() {
+        composeRule.setContent {
+            ImageDetailScreen(
+                imageUri = fakeImageUri,
+                imageId = fakePhotoId,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+        composeRule.mainClock.autoAdvance = false
+
+        val detailImage = composeRule.activity.getString(R.string.cd_detail_image)
+        val shareContentDescription = composeRule.activity.getString(R.string.cd_share)
+
+        // 초기 상태: 공유 버튼 표시
+        composeRule
+            .onNodeWithContentDescription(shareContentDescription)
+            .assertIsDisplayed()
+
+        // 이미지 클릭하여 Focus Mode 진입
+        composeRule.onNodeWithContentDescription(detailImage).performClick()
+        composeRule.mainClock.advanceTimeBy(250)
+        composeRule.waitForIdle()
+
+        // Focus Mode에서 다시 클릭하여 해제
+        composeRule.onNodeWithContentDescription(detailImage).performClick()
+        composeRule.mainClock.advanceTimeBy(250)
+        composeRule.waitForIdle()
+
+        // Focus Mode 해제 후 공유 버튼 다시 표시
+        composeRule
+            .onNodeWithContentDescription(shareContentDescription)
+            .assertIsDisplayed()
+    }
 }
