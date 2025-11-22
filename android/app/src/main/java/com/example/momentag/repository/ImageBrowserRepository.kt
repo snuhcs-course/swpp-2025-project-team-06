@@ -28,12 +28,9 @@ class ImageBrowserRepository
             photos: List<Photo>,
             query: String,
         ) {
-            currentSession =
-                BrowserSession(
-                    photos = photos,
-                    contextType = ImageContext.ContextType.SEARCH_RESULT,
-                    metadata = query,
-                )
+            val contextType = ImageContext.ContextType.SearchResult(query)
+            val existingSession = loadSession(contextType, photos.size)
+            currentSession = existingSession?.copy(photos = photos) ?: BrowserSession(photos, contextType)
         }
 
         /**
@@ -43,12 +40,9 @@ class ImageBrowserRepository
             photos: List<Photo>,
             tagName: String,
         ) {
-            currentSession =
-                BrowserSession(
-                    photos = photos,
-                    contextType = ImageContext.ContextType.TAG_ALBUM,
-                    metadata = tagName,
-                )
+            val contextType = ImageContext.ContextType.TagAlbum(tagName)
+            val existingSession = loadSession(contextType, photos.size)
+            currentSession = existingSession?.copy(photos = photos) ?: BrowserSession(photos, contextType)
         }
 
         /**
@@ -58,24 +52,18 @@ class ImageBrowserRepository
             photos: List<Photo>,
             albumName: String,
         ) {
-            currentSession =
-                BrowserSession(
-                    photos = photos,
-                    contextType = ImageContext.ContextType.ALBUM,
-                    metadata = albumName,
-                )
+            val contextType = ImageContext.ContextType.Album(albumName)
+            val existingSession = loadSession(contextType, photos.size)
+            currentSession = existingSession?.copy(photos = photos) ?: BrowserSession(photos, contextType)
         }
 
         /**
          * 전체 갤러리를 세션으로 저장
          */
         fun setGallery(photos: List<Photo>) {
-            currentSession =
-                BrowserSession(
-                    photos = photos,
-                    contextType = ImageContext.ContextType.GALLERY,
-                    metadata = "Gallery",
-                )
+            val contextType = ImageContext.ContextType.Gallery
+            val existingSession = loadSession(contextType, photos.size)
+            currentSession = existingSession?.copy(photos = photos) ?: BrowserSession(photos, contextType)
         }
 
         /**
@@ -85,8 +73,7 @@ class ImageBrowserRepository
             currentSession =
                 BrowserSession(
                     photos = listOf(photo),
-                    contextType = ImageContext.ContextType.STORY,
-                    metadata = "Story",
+                    contextType = ImageContext.ContextType.Story,
                 )
         }
 
@@ -146,11 +133,35 @@ class ImageBrowserRepository
         fun hasSession(): Boolean = currentSession != null
 
         /**
+         * 현재 보고 있는 사진의 인덱스를 업데이트 (ImageDetailScreen에서 페이지 변경 시 호출)
+         */
+        fun updateCurrentIndex(newIndex: Int) {
+            currentSession?.let { session ->
+                if (newIndex in session.photos.indices) {
+                    currentSession = session.copy(currentIndex = newIndex)
+                }
+            }
+        }
+
+        /**
+         * 마지막으로 본 사진의 인덱스를 반환
+         */
+        fun getCurrentIndex(): Int? = currentSession?.currentIndex
+
+        private fun loadSession(
+            contextType: ImageContext.ContextType,
+            numPhotos: Int,
+        ): BrowserSession? =
+            currentSession?.takeIf {
+                it.contextType == contextType && it.currentIndex < numPhotos
+            }
+
+        /**
          * 브라우징 세션 데이터 클래스
          */
         private data class BrowserSession(
             val photos: List<Photo>,
             val contextType: ImageContext.ContextType,
-            val metadata: String,
+            val currentIndex: Int = 0,
         )
     }

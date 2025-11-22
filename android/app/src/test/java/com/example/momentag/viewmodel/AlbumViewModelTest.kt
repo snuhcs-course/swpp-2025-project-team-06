@@ -132,7 +132,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.albumLoadingState.value
             assertTrue(state is AlbumViewModel.AlbumLoadingState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.AlbumLoadingState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.AlbumLoadingState.Error).error)
         }
 
     // Load recommendations tests
@@ -264,9 +264,8 @@ class AlbumViewModelTest {
         runTest {
             // Given
             val tagId = "tag1"
-            val errorMessage = "Network error"
             coEvery { recommendRepository.recommendPhotosFromTag(tagId) } returns
-                RecommendRepository.RecommendResult.Error(errorMessage)
+                RecommendRepository.RecommendResult.Error("Error")
 
             // When
             viewModel.loadRecommendations(tagId)
@@ -275,7 +274,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.recommendLoadingState.value
             assertTrue(state is AlbumViewModel.RecommendLoadingState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.RecommendLoadingState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.RecommendLoadingState.Error).error)
         }
 
     @Test
@@ -324,7 +323,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is AlbumViewModel.TagDeleteState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagDeleteState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -344,7 +343,7 @@ class AlbumViewModelTest {
 
     // Additional loadAlbum error case tests
     @Test
-    fun `loadAlbum unauthorized updates state with error message`() =
+    fun `loadAlbum unauthorized updates state with error`() =
         runTest {
             // Given
             val tagId = "tag1"
@@ -359,11 +358,11 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.albumLoadingState.value
             assertTrue(state is AlbumViewModel.AlbumLoadingState.Error)
-            assertEquals("Please login again", (state as AlbumViewModel.AlbumLoadingState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.Unauthorized, (state as AlbumViewModel.AlbumLoadingState.Error).error)
         }
 
     @Test
-    fun `loadAlbum network error updates state with error message`() =
+    fun `loadAlbum network error updates state with error`() =
         runTest {
             // Given
             val tagId = "tag1"
@@ -379,11 +378,11 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.albumLoadingState.value
             assertTrue(state is AlbumViewModel.AlbumLoadingState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.AlbumLoadingState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.NetworkError, (state as AlbumViewModel.AlbumLoadingState.Error).error)
         }
 
     @Test
-    fun `loadAlbum bad request updates state with error message`() =
+    fun `loadAlbum bad request updates state with error`() =
         runTest {
             // Given
             val tagId = "tag1"
@@ -399,11 +398,11 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.albumLoadingState.value
             assertTrue(state is AlbumViewModel.AlbumLoadingState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.AlbumLoadingState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.AlbumLoadingState.Error).error)
         }
 
     @Test
-    fun `loadAlbum exception updates state with error message`() =
+    fun `loadAlbum exception updates state with error`() =
         runTest {
             // Given
             val tagId = "tag1"
@@ -419,12 +418,12 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.albumLoadingState.value
             assertTrue(state is AlbumViewModel.AlbumLoadingState.Error)
-            assertEquals("Unexpected error", (state as AlbumViewModel.AlbumLoadingState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.AlbumLoadingState.Error).error)
         }
 
     // Additional loadRecommendations error case tests
     @Test
-    fun `loadRecommendations unauthorized updates state with error message`() =
+    fun `loadRecommendations unauthorized updates state with error`() =
         runTest {
             // Given
             val tagId = "tag1"
@@ -438,11 +437,11 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.recommendLoadingState.value
             assertTrue(state is AlbumViewModel.RecommendLoadingState.Error)
-            assertEquals("Please login again", (state as AlbumViewModel.RecommendLoadingState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.Unauthorized, (state as AlbumViewModel.RecommendLoadingState.Error).error)
         }
 
     @Test
-    fun `loadRecommendations network error updates state with error message`() =
+    fun `loadRecommendations network error updates state with error`() =
         runTest {
             // Given
             val tagId = "tag1"
@@ -457,11 +456,11 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.recommendLoadingState.value
             assertTrue(state is AlbumViewModel.RecommendLoadingState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.RecommendLoadingState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.NetworkError, (state as AlbumViewModel.RecommendLoadingState.Error).error)
         }
 
     @Test
-    fun `loadRecommendations bad request updates state with error message`() =
+    fun `loadRecommendations bad request updates state with error`() =
         runTest {
             // Given
             val tagId = "tag1"
@@ -476,7 +475,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.recommendLoadingState.value
             assertTrue(state is AlbumViewModel.RecommendLoadingState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.RecommendLoadingState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.RecommendLoadingState.Error).error)
         }
 
     // deleteTagFromPhotos with photo path ID conversion tests
@@ -520,7 +519,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is AlbumViewModel.TagDeleteState.Error)
-            assertEquals("Photo not found in backend", (state as AlbumViewModel.TagDeleteState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.NotFound, (state as AlbumViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -540,7 +539,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is AlbumViewModel.TagDeleteState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagDeleteState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.Unauthorized, (state as AlbumViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -560,7 +559,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is AlbumViewModel.TagDeleteState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagDeleteState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -580,7 +579,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is AlbumViewModel.TagDeleteState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagDeleteState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.NetworkError, (state as AlbumViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -600,7 +599,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is AlbumViewModel.TagDeleteState.Error)
-            assertEquals("Unexpected error", (state as AlbumViewModel.TagDeleteState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -681,7 +680,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagRenameState.value
             assertTrue(state is AlbumViewModel.TagRenameState.Error)
-            assertTrue((state as AlbumViewModel.TagRenameState.Error).message.contains("Returned tag id is different"))
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagRenameState.Error).error)
         }
 
     @Test
@@ -701,7 +700,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagRenameState.value
             assertTrue(state is AlbumViewModel.TagRenameState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagRenameState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagRenameState.Error).error)
         }
 
     @Test
@@ -721,7 +720,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagRenameState.value
             assertTrue(state is AlbumViewModel.TagRenameState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagRenameState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.Unauthorized, (state as AlbumViewModel.TagRenameState.Error).error)
         }
 
     @Test
@@ -741,7 +740,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagRenameState.value
             assertTrue(state is AlbumViewModel.TagRenameState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagRenameState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagRenameState.Error).error)
         }
 
     @Test
@@ -761,7 +760,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagRenameState.value
             assertTrue(state is AlbumViewModel.TagRenameState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagRenameState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.NetworkError, (state as AlbumViewModel.TagRenameState.Error).error)
         }
 
     @Test
@@ -781,7 +780,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagRenameState.value
             assertTrue(state is AlbumViewModel.TagRenameState.Error)
-            assertEquals("Unexpected error", (state as AlbumViewModel.TagRenameState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagRenameState.Error).error)
         }
 
     // addRecommendedPhotosToTagAlbum tests
@@ -889,7 +888,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is AlbumViewModel.TagAddState.Error)
-            assertEquals("Convert Photo Id Error", (state as AlbumViewModel.TagAddState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -922,7 +921,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is AlbumViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagAddState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -955,7 +954,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is AlbumViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagAddState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.Unauthorized, (state as AlbumViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -988,7 +987,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is AlbumViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagAddState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -1021,7 +1020,7 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is AlbumViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as AlbumViewModel.TagAddState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.NetworkError, (state as AlbumViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -1054,6 +1053,6 @@ class AlbumViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is AlbumViewModel.TagAddState.Error)
-            assertEquals("Unexpected error", (state as AlbumViewModel.TagAddState.Error).message)
+            assertEquals(AlbumViewModel.AlbumError.UnknownError, (state as AlbumViewModel.TagAddState.Error).error)
         }
 }

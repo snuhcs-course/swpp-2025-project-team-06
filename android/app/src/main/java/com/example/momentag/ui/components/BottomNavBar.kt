@@ -1,7 +1,7 @@
 package com.example.momentag.ui.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,29 +42,43 @@ fun BottomNavBar(
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = Dimen.BottomNavHorizontalPadding),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BottomNavItem(
-                icon = Icons.Default.Home,
-                text = stringResource(R.string.nav_home),
-                contentDescription = stringResource(R.string.cd_nav_home),
-                isSelected = currentTab == BottomTab.HomeScreen,
-            ) { onTabSelected(BottomTab.HomeScreen) }
+            Box(
+                modifier = Modifier.weight(0.4f),
+                contentAlignment = Alignment.Center,
+            ) {
+                BottomNavItem(
+                    icon = Icons.Default.Home,
+                    text = stringResource(R.string.nav_home),
+                    contentDescription = stringResource(R.string.cd_nav_home),
+                    isSelected = currentTab == BottomTab.HomeScreen,
+                ) { onTabSelected(BottomTab.HomeScreen) }
+            }
 
-            BottomNavItem(
-                icon = Icons.AutoMirrored.Filled.Label,
-                text = stringResource(R.string.nav_my_tags),
-                contentDescription = stringResource(R.string.cd_nav_my_tags),
-                isSelected = currentTab == BottomTab.MyTagsScreen,
-            ) { onTabSelected(BottomTab.MyTagsScreen) }
+            Box(
+                modifier = Modifier.weight(1.6f),
+                contentAlignment = Alignment.Center,
+            ) {
+                BottomNavItem(
+                    icon = Icons.AutoMirrored.Filled.Label,
+                    text = stringResource(R.string.nav_my_tags),
+                    contentDescription = stringResource(R.string.cd_nav_my_tags),
+                    isSelected = currentTab == BottomTab.MyTagsScreen,
+                ) { onTabSelected(BottomTab.MyTagsScreen) }
+            }
 
-            BottomNavItem(
-                icon = Icons.Default.AutoStories,
-                text = stringResource(R.string.nav_moment),
-                contentDescription = stringResource(R.string.cd_nav_moment),
-                isSelected = currentTab == BottomTab.StoryScreen,
-            ) { onTabSelected(BottomTab.StoryScreen) }
+            Box(
+                modifier = Modifier.weight(0.4f),
+                contentAlignment = Alignment.Center,
+            ) {
+                BottomNavItem(
+                    icon = Icons.Default.AutoStories,
+                    text = stringResource(R.string.nav_moment),
+                    contentDescription = stringResource(R.string.cd_nav_moment),
+                    isSelected = currentTab == BottomTab.StoryScreen,
+                ) { onTabSelected(BottomTab.StoryScreen) }
+            }
         }
     }
 }

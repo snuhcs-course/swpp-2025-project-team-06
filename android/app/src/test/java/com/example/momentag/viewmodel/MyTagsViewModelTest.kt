@@ -283,7 +283,7 @@ class MyTagsViewModelTest {
         }
 
     @Test
-    fun `renameTag error updates state with error message`() =
+    fun `renameTag error updates state with error`() =
         runTest {
             // Given
             val tagId = "tag1"
@@ -298,7 +298,7 @@ class MyTagsViewModelTest {
             // Then
             val state = viewModel.tagActionState.value
             assertTrue(state is MyTagsViewModel.TagActionState.Error)
-            assertEquals(errorMessage, (state as MyTagsViewModel.TagActionState.Error).message)
+            assertEquals(MyTagsViewModel.MyTagsError.RenameFailed, (state as MyTagsViewModel.TagActionState.Error).error)
         }
 
     @Test
@@ -334,7 +334,9 @@ class MyTagsViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Error)
+            val state = viewModel.saveState.value
+            assertTrue(state is MyTagsViewModel.SaveState.Error)
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, (state as MyTagsViewModel.SaveState.Error).error)
         }
 
     @Test
@@ -351,11 +353,11 @@ class MyTagsViewModelTest {
             // Then
             val state = viewModel.saveState.value
             assertTrue(state is MyTagsViewModel.SaveState.Error)
-            assertEquals("Tag cannot be empty and photos must be selected", (state as MyTagsViewModel.SaveState.Error).message)
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, (state as MyTagsViewModel.SaveState.Error).error)
         }
 
     @Test
-    fun `loadTags unauthorized error updates uiState with error message`() =
+    fun `loadTags unauthorized error updates uiState with error`() =
         runTest {
             // Given
             coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Unauthorized("Unauthorized")
@@ -367,11 +369,11 @@ class MyTagsViewModelTest {
             // Then
             val state = viewModel.uiState.value
             assertTrue(state is MyTagsViewModel.MyTagsUiState.Error)
-            assertEquals("Unauthorized: Unauthorized", (state as MyTagsViewModel.MyTagsUiState.Error).message)
+            assertEquals(MyTagsViewModel.MyTagsError.Unauthorized, (state as MyTagsViewModel.MyTagsUiState.Error).error)
         }
 
     @Test
-    fun `loadTags bad request error updates uiState with error message`() =
+    fun `loadTags bad request error updates uiState with error`() =
         runTest {
             // Given
             coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.BadRequest("Bad Request")
@@ -383,11 +385,11 @@ class MyTagsViewModelTest {
             // Then
             val state = viewModel.uiState.value
             assertTrue(state is MyTagsViewModel.MyTagsUiState.Error)
-            assertEquals("Bad Request: Bad Request", (state as MyTagsViewModel.MyTagsUiState.Error).message)
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, (state as MyTagsViewModel.MyTagsUiState.Error).error)
         }
 
     @Test
-    fun `loadTags network error updates uiState with error message`() =
+    fun `loadTags network error updates uiState with error`() =
         runTest {
             // Given
             coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.NetworkError("Network Error")
@@ -399,11 +401,11 @@ class MyTagsViewModelTest {
             // Then
             val state = viewModel.uiState.value
             assertTrue(state is MyTagsViewModel.MyTagsUiState.Error)
-            assertEquals("Network Error: Network Error", (state as MyTagsViewModel.MyTagsUiState.Error).message)
+            assertEquals(MyTagsViewModel.MyTagsError.NetworkError, (state as MyTagsViewModel.MyTagsUiState.Error).error)
         }
 
     @Test
-    fun `loadTags exception updates uiState with error message`() =
+    fun `loadTags exception updates uiState with error`() =
         runTest {
             // Given
             val exception = Exception("Test Exception")
@@ -416,7 +418,7 @@ class MyTagsViewModelTest {
             // Then
             val state = viewModel.uiState.value
             assertTrue(state is MyTagsViewModel.MyTagsUiState.Error)
-            assertEquals("Exception: Test Exception", (state as MyTagsViewModel.MyTagsUiState.Error).message)
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, (state as MyTagsViewModel.MyTagsUiState.Error).error)
         }
 
     @Test
