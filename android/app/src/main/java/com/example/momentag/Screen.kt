@@ -53,7 +53,9 @@ sealed class Screen(
         fun initialRoute(): String = "search_result_screen"
     }
 
-    object Login : Screen("login_screen")
+    object Login : Screen("login_screen?show_expiration_warning={show_expiration_warning}") {
+        fun createRoute(showExpirationWarning: Boolean): String = "login_screen?show_expiration_warning=$showExpirationWarning"
+    }
 
     object Register : Screen("register_screen")
 

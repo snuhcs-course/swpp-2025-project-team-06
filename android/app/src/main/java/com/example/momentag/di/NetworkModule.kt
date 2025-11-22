@@ -2,6 +2,7 @@ package com.example.momentag.di
 
 import android.content.Context
 import com.example.momentag.R
+import com.example.momentag.data.SessionExpirationManager
 import com.example.momentag.data.SessionStore
 import com.example.momentag.network.ApiService
 import com.example.momentag.network.AuthInterceptor
@@ -31,7 +32,8 @@ object NetworkModule {
     fun provideTokenAuthenticator(
         @ApplicationContext context: Context,
         sessionStore: SessionStore,
-    ): TokenAuthenticator = TokenAuthenticator(context, sessionStore)
+        sessionExpirationManager: com.example.momentag.data.SessionExpirationManager,
+    ): TokenAuthenticator = TokenAuthenticator(context, sessionStore, sessionExpirationManager)
 
     @Provides
     @Singleton
