@@ -161,6 +161,9 @@
     <string name="dialog_delete_tags_message">Are you sure you want to delete %1$d tag(s)?</string>
     <string name="dialog_rename_tag_title">Edit Tag Name</string>
     <string name="dialog_rename_tag_message">Enter the new tag name</string>
+    <string name="dialog_exit_untag_mode_title">Exit Untag mode?</string>
+    <string name="dialog_exit_untag_mode_message">Your selected tags will be cleared.</string>
+    <string name="dialog_exit_untag_mode_confirm">Exit</string>
     <string name="dialog_add_to_tag_title">Add to Tag</string>
     <string name="dialog_add_to_tag_message">Are you sure you want to add the selected photos to \'%1$s\'?</string>
     <string name="dialog_confirm">Confirm</string>
