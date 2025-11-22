@@ -44,9 +44,11 @@ fun SearchLoadingStateCustom(
     // Show warning message after 5 seconds
     var isWarningVisible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        delay(5000) // Wait 5 seconds
-        isWarningVisible = true
+    LaunchedEffect(isWarningVisible) {
+        if (!isWarningVisible) {
+            delay(5000) // Wait 5 seconds
+            isWarningVisible = true
+        }
     }
 
     Box(
@@ -81,7 +83,10 @@ fun SearchLoadingStateCustom(
                 WarningBanner(
                     title = stringResource(R.string.banner_loading_delay_title),
                     message = stringResource(R.string.banner_loading_delay_message),
-                    onActionClick = onRefresh,
+                    onActionClick = {
+                        onRefresh()
+                        isWarningVisible = false
+                    },
                 )
             }
         }
