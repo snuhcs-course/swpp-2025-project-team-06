@@ -193,6 +193,7 @@ fun StoryTagSelectionScreen(
                     SearchLoadingStateCustom(
                         onRefresh = { viewModel.loadStories(10) },
                         text = stringResource(R.string.story_loading_memories),
+                        horizontalPadding = Dimen.ScreenHorizontalPadding,
                     )
                 }
 

@@ -20,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.example.momentag.R
 import com.example.momentag.ui.theme.Dimen
 import kotlinx.coroutines.delay
@@ -30,12 +32,14 @@ import kotlinx.coroutines.delay
  * @param onRefresh Refresh button click callback
  * @param modifier Modifier
  * @param text Loading text to display below the progress indicator
+ * @param horizontalPadding Horizontal padding for the warning banner
  */
 @Composable
 fun SearchLoadingStateCustom(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
     text: String = stringResource(R.string.loading_with_ellipsis),
+    horizontalPadding: Dp = 0.dp,
 ) {
     // Show warning message after 5 seconds
     var isWarningVisible by remember { mutableStateOf(false) }
@@ -71,7 +75,8 @@ fun SearchLoadingStateCustom(
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = Dimen.SectionSpacing),
+                        .padding(bottom = Dimen.SectionSpacing)
+                        .padding(horizontal = horizontalPadding),
             ) {
                 WarningBanner(
                     title = stringResource(R.string.banner_loading_delay_title),

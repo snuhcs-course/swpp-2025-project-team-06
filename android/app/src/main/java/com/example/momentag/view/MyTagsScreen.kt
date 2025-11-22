@@ -396,9 +396,10 @@ fun MyTagsScreen(navController: NavController) {
                 when (val state = uiState) {
                     is MyTagsViewModel.MyTagsUiState.Loading -> {
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = Dimen.ScreenHorizontalPadding),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
                         ) {
                             SearchLoadingStateCustom(
                                 onRefresh = { myTagsViewModel.refreshTags() },
