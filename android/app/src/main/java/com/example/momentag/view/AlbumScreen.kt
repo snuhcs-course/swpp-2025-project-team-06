@@ -660,8 +660,8 @@ private fun AlbumGridArea(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         state = gridState,
-                        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                         contentPadding =
                             PaddingValues(
                                 bottom = if (isRecommendationExpanded) panelHeight else Dimen.FloatingButtonAreaPadding,
@@ -998,8 +998,8 @@ private fun RecommendExpandedPanel(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
-                                verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                                horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                                verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                                 modifier = Modifier.weight(1f),
                                 userScrollEnabled = true,
                             ) {

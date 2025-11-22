@@ -457,8 +457,8 @@ private fun SelectedPhotosGrid(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        verticalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
         modifier = modifier,
         contentPadding = PaddingValues(bottom = Dimen.ItemSpacingSmall),
     ) {
