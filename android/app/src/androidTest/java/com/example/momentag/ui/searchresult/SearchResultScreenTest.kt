@@ -5,8 +5,10 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
@@ -176,5 +178,118 @@ class SearchResultScreenTest {
         // Then: '결과 없음'을 알리는 커스텀 UI가 표시됨
         val expectedText = composeTestRule.activity.getString(R.string.search_empty_state_no_results, query)
         composeTestRule.onNodeWithText(expectedText).assertIsDisplayed()
+    }
+
+    // ---------- Search Button Tests ----------
+    // Note: There are two nodes with "Search" contentDescription in the screen:
+    // 1. ChipSearchBar internal search icon (index 0)
+    // 2. Search button next to the search bar (index 1)
+    // We use onAllNodesWithContentDescription and select index [1] to target the search button.
+
+    /**
+     * Search button display test: Verify that the search button is displayed correctly
+     */
+    @Test
+    fun searchResultScreen_searchButton_isDisplayed() {
+        setContent()
+        composeTestRule.waitForIdle()
+
+        // Search button should be displayed with correct content description
+        // Using [1] because [0] is the search icon inside ChipSearchBar
+        composeTestRule
+            .onAllNodesWithContentDescription(composeTestRule.activity.getString(R.string.cd_search))[1]
+            .assertIsDisplayed()
+    }
+
+    /**
+     * Search button clickable test: Verify that the search button is clickable
+     */
+    @Test
+    fun searchResultScreen_searchButton_isClickable() {
+        setContent()
+        composeTestRule.waitForIdle()
+
+        // Search button should be clickable
+        // Using [1] because [0] is the search icon inside ChipSearchBar
+        composeTestRule
+            .onAllNodesWithContentDescription(composeTestRule.activity.getString(R.string.cd_search))[1]
+            .assertIsDisplayed()
+            .assertHasClickAction()
+    }
+
+    /**
+     * Search button click test: Verify that clicking the search button does not crash
+     */
+    @Test
+    fun searchResultScreen_searchButton_clickDoesNotCrash() {
+        setContent()
+        composeTestRule.waitForIdle()
+
+        val title = composeTestRule.activity.getString(R.string.search_result_title)
+
+        // Click search button (index [1], as [0] is the search icon inside ChipSearchBar)
+        composeTestRule
+            .onAllNodesWithContentDescription(composeTestRule.activity.getString(R.string.cd_search))[1]
+            .performClick()
+
+        composeTestRule.waitForIdle()
+
+        // Screen should still be functional after clicking search button
+        composeTestRule.onNodeWithText(title).assertIsDisplayed()
+    }
+
+    /**
+     * Search button multiple clicks test: Verify that clicking the search button multiple times does not crash
+     */
+    @Test
+    fun searchResultScreen_searchButton_multipleClicks_doesNotCrash() {
+        setContent()
+        composeTestRule.waitForIdle()
+
+        val title = composeTestRule.activity.getString(R.string.search_result_title)
+
+        // Click search button multiple times
+        // Using [1] because [0] is the search icon inside ChipSearchBar
+        repeat(3) {
+            composeTestRule
+                .onAllNodesWithContentDescription(composeTestRule.activity.getString(R.string.cd_search))[1]
+                .performClick()
+
+            composeTestRule.waitForIdle()
+        }
+
+        // Screen should still be functional after multiple clicks
+        composeTestRule.onNodeWithText(title).assertIsDisplayed()
+    }
+
+    /**
+     * Search button with results test: Verify that the search button works correctly when search results are present
+     */
+    @Test
+    fun searchResultScreen_searchButton_withResults_worksCorrectly() {
+        // Given: Search results with 3 photos
+        val fakePhotos = createFakePhotos(3)
+        setFlow(vm, "_searchState", SearchViewModel.SemanticSearchState.Success(fakePhotos, "test"))
+        setContent()
+        composeTestRule.waitForIdle()
+
+        val title = composeTestRule.activity.getString(R.string.search_result_title)
+
+        // Search button should be displayed
+        // Using [1] because [0] is the search icon inside ChipSearchBar
+        composeTestRule
+            .onAllNodesWithContentDescription(composeTestRule.activity.getString(R.string.cd_search))[1]
+            .assertIsDisplayed()
+            .assertHasClickAction()
+
+        // Click search button
+        composeTestRule
+            .onAllNodesWithContentDescription(composeTestRule.activity.getString(R.string.cd_search))[1]
+            .performClick()
+
+        composeTestRule.waitForIdle()
+
+        // Screen should still be functional
+        composeTestRule.onNodeWithText(title).assertIsDisplayed()
     }
 }

@@ -211,6 +211,7 @@
     <string name="cd_password_hide">Hide password</string>
     <string name="cd_more_options">More options</string>
     <string name="cd_filter">Filter results</string>
+    <string name="cd_search">Search</string>
     <string name="cd_selected_photo">Selected photo</string>
     <string name="cd_photo_item">Photo %1$s</string>
     <string name="cd_photo_selected">Selected</string>
