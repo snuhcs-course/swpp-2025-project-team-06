@@ -6,6 +6,10 @@ import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -85,6 +89,10 @@ import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.components.tagXMode
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
+import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.ImageDetailViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -527,6 +535,30 @@ fun ImageDetailScreen(
                 BackTopBar(
                     title = stringResource(R.string.app_name),
                     onBackClick = onNavigateBack,
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                currentPhoto?.let { photo ->
+                                    ShareUtils.sharePhotos(context, listOf(photo))
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.share_photos_count, 1),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                contentColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        ) {
+                            StandardIcon.Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = stringResource(R.string.cd_share),
+                                sizeRole = IconSizeRole.DefaultAction,
+                                intent = IconIntent.Primary,
+                            )
+                        }
+                    },
                 )
             }
         },
