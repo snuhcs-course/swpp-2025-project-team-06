@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -42,6 +43,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -110,6 +112,7 @@ fun MyTagsScreen(navController: NavController) {
     val uiState by myTagsViewModel.uiState.collectAsState()
     val isEditMode by myTagsViewModel.isEditMode.collectAsState()
     val selectedTagsForBulkEdit by myTagsViewModel.selectedTagsForBulkEdit.collectAsState()
+    val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
     val sortOrder by myTagsViewModel.sortOrder.collectAsState()
     val saveState by myTagsViewModel.saveState.collectAsState()
     val actionState by myTagsViewModel.tagActionState.collectAsState()
@@ -126,6 +129,7 @@ fun MyTagsScreen(navController: NavController) {
     var isErrorBannerVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isBulkDeleteConfirmVisible by remember { mutableStateOf(false) }
+    var isExitUntagConfirmVisible by remember { mutableStateOf(false) }
 
     // 5. rememberCoroutineScope
     val scope = rememberCoroutineScope()
@@ -168,10 +172,20 @@ fun MyTagsScreen(navController: NavController) {
 
     BackHandler(enabled = true) {
         if (isEditMode) {
-            myTagsViewModel.toggleEditMode()
+            if (hasSelectedTags) {
+                isExitUntagConfirmVisible = true
+            } else {
+                myTagsViewModel.toggleEditMode()
+            }
         } else {
             navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
             navController.popBackStack()
+        }
+    }
+
+    LaunchedEffect(hasSelectedTags) {
+        if (!hasSelectedTags) {
+            isExitUntagConfirmVisible = false
         }
     }
 
@@ -203,10 +217,37 @@ fun MyTagsScreen(navController: NavController) {
                 val currentState = uiState
                 CommonTopBar(
                     title = stringResource(R.string.tag_screen_title),
-                    showBackButton = true,
-                    onBackClick = {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
-                        navController.popBackStack()
+                    navigationIcon = {
+                        if (isEditMode) {
+                            IconButton(
+                                onClick = {
+                                    if (hasSelectedTags) {
+                                        isExitUntagConfirmVisible = true
+                                    } else {
+                                        myTagsViewModel.toggleEditMode()
+                                    }
+                                },
+                            ) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.cd_cancel_selection),
+                                    sizeRole = IconSizeRole.Navigation,
+                                )
+                            }
+                        } else {
+                            IconButton(
+                                onClick = {
+                                    navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                                    navController.popBackStack()
+                                },
+                            ) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.cd_navigate_back),
+                                    sizeRole = IconSizeRole.Navigation,
+                                )
+                            }
+                        }
                     },
                     actions = {
                         if (myTagsViewModel.isSelectedPhotosEmpty() &&
@@ -223,36 +264,43 @@ fun MyTagsScreen(navController: NavController) {
                             }
                             // Delete Button (always visible, enters edit mode on click)
                             val hasSelectedTags = selectedTagsForBulkEdit.isNotEmpty()
+                            val isDeleteEnabled = !isEditMode || hasSelectedTags
                             IconButton(
                                 onClick = {
                                     if (isEditMode) {
                                         if (hasSelectedTags) {
                                             isBulkDeleteConfirmVisible = true
-                                        } else {
-                                            myTagsViewModel.toggleEditMode()
                                         }
                                     } else {
                                         myTagsViewModel.toggleEditMode()
                                     }
                                 },
+                                enabled = isDeleteEnabled,
+                                colors =
+                                    IconButtonDefaults.iconButtonColors(
+                                        contentColor =
+                                            when {
+                                                isEditMode && hasSelectedTags -> Color(0xFFD32F2F)
+                                                else -> MaterialTheme.colorScheme.onSurface
+                                            },
+                                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                    ),
                             ) {
                                 val deleteIntent =
                                     when {
                                         isEditMode && hasSelectedTags -> IconIntent.Error
-                                        isEditMode -> IconIntent.Primary
+                                        isEditMode -> IconIntent.Disabled
                                         else -> IconIntent.Neutral
                                     }
                                 StandardIcon.Icon(
                                     imageVector =
                                         when {
-                                            isEditMode && hasSelectedTags -> Icons.AutoMirrored.Filled.LabelOff
-                                            isEditMode -> Icons.Default.Close
                                             else -> Icons.AutoMirrored.Filled.LabelOff
                                         },
                                     contentDescription =
                                         when {
                                             isEditMode && hasSelectedTags -> stringResource(R.string.cd_delete_action)
-                                            isEditMode -> stringResource(R.string.cd_close_dialog)
+                                            isEditMode -> stringResource(R.string.cd_delete_action)
                                             else -> stringResource(R.string.cd_delete_action)
                                         },
                                     intent = deleteIntent,
@@ -500,6 +548,20 @@ fun MyTagsScreen(navController: NavController) {
                 )
             }
         }
+    }
+
+    if (isExitUntagConfirmVisible) {
+        ConfirmDialog(
+            title = stringResource(R.string.dialog_exit_untag_mode_title),
+            message = stringResource(R.string.dialog_exit_untag_mode_message),
+            onConfirm = {
+                myTagsViewModel.toggleEditMode()
+                isExitUntagConfirmVisible = false
+            },
+            onDismiss = { isExitUntagConfirmVisible = false },
+            confirmButtonText = stringResource(R.string.dialog_exit_untag_mode_confirm),
+            dismissible = true,
+        )
     }
 
     if (isDeleteDialogVisible && tagToDelete != null) {
