@@ -79,7 +79,7 @@ class ImageBrowserRepositoryTest {
         // Then
         val context = repository.getPhotoContext("photo1")
         assertNotNull(context)
-        assertEquals(ImageContext.ContextType.SEARCH_RESULT, context!!.contextType)
+        assertEquals(ImageContext.ContextType.SearchResult("sunset"), context!!.contextType)
         assertEquals(testPhotos, context.images)
         assertEquals(0, context.currentIndex)
     }
@@ -110,7 +110,7 @@ class ImageBrowserRepositoryTest {
         // Then
         val context = repository.getPhotoContext("newPhoto")
         assertNotNull(context)
-        assertEquals(ImageContext.ContextType.SEARCH_RESULT, context!!.contextType)
+        assertEquals(ImageContext.ContextType.SearchResult("newQuery"), context!!.contextType)
         assertNull(repository.getPhotoContext("photo1")) // Old session photos should not be accessible
     }
 
@@ -127,7 +127,7 @@ class ImageBrowserRepositoryTest {
         // Then
         val context = repository.getPhotoContext("photo2")
         assertNotNull(context)
-        assertEquals(ImageContext.ContextType.TAG_ALBUM, context!!.contextType)
+        assertEquals(ImageContext.ContextType.TagAlbum(tagName), context!!.contextType)
         assertEquals(testPhotos, context.images)
         assertEquals(1, context.currentIndex)
     }
@@ -143,7 +143,7 @@ class ImageBrowserRepositoryTest {
         // Then
         val context = repository.getPhotoContext("single")
         assertNotNull(context)
-        assertEquals(ImageContext.ContextType.TAG_ALBUM, context!!.contextType)
+        assertEquals(ImageContext.ContextType.TagAlbum("SingleTag"), context!!.contextType)
         assertEquals(0, context.currentIndex)
         assertEquals(1, context.images.size)
     }
@@ -161,7 +161,7 @@ class ImageBrowserRepositoryTest {
         // Then
         val context = repository.getPhotoContext("photo3")
         assertNotNull(context)
-        assertEquals(ImageContext.ContextType.ALBUM, context!!.contextType)
+        assertEquals(ImageContext.ContextType.Album(albumName), context!!.contextType)
         assertEquals(testPhotos, context.images)
         assertEquals(2, context.currentIndex)
     }
@@ -177,7 +177,7 @@ class ImageBrowserRepositoryTest {
         // Then
         val context = repository.getPhotoContext("photo1")
         assertNotNull(context)
-        assertEquals(ImageContext.ContextType.ALBUM, context!!.contextType)
+        assertEquals(ImageContext.ContextType.Album("LocalAlbum"), context!!.contextType)
     }
 
     // ========== setGallery Tests ==========
@@ -190,7 +190,7 @@ class ImageBrowserRepositoryTest {
         // Then
         val context = repository.getPhotoContext("photo1")
         assertNotNull(context)
-        assertEquals(ImageContext.ContextType.GALLERY, context!!.contextType)
+        assertEquals(ImageContext.ContextType.Gallery, context!!.contextType)
         assertEquals(testPhotos, context.images)
     }
 
@@ -332,7 +332,7 @@ class ImageBrowserRepositoryTest {
         // Then
         assertNotNull(context)
         assertEquals(0, context!!.currentIndex)
-        assertEquals(ImageContext.ContextType.GALLERY, context.contextType)
+        assertEquals(ImageContext.ContextType.Gallery, context.contextType)
     }
 
     @Test
@@ -347,7 +347,7 @@ class ImageBrowserRepositoryTest {
         // Then
         assertNotNull(context)
         assertEquals(1, context!!.currentIndex)
-        assertEquals(ImageContext.ContextType.TAG_ALBUM, context.contextType)
+        assertEquals(ImageContext.ContextType.TagAlbum("TestTag"), context.contextType)
     }
 
     @Test
@@ -362,7 +362,7 @@ class ImageBrowserRepositoryTest {
         // Then
         assertNotNull(context)
         assertEquals(2, context!!.currentIndex)
-        assertEquals(ImageContext.ContextType.ALBUM, context.contextType)
+        assertEquals(ImageContext.ContextType.Album("Album"), context.contextType)
     }
 
     // ========== clear Tests ==========
@@ -411,17 +411,17 @@ class ImageBrowserRepositoryTest {
         // Step 1: Set search results
         repository.setSearchResults(testPhotos, "sunset")
         var context = repository.getPhotoContext("photo1")
-        assertEquals(ImageContext.ContextType.SEARCH_RESULT, context!!.contextType)
+        assertEquals(ImageContext.ContextType.SearchResult("sunset"), context!!.contextType)
 
         // Step 2: Switch to tag album
         repository.setTagAlbum(testPhotos, "Nature")
         context = repository.getPhotoContext("photo1")
-        assertEquals(ImageContext.ContextType.TAG_ALBUM, context!!.contextType)
+        assertEquals(ImageContext.ContextType.TagAlbum("Nature"), context!!.contextType)
 
         // Step 3: Switch to gallery
         repository.setGallery(testPhotos)
         context = repository.getPhotoContext("photo1")
-        assertEquals(ImageContext.ContextType.GALLERY, context!!.contextType)
+        assertEquals(ImageContext.ContextType.Gallery, context!!.contextType)
 
         // Step 4: Clear
         repository.clear()
@@ -450,22 +450,22 @@ class ImageBrowserRepositoryTest {
         // Test 1: Search result
         repository.setSearchResults(testPhotos, "query1")
         val searchContext = repository.getPhotoContext("photo1")
-        assertEquals(ImageContext.ContextType.SEARCH_RESULT, searchContext!!.contextType)
+        assertEquals(ImageContext.ContextType.SearchResult("query1"), searchContext!!.contextType)
 
         // Test 2: Tag album
         repository.setTagAlbum(testPhotos, "TagName")
         val tagContext = repository.getPhotoContext("photo1")
-        assertEquals(ImageContext.ContextType.TAG_ALBUM, tagContext!!.contextType)
+        assertEquals(ImageContext.ContextType.TagAlbum("TagName"), tagContext!!.contextType)
 
         // Test 3: Local album
         repository.setLocalAlbum(testPhotos, "AlbumName")
         val albumContext = repository.getPhotoContext("photo1")
-        assertEquals(ImageContext.ContextType.ALBUM, albumContext!!.contextType)
+        assertEquals(ImageContext.ContextType.Album("AlbumName"), albumContext!!.contextType)
 
         // Test 4: Gallery
         repository.setGallery(testPhotos)
         val galleryContext = repository.getPhotoContext("photo1")
-        assertEquals(ImageContext.ContextType.GALLERY, galleryContext!!.contextType)
+        assertEquals(ImageContext.ContextType.Gallery, galleryContext!!.contextType)
     }
 
     @Test

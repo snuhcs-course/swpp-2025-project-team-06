@@ -73,7 +73,7 @@ class ImageDetailViewModelTest {
     fun `loadImageContext loads context from imageBrowserRepository`() {
         // Given
         val photoId = "photo1"
-        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.SEARCH_RESULT)
+        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.SearchResult("query"))
         every { imageBrowserRepository.getPhotoContext(photoId) } returns context
 
         // When
@@ -88,7 +88,7 @@ class ImageDetailViewModelTest {
         // Given
         val uri = createMockUri("content://media/external/images/media/1")
         every { Uri.parse("content://media/external/images/media/1") } returns uri
-        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.GALLERY)
+        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.Gallery)
         every { imageBrowserRepository.getPhotoContextByUri(uri) } returns context
 
         // When
@@ -259,7 +259,7 @@ class ImageDetailViewModelTest {
     fun `clearImageContext clears context and resets tag state`() {
         // Given
         val photoId = "photo1"
-        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.GALLERY)
+        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.Gallery)
         every { imageBrowserRepository.getPhotoContext(photoId) } returns context
         viewModel.loadImageContext(photoId)
 
