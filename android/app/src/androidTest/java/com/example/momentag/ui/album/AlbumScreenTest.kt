@@ -561,7 +561,6 @@ class AlbumScreenTest {
         val removeTitle = composeTestRule.activity.getString(R.string.album_remove_photos_title)
         val removeMessage = composeTestRule.activity.getString(R.string.album_remove_photos_message, 1, testTagName)
         val remove = composeTestRule.activity.getString(R.string.album_remove)
-        val cancel = composeTestRule.activity.getString(R.string.action_cancel)
 
         // Enter selection mode and select a photo
         // Ensure content is loaded
@@ -581,13 +580,14 @@ class AlbumScreenTest {
                 .performClick()
             composeTestRule.waitForIdle()
 
-            // Then: Confirmation dialog is displayed
+            // Then: Confirmation dialog is displayed (ConfirmDialog style with X close button)
             composeTestRule.onNodeWithText(removeTitle).assertIsDisplayed()
             composeTestRule
                 .onNodeWithText(removeMessage)
                 .assertIsDisplayed()
             composeTestRule.onNodeWithText(remove).assertIsDisplayed().assertHasClickAction()
-            composeTestRule.onNodeWithText(cancel).assertIsDisplayed().assertHasClickAction()
+            // ConfirmDialog uses X button instead of Cancel text button
+            composeTestRule.onNodeWithContentDescription("Close").assertIsDisplayed().assertHasClickAction()
         }
     }
 
