@@ -166,7 +166,7 @@ class PhotoViewModelTest {
         }
 
     @Test
-    fun `uploadSelectedPhotos with invalid photo IDs sets error message`() =
+    fun `uploadSelectedPhotos with invalid photo IDs sets error`() =
         runTest {
             // Given
             val photos = setOf(createPhoto("invalid-id"), createPhoto("another-invalid"))
@@ -177,7 +177,7 @@ class PhotoViewModelTest {
 
             // Then
             verify(exactly = 0) { WorkManager.getInstance(any<Context>()).enqueue(any<WorkRequest>()) }
-            assertEquals("No photo IDs to upload.", viewModel.uiState.value.errorMessage)
+            assertEquals(PhotoViewModel.PhotoError.NoPhotosSelected, viewModel.uiState.value.error)
         }
 
     @Test
@@ -235,20 +235,20 @@ class PhotoViewModelTest {
         }
 
     @Test
-    fun `errorMessageShown clears error message`() =
+    fun `errorMessageShown clears error`() =
         runTest {
             // Given - set an error message first
             val photos = setOf(createPhoto("invalid"))
             viewModel.uploadSelectedPhotos(photos, context)
             advanceUntilIdle()
-            assertEquals("No photo IDs to upload.", viewModel.uiState.value.errorMessage)
+            assertEquals(PhotoViewModel.PhotoError.NoPhotosSelected, viewModel.uiState.value.error)
 
             // When
             viewModel.errorMessageShown()
             advanceUntilIdle()
 
             // Then
-            assertNull(viewModel.uiState.value.errorMessage)
+            assertNull(viewModel.uiState.value.error)
         }
 
     @Test

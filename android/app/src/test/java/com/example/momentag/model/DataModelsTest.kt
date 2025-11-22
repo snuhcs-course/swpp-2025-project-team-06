@@ -814,13 +814,13 @@ class DataModelsTest {
             ImageContext(
                 images = photos,
                 currentIndex = 1,
-                contextType = ImageContext.ContextType.ALBUM,
+                contextType = ImageContext.ContextType.Album("test"),
             )
 
         // Then
         assertEquals(3, imageContext.images.size)
         assertEquals(1, imageContext.currentIndex)
-        assertEquals(ImageContext.ContextType.ALBUM, imageContext.contextType)
+        assertEquals(ImageContext.ContextType.Album("test"), imageContext.contextType)
     }
 
     @Test
@@ -833,13 +833,13 @@ class DataModelsTest {
             ImageContext(
                 images = emptyPhotos,
                 currentIndex = 0,
-                contextType = ImageContext.ContextType.GALLERY,
+                contextType = ImageContext.ContextType.Gallery,
             )
 
         // Then
         assertTrue(imageContext.images.isEmpty())
         assertEquals(0, imageContext.currentIndex)
-        assertEquals(ImageContext.ContextType.GALLERY, imageContext.contextType)
+        assertEquals(ImageContext.ContextType.Gallery, imageContext.contextType)
     }
 
     @Test
@@ -848,20 +848,24 @@ class DataModelsTest {
         val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
 
         // When & Then - ALBUM
-        val albumContext = ImageContext(photos, 0, ImageContext.ContextType.ALBUM)
-        assertEquals(ImageContext.ContextType.ALBUM, albumContext.contextType)
+        val albumContext = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
+        assertEquals(ImageContext.ContextType.Album("test"), albumContext.contextType)
 
         // When & Then - TAG_ALBUM
-        val tagAlbumContext = ImageContext(photos, 0, ImageContext.ContextType.TAG_ALBUM)
-        assertEquals(ImageContext.ContextType.TAG_ALBUM, tagAlbumContext.contextType)
+        val tagAlbumContext = ImageContext(photos, 0, ImageContext.ContextType.TagAlbum("testTag"))
+        assertEquals(ImageContext.ContextType.TagAlbum("testTag"), tagAlbumContext.contextType)
 
         // When & Then - SEARCH_RESULT
-        val searchContext = ImageContext(photos, 0, ImageContext.ContextType.SEARCH_RESULT)
-        assertEquals(ImageContext.ContextType.SEARCH_RESULT, searchContext.contextType)
+        val searchContext = ImageContext(photos, 0, ImageContext.ContextType.SearchResult("query"))
+        assertEquals(ImageContext.ContextType.SearchResult("query"), searchContext.contextType)
 
         // When & Then - GALLERY
-        val galleryContext = ImageContext(photos, 0, ImageContext.ContextType.GALLERY)
-        assertEquals(ImageContext.ContextType.GALLERY, galleryContext.contextType)
+        val galleryContext = ImageContext(photos, 0, ImageContext.ContextType.Gallery)
+        assertEquals(ImageContext.ContextType.Gallery, galleryContext.contextType)
+
+        // When & Then - Story
+        val storyContext = ImageContext(photos, 0, ImageContext.ContextType.Story)
+        assertEquals(ImageContext.ContextType.Story, storyContext.contextType)
     }
 
     @Test
@@ -876,7 +880,7 @@ class DataModelsTest {
             ImageContext(
                 images = photos,
                 currentIndex = 0,
-                contextType = ImageContext.ContextType.ALBUM,
+                contextType = ImageContext.ContextType.Album("test"),
             )
 
         // When - currentIndex만 변경
@@ -896,16 +900,16 @@ class DataModelsTest {
             ImageContext(
                 images = photos,
                 currentIndex = 0,
-                contextType = ImageContext.ContextType.ALBUM,
+                contextType = ImageContext.ContextType.Album("test"),
             )
 
         // When
-        val copied = original.copy(contextType = ImageContext.ContextType.TAG_ALBUM)
+        val copied = original.copy(contextType = ImageContext.ContextType.TagAlbum("testTag"))
 
         // Then
         assertEquals(original.images, copied.images)
         assertEquals(original.currentIndex, copied.currentIndex)
-        assertEquals(ImageContext.ContextType.TAG_ALBUM, copied.contextType)
+        assertEquals(ImageContext.ContextType.TagAlbum("testTag"), copied.contextType)
     }
 
     @Test
@@ -919,13 +923,13 @@ class DataModelsTest {
             )
 
         // When - 첫 번째 인덱스
-        val firstContext = ImageContext(photos, 0, ImageContext.ContextType.GALLERY)
+        val firstContext = ImageContext(photos, 0, ImageContext.ContextType.Gallery)
 
         // Then
         assertEquals(0, firstContext.currentIndex)
 
         // When - 마지막 인덱스
-        val lastContext = ImageContext(photos, 2, ImageContext.ContextType.GALLERY)
+        val lastContext = ImageContext(photos, 2, ImageContext.ContextType.Gallery)
 
         // Then
         assertEquals(2, lastContext.currentIndex)
@@ -935,9 +939,9 @@ class DataModelsTest {
     fun `ImageContext 데이터 클래스 equals 테스트`() {
         // Given
         val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
-        val context1 = ImageContext(photos, 0, ImageContext.ContextType.ALBUM)
-        val context2 = ImageContext(photos, 0, ImageContext.ContextType.ALBUM)
-        val context3 = ImageContext(photos, 1, ImageContext.ContextType.ALBUM)
+        val context1 = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
+        val context2 = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
+        val context3 = ImageContext(photos, 1, ImageContext.ContextType.Album("test"))
 
         // Then
         assertEquals(context1, context2)
@@ -948,8 +952,8 @@ class DataModelsTest {
     fun `ImageContext hashCode 테스트`() {
         // Given
         val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
-        val context1 = ImageContext(photos, 0, ImageContext.ContextType.ALBUM)
-        val context2 = ImageContext(photos, 0, ImageContext.ContextType.ALBUM)
+        val context1 = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
+        val context2 = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
 
         // Then
         assertEquals(context1.hashCode(), context2.hashCode())
@@ -959,7 +963,7 @@ class DataModelsTest {
     fun `ImageContext toString 테스트`() {
         // Given
         val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
-        val context = ImageContext(photos, 0, ImageContext.ContextType.SEARCH_RESULT)
+        val context = ImageContext(photos, 0, ImageContext.ContextType.SearchResult("query"))
 
         // When
         val toString = context.toString()
@@ -967,29 +971,7 @@ class DataModelsTest {
         // Then
         assertTrue(toString.contains("ImageContext"))
         assertTrue(toString.contains("currentIndex=0"))
-        assertTrue(toString.contains("SEARCH_RESULT"))
-    }
-
-    @Test
-    fun `ContextType enum 값 테스트`() {
-        // When & Then
-        val values = ImageContext.ContextType.values()
-
-        assertEquals(5, values.size)
-        assertTrue(values.contains(ImageContext.ContextType.ALBUM))
-        assertTrue(values.contains(ImageContext.ContextType.TAG_ALBUM))
-        assertTrue(values.contains(ImageContext.ContextType.SEARCH_RESULT))
-        assertTrue(values.contains(ImageContext.ContextType.GALLERY))
-        assertTrue(values.contains(ImageContext.ContextType.STORY))
-    }
-
-    @Test
-    fun `ContextType valueOf 테스트`() {
-        // When & Then
-        assertEquals(ImageContext.ContextType.ALBUM, ImageContext.ContextType.valueOf("ALBUM"))
-        assertEquals(ImageContext.ContextType.TAG_ALBUM, ImageContext.ContextType.valueOf("TAG_ALBUM"))
-        assertEquals(ImageContext.ContextType.SEARCH_RESULT, ImageContext.ContextType.valueOf("SEARCH_RESULT"))
-        assertEquals(ImageContext.ContextType.GALLERY, ImageContext.ContextType.valueOf("GALLERY"))
+        assertTrue(toString.contains("SearchResult"))
     }
 
     @Test
@@ -1005,7 +987,7 @@ class DataModelsTest {
             ImageContext(
                 images = manyPhotos,
                 currentIndex = 50,
-                contextType = ImageContext.ContextType.GALLERY,
+                contextType = ImageContext.ContextType.Gallery,
             )
 
         // Then
@@ -1024,7 +1006,7 @@ class DataModelsTest {
             ImageContext(
                 images = photos,
                 currentIndex = -1,
-                contextType = ImageContext.ContextType.ALBUM,
+                contextType = ImageContext.ContextType.Album("test"),
             )
 
         // Then - 데이터 클래스는 음수 인덱스도 허용 (비즈니스 로직에서 검증해야 함)
