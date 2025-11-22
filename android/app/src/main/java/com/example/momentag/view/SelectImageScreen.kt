@@ -39,8 +39,10 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
@@ -253,6 +255,34 @@ fun SelectImageScreen(navController: NavController) {
                     navController.popBackStack()
                 },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
+                navigationIcon =
+                    if (isSelectionMode) {
+                        {
+                            IconButton(
+                                onClick = {
+                                    isSelectionModeDelay = false
+                                    selectImageViewModel.clearDraft()
+                                    selectImageViewModel.setSelectionMode(false)
+                                },
+                            ) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Close,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    contentDescription = stringResource(R.string.cd_deselect_all),
+                                )
+                            }
+                        }
+                    } else {
+                        {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    contentDescription = stringResource(R.string.cd_navigate_back),
+                                )
+                            }
+                        }
+                    },
                 actions = {},
             )
         },
