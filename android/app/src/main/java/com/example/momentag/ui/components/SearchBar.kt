@@ -58,6 +58,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.coerceAtLeast
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.R
 import com.example.momentag.model.TagItem
@@ -99,6 +100,8 @@ fun ChipSearchBar(
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
+    onClear: () -> Unit = {},
+    hasContent: Boolean = false,
     placeholder: String = "Search with \"#tag\"",
 ) {
     val colors =
@@ -154,6 +157,31 @@ fun ChipSearchBar(
             onSearch = onSearch,
             placeholder = placeholder,
         )
+
+        if (isFocused && hasContent) {
+            IconButton(
+                onClick = onClear,
+                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(20.dp)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = CircleShape,
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    StandardIcon.Icon(
+                        imageVector = Icons.Default.Close,
+                        sizeRole = IconSizeRole.InlineAction,
+                        tintOverride = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        contentDescription = stringResource(R.string.cd_clear_text),
+                    )
+                }
+            }
+        }
     }
 }
 

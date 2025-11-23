@@ -70,7 +70,6 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
@@ -95,6 +94,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -132,6 +132,7 @@ import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.CreateTagButton
+import com.example.momentag.ui.components.SearchContentElement
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SearchLoadingStateCustom
 import com.example.momentag.ui.components.SuggestionChip
@@ -166,11 +167,13 @@ fun HomeScreen(
     navController: NavController,
     showAutoLoginToast: Boolean,
 ) {
-    // 0. Show auto login toast if applicable
-    if (showAutoLoginToast) {
-        val context = LocalContext.current
-        LaunchedEffect(Unit) {
-            Toast.makeText(context, context.getString(R.string.success_auto_login), Toast.LENGTH_SHORT).show()
+    // 0. Show auto login toast if applicable (only once per session)
+    var hasShownAutoLoginToast by rememberSaveable { mutableStateOf(false) }
+    val toastContext = LocalContext.current
+    LaunchedEffect(showAutoLoginToast) {
+        if (showAutoLoginToast && !hasShownAutoLoginToast) {
+            Toast.makeText(toastContext, toastContext.getString(R.string.success_auto_login), Toast.LENGTH_SHORT).show()
+            hasShownAutoLoginToast = true
         }
     }
     // 1. Context and platform-related variables
@@ -584,6 +587,25 @@ fun HomeScreen(
                 showLogout = false,
                 onLogoutClick = null,
                 isLogoutLoading = false,
+                navigationIcon =
+                    if (isShowingAllPhotos && isSelectionMode) {
+                        {
+                            IconButton(
+                                onClick = {
+                                    homeViewModel.setSelectionMode(false)
+                                    homeViewModel.resetSelection()
+                                },
+                            ) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Close,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    contentDescription = stringResource(R.string.cd_deselect_all),
+                                )
+                            }
+                        }
+                    } else {
+                        null
+                    },
                 actions = {
                     // Share button - visible when in selection mode
                     if (isShowingAllPhotos && groupedPhotos.isNotEmpty() && isSelectionMode) {
@@ -731,55 +753,37 @@ fun HomeScreen(
                 ) {
                     Spacer(modifier = Modifier.height(topSpacerHeight))
 
-                    // Search Bar with Filter Button
-                    Row(
+                    // Search Bar
+                    val hasSearchContent =
+                        remember(contentItems.toList(), textStates.toMap()) {
+                            contentItems.any { it is SearchContentElement.Chip } ||
+                                textStates.values.any { it.text.replace("\u200B", "").isNotEmpty() }
+                        }
+
+                    ChipSearchBar(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
                                 .onGloballyPositioned { layoutCoordinates ->
                                     searchBarRowHeight = layoutCoordinates.size.height
+                                }.onSizeChanged { intSize ->
+                                    searchBarWidth = intSize.width
                                 },
-                        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        ChipSearchBar(
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .onSizeChanged { intSize ->
-                                        searchBarWidth = intSize.width
-                                    },
-                            listState = listState,
-                            isFocused = (focusedElementId != null),
-                            isCursorHidden = isCursorHidden,
-                            contentItems = contentItems,
-                            textStates = textStates,
-                            focusRequesters = focusRequesters,
-                            bringIntoViewRequesters = bringIntoViewRequesters,
-                            onSearch = { performSearch() },
-                            onContainerClick = searchViewModel::onContainerClick,
-                            onChipClick = searchViewModel::onChipClick,
-                            onFocus = searchViewModel::onFocus,
-                            onTextChange = searchViewModel::onTextChange,
-                        )
-
-                        IconButton(
-                            onClick = { performSearch() },
-                            modifier =
-                                Modifier
-                                    .size(Dimen.SearchBarMinHeight)
-                                    .background(
-                                        color = MaterialTheme.colorScheme.primary,
-                                        shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
-                                    ),
-                        ) {
-                            StandardIcon.Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = stringResource(R.string.cd_search),
-                                intent = IconIntent.Inverse,
-                            )
-                        }
-                    }
+                        listState = listState,
+                        isFocused = (focusedElementId != null),
+                        isCursorHidden = isCursorHidden,
+                        contentItems = contentItems,
+                        textStates = textStates,
+                        focusRequesters = focusRequesters,
+                        bringIntoViewRequesters = bringIntoViewRequesters,
+                        onSearch = { performSearch() },
+                        onContainerClick = searchViewModel::onContainerClick,
+                        onChipClick = searchViewModel::onChipClick,
+                        onFocus = searchViewModel::onFocus,
+                        onTextChange = searchViewModel::onTextChange,
+                        onClear = { searchViewModel.clearSearchContent(keepFocus = true) },
+                        hasContent = hasSearchContent,
+                    )
 
                     // Tag recommendation list (LazyRow)
                     if (tagSuggestions.isNotEmpty()) {
@@ -1017,10 +1021,7 @@ fun HomeScreen(
                             .zIndex(1f), // z-index for overlay
                 ) {
                     Surface(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(end = Dimen.SearchBarMinHeight + Dimen.ItemSpacingSmall),
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(Dimen.TagCornerRadius),
                         shadowElevation = Dimen.BottomNavShadowElevation,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,

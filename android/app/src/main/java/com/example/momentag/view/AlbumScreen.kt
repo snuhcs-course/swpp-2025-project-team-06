@@ -374,6 +374,25 @@ fun AlbumScreen(
                         onNavigateBack()
                     }
                 },
+                navigationIcon =
+                    if (isTagAlbumPhotoSelectionMode) {
+                        {
+                            IconButton(
+                                onClick = {
+                                    isTagAlbumPhotoSelectionMode = false
+                                    albumViewModel.resetTagAlbumPhotoSelection()
+                                },
+                            ) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Close,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    contentDescription = stringResource(R.string.cd_deselect_all),
+                                )
+                            }
+                        }
+                    } else {
+                        null
+                    },
                 actions = {
                     if (isTagAlbumPhotoSelectionMode) {
                         val isEnabled = selectedTagAlbumPhotos.isNotEmpty()
