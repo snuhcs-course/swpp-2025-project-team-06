@@ -2,6 +2,7 @@ package com.example.momentag.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.momentag.data.SessionExpirationManager
 import com.example.momentag.repository.TokenRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ class AuthViewModel
     @Inject
     constructor(
         private val tokenRepository: TokenRepository,
+        private val sessionExpirationManager: SessionExpirationManager,
     ) : ViewModel() {
         // 1. state class 정의
         sealed class LoginState {
@@ -120,6 +122,7 @@ class AuthViewModel
                 // TokenRepository에 비즈니스 로직 위임
                 when (val result = tokenRepository.login(username, password)) {
                     is TokenRepository.LoginResult.Success -> {
+                        sessionExpirationManager.resetSessionExpiration()
                         _loginState.value = LoginState.Success
                     }
                     is TokenRepository.LoginResult.BadRequest -> {

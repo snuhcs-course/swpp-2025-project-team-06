@@ -70,7 +70,10 @@ import com.example.momentag.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(
+    navController: NavController,
+    showExpirationWarning: Boolean,
+) {
     // Context and platform-related variables
     val context = LocalContext.current
     val activity = LocalContext.current.findActivity()
@@ -88,6 +91,7 @@ fun LoginScreen(navController: NavController) {
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var isUsernameError by remember { mutableStateOf(false) }
     var isPasswordError by remember { mutableStateOf(false) }
+    var errorBannerTitle by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isUsernameTouched by remember { mutableStateOf(false) }
     var isPasswordTouched by remember { mutableStateOf(false) }
@@ -103,6 +107,14 @@ fun LoginScreen(navController: NavController) {
         isErrorBannerVisible = false
     }
 
+    LaunchedEffect(showExpirationWarning) {
+        if (showExpirationWarning) {
+            errorBannerTitle = context.getString(R.string.banner_session_expired_title)
+            errorMessage = context.getString(R.string.banner_session_expired_message)
+            isErrorBannerVisible = true
+        }
+    }
+
     // Handle login state changes
     LaunchedEffect(loginState) {
         when (val state = loginState) {
@@ -116,32 +128,18 @@ fun LoginScreen(navController: NavController) {
                     popUpTo(Screen.Login.route) { inclusive = true }
                 }
             }
-            is AuthViewModel.LoginState.BadRequest -> {
-                isLoading = false
-                errorMessage = context.getString(R.string.error_message_login_bad_request)
-                isUsernameError = true
-                isPasswordError = true
-                isErrorBannerVisible = true
-                authViewModel.resetLoginState()
-            }
-            is AuthViewModel.LoginState.Unauthorized -> {
-                isLoading = false
-                errorMessage = context.getString(R.string.error_message_login_invalid_credentials)
-                isUsernameError = true
-                isPasswordError = true
-                isErrorBannerVisible = true
-                authViewModel.resetLoginState()
-            }
-            is AuthViewModel.LoginState.NetworkError -> {
-                isLoading = false
-                errorMessage = context.getString(R.string.error_message_network)
-                isUsernameError = true
-                isPasswordError = true
-                isErrorBannerVisible = true
-                authViewModel.resetLoginState()
-            }
-            is AuthViewModel.LoginState.Error -> {
-                isLoading = false
+            is AuthViewModel.LoginState.BadRequest,
+            is AuthViewModel.LoginState.Unauthorized,
+            is AuthViewModel.LoginState.NetworkError,
+            is AuthViewModel.LoginState.Error,
+            -> {
+                    when (state) {
+                        is AuthViewModel.LoginState.BadRequest -> context.getString(R.string.error_message_login_bad_request)
+                        is AuthViewModel.LoginState.Unauthorized -> context.getString(R.string.error_message_login_invalid_credentials)
+                        is AuthViewModel.LoginState.NetworkError -> context.getString(R.string.error_message_network)
+                        is AuthViewModel.LoginState.Error -> context.getString(R.string.error_title_login_failed)
+                        else -> context.getString(R.string.error_message_unknown)
+                    }
                 errorMessage = context.getString(R.string.error_message_unknown)
                 isUsernameError = true
                 isPasswordError = true

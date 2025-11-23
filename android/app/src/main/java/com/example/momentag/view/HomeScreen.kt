@@ -162,7 +162,17 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(
+    navController: NavController,
+    showAutoLoginToast: Boolean,
+) {
+    // 0. Show auto login toast if applicable
+    if (showAutoLoginToast) {
+        val context = LocalContext.current
+        LaunchedEffect(Unit) {
+            Toast.makeText(context, context.getString(R.string.success_auto_login), Toast.LENGTH_SHORT).show()
+        }
+    }
     // 1. Context and platform-related variables
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
