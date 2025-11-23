@@ -134,13 +134,12 @@ fun LoginScreen(
             is AuthViewModel.LoginState.Error,
             -> {
                 isLoading = false
-                errorBannerTitle = context.getString(R.string.error_title_login_failed)
                 errorMessage =
                     when (state) {
-                        is AuthViewModel.LoginState.BadRequest -> state.message
-                        is AuthViewModel.LoginState.Unauthorized -> state.message
-                        is AuthViewModel.LoginState.NetworkError -> state.message
-                        is AuthViewModel.LoginState.Error -> state.message
+                        is AuthViewModel.LoginState.BadRequest -> context.getString(R.string.error_message_login_bad_request)
+                        is AuthViewModel.LoginState.Unauthorized -> context.getString(R.string.error_message_login_invalid_credentials)
+                        is AuthViewModel.LoginState.NetworkError -> context.getString(R.string.error_message_network)
+                        is AuthViewModel.LoginState.Error -> context.getString(R.string.error_message_unknown)
                         else -> context.getString(R.string.error_message_unknown)
                     }
                 isUsernameError = true
@@ -373,7 +372,7 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                 AnimatedVisibility(visible = isErrorBannerVisible && errorMessage != null) {
                     WarningBanner(
-                        title = errorBannerTitle,
+                        title = stringResource(R.string.error_title_login_failed),
                         message = errorMessage ?: stringResource(R.string.error_message_unknown),
                         onActionClick = { isErrorBannerVisible = false },
                         showActionButton = false,

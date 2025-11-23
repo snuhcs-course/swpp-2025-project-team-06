@@ -62,6 +62,8 @@
     <!-- ============================================ -->
     <string name="error_message_generic">Something went wrong. Please try again.</string>
     <string name="error_message_unknown">Something went wrong. Please try again.</string>
+    <string name="error_message_login_bad_request">We couldn\'t process your login. Please check the form and try again.</string>
+    <string name="error_message_login_invalid_credentials">Wrong username or password. Please try again.</string>
     <string name="error_message_logout">We couldn\'t log you out. Please check your connection and try again.</string>
     <string name="error_message_load_tags">We couldn\'t load your tags. Pull down to refresh.</string>
     <string name="error_message_delete_tag">We couldn\'t delete this tag. Please try again.</string>

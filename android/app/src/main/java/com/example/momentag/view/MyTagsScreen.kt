@@ -575,19 +575,19 @@ fun MyTagsScreen(navController: NavController) {
         }
     }
 
-//    if (isExitUntagConfirmVisible) {
-//        ConfirmDialog(
-//            title = stringResource(R.string.dialog_exit_untag_mode_title),
-//            message = stringResource(R.string.dialog_exit_untag_mode_message),
-//            onConfirm = {
-//                myTagsViewModel.toggleEditMode()
-//                isExitUntagConfirmVisible = false
-//            },
-//            onDismiss = { isExitUntagConfirmVisible = false },
-//            confirmButtonText = stringResource(R.string.dialog_exit_untag_mode_confirm),
-//            dismissible = true,
-//        )
-//    }
+    // if (isExitUntagConfirmVisible) {
+    //     ConfirmDialog(
+    //         title = stringResource(R.string.dialog_exit_untag_mode_title),
+    //         message = stringResource(R.string.dialog_exit_untag_mode_message),
+    //         onConfirm = {
+    //             myTagsViewModel.toggleEditMode()
+    //             isExitUntagConfirmVisible = false
+    //         },
+    //         onDismiss = { isExitUntagConfirmVisible = false },
+    //         confirmButtonText = stringResource(R.string.dialog_exit_untag_mode_confirm),
+    //         dismissible = true,
+    //     )
+    // }
 
     if (isDeleteDialogVisible && tagToDelete != null) {
         ConfirmDialog(
@@ -844,7 +844,7 @@ private fun MyTagsContent(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.tag),
+                    painter = painterResource(id = R.drawable.ic_empty_tags),
                     contentDescription = stringResource(R.string.cd_empty_tag),
                     modifier =
                         Modifier

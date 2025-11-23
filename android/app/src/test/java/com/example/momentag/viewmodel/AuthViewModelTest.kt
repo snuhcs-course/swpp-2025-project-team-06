@@ -73,7 +73,7 @@ class AuthViewModelTest {
             val password = "password123"
             val errorMessage = "Invalid request"
             coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.BadRequest(errorMessage)
+                TokenRepository.LoginResult.BadRequest
 
             // When
             viewModel.login(username, password)
@@ -82,7 +82,6 @@ class AuthViewModelTest {
             // Then
             val state = viewModel.loginState.value
             assertTrue(state is AuthViewModel.LoginState.BadRequest)
-            assertEquals(errorMessage, (state as AuthViewModel.LoginState.BadRequest).message)
         }
 
     @Test
@@ -93,7 +92,7 @@ class AuthViewModelTest {
             val password = "wrongpassword"
             val errorMessage = "Incorrect credentials"
             coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.Unauthorized(errorMessage)
+                TokenRepository.LoginResult.Unauthorized
 
             // When
             viewModel.login(username, password)
@@ -102,7 +101,6 @@ class AuthViewModelTest {
             // Then
             val state = viewModel.loginState.value
             assertTrue(state is AuthViewModel.LoginState.Unauthorized)
-            assertEquals(errorMessage, (state as AuthViewModel.LoginState.Unauthorized).message)
         }
 
     @Test
@@ -113,7 +111,7 @@ class AuthViewModelTest {
             val password = "password123"
             val errorMessage = "Network unreachable"
             coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.NetworkError(errorMessage)
+                TokenRepository.LoginResult.NetworkError
 
             // When
             viewModel.login(username, password)
@@ -122,7 +120,6 @@ class AuthViewModelTest {
             // Then
             val state = viewModel.loginState.value
             assertTrue(state is AuthViewModel.LoginState.NetworkError)
-            assertEquals(errorMessage, (state as AuthViewModel.LoginState.NetworkError).message)
         }
 
     @Test
@@ -133,7 +130,7 @@ class AuthViewModelTest {
             val password = "password123"
             val errorMessage = "Server error"
             coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.Error(errorMessage)
+                TokenRepository.LoginResult.Error
 
             // When
             viewModel.login(username, password)
@@ -142,7 +139,6 @@ class AuthViewModelTest {
             // Then
             val state = viewModel.loginState.value
             assertTrue(state is AuthViewModel.LoginState.Error)
-            assertEquals(errorMessage, (state as AuthViewModel.LoginState.Error).message)
         }
 
     @Test

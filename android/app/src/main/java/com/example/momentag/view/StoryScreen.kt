@@ -68,7 +68,6 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -814,92 +813,5 @@ internal fun FlowRow(
                 yPos += rowHeightPx + rowSpacingPx
             }
         }
-    }
-}
-
-@Composable
-private fun StoryPageFullBlockPreviewContent(
-    @androidx.annotation.DrawableRes drawableResId: Int,
-    date: String,
-    location: String,
-    suggestedTags: List<String>,
-) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .matchParentSize()
-                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
-        ) {
-            Text(
-                text = date,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            Text(
-                text = location,
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(top = Dimen.ErrorMessagePadding, bottom = Dimen.ItemSpacingMedium),
-            )
-
-            // 여기서는 Coil 말고 painterResource 써!
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-//                        .aspectRatio(3f / 4f)
-                        .clip(RoundedCornerShape(Dimen.ButtonCornerRadius))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                androidx.compose.foundation.Image(
-                    painter =
-                        androidx.compose.ui.res
-                            .painterResource(id = drawableResId),
-                    contentDescription = stringResource(R.string.cd_preview_image),
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
-
-            TagSelectionCard(
-                tags = suggestedTags,
-                selectedTags = setOf("#카페", "#디저트"),
-                storyTagSubmissionState = StoryViewModel.StoryTagSubmissionState.Idle,
-                isViewed = false,
-                isEditMode = false,
-                onTagToggle = {},
-                onAddCustomTag = {},
-                onDone = {},
-                onRetry = {},
-                onEdit = {},
-                onSuccess = {},
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
-}
-
-@Preview(
-    showBackground = true,
-    backgroundColor = 0xFFFFFFFF,
-    name = "Story Page Preview",
-)
-@Composable
-private fun StoryPageFullBlockPreview() {
-    MaterialTheme {
-        StoryPageFullBlockPreviewContent(
-            drawableResId = R.drawable.img1,
-            date = "2024년 8월 1일",
-            location = "서울 특별시",
-            suggestedTags = listOf("#카페", "#친구와", "#디저트"),
-        )
     }
 }
