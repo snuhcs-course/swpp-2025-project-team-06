@@ -151,6 +151,7 @@ object Dimen {
     val ErrorDialogElevation = 12.dp
     val ButtonShadowElevation = 6.dp
     val ButtonDisabledShadowElevation = 2.dp
+    val SearchBarShadowElevation = 2.dp
 
     // ============================================================================================
     // 6. 화면별 특수 치수 (Screen-specific Dimensions)

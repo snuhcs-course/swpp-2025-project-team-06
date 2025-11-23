@@ -787,19 +787,30 @@ class SearchViewModel
 
         /**
          * ChipSearchBar의 모든 내용을 초기 빈 상태로 리셋합니다.
+         * @param keepFocus true면 새로운 텍스트 필드에 포커스 유지, false면 포커스 해제 (기본값)
          */
-        fun clearSearchContent() {
+        fun clearSearchContent(keepFocus: Boolean = false) {
             contentItems.clear()
             textStates.clear()
             focusRequesters.clear()
             bringIntoViewRequesters.clear()
-            _focusedElementId.value = null
 
             val initialId = UUID.randomUUID().toString()
             contentItems.add(SearchContentElement.Text(id = initialId, text = ""))
             textStates[initialId] = TextFieldValue("\u200B", TextRange(1))
             focusRequesters[initialId] = FocusRequester()
             bringIntoViewRequesters[initialId] = BringIntoViewRequester()
+
+            if (keepFocus) {
+                // 새로운 텍스트 필드에 포커스 유지
+                _focusedElementId.value = initialId
+                viewModelScope.launch {
+                    _requestFocus.emit(initialId)
+                }
+            } else {
+                // 포커스 해제
+                _focusedElementId.value = null
+            }
         }
 
         /**

@@ -31,10 +31,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -183,8 +183,8 @@ fun LocalGalleryScreen(
                         navigationIcon = {
                             IconButton(onClick = { localViewModel.clearAlbumSelection() }) {
                                 StandardIcon.Icon(
-                                    contentDescription = stringResource(R.string.cd_navigate_back),
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.cd_deselect_all),
+                                    imageVector = Icons.Default.Close,
                                     sizeRole = IconSizeRole.Navigation,
                                 )
                             }

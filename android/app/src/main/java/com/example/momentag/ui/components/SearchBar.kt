@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -58,6 +59,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.coerceAtLeast
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.momentag.R
 import com.example.momentag.model.TagItem
@@ -99,6 +101,8 @@ fun ChipSearchBar(
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
+    onClear: () -> Unit = {},
+    hasContent: Boolean = false,
     placeholder: String = "Search with \"#tag\"",
 ) {
     val colors =
@@ -116,44 +120,82 @@ fun ChipSearchBar(
             colors.unfocusedContainerColor
         }
 
-    Row(
+    Box(
         modifier =
             modifier
                 .heightIn(min = Dimen.SearchBarMinHeight)
-                .background(
-                    color = containerColor,
+                .shadow(
+                    elevation = Dimen.SearchBarShadowElevation,
                     shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
-                ).clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { onContainerClick() }
-                .padding(horizontal = Dimen.ScreenHorizontalPadding),
-        verticalAlignment = Alignment.CenterVertically,
+                ).background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                ),
     ) {
-        StandardIcon.Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = stringResource(R.string.cd_search),
-            intent = IconIntent.Muted,
-        )
-
-        InternalChipSearchInput(
+        Row(
             modifier =
                 Modifier
-                    .weight(1f)
-                    .padding(start = Dimen.ItemSpacingSmall),
-            listState = listState,
-            isCursorHidden = isCursorHidden,
-            contentItems = contentItems,
-            textStates = textStates,
-            focusRequesters = focusRequesters,
-            bringIntoViewRequesters = bringIntoViewRequesters,
-            onContainerClick = onContainerClick,
-            onChipClick = onChipClick,
-            onTextChange = onTextChange,
-            onFocus = onFocus,
-            onSearch = onSearch,
-            placeholder = placeholder,
-        )
+                    .matchParentSize()
+                    .background(
+                        color = containerColor,
+                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                    ).clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onContainerClick() }
+                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StandardIcon.Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = stringResource(R.string.cd_search),
+                intent = IconIntent.Muted,
+            )
+
+            InternalChipSearchInput(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(start = Dimen.ItemSpacingSmall),
+                listState = listState,
+                isCursorHidden = isCursorHidden,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onContainerClick = onContainerClick,
+                onChipClick = onChipClick,
+                onTextChange = onTextChange,
+                onFocus = onFocus,
+                onSearch = onSearch,
+                placeholder = placeholder,
+            )
+
+            if (isFocused && hasContent) {
+                IconButton(
+                    onClick = onClear,
+                    modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(20.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    shape = CircleShape,
+                                ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        StandardIcon.Icon(
+                            imageVector = Icons.Default.Close,
+                            sizeRole = IconSizeRole.InlineAction,
+                            tintOverride = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            contentDescription = stringResource(R.string.cd_clear_text),
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

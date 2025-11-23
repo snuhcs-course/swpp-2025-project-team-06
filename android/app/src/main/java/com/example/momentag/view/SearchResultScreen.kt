@@ -13,7 +13,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -36,7 +35,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -66,7 +65,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -91,6 +89,7 @@ import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
 import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
@@ -485,6 +484,7 @@ fun SearchResultScreen(
         errorMessage = errorMessage,
         onDismissError = { isErrorBannerVisible = false },
         placeholder = placeholderText,
+        onClearSearchContent = { searchViewModel.clearSearchContent(keepFocus = true) },
     )
 }
 
@@ -536,6 +536,7 @@ fun SearchResultScreenUi(
     errorMessage: String?,
     onDismissError: () -> Unit,
     placeholder: String,
+    onClearSearchContent: () -> Unit = {},
 ) {
     LocalFocusManager.current
     val backgroundBrush = rememberAppBackgroundBrush()
@@ -547,6 +548,24 @@ fun SearchResultScreenUi(
                 title = stringResource(R.string.search_result_title),
                 showBackButton = true,
                 onBackClick = onBackClick,
+                navigationIcon =
+                    if (isSelectionMode) {
+                        {
+                            IconButton(
+                                onClick = {
+                                    onToggleSelectionMode()
+                                },
+                            ) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Close,
+                                    sizeRole = IconSizeRole.Navigation,
+                                    contentDescription = stringResource(R.string.cd_deselect_all),
+                                )
+                            }
+                        }
+                    } else {
+                        null
+                    },
                 actions = topBarActions,
             )
         },
@@ -597,6 +616,7 @@ fun SearchResultScreenUi(
             errorMessage = errorMessage,
             onDismissError = onDismissError,
             placeholder = placeholder,
+            onClearSearchContent = onClearSearchContent,
         )
     }
 }
@@ -646,6 +666,7 @@ private fun SearchResultContent(
     errorMessage: String?,
     onDismissError: () -> Unit,
     placeholder: String,
+    onClearSearchContent: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -676,50 +697,34 @@ private fun SearchResultContent(
             Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
             // Search Input
-            Row(
+            val hasSearchContent =
+                remember(contentItems.toList(), textStates.toMap()) {
+                    contentItems.any { it is SearchContentElement.Chip } ||
+                        textStates.values.any { it.text.replace("\u200B", "").isNotEmpty() }
+                }
+
+            ChipSearchBar(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .onGloballyPositioned { onSearchBarRowHeightChange(it.size.height) },
-                horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ChipSearchBar(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .onSizeChanged { onSearchBarWidthChange(it.width) },
-                    listState = listState,
-                    isFocused = (focusedElementId != null),
-                    isCursorHidden = isCursorHidden,
-                    contentItems = contentItems,
-                    textStates = textStates,
-                    focusRequesters = focusRequesters,
-                    bringIntoViewRequesters = bringIntoViewRequesters,
-                    onSearch = onPerformSearch,
-                    onContainerClick = onChipSearchBarContainerClick,
-                    onChipClick = onChipClick,
-                    onFocus = onFocus,
-                    onTextChange = onTextChange,
-                    placeholder = placeholder,
-                )
-                IconButton(
-                    onClick = { onPerformSearch() },
-                    modifier =
-                        Modifier
-                            .size(Dimen.SearchBarMinHeight)
-                            .background(
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
-                            ),
-                ) {
-                    StandardIcon.Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = stringResource(R.string.cd_search),
-                        intent = IconIntent.Inverse,
-                    )
-                }
-            }
+                        .onGloballyPositioned { onSearchBarRowHeightChange(it.size.height) }
+                        .onSizeChanged { onSearchBarWidthChange(it.width) },
+                listState = listState,
+                isFocused = (focusedElementId != null),
+                isCursorHidden = isCursorHidden,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onSearch = onPerformSearch,
+                onContainerClick = onChipSearchBarContainerClick,
+                onChipClick = onChipClick,
+                onFocus = onFocus,
+                onTextChange = onTextChange,
+                placeholder = placeholder,
+                onClear = onClearSearchContent,
+                hasContent = hasSearchContent,
+            )
 
             // Tag suggestion list (LazyRow)
             if (tagSuggestions.isNotEmpty()) {
@@ -816,10 +821,7 @@ private fun SearchResultContent(
                     .zIndex(1f),
         ) {
             Surface(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(end = 48.dp + Dimen.ItemSpacingSmall),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(Dimen.TagCornerRadius),
                 shadowElevation = Dimen.BottomNavShadowElevation,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
