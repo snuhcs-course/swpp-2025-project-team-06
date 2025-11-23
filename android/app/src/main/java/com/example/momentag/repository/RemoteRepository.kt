@@ -7,7 +7,6 @@ import com.example.momentag.model.TagId
 import com.example.momentag.model.TagName
 import com.example.momentag.model.TagResponse
 import com.example.momentag.model.TaskInfo
-import com.example.momentag.model.TaskStatus
 import com.example.momentag.network.ApiService
 import retrofit2.HttpException
 import java.io.IOException
@@ -163,8 +162,8 @@ class RemoteRepository
                 Result.Exception(e)
             }
 
-        suspend fun uploadPhotos(photoUploadData: PhotoUploadData): Result<List<TaskInfo>> {
-            return try {
+        suspend fun uploadPhotos(photoUploadData: PhotoUploadData): Result<List<TaskInfo>> =
+            try {
                 val response =
                     apiService.uploadPhotos(
                         photo = photoUploadData.photo,
@@ -179,31 +178,6 @@ class RemoteRepository
                     when (response.code()) {
                         401 -> Result.Unauthorized("Authentication failed")
                         400 -> Result.BadRequest("Bad request: ${response.message()}")
-                        else -> Result.Error(response.code(), "An unknown error occurred: ${response.message()}")
-                    }
-                }
-            } catch (e: HttpException) {
-                Result.Error(e.code(), e.message())
-            } catch (e: IOException) {
-                Result.Exception(e)
-            } catch (e: Exception) {
-                Result.Exception(e)
-            }
-        }
-
-        suspend fun getTaskStatus(taskIds: List<String>): Result<List<TaskStatus>> =
-            try {
-                val taskIdsString = taskIds.joinToString(",")
-                val response = apiService.getTaskStatus(taskIdsString)
-
-                if (response.isSuccessful) {
-                    response.body()?.let { statuses ->
-                        Result.Success(statuses)
-                    } ?: Result.Error(response.code(), "Response body is null")
-                } else {
-                    when (response.code()) {
-                        401 -> Result.Unauthorized("Authentication failed")
-                        400 -> Result.BadRequest("Bad request")
                         else -> Result.Error(response.code(), "An unknown error occurred: ${response.message()}")
                     }
                 }

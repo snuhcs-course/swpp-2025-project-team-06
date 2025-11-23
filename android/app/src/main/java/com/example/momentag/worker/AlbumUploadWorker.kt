@@ -46,6 +46,7 @@ class AlbumUploadWorker
         @Assisted params: WorkerParameters,
         private val localRepository: LocalRepository,
         private val remoteRepository: RemoteRepository,
+        private val taskRepository: com.example.momentag.repository.TaskRepository,
         private val gson: Gson,
         @AlbumUploadJobCountQualifier private val albumUploadJobCount: MutableStateFlow<Int>,
         @AlbumUploadSuccessEventQualifier private val albumUploadSuccessEvent: MutableSharedFlow<Long>,
@@ -98,8 +99,9 @@ class AlbumUploadWorker
             text: String,
             id: Int,
             ongoing: Boolean,
+            retryPendingIntent: android.app.PendingIntent? = null,
         ) {
-            val notification =
+            val builder =
                 NotificationCompat
                     .Builder(applicationContext, CHANNEL_ID)
                     .setContentTitle(title)
@@ -107,8 +109,31 @@ class AlbumUploadWorker
                     .setSmallIcon(R.mipmap.ic_launcher_foreground)
                     .setOngoing(ongoing)
                     .setAutoCancel(!ongoing)
-                    .build()
-            notificationManager.notify(id, notification)
+
+            if (retryPendingIntent != null) {
+                builder.addAction(
+                    R.drawable.ic_launcher_foreground,
+                    "Retry",
+                    retryPendingIntent,
+                )
+            }
+
+            notificationManager.notify(id, builder.build())
+        }
+
+        private fun createRetryPendingIntent(failedPhotoIds: LongArray): android.app.PendingIntent {
+            val intent =
+                android.content.Intent(applicationContext, com.example.momentag.receiver.UploadRetryReceiver::class.java).apply {
+                    action = com.example.momentag.receiver.UploadRetryReceiver.ACTION_RETRY_UPLOAD
+                    putExtra(com.example.momentag.receiver.UploadRetryReceiver.EXTRA_FAILED_PHOTO_IDS, failedPhotoIds)
+                    putExtra(com.example.momentag.receiver.UploadRetryReceiver.EXTRA_NOTIFICATION_ID, RESULT_NOTIFICATION_ID)
+                }
+            return android.app.PendingIntent.getBroadcast(
+                applicationContext,
+                failedPhotoIds.firstOrNull()?.toInt() ?: 0,
+                intent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+            )
         }
 
         private fun createNotificationChannel() {
@@ -161,23 +186,39 @@ class AlbumUploadWorker
             albumUploadJobCount.update { it + 1 }
 
             try {
-                val success = processAlbumInChunks(albumId, albumName, 8)
+                val (successCount, failCount, taskIds, failedPhotoIds) = processAlbumInChunks(albumId, albumName, 8)
 
-                if (success) {
+                // Save task IDs for successful uploads
+                if (taskIds.isNotEmpty()) {
+                    taskRepository.saveTaskIds(taskIds)
+                }
+
+                if (successCount > 0) {
                     albumUploadSuccessEvent.emit(albumId)
+                    val message =
+                        if (failCount > 0) {
+                            "'$albumName': Uploaded $successCount photos. Failed $failCount photos."
+                        } else {
+                            "'$albumName': ${applicationContext.getString(R.string.notification_upload_complete_message)}"
+                        }
+
+                    val retryIntent = if (failCount > 0) createRetryPendingIntent(failedPhotoIds.toLongArray()) else null
                     updateNotification(
                         applicationContext.getString(R.string.notification_upload_complete),
-                        "'$albumName': ${applicationContext.getString(R.string.notification_upload_complete_message)}",
+                        message,
                         RESULT_NOTIFICATION_ID,
                         false,
+                        retryIntent,
                     )
                     return Result.success()
                 } else {
+                    val retryIntent = createRetryPendingIntent(failedPhotoIds.toLongArray())
                     updateNotification(
                         applicationContext.getString(R.string.notification_upload_failed),
                         "'$albumName': ${applicationContext.getString(R.string.error_message_upload_failed)}",
                         RESULT_NOTIFICATION_ID,
                         false,
+                        retryIntent,
                     )
                     return Result.failure()
                 }
@@ -194,11 +235,18 @@ class AlbumUploadWorker
             }
         }
 
+        private data class UploadResult(
+            val successCount: Int,
+            val failCount: Int,
+            val taskIds: List<String>,
+            val failedPhotoIds: List<Long>,
+        )
+
         private suspend fun processAlbumInChunks(
             albumId: Long,
             albumName: String,
             chunkSize: Int,
-        ): Boolean {
+        ): UploadResult {
             val projection =
                 arrayOf(
                     MediaStore.Images.Media._ID,
@@ -217,7 +265,7 @@ class AlbumUploadWorker
                     selection,
                     selectionArgs,
                     sortOrder,
-                ) ?: return false
+                ) ?: return UploadResult(0, 0, emptyList(), emptyList())
 
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
@@ -227,6 +275,11 @@ class AlbumUploadWorker
             var chunkCount = 0
             val totalPhotos = cursor.count
             val totalChunks = (totalPhotos + chunkSize - 1) / chunkSize
+
+            var successCount = 0
+            var failCount = 0
+            val allTaskIds = mutableListOf<String>()
+            val failedPhotoIds = mutableListOf<Long>()
 
             val currentChunk = mutableListOf<PhotoInfoForUpload>()
 
@@ -264,7 +317,7 @@ class AlbumUploadWorker
                 val meta =
                     PhotoMeta(
                         filename = filename,
-                        photo_path_id = id.toInt(),
+                        photo_path_id = id,
                         created_at = createdAt,
                         lat = finalLat,
                         lng = finalLng,
@@ -290,11 +343,31 @@ class AlbumUploadWorker
 
                     val uploadData = createUploadDataFromChunk(currentChunk)
 
+                    // If chunk is empty (all resize failed), count as fail
+                    if (uploadData.photo.isEmpty()) {
+                        failCount += currentChunk.size
+                        // Collect failed photo IDs
+                        currentChunk.forEach { photoInfo ->
+                            failedPhotoIds.add(photoInfo.meta.photo_path_id)
+                        }
+                        currentChunk.clear()
+                        continue
+                    }
+
                     val response = remoteRepository.uploadPhotos(uploadData)
 
-                    if (response !is RemoteRepository.Result.Success) {
-                        cursor.close()
-                        return false
+                    if (response is RemoteRepository.Result.Success) {
+                        successCount += uploadData.photo.size
+                        // Collect task IDs from successful uploads
+                        val taskIds = response.data.map { it.taskId }
+                        allTaskIds.addAll(taskIds)
+                    } else {
+                        failCount += uploadData.photo.size
+                        // Collect failed photo IDs
+                        currentChunk.forEach { photoInfo ->
+                            failedPhotoIds.add(photoInfo.meta.photo_path_id)
+                        }
+                        Log.e("AlbumUploadWorker", "Chunk upload failed: $response")
                     }
 
                     currentChunk.clear()
@@ -302,7 +375,7 @@ class AlbumUploadWorker
             }
 
             cursor.close()
-            return true
+            return UploadResult(successCount, failCount, allTaskIds, failedPhotoIds)
         }
 
         private fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {

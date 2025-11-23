@@ -68,7 +68,7 @@ data class Photos(
 
 data class PhotoMeta(
     val filename: String,
-    val photo_path_id: Int,
+    val photo_path_id: Long,
     val created_at: String,
     val lat: Double,
     val lng: Double,
@@ -192,7 +192,7 @@ data class TaskInfo(
     @SerializedName("task_id")
     val taskId: String,
     @SerializedName("photo_path_ids")
-    val photoPathIds: List<Int>
+    val photoPathIds: List<Long>,
 )
 
 data class TaskStatus(

@@ -200,6 +200,8 @@
     <string name="fallback_unknown_date">Unknown date</string>
     <string name="fallback_unknown_location">Unknown location</string>
     <string name="foreground_preparing_upload">Preparing upload...</string>
+    <string name="notification_analyzing_title">Analyzing Photos</string>
+    <string name="notification_analysis_complete_title">Analysis Complete</string>
 
     <!-- ============================================ -->
     <!-- CONTENT DESCRIPTIONS (Accessibility) -->

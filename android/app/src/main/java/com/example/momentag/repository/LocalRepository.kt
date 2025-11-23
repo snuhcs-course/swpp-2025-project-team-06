@@ -519,7 +519,7 @@ class LocalRepository
                         val meta =
                             PhotoMeta(
                                 filename = filename,
-                                photo_path_id = id.toInt(),
+                                photo_path_id = id,
                                 created_at = createdAt,
                                 lat = finalLat,
                                 lng = finalLng,
