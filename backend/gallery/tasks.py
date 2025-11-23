@@ -512,10 +512,12 @@ def is_valid_uuid(uuid_to_test):
     return True
 
 
-@shared_task
+@shared_task(queue='interactive')
 def generate_stories_task(user_id: int, size: int):
     """
     백그라운드에서 스토리 생성 및 Redis 저장 (Celery 비동기 처리)
+
+    Queue: interactive (fast response task)
 
     Args:
         user_id: 사용자 ID
@@ -567,8 +569,17 @@ def generate_stories_task(user_id: int, size: int):
         print(f"[Task Exception] Story generation failed for User {user_id}: {str(e)}")
 
 
-@shared_task
+@shared_task(queue='interactive')
 def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
+    """
+    Compute and store representative vectors for a tag.
+
+    Queue: interactive (CPU-only task)
+
+    Args:
+        user_id: User ID
+        tag_id: Tag UUID
+    """
     client = get_qdrant_client()
     K_CLUSTERS = 3  # 기본 코드의 k = 3
     OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
