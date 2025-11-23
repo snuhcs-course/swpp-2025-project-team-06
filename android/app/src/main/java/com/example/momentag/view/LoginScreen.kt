@@ -134,13 +134,14 @@ fun LoginScreen(
             is AuthViewModel.LoginState.Error,
             -> {
                 isLoading = false
-                errorMessage = when (state) {
-                    is AuthViewModel.LoginState.BadRequest -> context.getString(R.string.error_message_login_bad_request)
-                    is AuthViewModel.LoginState.Unauthorized -> context.getString(R.string.error_message_login_invalid_credentials)
-                    is AuthViewModel.LoginState.NetworkError -> context.getString(R.string.error_message_network)
-                    is AuthViewModel.LoginState.Error -> context.getString(R.string.error_message_unknown)
-                    else -> context.getString(R.string.error_message_unknown)
-                }
+                errorMessage =
+                    when (state) {
+                        is AuthViewModel.LoginState.BadRequest -> context.getString(R.string.error_message_login_bad_request)
+                        is AuthViewModel.LoginState.Unauthorized -> context.getString(R.string.error_message_login_invalid_credentials)
+                        is AuthViewModel.LoginState.NetworkError -> context.getString(R.string.error_message_network)
+                        is AuthViewModel.LoginState.Error -> context.getString(R.string.error_message_unknown)
+                        else -> context.getString(R.string.error_message_unknown)
+                    }
                 isUsernameError = true
                 isPasswordError = true
                 isErrorBannerVisible = true
