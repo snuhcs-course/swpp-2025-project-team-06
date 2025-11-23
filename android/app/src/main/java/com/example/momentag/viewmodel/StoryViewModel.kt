@@ -84,6 +84,7 @@ class StoryViewModel
         // 2. Private 변수
         private val tagCache = mutableMapOf<String, List<String>>()
         private val currentStories = mutableListOf<StoryModel>()
+        private val storyInstanceCounts = mutableMapOf<String, Int>()
         private var loadStoriesJob: Job? = null
         private var loadMoreStoriesJob: Job? = null
 
@@ -111,6 +112,38 @@ class StoryViewModel
 
         // 5. Private functions (helpers)
 
+        private fun generateStoryInstanceId(photoId: String): String {
+            val nextCount = (storyInstanceCounts[photoId] ?: 0) + 1
+            storyInstanceCounts[photoId] = nextCount
+            return if (nextCount == 1) {
+                photoId
+            } else {
+                "$photoId-$nextCount"
+            }
+        }
+
+        private fun buildStoryModels(
+            storyResponses: List<StoryResponse>,
+            photos: List<com.example.momentag.model.Photo>,
+        ): List<StoryModel> =
+            photos.mapIndexed { index, photo ->
+                val story = storyResponses[index]
+                val date = localRepository.getPhotoDate(story.photoPathId)
+                val location = localRepository.getPhotoLocation(story.photoPathId)
+
+                // Pre-populate suggested tags from the API response
+                val suggestedTags = story.tags.take(4)
+
+                StoryModel(
+                    id = generateStoryInstanceId(photo.photoId),
+                    photoId = photo.photoId,
+                    images = listOf(photo.contentUri),
+                    date = date,
+                    location = location,
+                    suggestedTags = suggestedTags,
+                )
+            }
+
         /**
          * Process story responses and update state
          * @param storyResponses List of story responses from API
@@ -132,6 +165,8 @@ class StoryViewModel
                     },
                 )
 
+            storyInstanceCounts.clear()
+
             if (photos.isEmpty()) {
                 _storyState.value = StoryState.Success(emptyList(), 0, false)
                 // Still trigger next generation
@@ -140,24 +175,7 @@ class StoryViewModel
             }
 
             // Convert photos to StoryModels with metadata
-            val stories =
-                photos.mapIndexed { index, photo ->
-                    val story = storyResponses[index]
-                    val date = localRepository.getPhotoDate(story.photoPathId)
-                    val location = localRepository.getPhotoLocation(story.photoPathId)
-
-                    // Pre-populate suggested tags from the API response
-                    val suggestedTags = story.tags.take(4)
-
-                    StoryModel(
-                        id = photo.photoId,
-                        photoId = photo.photoId,
-                        images = listOf(photo.contentUri),
-                        date = date,
-                        location = location,
-                        suggestedTags = suggestedTags,
-                    )
-                }
+            val stories = buildStoryModels(storyResponses, photos)
 
             currentStories.clear()
             currentStories.addAll(stories)
@@ -257,24 +275,7 @@ class StoryViewModel
             }
 
             // Convert photos to StoryModels with metadata
-            val newStories =
-                photos.mapIndexed { index, photo ->
-                    val storyResponse = storyResponses[index]
-                    val date = localRepository.getPhotoDate(storyResponse.photoPathId)
-                    val location = localRepository.getPhotoLocation(storyResponse.photoPathId)
-
-                    // Pre-populate suggested tags from the API response
-                    val suggestedTags = storyResponse.tags.take(4)
-
-                    StoryModel(
-                        id = photo.photoId,
-                        photoId = photo.photoId,
-                        images = listOf(photo.contentUri),
-                        date = date,
-                        location = location,
-                        suggestedTags = suggestedTags,
-                    )
-                }
+            val newStories = buildStoryModels(storyResponses, photos)
 
             currentStories.addAll(newStories)
 
@@ -798,5 +799,6 @@ class StoryViewModel
             _originalTags.value = emptyMap()
             tagCache.clear()
             currentStories.clear()
+            storyInstanceCounts.clear()
         }
     }
