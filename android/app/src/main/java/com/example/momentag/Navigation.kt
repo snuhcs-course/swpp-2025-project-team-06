@@ -2,15 +2,19 @@ package com.example.momentag
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.momentag.data.SessionExpirationManager
 import com.example.momentag.repository.TokenRepository
 import com.example.momentag.view.AddTagScreen
 import com.example.momentag.view.AlbumScreen
@@ -25,15 +29,45 @@ import com.example.momentag.view.SearchResultScreen
 import com.example.momentag.view.SelectImageScreen
 import com.example.momentag.view.StoryTagSelectionScreen
 import com.example.momentag.viewmodel.StoryViewModel
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 @Composable
-fun AppNavigation(tokenRepository: TokenRepository) {
-    val navController = rememberNavController()
-
+fun AppNavigation(
+    tokenRepository: TokenRepository,
+    sessionExpirationManager: SessionExpirationManager,
+    navController: NavHostController = rememberNavController(),
+) {
     val isLoaded by tokenRepository.isSessionLoaded.collectAsState()
     val accessToken by tokenRepository.isLoggedIn.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    // Handle session expiration navigation
+    LaunchedEffect(Unit) {
+        sessionExpirationManager.sessionExpired
+            .onEach {
+                scope.launch {
+                    navController.navigate(Screen.Login.createRoute(showExpirationWarning = true)) {
+                        popUpTo(0) { inclusive = true } // Clear entire back stack
+                    }
+                }
+            }.launchIn(scope)
+    }
+
+    // Handle initial navigation after session loads
+    LaunchedEffect(isLoaded, accessToken) {
+        if (isLoaded && accessToken != null) {
+            // User is logged in, navigate to Home if we're at Login
+            if (navController.currentBackStackEntry?.destination?.route == Screen.Login.route) {
+                navController.navigate(Screen.Home.createRoute(true)) {
+                    popUpTo(Screen.Login.route) { inclusive = true }
+                }
+            }
+        }
+    }
 
     if (!isLoaded) {
         // show loading screen or wait for data to load
@@ -42,11 +76,22 @@ fun AppNavigation(tokenRepository: TokenRepository) {
 
     NavHost(
         navController = navController,
-        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route,
-//        startDestination = Screen.Home.route,
+        startDestination = Screen.Login.createRoute(false), // Always start at Login
     ) {
-        composable(route = Screen.Home.route) {
-            HomeScreen(navController = navController)
+        composable(
+            route = Screen.Home.route,
+            arguments =
+                listOf(
+                    navArgument("show_auto_login_toast") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
+        ) { backStackEntry ->
+            HomeScreen(
+                navController = navController,
+                showAutoLoginToast = backStackEntry.arguments?.getBoolean("show_auto_login_toast") ?: false,
+            )
         }
 
         composable(
@@ -127,9 +172,17 @@ fun AppNavigation(tokenRepository: TokenRepository) {
 
         composable(
             route = Screen.Login.route,
-        ) {
+            arguments =
+                listOf(
+                    navArgument("show_expiration_warning") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
+        ) { backStackEntry ->
             LoginScreen(
                 navController = navController,
+                showExpirationWarning = backStackEntry.arguments?.getBoolean("show_expiration_warning") ?: false,
             )
         }
 

@@ -7,7 +7,9 @@ import java.nio.charset.StandardCharsets
 sealed class Screen(
     val route: String,
 ) {
-    object Home : Screen("home_screen")
+    object Home : Screen("home_screen?show_auto_login_toast={show_auto_login_toast}") {
+        fun createRoute(showAutoLoginToast: Boolean): String = "home_screen?show_auto_login_toast=$showAutoLoginToast"
+    }
 
     object Album : Screen("album_screen/{tagId}/{tagName}") {
         fun createRoute(
@@ -53,7 +55,9 @@ sealed class Screen(
         fun initialRoute(): String = "search_result_screen"
     }
 
-    object Login : Screen("login_screen")
+    object Login : Screen("login_screen?show_expiration_warning={show_expiration_warning}") {
+        fun createRoute(showExpirationWarning: Boolean): String = "login_screen?show_expiration_warning=$showExpirationWarning"
+    }
 
     object Register : Screen("register_screen")
 
