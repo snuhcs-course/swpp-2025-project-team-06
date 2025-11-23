@@ -62,7 +62,7 @@ fun AppNavigation(
         if (isLoaded && accessToken != null) {
             // User is logged in, navigate to Home if we're at Login
             if (navController.currentBackStackEntry?.destination?.route == Screen.Login.route) {
-                navController.navigate(Screen.Home.route) {
+                navController.navigate(Screen.Home.createRoute(true)) {
                     popUpTo(Screen.Login.route) { inclusive = true }
                 }
             }
@@ -78,8 +78,20 @@ fun AppNavigation(
         navController = navController,
         startDestination = Screen.Login.createRoute(false), // Always start at Login
     ) {
-        composable(route = Screen.Home.route) {
-            HomeScreen(navController = navController)
+        composable(
+            route = Screen.Home.route,
+            arguments =
+                listOf(
+                    navArgument("show_auto_login_toast") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
+        ) { backStackEntry ->
+            HomeScreen(
+                navController = navController,
+                showAutoLoginToast = backStackEntry.arguments?.getBoolean("show_auto_login_toast") ?: false,
+            )
         }
 
         composable(

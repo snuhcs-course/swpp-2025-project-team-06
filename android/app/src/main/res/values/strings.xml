@@ -97,6 +97,7 @@
     <string name="success_tag_added">Tag added</string>
     <string name="success_photos_added">Photos added to tag</string>
     <string name="success_upload_started">Upload started</string>
+    <string name="success_auto_login">Automatically logged in</string>
 
     <!-- ============================================ -->
     <!-- SEARCH -->
