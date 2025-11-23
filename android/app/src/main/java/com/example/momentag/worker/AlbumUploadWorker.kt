@@ -113,7 +113,7 @@ class AlbumUploadWorker
             if (retryPendingIntent != null) {
                 builder.addAction(
                     R.drawable.ic_launcher_foreground,
-                    "Retry",
+                    applicationContext.getString(R.string.notification_action_retry),
                     retryPendingIntent,
                 )
             }
@@ -197,7 +197,7 @@ class AlbumUploadWorker
                     albumUploadSuccessEvent.emit(albumId)
                     val message =
                         if (failCount > 0) {
-                            "'$albumName': Uploaded $successCount photos. Failed $failCount photos."
+                            applicationContext.getString(R.string.notification_partial_success_album, albumName, successCount, failCount)
                         } else {
                             "'$albumName': ${applicationContext.getString(R.string.notification_upload_complete_message)}"
                         }

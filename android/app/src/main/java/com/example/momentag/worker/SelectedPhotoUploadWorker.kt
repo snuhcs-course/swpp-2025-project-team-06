@@ -122,7 +122,7 @@ class SelectedPhotoUploadWorker
             if (retryPendingIntent != null) {
                 builder.addAction(
                     R.drawable.ic_launcher_foreground, // Placeholder icon, ideally use a refresh/retry icon
-                    "Retry",
+                    applicationContext.getString(R.string.notification_action_retry),
                     retryPendingIntent,
                 )
             }
@@ -167,7 +167,7 @@ class SelectedPhotoUploadWorker
                     albumUploadSuccessEvent.emit(0L)
                     val message =
                         if (failCount > 0) {
-                            "Uploaded $successCount photos. Failed $failCount photos."
+                            applicationContext.getString(R.string.notification_partial_success_photos, successCount, failCount)
                         } else {
                             applicationContext.getString(R.string.notification_upload_complete_message)
                         }
@@ -268,7 +268,7 @@ class SelectedPhotoUploadWorker
                 }
 
                 chunkCount++
-                val progressText = "Uploading chunk ($chunkCount / $totalChunks)..."
+                val progressText = applicationContext.getString(R.string.notification_progress_chunk, chunkCount, totalChunks)
                 setProgress(workDataOf(KEY_PROGRESS to progressText))
                 updateNotification(
                     applicationContext.getString(R.string.notification_uploading_photos),

@@ -90,8 +90,8 @@ class TaskStatusManager
             Log.d("TaskStatusManager", "Checking status for ${pendingTaskIds.size} tasks")
 
             updateNotification(
-                context.getString(R.string.notification_analyzing_title),
-                "Analyzing ${pendingTaskIds.size} photos...",
+                context.getString(R.string.notification_processing_title),
+                context.getString(R.string.notification_processing_text, pendingTaskIds.size),
                 true,
             )
 
@@ -112,15 +112,15 @@ class TaskStatusManager
 
                 if (remainingCount == 0) {
                     updateNotification(
-                        context.getString(R.string.notification_analysis_complete_title),
-                        "Analysis complete for all photos.",
+                        context.getString(R.string.notification_processing_complete_title),
+                        context.getString(R.string.notification_processing_complete_text),
                         false,
                     )
                     stopPolling()
                 } else {
                     updateNotification(
-                        context.getString(R.string.notification_analyzing_title),
-                        "Analyzing $remainingCount photos remaining...",
+                        context.getString(R.string.notification_processing_title),
+                        context.getString(R.string.notification_processing_remaining, remainingCount),
                         true,
                     )
                 }
@@ -150,10 +150,10 @@ class TaskStatusManager
                 val channel =
                     NotificationChannel(
                         CHANNEL_ID,
-                        "Analysis Status",
+                        context.getString(R.string.notification_channel_processing_name),
                         NotificationManager.IMPORTANCE_LOW,
                     ).apply {
-                        description = "Shows progress of photo analysis"
+                        description = context.getString(R.string.notification_channel_processing_description)
                     }
                 notificationManager.createNotificationChannel(channel)
             }
