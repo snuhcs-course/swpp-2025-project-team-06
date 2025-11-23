@@ -239,11 +239,7 @@ fun MyTagsScreen(navController: NavController) {
                             isEditMode -> {
                                 IconButton(
                                     onClick = {
-                                        if (hasSelectedTags) {
-                                            isExitUntagConfirmVisible = true
-                                        } else {
-                                            myTagsViewModel.toggleEditMode()
-                                        }
+                                        myTagsViewModel.toggleEditMode()
                                     },
                                 ) {
                                     StandardIcon.Icon(
@@ -579,19 +575,19 @@ fun MyTagsScreen(navController: NavController) {
         }
     }
 
-    if (isExitUntagConfirmVisible) {
-        ConfirmDialog(
-            title = stringResource(R.string.dialog_exit_untag_mode_title),
-            message = stringResource(R.string.dialog_exit_untag_mode_message),
-            onConfirm = {
-                myTagsViewModel.toggleEditMode()
-                isExitUntagConfirmVisible = false
-            },
-            onDismiss = { isExitUntagConfirmVisible = false },
-            confirmButtonText = stringResource(R.string.dialog_exit_untag_mode_confirm),
-            dismissible = true,
-        )
-    }
+    // if (isExitUntagConfirmVisible) {
+    //     ConfirmDialog(
+    //         title = stringResource(R.string.dialog_exit_untag_mode_title),
+    //         message = stringResource(R.string.dialog_exit_untag_mode_message),
+    //         onConfirm = {
+    //             myTagsViewModel.toggleEditMode()
+    //             isExitUntagConfirmVisible = false
+    //         },
+    //         onDismiss = { isExitUntagConfirmVisible = false },
+    //         confirmButtonText = stringResource(R.string.dialog_exit_untag_mode_confirm),
+    //         dismissible = true,
+    //     )
+    // }
 
     if (isDeleteDialogVisible && tagToDelete != null) {
         ConfirmDialog(
