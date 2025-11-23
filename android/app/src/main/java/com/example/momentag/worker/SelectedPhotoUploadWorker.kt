@@ -22,6 +22,7 @@ import com.example.momentag.di.AlbumUploadJobCountQualifier
 import com.example.momentag.di.AlbumUploadSuccessEventQualifier
 import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoUploadData
+import com.example.momentag.model.TaskInfo
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoInfoForUpload
 import com.example.momentag.repository.RemoteRepository
@@ -144,13 +145,19 @@ class SelectedPhotoUploadWorker
             albumUploadJobCount.update { it + 1 }
 
             try {
-                val success = processPhotosInChunks(photoIds, 8)
+                val (successCount, failCount, taskIds) = processPhotosInChunks(photoIds, 8)
 
-                if (success) {
+                if (successCount > 0) {
                     albumUploadSuccessEvent.emit(0L)
+                    val message = if (failCount > 0) {
+                        "Uploaded $successCount photos. Failed $failCount photos."
+                    } else {
+                        applicationContext.getString(R.string.notification_upload_complete_message)
+                    }
+                    
                     updateNotification(
                         applicationContext.getString(R.string.notification_upload_complete),
-                        applicationContext.getString(R.string.notification_upload_complete_message),
+                        message,
                         RESULT_NOTIFICATION_ID,
                         false,
                     )
@@ -177,15 +184,25 @@ class SelectedPhotoUploadWorker
             }
         }
 
+        private data class UploadResult(
+            val successCount: Int,
+            val failCount: Int,
+            val taskIds: List<String>
+        )
+
         private suspend fun processPhotosInChunks(
             photoIds: LongArray,
             chunkSize: Int,
-        ): Boolean {
+        ): UploadResult {
             val totalPhotos = photoIds.size
-            if (totalPhotos == 0) return true
+            if (totalPhotos == 0) return UploadResult(0, 0, emptyList())
 
             val totalChunks = (totalPhotos + chunkSize - 1) / chunkSize
             var chunkCount = 0
+            
+            var successCount = 0
+            var failCount = 0
+            val allTaskIds = mutableListOf<String>()
 
             photoIds.asSequence().chunked(chunkSize).forEach { chunkIds ->
                 val currentChunk = mutableListOf<PhotoInfoForUpload>()
@@ -217,15 +234,27 @@ class SelectedPhotoUploadWorker
                 )
 
                 val uploadData = createUploadDataFromChunk(currentChunk)
+                
+                // If chunk is empty (e.g. all resize failed), count as fail
+                if (uploadData.photo.isEmpty()) {
+                    failCount += chunkIds.size
+                    return@forEach
+                }
+                
                 val response = remoteRepository.uploadPhotos(uploadData)
 
-                if (response !is RemoteRepository.Result.Success) {
-                    return false
+                if (response is RemoteRepository.Result.Success) {
+                    successCount += uploadData.photo.size
+                    // Add task IDs from response
+                    allTaskIds.addAll(response.data.map { it.taskId })
+                } else {
+                    failCount += uploadData.photo.size
+                    Log.e("SelectedPhotoUploadWorker", "Chunk upload failed: $response")
                 }
                 currentChunk.clear()
             }
 
-            return true
+            return UploadResult(successCount, failCount, allTaskIds)
         }
 
         private fun getMetadataForPhoto(

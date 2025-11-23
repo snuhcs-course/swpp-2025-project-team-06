@@ -185,3 +185,19 @@ data class RefreshRequest(
 data class RefreshResponse(
     val access_token: String,
 )
+
+// ========== Task Models =================
+
+data class TaskInfo(
+    @SerializedName("task_id")
+    val taskId: String,
+    @SerializedName("photo_path_ids")
+    val photoPathIds: List<Int>
+)
+
+data class TaskStatus(
+    @SerializedName("task_id")
+    val taskId: String,
+    @SerializedName("status")
+    val status: String,
+)
