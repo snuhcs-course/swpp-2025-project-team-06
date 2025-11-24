@@ -1,4 +1,3 @@
-import uuid
 import requests
 from django.db.models import Exists, OuterRef, Count, Subquery, Q
 from rest_framework.views import APIView
@@ -8,7 +7,6 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.db import IntegrityError
-from django.utils.decorators import method_decorator
 
 from .reponse_serializers import (
     ResPhotoSerializer,

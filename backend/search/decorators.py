@@ -4,7 +4,6 @@ from functools import wraps
 from rest_framework.response import Response
 from rest_framework import status
 import time
-import uuid
 from .exceptions import SearchExecutionError
 
 logger = logging.getLogger(__name__)
