@@ -195,12 +195,7 @@ class PhotoView(APIView):
 
             # Split into batches of 8 for GPU memory management
             if not all_metadata:
-                return Response(
-                    {
-                        "message": f"Processed {len(photos_data)} photos. All were duplicates."
-                    },
-                    status=status.HTTP_200_OK,  # 새 작업이 없으므로 200 OK
-                )
+                return Response([], status=status.HTTP_200_OK)  # 새 작업이 없으므로 200 OK
 
             # all_metadata 리스트 (신규 사진) 기준으로 배치 생성
             BATCH_SIZE = 8
