@@ -1,10 +1,11 @@
+from django.core.exceptions import ObjectDoesNotExist
 import logging
 from functools import wraps
 from rest_framework.response import Response
 from rest_framework import status
-from gallery.models import Photo, Tag
 import time
 import uuid
+from .exceptions import SearchExecutionError
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ def handle_exceptions(view_func):
     Decorator for centralized exception handling.
 
     Handles:
-    - Photo.DoesNotExist / Tag.DoesNotExist -> 404
+    - ObjectDoesNotExist -> 404
     - ValidationError -> 400
     - PermissionDenied -> 403
     - Generic exceptions -> 500 (with logging)
@@ -50,23 +51,13 @@ def handle_exceptions(view_func):
         try:
             return view_func(self, request, *args, **kwargs)
 
-        except Photo.DoesNotExist:
+        except ObjectDoesNotExist:
             logger.warning(
-                f"Photo not found - User: {request.user.id}, "
+                f"Object not found - User: {request.user.id}, "
                 f"Path: {request.path}"
             )
             return Response(
-                {"error": "Photo not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        except Tag.DoesNotExist:
-            logger.warning(
-                f"Tag not found - User: {request.user.id}, "
-                f"Path: {request.path}"
-            )
-            return Response(
-                {"error": "Tag not found"},
+                {"error": "Object not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -85,6 +76,21 @@ def handle_exceptions(view_func):
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except SearchExecutionError as e:
+            logger.error(
+                f"Search execution failed in {view_func.__name__}: {str(e)}",
+                exc_info=True,
+                extra={
+                    'user_id': request.user.id,
+                    'path': request.path,
+                    'method': request.method
+                }
+            )
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
         except Exception as e:
@@ -124,30 +130,28 @@ def validate_pagination(max_limit=50):
             try:
                 offset = int(request.GET.get("offset", 0))
                 limit = int(request.GET.get("limit", 50))
-
-                if offset < 0:
-                    return Response(
-                        {"error": "offset must be >= 0"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                if limit < 1 or limit > max_limit:
-                    return Response(
-                        {"error": f"limit must be between 1 and {max_limit}"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                # Add validated values to request
-                request.validated_offset = offset
-                request.validated_limit = limit
-
-                return view_func(self, request, *args, **kwargs)
-
             except ValueError:
                 return Response(
                     {"error": "offset and limit must be integers"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            if offset < 0:
+                return Response(
+                    {"error": "offset must be >= 0"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if limit < 1 or limit > max_limit:
+                return Response(
+                    {"error": f"limit must be between 1 and {max_limit}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Add validated values to request
+            request.validated_offset = offset
+            request.validated_limit = limit
+
+            return view_func(self, request, *args, **kwargs)
         return wrapper
     return decorator
