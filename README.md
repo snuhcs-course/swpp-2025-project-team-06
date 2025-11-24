@@ -4,46 +4,6 @@
 
 MomenTag is a photo search and management application combining AI-powered semantic search with user tagging features. It helps users organize, search, and discover meaningful moments from their photo collections through intelligent recommendations and natural language processing.
 
-## Architecture
-
-```
-MomenTag/
-├── backend/      # Django REST API + Celery (Python)
-└── android/      # Kotlin + Jetpack Compose
-```
-
-The project follows a client-server architecture with a mobile-first approach.
-
-### Server Infrastructure
-
-| Server | Components |
-|--------|------------|
-| CPU Server | Django REST API, MySQL Database, Redis |
-| GPU Server | Celery Workers (gpu queue, interactive queue) |
-| Cloud | Qdrant Cloud (Vector DB) |
-
-## Tech Stack
-
-### Backend
-| Technology | Purpose |
-|------------|---------|
-| Django 5.2 + DRF | REST API Framework |
-| Celery + Redis | Asynchronous task processing |
-| MySQL | Primary database |
-| Qdrant | Vector database for semantic search |
-| Sentence Transformers | Image/text embedding generation |
-| PyTorch | GPU-accelerated ML inference |
-
-### Android
-| Technology | Purpose |
-|------------|---------|
-| Kotlin + Jetpack Compose | UI Framework |
-| MVVM + Hilt | Architecture & Dependency Injection |
-| Retrofit + OkHttp | Network layer |
-| Room + DataStore | Local storage |
-| WorkManager | Background processing |
-| Coil | Image loading |
-
 ## Key Features
 
 ### Main Features
@@ -74,37 +34,6 @@ The project follows a client-server architecture with a mobile-first approach.
 1. **Photo Upload** → GPU worker generates image embeddings → Stored in Qdrant
 2. **Search** → Query embedding generated → Vector similarity search → Results returned
 3. **Recommendation** → K-means clustering + Graph analysis → Related photos/tags suggested
-
-## API Endpoints
-
-### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/accounts/signup/` | User registration |
-| POST | `/api/accounts/signin/` | Login |
-| POST | `/api/accounts/signout/` | Logout |
-| POST | `/api/accounts/token/refresh/` | Token refresh |
-
-### Gallery
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/gallery/photo/` | Upload photos (multipart) |
-| GET | `/api/gallery/photo/` | Get user's photos |
-| DELETE | `/api/gallery/photo/<photo_id>/` | Delete photo |
-| POST | `/api/gallery/tag/` | Create tag |
-| GET | `/api/gallery/tag/` | List tags |
-| DELETE | `/api/gallery/tag/<tag_id>/` | Delete tag |
-| POST | `/api/gallery/tag/<tag_id>/recommend/` | Get photo recommendations |
-| GET | `/api/gallery/tag-recommendations/<photo_id>/` | Get tag suggestions |
-| GET | `/api/gallery/story/` | Get story/moment data |
-| POST | `/api/gallery/story/` | Generate story |
-
-### Search
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/search/?query=<query>&offset=<n>` | Semantic & hybrid search |
-
-Supports tag syntax: `query {TagName} more text`
 
 ## Getting Started
 
