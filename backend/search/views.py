@@ -1,3 +1,5 @@
+from django.utils.decorators import method_decorator
+from .decorators import log_request, handle_exceptions, validate_pagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -22,6 +24,9 @@ TAG_REGEX = re.compile(r"\{([^}]+)\}")
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
 
+@method_decorator(log_request, name='dispatch')
+@method_decorator(handle_exceptions, name='dispatch')
+@method_decorator(validate_pagination(max_limit=50), name='dispatch')
 class SemanticSearchView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -64,53 +69,41 @@ class SemanticSearchView(APIView):
         },
     )
     def get(self, request):
-        try:
-            query = request.GET.get("query", "")
-            if not query:
-                return Response(
-                    {"error": "query parameter is required."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            offset = int(request.GET.get("offset", 0))
-            user = request.user
-
-            # Parse tags and semantic query
-            tag_names = TAG_REGEX.findall(query)
-            semantic_query = TAG_REGEX.sub("", query).strip()
-
-            # Get valid tag IDs
-            valid_tag_ids = []
-            if tag_names:
-                valid_tag_ids = list(
-                    Tag.objects.filter(
-                        user=user, tag__in=tag_names
-                    ).values_list("tag_id", flat=True)
-                )
-
-            # Select and execute strategy
-            strategy = SearchStrategyFactory.create_strategy(
-                has_query=bool(semantic_query),
-                has_tags=bool(valid_tag_ids)
-            )
-
-            results = strategy.search(user, {
-                'tag_ids': valid_tag_ids,
-                'query_text': semantic_query,
-                'offset': offset,
-                'limit': 50
-            })
-
-            serializer = PhotoResponseSerializer(results, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        except ValueError as e:
+        query = request.GET.get("query", "")
+        if not query:
             return Response(
-                {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as e:
-            return Response(
-                {"error": "Search failed"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+
+        offset = request.validated_offset
+        user = request.user
+
+        # Parse tags and semantic query
+        tag_names = TAG_REGEX.findall(query)
+        semantic_query = TAG_REGEX.sub("", query).strip()
+
+        # Get valid tag IDs
+        valid_tag_ids = []
+        if tag_names:
+            valid_tag_ids = list(
+                Tag.objects.filter(
+                    user=user, tag__in=tag_names
+                ).values_list("tag_id", flat=True)
             )
+
+        # Select and execute strategy
+        strategy = SearchStrategyFactory.create_strategy(
+            has_query=bool(semantic_query),
+            has_tags=bool(valid_tag_ids)
+        )
+
+        results = strategy.search(user, {
+            'tag_ids': valid_tag_ids,
+            'query_text': semantic_query,
+            'offset': offset,
+            'limit': 50
+        })
+
+        serializer = PhotoResponseSerializer(results, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
