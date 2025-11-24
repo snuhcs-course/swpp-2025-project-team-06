@@ -68,7 +68,7 @@ data class Photos(
 
 data class PhotoMeta(
     val filename: String,
-    val photo_path_id: Int,
+    val photo_path_id: Long,
     val created_at: String,
     val lat: Double,
     val lng: Double,
@@ -184,4 +184,20 @@ data class RefreshRequest(
 
 data class RefreshResponse(
     val access_token: String,
+)
+
+// ========== Task Models =================
+
+data class TaskInfo(
+    @SerializedName("task_id")
+    val taskId: String,
+    @SerializedName("photo_path_ids")
+    val photoPathIds: List<Long>,
+)
+
+data class TaskStatus(
+    @SerializedName("task_id")
+    val taskId: String,
+    @SerializedName("status")
+    val status: String,
 )

@@ -6,6 +6,7 @@ import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.model.TagId
 import com.example.momentag.model.TagName
 import com.example.momentag.model.TagResponse
+import com.example.momentag.model.TaskInfo
 import com.example.momentag.network.ApiService
 import retrofit2.HttpException
 import java.io.IOException
@@ -161,15 +162,17 @@ class RemoteRepository
                 Result.Exception(e)
             }
 
-        suspend fun uploadPhotos(photoUploadData: PhotoUploadData): Result<Int> { // 성공 시 반환값이 없다면 Unit 사용
-            return try {
+        suspend fun uploadPhotos(photoUploadData: PhotoUploadData): Result<List<TaskInfo>> =
+            try {
                 val response =
                     apiService.uploadPhotos(
                         photo = photoUploadData.photo,
                         metadata = photoUploadData.metadata,
                     )
                 if (response.isSuccessful) {
-                    Result.Success(response.code())
+                    response.body()?.let { taskInfos ->
+                        Result.Success(taskInfos)
+                    } ?: Result.Error(response.code(), "Response body is null")
                 } else {
                     // 다양한 에러 코드에 맞게 처리
                     when (response.code()) {
@@ -185,7 +188,6 @@ class RemoteRepository
             } catch (e: Exception) {
                 Result.Exception(e)
             }
-        }
 
         suspend fun removeTagFromPhoto(
             photoId: String,

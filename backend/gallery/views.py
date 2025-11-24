@@ -195,27 +195,34 @@ class PhotoView(APIView):
 
             # Split into batches of 8 for GPU memory management
             if not all_metadata:
-                return Response(
-                    {
-                        "message": f"Processed {len(photos_data)} photos. All were duplicates."
-                    },
-                    status=status.HTTP_200_OK,  # 새 작업이 없으므로 200 OK
-                )
+                return Response([], status=status.HTTP_200_OK)  # 새 작업이 없으므로 200 OK
 
             # all_metadata 리스트 (신규 사진) 기준으로 배치 생성
             BATCH_SIZE = 8
+            r = get_redis()
+            tasks_info = []
+
             for i in range(0, len(all_metadata), BATCH_SIZE):
                 batch_metadata = all_metadata[i : i + BATCH_SIZE]
-                process_and_embed_photos_batch.delay(batch_metadata)
+                task = process_and_embed_photos_batch.delay(batch_metadata)
+                
+                # Store task ID in Redis list for the user
+                redis_key = f"user_tasks:{request.user.id}"
+                r.lpush(redis_key, task.id)
+                r.expire(redis_key, 60 * 60 * 24)
+                
+                tasks_info.append({
+                    "task_id": str(task.id),
+                    "photo_path_ids": [m["photo_path_id"] for m in batch_metadata]
+                })
+
                 print(
-                    f"[INFO] Dispatched batch task for {len(batch_metadata)} new photos (batch {i // BATCH_SIZE + 1})"
+                    f"[INFO] Dispatched batch task {task.id} for {len(batch_metadata)} new photos (batch {i // BATCH_SIZE + 1})"
                 )
 
             # 응답 메시지를 더 명확하게
             return Response(
-                {
-                    "message": f"Processed {len(photos_data)} photos. {len(all_metadata)} new photos are being processed. {skipped_count} duplicates skipped."
-                },
+                tasks_info,
                 status=status.HTTP_202_ACCEPTED,
             )
         except Exception as e:
@@ -1155,7 +1162,6 @@ class StoryView(APIView):
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-
 class NewStoryView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1254,6 +1260,99 @@ class NewStoryView(APIView):
                 {"message": "Story generation started"}, status=status.HTTP_202_ACCEPTED
             )
 
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class TaskStatusView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get Celery Task Status",
+        operation_description="Retrieve the status of Celery tasks by ID or a paginated list of recent tasks.",
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            ),
+            openapi.Parameter(
+                "task_ids",
+                openapi.IN_QUERY,
+                description="Comma-separated list of task IDs to check. If not provided, recent tasks are returned.",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description="Number of recent tasks to retrieve (if task_ids is not provided). Default is 100.",
+                type=openapi.TYPE_INTEGER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description="Offset for retrieving recent tasks (if task_ids is not provided). Default is 0.",
+                type=openapi.TYPE_INTEGER,
+                required=False,
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Success",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "task_id": openapi.Schema(type=openapi.TYPE_STRING),
+                            "status": openapi.Schema(type=openapi.TYPE_STRING),
+                            "result": openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                            "date_done": openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                        },
+                    ),
+                ),
+            ),
+            401: openapi.Response(description="Unauthorized - The refresh token is expired"),
+            500: openapi.Response(description="Internal Server Error"),
+        },
+    )
+    def get(self, request):
+        try:
+            from celery.result import AsyncResult
+            
+            task_ids_param = request.GET.get("task_ids")
+            r = get_redis()
+            
+            if task_ids_param:
+                # If specific IDs are requested, fetch only those
+                task_ids = [tid.strip() for tid in task_ids_param.split(",") if tid.strip()]
+            else:
+                # Fallback to history pagination
+                limit = int(request.GET.get("limit", 100))
+                offset = int(request.GET.get("offset", 0))
+                
+                redis_key = f"user_tasks:{request.user.id}"
+                
+                # Get task IDs from Redis list (paginated)
+                task_ids_bytes = r.lrange(redis_key, offset, offset + limit - 1)
+                task_ids = [t.decode('utf-8') for t in task_ids_bytes]
+            
+            results = []
+            for task_id in task_ids:
+                res = AsyncResult(task_id)
+                results.append({
+                    "task_id": task_id,
+                    "status": res.status,
+                })
+                
+            return Response(results, status=status.HTTP_200_OK)
+            
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR

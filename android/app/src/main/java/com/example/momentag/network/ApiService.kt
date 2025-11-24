@@ -14,6 +14,8 @@ import com.example.momentag.model.Tag
 import com.example.momentag.model.TagId
 import com.example.momentag.model.TagName
 import com.example.momentag.model.TagResponse
+import com.example.momentag.model.TaskInfo
+import com.example.momentag.model.TaskStatus
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -91,12 +93,17 @@ interface ApiService {
     suspend fun uploadPhotos(
         @Part photo: List<MultipartBody.Part>,
         @Part("metadata") metadata: RequestBody,
-    ): Response<Unit>
+    ): Response<List<TaskInfo>>
 
     @GET("api/photos/{photo_id}/")
     suspend fun getPhotoDetail(
         @Path("photo_id") photoId: String,
     ): Response<PhotoDetailResponse>
+
+    @GET("api/tasks/")
+    suspend fun getTaskStatus(
+        @Query("task_ids") taskIds: String,
+    ): Response<List<TaskStatus>>
 
     /**
      * Semantic Search API
