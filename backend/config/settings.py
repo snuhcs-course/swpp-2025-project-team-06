@@ -197,11 +197,12 @@ HYBRID_SEARCH_SETTINGS = {
     "CAPTION_BONUS_WEIGHT": 0.1,
 
     # --- (B) Pagination 설정 ---
-    "SEARCH_PAGE_SIZE": 30,  # 한 페이지당 반환할 결과 개수
+    "SEARCH_FIRST_PAGE_SIZE": 30,  # 첫 페이지 결과 개수
+    "SEARCH_SUBSEQUENT_PAGE_SIZE": 60,  # 이후 페이지 결과 개수
     "SEARCH_DEFAULT_OFFSET": 0,  # 기본 offset 값
 
     # --- (C) 유사도 설정 ---
-    "SEARCH_SCORE_THRESHOLD": 0.4,  # 최소 유사도 threshold (0.0 ~ 1.0)
+    "SEARCH_SCORE_THRESHOLD": 0.2,  # 최소 유사도 threshold (0.0 ~ 1.0)
     "SEARCH_MAX_LIMIT": 1000,  # threshold 기반 검색 시 Qdrant에서 가져올 최대 개수
 }
 

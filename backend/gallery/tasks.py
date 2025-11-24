@@ -367,7 +367,7 @@ def execute_hybrid_search(
     caption_bonus_weight: float = SEARCH_SETTINGS.get("CAPTION_BONUS_WEIGHT", 0.1),
     offset: int = SEARCH_SETTINGS.get("SEARCH_DEFAULT_OFFSET", 0),
     limit: int = SEARCH_SETTINGS.get("SEARCH_PAGE_SIZE", 30),
-    score_threshold: float = SEARCH_SETTINGS.get("SEARCH_SCORE_THRESHOLD", 0.4),
+    score_threshold: float = SEARCH_SETTINGS.get("SEARCH_SCORE_THRESHOLD", 0.2),
 ):
     client = get_qdrant_client()
     phase_1_scores = {}

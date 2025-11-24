@@ -46,10 +46,10 @@ class SemanticSearchView(APIView):
             openapi.Parameter(
                 "limit",
                 openapi.IN_QUERY,
-                description="Number of results to return per page",
+                description="Number of results to return per page (30 for first page, 60 for subsequent pages)",
                 type=openapi.TYPE_INTEGER,
                 required=False,
-                default=SEARCH_SETTINGS.get("SEARCH_PAGE_SIZE", 66),
+                default=SEARCH_SETTINGS.get("SEARCH_FIRST_PAGE_SIZE", 30),
             ),
             openapi.Parameter(
                 "Authorization",
@@ -80,8 +80,11 @@ class SemanticSearchView(APIView):
                 )
 
             offset = int(request.GET.get("offset", SEARCH_SETTINGS.get("SEARCH_DEFAULT_OFFSET", 0)))
-            # First page: 30 items, subsequent pages: 60 items
-            default_limit = 30 if offset == 0 else 60
+            # First page uses SEARCH_FIRST_PAGE_SIZE, subsequent pages use SEARCH_SUBSEQUENT_PAGE_SIZE
+            default_limit = (
+                SEARCH_SETTINGS.get("SEARCH_FIRST_PAGE_SIZE", 30) if offset == 0
+                else SEARCH_SETTINGS.get("SEARCH_SUBSEQUENT_PAGE_SIZE", 60)
+            )
             limit = int(request.GET.get("limit", default_limit))
             user = request.user
 
@@ -197,7 +200,7 @@ class SemanticSearchView(APIView):
                         limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
                         with_payload=True,
                         with_vectors=False,
-                        score_threshold=SEARCH_SETTINGS.get("SEARCH_SCORE_THRESHOLD", 0.2),
+                        score_threshold=SEARCH_SETTINGS.get("SEARCH_SCORE_THRESHOLD", 0.4),
                     )
 
                     # Apply pagination to similarity-filtered results

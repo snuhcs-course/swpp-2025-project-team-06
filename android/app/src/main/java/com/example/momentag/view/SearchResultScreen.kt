@@ -988,7 +988,7 @@ private fun SearchResultsFromState(
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(Dimen.IconSizeMedium),
+                                    modifier = Modifier.size(Dimen.CircularProgressSizeMedium),
                                     strokeWidth = 3.dp,
                                     color = MaterialTheme.colorScheme.primary
                                 )
