@@ -979,18 +979,19 @@ private fun SearchResultsFromState(
                     if (isLoadingMore && hasMore) {
                         item(
                             key = "loading_indicator",
-                            span = { GridItemSpan(3) }
+                            span = { GridItemSpan(3) },
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = Dimen.ItemSpacingLarge),
-                                contentAlignment = Alignment.Center
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = Dimen.ItemSpacingLarge),
+                                contentAlignment = Alignment.Center,
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(Dimen.CircularProgressSizeMedium),
                                     strokeWidth = 3.dp,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }

@@ -362,7 +362,8 @@ class SearchViewModel
                     is SearchRepository.SearchResult.BadRequest,
                     is SearchRepository.SearchResult.Unauthorized,
                     is SearchRepository.SearchResult.NetworkError,
-                    is SearchRepository.SearchResult.Error -> {
+                    is SearchRepository.SearchResult.Error,
+                    -> {
                         // Keep hasMore true to allow retry
                         _hasMore.value = true
                     }
