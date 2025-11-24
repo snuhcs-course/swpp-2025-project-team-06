@@ -110,6 +110,7 @@ interface ApiService {
     suspend fun semanticSearch(
         @Query("query") query: String,
         @Query("offset") offset: Int = 0,
+        @Query("limit") limit: Int = 33,
     ): Response<List<PhotoResponse>>
 
     @GET("api/photos/{photo_id}/recommendation/")

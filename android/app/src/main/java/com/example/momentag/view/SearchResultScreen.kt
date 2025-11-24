@@ -131,6 +131,8 @@ fun SearchResultScreen(
     val shouldShowSearchHistoryDropdown by searchViewModel.shouldShowSearchHistoryDropdown.collectAsState()
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
     val scrollToIndex by searchViewModel.scrollToIndex.collectAsState()
+    val isLoadingMore by searchViewModel.isLoadingMore.collectAsState()
+    val hasMore by searchViewModel.hasMore.collectAsState()
 
     // 4. 로컬 상태 변수
     var searchBarWidth by remember { mutableStateOf(0) }
@@ -485,6 +487,9 @@ fun SearchResultScreen(
         onDismissError = { isErrorBannerVisible = false },
         placeholder = placeholderText,
         onClearSearchContent = { searchViewModel.clearSearchContent(keepFocus = true) },
+        isLoadingMore = isLoadingMore,
+        hasMore = hasMore,
+        onLoadMore = { searchViewModel.loadMore() },
     )
 }
 
@@ -537,6 +542,9 @@ fun SearchResultScreenUi(
     onDismissError: () -> Unit,
     placeholder: String,
     onClearSearchContent: () -> Unit = {},
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
 ) {
     LocalFocusManager.current
     val backgroundBrush = rememberAppBackgroundBrush()
@@ -617,6 +625,9 @@ fun SearchResultScreenUi(
             onDismissError = onDismissError,
             placeholder = placeholder,
             onClearSearchContent = onClearSearchContent,
+            isLoadingMore = isLoadingMore,
+            hasMore = hasMore,
+            onLoadMore = onLoadMore,
         )
     }
 }
@@ -667,6 +678,9 @@ private fun SearchResultContent(
     onDismissError: () -> Unit,
     placeholder: String,
     onClearSearchContent: () -> Unit = {},
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -765,6 +779,9 @@ private fun SearchResultContent(
                 onRetry = onRetry,
                 navController = navController,
                 gridState = gridState,
+                isLoadingMore = isLoadingMore,
+                hasMore = hasMore,
+                onLoadMore = onLoadMore,
             )
 
             AnimatedVisibility(
@@ -888,6 +905,9 @@ private fun SearchResultsFromState(
     onRetry: () -> Unit,
     navController: NavController,
     gridState: LazyGridState,
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
@@ -911,6 +931,22 @@ private fun SearchResultsFromState(
             }
 
             is SearchViewModel.SearchUiState.Success -> {
+                // Infinite scroll detection
+                LaunchedEffect(gridState) {
+                    snapshotFlow {
+                        val layoutInfo = gridState.layoutInfo
+                        val totalItemsCount = layoutInfo.totalItemsCount
+                        val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+
+                        // Trigger when 6 items (2 rows) from the end
+                        lastVisibleItemIndex >= totalItemsCount - 6
+                    }.collect { shouldLoadMore ->
+                        if (shouldLoadMore && hasMore && !isLoadingMore) {
+                            onLoadMore()
+                        }
+                    }
+                }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     state = gridState,
