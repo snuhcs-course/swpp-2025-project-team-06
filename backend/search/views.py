@@ -80,7 +80,9 @@ class SemanticSearchView(APIView):
                 )
 
             offset = int(request.GET.get("offset", SEARCH_SETTINGS.get("SEARCH_DEFAULT_OFFSET", 0)))
-            limit = int(request.GET.get("limit", SEARCH_SETTINGS.get("SEARCH_PAGE_SIZE", 66)))
+            # First page: 30 items, subsequent pages: 60 items
+            default_limit = 30 if offset == 0 else 60
+            limit = int(request.GET.get("limit", default_limit))
             user = request.user
 
             tag_names = TAG_REGEX.findall(query)
