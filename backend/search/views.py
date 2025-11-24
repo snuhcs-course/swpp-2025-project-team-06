@@ -15,7 +15,7 @@ from drf_yasg import openapi
 import uuid
 from django.conf import settings
 
-from search_strategies import SearchStrategyFactory
+from .search_strategies import SearchStrategyFactory
 
 TAG_REGEX = re.compile(r"\{([^}]+)\}")
 
