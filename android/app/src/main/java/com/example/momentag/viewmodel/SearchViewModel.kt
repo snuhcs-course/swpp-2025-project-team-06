@@ -131,7 +131,6 @@ class SearchViewModel
         private val _hasMore = MutableStateFlow(true)
         private var currentOffset = 0
         private var currentQuery = ""
-        private val pageSize = 33 // Should match backend SEARCH_PAGE_SIZE
 
         // 3. Public StateFlow (exposed state)
         val tagLoadingState = _tagLoadingState.asStateFlow()
@@ -286,9 +285,10 @@ class SearchViewModel
                                 query = query,
                             )
 
-                        // Update pagination state
-                        currentOffset = pageSize
-                        _hasMore.value = photos.size >= pageSize
+                        // Update pagination state based on actual response
+                        currentOffset += photos.size
+                        // If we got 0 photos, there's nothing more to load
+                        _hasMore.value = photos.isNotEmpty()
                     }
 
                     is SearchRepository.SearchResult.Empty -> {
@@ -345,9 +345,10 @@ class SearchViewModel
                                     query = currentQuery,
                                 )
 
-                            // Update pagination state
+                            // Update pagination state based on actual response
                             currentOffset += newPhotos.size
-                            _hasMore.value = newPhotos.size >= pageSize
+                            // If we got results, there might be more
+                            _hasMore.value = true
                         } else {
                             // No more results
                             _hasMore.value = false
