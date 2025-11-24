@@ -1,4 +1,3 @@
-from django.utils.decorators import method_decorator
 from .decorators import log_request, handle_exceptions, validate_pagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -6,15 +5,10 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import re
-from gallery.models import Tag, Photo_Tag, Photo
-from .embedding_service import create_query_embedding
-from gallery.tasks import execute_hybrid_search
-from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
-from qdrant_client.http import models
+from gallery.models import Tag
 from .response_serializers import PhotoResponseSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-import uuid
 from django.conf import settings
 
 from .search_strategies import SearchStrategyFactory
@@ -24,9 +18,6 @@ TAG_REGEX = re.compile(r"\{([^}]+)\}")
 SEARCH_SETTINGS = settings.HYBRID_SEARCH_SETTINGS
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
-@method_decorator(validate_pagination(max_limit=50), name='dispatch')
 class SemanticSearchView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -68,6 +59,9 @@ class SemanticSearchView(APIView):
             ),
         },
     )
+    @log_request
+    @handle_exceptions
+    @validate_pagination(max_limit=50)
     def get(self, request):
         query = request.GET.get("query", "")
         if not query:

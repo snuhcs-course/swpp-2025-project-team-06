@@ -8,7 +8,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.db import IntegrityError
-
+from django.utils.decorators import method_decorator
 
 from .reponse_serializers import (
     ResPhotoSerializer,
@@ -55,13 +55,10 @@ from .decorators import (
     validate_uuid,
     require_ownership
 )
-from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
 class PhotoView(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [JWTAuthentication]
@@ -102,6 +99,8 @@ class PhotoView(APIView):
         ],
         consumes=["multipart/form-data"],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
         import json
 
@@ -190,23 +189,21 @@ class PhotoView(APIView):
 
             except IntegrityError:
                 skipped_count += 1
-                print(
-                    f"[INFO] Skipping duplicate photo: User {request.user.id}, Path ID {data['photo_path_id']}"
+                logger.warning(
+                    f"Skipping duplicate photo: User {request.user.id}, Path ID {data['photo_path_id']}"
                 )
 
                 if storage_key:
-                    print(
-                        f"       ... Cleaning up orphaned file from storage: {storage_key}"
+                    logger.warning(
+                        f"Cleaning up orphaned file from storage: {storage_key}"
                     )
                     delete_photo(storage_key)
 
                 continue
 
-        # Split into batches of 8 for GPU memory management
         if not all_metadata:
-            return Response([], status=status.HTTP_200_OK)  # 새 작업이 없으므로 200 OK
+            return Response([], status=status.HTTP_200_OK)
 
-        # all_metadata 리스트 (신규 사진) 기준으로 배치 생성
         BATCH_SIZE = 8
         r = get_redis()
         tasks_info = []
@@ -215,7 +212,6 @@ class PhotoView(APIView):
             batch_metadata = all_metadata[i : i + BATCH_SIZE]
             task = process_and_embed_photos_batch.delay(batch_metadata)
             
-            # Store task ID in Redis list for the user
             redis_key = f"user_tasks:{request.user.id}"
             r.lpush(redis_key, task.id)
             r.expire(redis_key, 60 * 60 * 24)
@@ -225,11 +221,10 @@ class PhotoView(APIView):
                 "photo_path_ids": [m["photo_path_id"] for m in batch_metadata]
             })
 
-            print(
-                f"[INFO] Dispatched batch task {task.id} for {len(batch_metadata)} new photos (batch {i // BATCH_SIZE + 1})"
+            logger.info(
+                f"Dispatched batch task {task.id} for {len(batch_metadata)} new photos (batch {i // BATCH_SIZE + 1})"
             )
 
-        # 응답 메시지를 더 명확하게
         return Response(
             tasks_info,
             status=status.HTTP_202_ACCEPTED,
@@ -271,25 +266,20 @@ class PhotoView(APIView):
             ),
         ],
     )
+    @log_request
+    @handle_exceptions
     @validate_pagination(max_limit=100)
     def get(self, request):
         offset = request.validated_offset
         limit = request.validated_limit
 
-        # created_at 기준으로 최신순 정렬 (가장 최신이 먼저)
         photos = Photo.objects.filter(user=request.user).order_by("-created_at")
-
-        # 페이지네이션 적용
         photos = photos[offset : offset + limit]
 
         serializer = ResPhotoSerializer(photos, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
-@method_decorator(validate_uuid('photo_id'), name='dispatch')
-@method_decorator(require_ownership(Photo, 'photo_id', 'photo_id'), name='dispatch')
 class PhotoDetailView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -318,6 +308,10 @@ class PhotoDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
     def get(self, request, photo_id):
         photo = Photo.objects.get(photo_id=photo_id)
         photo_tags = Photo_Tag.objects.filter(photo=photo, user=request.user)
@@ -335,24 +329,15 @@ class PhotoDetailView(APIView):
         lng = str(photo.lng)
 
         r = get_redis()
-
         address = ""
         key = f"cord:({lat},{lng})"
-        hashed_key = hash(key)
-
-        # Check cache first
-        if r.get(hashed_key):
-            address = r.get(hashed_key)
-            print("[INFO] Cache hit for coordinates:", hashed_key)
+        
+        if r.get(key):
+            address = r.get(key)
         else:
-            # URL for kakaomap lacation query
             URL = f"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x={lng}&y={lat}"
-
-            # Headers for authentication
             KM_REST_API_KEY = settings.KM_REST_API_KEY
             headers = {"Authorization": f"KakaoAK {KM_REST_API_KEY}"}
-
-            # KakaoMap REST API Call
             resp = requests.get(URL, headers=headers, timeout=5)
 
             if resp.status_code == 200:
@@ -360,8 +345,7 @@ class PhotoDetailView(APIView):
                 if data.get("documents"):
                     address = data["documents"][0]["address_name"]
 
-            # Cache the result
-            r.set(hashed_key, address, ex=60 * 60 * 24)  # Cache for a day
+            r.set(key, address, ex=60 * 60 * 24)
 
         photo_data = {
             "photo_path_id": photo.photo_path_id,
@@ -370,7 +354,6 @@ class PhotoDetailView(APIView):
         }
 
         serializer = ResPhotoTagListSerializer(photo_data)
-
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
@@ -392,6 +375,10 @@ class PhotoDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
     def delete(self, request, photo_id):
         client = get_qdrant_client()
 
@@ -414,8 +401,6 @@ class PhotoDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
 class BulkDeletePhotoView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -440,6 +425,8 @@ class BulkDeletePhotoView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
         client = get_qdrant_client()
         serializer = ReqPhotoBulkDeleteSerializer(data=request.data)
@@ -448,35 +435,28 @@ class BulkDeletePhotoView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         photos_raw_data = serializer.validated_data["photos"]
-
         photo_ids_to_delete = [data["photo_id"] for data in photos_raw_data]
 
         associated_photo_tags = Photo_Tag.objects.filter(
             photo__photo_id__in=photo_ids_to_delete, user=request.user
         )
+        tag_ids_to_recompute = {str(pt.tag.tag_id) for pt in associated_photo_tags}
 
-        tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_photo_tags]
-
+        Photo.objects.filter(
+            photo_id__in=photo_ids_to_delete, user=request.user
+        ).delete()
         client.delete(
             collection_name=IMAGE_COLLECTION_NAME,
-            points_selector=[str(photo_id) for photo_id in photo_ids_to_delete],
+            points_selector=[str(pid) for pid in photo_ids_to_delete],
             wait=True,
         )
 
         for tag_id in tag_ids_to_recompute:
             compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
-        Photo.objects.filter(
-            photo_id__in=photo_ids_to_delete, user=request.user
-        ).delete()
-
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
-@method_decorator(validate_uuid('tag_id'), name='dispatch')
-@method_decorator(require_ownership(Tag, 'tag_id', 'tag_id'), name='dispatch')
 class GetPhotosByTagView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -503,31 +483,19 @@ class GetPhotosByTagView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def get(self, request, tag_id):
         tag = Tag.objects.get(tag_id=tag_id)
-
         photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user)
-
         photos = [photo_tag.photo for photo_tag in photo_tags]
 
-        photos_data = [
-            {
-                "photo_id": photo.photo_id,
-                "photo_path_id": photo.photo_path_id,
-                "created_at": photo.created_at,
-            }
-            for photo in photos
-        ]
-
-        serializer = ResPhotoSerializer(photos_data, many=True)
-
+        serializer = ResPhotoSerializer(photos, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
-@method_decorator(validate_uuid('photo_id'), name='dispatch')
-@method_decorator(require_ownership(Photo, 'photo_id', 'photo_id'), name='dispatch')
 class PostPhotoTagsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -553,40 +521,31 @@ class PostPhotoTagsView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
     def post(self, request, photo_id):
         serializer = ReqTagIdSerializer(data=request.data, many=True)
-
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         tag_ids = [data["tag_id"] for data in serializer.validated_data]
-
         photo = Photo.objects.get(photo_id=photo_id)
 
+        tags_to_recompute = set()
         for tag_id in tag_ids:
             tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+            if not Photo_Tag.objects.filter(photo=photo, tag=tag, user=request.user).exists():
+                Photo_Tag.objects.create(photo=photo, tag=tag, user=request.user)
+                tags_to_recompute.add(str(tag_id))
 
-            if Photo_Tag.objects.filter(
-                photo=photo, tag=tag, user=request.user
-            ).exists():
-                continue  # Skip if the relationship already exists
-
-            Photo_Tag.objects.create(
-                pt_id=uuid.uuid4(), photo=photo, tag=tag, user=request.user
-            )
-            tag.save()
-
-            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+        for tag_id in tags_to_recompute:
+            compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
         return Response(status=status.HTTP_200_OK)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
-@method_decorator(validate_uuid('photo_id'), name='dispatch')
-@method_decorator(validate_uuid('tag_id'), name='dispatch')
-@method_decorator(require_ownership(Photo, 'photo_id', 'photo_id'), name='dispatch')
-@method_decorator(require_ownership(Tag, 'tag_id', 'tag_id'), name='dispatch')
 class DeletePhotoTagsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -611,22 +570,21 @@ class DeletePhotoTagsView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @validate_uuid('tag_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def delete(self, request, photo_id, tag_id):
         photo_tag = Photo_Tag.objects.get(
             photo__photo_id=photo_id, tag__tag_id=tag_id, user=request.user
         )
-
         photo_tag.delete()
-
         compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
-
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
-@method_decorator(validate_uuid('photo_id'), name='dispatch')
-@method_decorator(require_ownership(Photo, 'photo_id', 'photo_id'), name='dispatch')
 class GetRecommendTagView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -656,16 +614,16 @@ class GetRecommendTagView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
     def get(self, request, photo_id, *args, **kwargs):
         tags = tag_recommendation(request.user, photo_id)
         serializer = TagSerializer(tags, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
-@method_decorator(validate_uuid('tag_id'), name='dispatch')
-@method_decorator(require_ownership(Tag, 'tag_id', 'tag_id'), name='dispatch')
 class PhotoRecommendationView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -696,14 +654,16 @@ class PhotoRecommendationView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def get(self, request, tag_id, *args, **kwargs):
         photos = recommend_photo_from_tag(request.user, tag_id)
         serializer = ResPhotoSerializer(photos, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
 class PhotoToPhotoRecommendationView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -731,21 +691,19 @@ class PhotoToPhotoRecommendationView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
         serializer = ReqPhotoListSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         photo_ids = serializer.validated_data["photos"]
-        user = request.user
-
-        photos = recommend_photo_from_photo(user, photo_ids)
+        photos = recommend_photo_from_photo(request.user, photo_ids)
 
         return Response(photos, status=status.HTTP_200_OK)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
 class TagView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -775,6 +733,8 @@ class TagView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def get(self, request):
         latest_photo_subquery = (
             Photo_Tag.objects.filter(tag=OuterRef("pk"), user=request.user)
@@ -790,7 +750,6 @@ class TagView(APIView):
         )
 
         response_serializer = ResTagThumbnailSerializer(tags, many=True)
-
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
@@ -813,6 +772,8 @@ class TagView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
         serializer = ReqTagNameSerializer(data=request.data)
 
@@ -827,22 +788,14 @@ class TagView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
-            tag = Tag.objects.get(tag=data["tag"], user=request.user)
-            response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-
-        new_tag = Tag.objects.create(tag=data["tag"], user=request.user)
-
-        response_serializer = ResTagIdSerializer({"tag_id": new_tag.tag_id})
-
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        tag, created = Tag.objects.get_or_create(tag=data["tag"], user=request.user)
+        
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        
+        response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
+        return Response(response_serializer.data, status=status_code)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
-@method_decorator(validate_uuid('tag_id'), name='dispatch')
-@method_decorator(require_ownership(Tag, 'tag_id', 'tag_id'), name='dispatch')
 class TagDetailView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -872,6 +825,10 @@ class TagDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def delete(self, request, tag_id):
         tag = Tag.objects.get(tag_id=tag_id)
         compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
@@ -901,9 +858,12 @@ class TagDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def put(self, request, tag_id):
         serializer = ReqTagNameSerializer(data=request.data)
-
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -942,14 +902,16 @@ class TagDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def get(self, request, tag_id):
         tag = Tag.objects.get(tag_id=tag_id)
         response_serializer = ResTagVectorSerializer({"tag": tag.tag})
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
 class StoryView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -979,8 +941,9 @@ class StoryView(APIView):
             ),
         ],
     )
+    @log_request
+    @handle_exceptions
     def get(self, request):
-        # 페이지네이션 파라미터 가져오기 및 검증
         try:
             size = int(request.GET.get("size", 20))
             if size < 1:
@@ -988,23 +951,20 @@ class StoryView(APIView):
                     {"error": "Size parameter must be positive"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            size = min(size, 200)  # 최대 200개 제한
+            size = min(size, 200)
         except ValueError:
             return Response(
                 {"error": "Invalid size parameter"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 랜덤 정렬로 매번 다른 순서 보장
-        # Filter photos that don't have any Photo_Tag relations
         has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=request.user)
         photos_queryset = (
             Photo.objects.filter(user=request.user)
             .exclude(Exists(has_tags))
             .order_by("?")[:size]
-        )  # 랜덤 정렬 + 슬라이싱
+        )
 
-        # QuerySet을 유지하면서 데이터 직렬화
         photos_data = [
             {
                 "photo_id": str(photo.photo_id),
@@ -1014,18 +974,11 @@ class StoryView(APIView):
             for photo in photos_queryset
         ]
 
-        # 빈 결과 처리
-        if not photos_data:
-            story_response = {"recs": []}
-        else:
-            story_response = {"recs": photos_data}
-
+        story_response = {"recs": photos_data}
         serializer = ResStorySerializer(story_response)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
 class NewStoryView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1051,6 +1004,8 @@ class NewStoryView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def get(self, request):
         r = get_redis()
         exists = r.exists(request.user.id)
@@ -1094,8 +1049,9 @@ class NewStoryView(APIView):
             ),
         ],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
-        # 페이지네이션 파라미터 가져오기 및 검증
         try:
             size = int(request.GET.get("size", 20))
             if size < 1:
@@ -1103,14 +1059,13 @@ class NewStoryView(APIView):
                     {"error": "Size parameter must be positive"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            size = min(size, 200)  # 최대 200개 제한
+            size = min(size, 200)
         except ValueError:
             return Response(
                 {"error": "Invalid size parameter"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Celery 백그라운드 작업으로 위임
         generate_stories_task.delay(request.user.id, size)
 
         return Response(
@@ -1118,8 +1073,6 @@ class NewStoryView(APIView):
         )
 
 
-@method_decorator(log_request, name='dispatch')
-@method_decorator(handle_exceptions, name='dispatch')
 class TaskStatusView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1176,6 +1129,8 @@ class TaskStatusView(APIView):
             500: openapi.Response(description="Internal Server Error"),
         },
     )
+    @log_request
+    @handle_exceptions
     def get(self, request):
         from celery.result import AsyncResult
         
@@ -1183,16 +1138,13 @@ class TaskStatusView(APIView):
         r = get_redis()
         
         if task_ids_param:
-            # If specific IDs are requested, fetch only those
             task_ids = [tid.strip() for tid in task_ids_param.split(",") if tid.strip()]
         else:
-            # Fallback to history pagination
             limit = int(request.GET.get("limit", 100))
             offset = int(request.GET.get("offset", 0))
             
             redis_key = f"user_tasks:{request.user.id}"
             
-            # Get task IDs from Redis list (paginated)
             task_ids_bytes = r.lrange(redis_key, offset, offset + limit - 1)
             task_ids = [t.decode('utf-8') for t in task_ids_bytes]
         
