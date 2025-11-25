@@ -174,61 +174,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.Photo as PhotoIcon
 
-// Helper data class for item info in the grid
-// private data class PhotoGridItemInfo(
-//    val photoId: String,
-//    val photo: Photo, // Include the Photo object for easier access
-// )
-
-// Extension function for LazyGridState to find an item at a given position
-private fun LazyGridState.findPhotoItemAtPosition(
-    position: Offset,
-    allPhotosFlat: List<Photo>, // Fully qualified name to avoid ambiguity
-): Pair<String, Photo>? {
-    for (itemInfo in layoutInfo.visibleItemsInfo) {
-        // Only consider actual photo items, not headers or other types
-        // Check if the key is a String, which it is for Photo items based on the key = { photo -> photo.photoId }
-        if (itemInfo.key is String) {
-            val itemBounds =
-                Rect(
-                    itemInfo.offset.x.toFloat(),
-                    itemInfo.offset.y.toFloat(),
-                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
-                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
-                )
-            if (itemBounds.contains(position)) {
-                val photoId = itemInfo.key as String
-                val photo = allPhotosFlat.find { it.photoId == photoId }
-                if (photo != null) {
-                    return Pair(photoId, photo)
-                }
-            }
-        }
-    }
-    return null
-}
-
-private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
-    onDragStart: (Offset) -> Unit,
-    onDrag: (PointerInputChange) -> Unit,
-    onDragEnd: () -> Unit,
-    onDragCancel: () -> Unit,
-) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        val longPress = awaitLongPressOrCancellation(down.id)
-        if (longPress != null) {
-            onDragStart(longPress.position)
-            drag(longPress.id) { change ->
-                onDrag(change)
-            }
-            onDragEnd()
-        } else {
-            onDragCancel()
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
 fun HomeScreen(
@@ -1941,4 +1886,50 @@ private fun Context.findActivity(): Activity? {
         context = context.baseContext
     }
     return null
+}
+
+private fun LazyGridState.findPhotoItemAtPosition(
+    position: Offset,
+    allPhotosFlat: List<Photo>,
+): Pair<String, Photo>? {
+    for (itemInfo in layoutInfo.visibleItemsInfo) {
+        if (itemInfo.key is String) {
+            val itemBounds =
+                Rect(
+                    itemInfo.offset.x.toFloat(),
+                    itemInfo.offset.y.toFloat(),
+                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+                )
+            if (itemBounds.contains(position)) {
+                val photoId = itemInfo.key as String
+                val photo = allPhotosFlat.find { it.photoId == photoId }
+                if (photo != null) {
+                    return Pair(photoId, photo)
+                }
+            }
+        }
+    }
+    return null
+}
+
+private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
+    onDragStart: (Offset) -> Unit,
+    onDrag: (PointerInputChange) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val longPress = awaitLongPressOrCancellation(down.id)
+        if (longPress != null) {
+            onDragStart(longPress.position)
+            drag(longPress.id) { change ->
+                onDrag(change)
+            }
+            onDragEnd()
+        } else {
+            onDragCancel()
+        }
+    }
 }

@@ -115,59 +115,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-// Helper data class for item info in the grid
-// private data class PhotoGridItemInfo(
-//    val photoId: String,
-//    val photo: Photo,
-// )
-
-// Extension function for LazyGridState to find an item at a given position
-private fun LazyGridState.findPhotoItemAtPosition(
-    position: Offset,
-    allPhotos: List<Photo>,
-): Pair<String, Photo>? {
-    for (itemInfo in layoutInfo.visibleItemsInfo) {
-        val key = itemInfo.key
-        if (key is String) {
-            val itemBounds =
-                Rect(
-                    itemInfo.offset.x.toFloat(),
-                    itemInfo.offset.y.toFloat(),
-                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
-                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
-                )
-            if (itemBounds.contains(position)) {
-                val photo = allPhotos.find { it.photoId == key }
-                if (photo != null) {
-                    return key to photo
-                }
-            }
-        }
-    }
-    return null
-}
-
-private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
-    onDragStart: (Offset) -> Unit,
-    onDrag: (PointerInputChange) -> Unit,
-    onDragEnd: () -> Unit,
-    onDragCancel: () -> Unit,
-) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        val longPress = awaitLongPressOrCancellation(down.id)
-        if (longPress != null) {
-            onDragStart(longPress.position)
-            drag(longPress.id) { change ->
-                onDrag(change)
-            }
-            onDragEnd()
-        } else {
-            onDragCancel()
-        }
-    }
-}
-
 /**
  *  * ========================================
  *  * SearchResultScreen - 검색 결과 화면
@@ -1222,6 +1169,53 @@ private fun SearchResultsFromState(
             is SearchViewModel.SearchUiState.Error -> {
                 Box(modifier = Modifier.fillMaxHeight())
             }
+        }
+    }
+}
+
+// Extension function for LazyGridState to find an item at a given position
+private fun LazyGridState.findPhotoItemAtPosition(
+    position: Offset,
+    allPhotos: List<Photo>,
+): Pair<String, Photo>? {
+    for (itemInfo in layoutInfo.visibleItemsInfo) {
+        val key = itemInfo.key
+        if (key is String) {
+            val itemBounds =
+                Rect(
+                    itemInfo.offset.x.toFloat(),
+                    itemInfo.offset.y.toFloat(),
+                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+                )
+            if (itemBounds.contains(position)) {
+                val photo = allPhotos.find { it.photoId == key }
+                if (photo != null) {
+                    return key to photo
+                }
+            }
+        }
+    }
+    return null
+}
+
+private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
+    onDragStart: (Offset) -> Unit,
+    onDrag: (PointerInputChange) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val longPress = awaitLongPressOrCancellation(down.id)
+        if (longPress != null) {
+            onDragStart(longPress.position)
+            drag(longPress.id) { change ->
+                onDrag(change)
+            }
+            onDragEnd()
+        } else {
+            onDragCancel()
         }
     }
 }

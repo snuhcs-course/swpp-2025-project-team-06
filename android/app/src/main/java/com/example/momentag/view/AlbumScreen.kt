@@ -3,7 +3,6 @@ package com.example.momentag.view
 import android.Manifest
 import android.annotation.SuppressLint
 import android.os.Build
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -117,52 +116,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-private const val ALBUM_SELECTION_TAG = "AlbumSelection"
-
-private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
-    onDragStart: (Offset) -> Unit,
-    onDrag: (PointerInputChange) -> Unit,
-    onDragEnd: () -> Unit,
-    onDragCancel: () -> Unit,
-) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        val longPress = awaitLongPressOrCancellation(down.id)
-        if (longPress != null) {
-            onDragStart(longPress.position)
-            drag(longPress.id) { change ->
-                onDrag(change)
-            }
-            onDragEnd()
-        } else {
-            onDragCancel()
-        }
-    }
-}
-
-private fun LazyGridState.findPhotoItemAtPosition(
-    position: Offset,
-    allPhotos: List<Photo>,
-): Pair<String, Photo>? {
-    for (itemInfo in layoutInfo.visibleItemsInfo) {
-        val key = itemInfo.key
-        if (key is String) {
-            val itemBounds =
-                Rect(
-                    itemInfo.offset.x.toFloat(),
-                    itemInfo.offset.y.toFloat(),
-                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
-                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
-                )
-            if (itemBounds.contains(position)) {
-                val photo = allPhotos.find { it.photoId == key } ?: continue
-                return key to photo
-            }
-        }
-    }
-    return null
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -811,11 +764,6 @@ private fun AlbumGridArea(
                                 val toSelect = newRangePhotoIds - gestureSelectionIds
                                 val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
 
-                                Log.d(
-                                    ALBUM_SELECTION_TAG,
-                                    "applyRange anchor=$dragAnchorIndex newRange=${newRangePhotoIds.size} toSelect=${toSelect.size} toDeselect=${toDeselect.size}",
-                                )
-
                                 toSelect.forEach { id ->
                                     allPhotosState.value.find { it.photoId == id }?.let { photo ->
                                         onToggleTagAlbumPhoto(photo)
@@ -844,15 +792,12 @@ private fun AlbumGridArea(
                                     onDragSelectionStart()
                                     gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
                                         dragAnchorIndex = allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                        if (!gestureSelectionIds.contains(photoId)) {
-                                            onToggleTagAlbumPhoto(photo) // 롱프레스 시 바로 anchor 선택
-                                            gestureSelectionIds.add(photoId)
+                                        if (gestureSelectionIds.add(photoId) ||
+                                            !updatedSelectedPhotos.value.any { it.photoId == photoId }
+                                        ) {
+                                            onToggleTagAlbumPhoto(photo)
                                         }
-                                        applyRangeSelection(setOf(photoId))
-                                        Log.d(
-                                            ALBUM_SELECTION_TAG,
-                                            "dragStart anchorIndex=$dragAnchorIndex photoId=$photoId selected=${gestureSelectionIds.size}",
-                                        )
+                                        lastRangePhotoIds.add(photoId)
                                     }
                                 },
                                 onDragEnd = {
@@ -861,7 +806,6 @@ private fun AlbumGridArea(
                                     gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                     onDragSelectionEnd()
-                                    Log.d(ALBUM_SELECTION_TAG, "dragEnd")
                                 },
                                 onDragCancel = {
                                     dragAnchorIndex = null
@@ -869,7 +813,6 @@ private fun AlbumGridArea(
                                     gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                     onDragSelectionEnd()
-                                    Log.d(ALBUM_SELECTION_TAG, "dragCancel")
                                 },
                                 onDrag = { change ->
                                     change.consume()
@@ -898,10 +841,6 @@ private fun AlbumGridArea(
                                                     allPhotosState.value.getOrNull(idx)?.photoId
                                                 }.toSet()
                                         if (newRangePhotoIds.isNotEmpty()) {
-                                            Log.d(
-                                                ALBUM_SELECTION_TAG,
-                                                "dragMove anchor=$dragAnchorIndex currentIndex=$currentIndex rangeSize=${newRangePhotoIds.size}",
-                                            )
                                             applyRangeSelection(newRangePhotoIds)
                                         }
                                     }
@@ -972,12 +911,7 @@ private fun AlbumGridArea(
                                 isSelected = selectedTagAlbumPhotos.contains(photo),
                                 onToggleSelection = { onToggleTagAlbumPhoto(photo) },
                                 // 롱프레스는 부모(pointerInput)에서 처리 (onLongPress는 사용하지 않음)
-                                onLongPress = {
-                                    if (!isTagAlbumPhotoSelectionMode) {
-                                        onSetTagAlbumPhotoSelectionMode(true)
-                                        onToggleTagAlbumPhoto(photo)
-                                    }
-                                },
+                                onLongPress = {},
                             )
                         }
                     }
@@ -1332,4 +1266,53 @@ private fun RecommendExpandedPanel(
             }
         }
     }
+}
+
+private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
+    onDragStart: (Offset) -> Unit,
+    onDrag: (PointerInputChange) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val longPress = awaitLongPressOrCancellation(down.id)
+        if (longPress != null) {
+            onDragStart(longPress.position)
+
+            // 롱프레스 이벤트 자체를 첫 드래그로 처리 (HomeScreen과 동일)
+            onDrag(longPress)
+
+            // 이어서 드래그 계속 추적
+            drag(longPress.id) { change ->
+                onDrag(change)
+            }
+            onDragEnd()
+        } else {
+            onDragCancel()
+        }
+    }
+}
+
+private fun LazyGridState.findPhotoItemAtPosition(
+    position: Offset,
+    allPhotos: List<Photo>,
+): Pair<String, Photo>? {
+    for (itemInfo in layoutInfo.visibleItemsInfo) {
+        val key = itemInfo.key
+        if (key is String) {
+            val itemBounds =
+                Rect(
+                    itemInfo.offset.x.toFloat(),
+                    itemInfo.offset.y.toFloat(),
+                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+                )
+            if (itemBounds.contains(position)) {
+                val photo = allPhotos.find { it.photoId == key } ?: continue
+                return key to photo
+            }
+        }
+    }
+    return null
 }
