@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +53,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,6 +79,9 @@ import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.LocalViewModel
 import com.example.momentag.viewmodel.PhotoViewModel
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,6 +104,7 @@ fun LocalAlbumScreen(
     val selectedPhotos by localViewModel.selectedPhotosInAlbum.collectAsState()
     val uploadState by photoViewModel.uiState.collectAsState()
     val scrollToIndex by localViewModel.scrollToIndex.collectAsState()
+    val isLoadingMorePhotos by localViewModel.isLoadingMorePhotos.collectAsState()
 
     // 4. 로컬 상태 변수
     var hasPermission by remember { mutableStateOf(false) }
@@ -140,16 +146,9 @@ fun LocalAlbumScreen(
         isErrorBannerVisible = errorMessage != null
     }
 
-    if (hasPermission) {
-        LaunchedEffect(albumId) {
-            localViewModel.getImagesForAlbum(albumId)
-        }
-    }
-
-    // Set browsing session when album images are loaded
-    LaunchedEffect(photos, albumName) {
-        if (photos.isNotEmpty()) {
-            localViewModel.setLocalAlbumBrowsingSession(photos, albumName)
+    LaunchedEffect(hasPermission) {
+        if (hasPermission && photos.isEmpty()) {
+            localViewModel.loadAlbumPhotos(albumId, albumName)
         }
     }
 
@@ -192,6 +191,29 @@ fun LocalAlbumScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Pagination: Load more photos as user scrolls near end
+    @OptIn(FlowPreview::class)
+    LaunchedEffect(gridState, isLoadingMorePhotos) {
+        if (!isLoadingMorePhotos) {
+            snapshotFlow {
+                gridState.layoutInfo.visibleItemsInfo
+                    .lastOrNull()
+                    ?.index
+            }.distinctUntilChanged()
+                .debounce(150)
+                .collect { lastVisibleIndex ->
+                    val totalItemCount = gridState.layoutInfo.totalItemsCount
+                    if (lastVisibleIndex != null && totalItemCount > 0) {
+                        val remainingItems = totalItemCount - (lastVisibleIndex + 1)
+                        // Trigger when 15 items (5 rows) from end
+                        if (remainingItems < 15) {
+                            localViewModel.loadMorePhotos()
+                        }
+                    }
+                }
         }
     }
 
@@ -451,6 +473,23 @@ fun LocalAlbumScreen(
                                                 )
                                             }
                                         }
+                                    }
+                                }
+                            }
+
+                            // Add loading indicator
+                            if (isLoadingMorePhotos) {
+                                item(span = { GridItemSpan(3) }) {
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(Dimen.ItemSpacingLarge),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                                        )
                                     }
                                 }
                             }
