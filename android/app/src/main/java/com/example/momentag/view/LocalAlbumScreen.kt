@@ -12,6 +12,11 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,11 +62,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -84,17 +95,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
-import androidx.compose.foundation.gestures.drag
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.PointerInputScope
 
 // Helper data class for item info in the grid
 // private data class PhotoGridItemInfo(
@@ -110,12 +110,13 @@ private fun LazyGridState.findPhotoItemAtPosition(
     for (itemInfo in layoutInfo.visibleItemsInfo) {
         val key = itemInfo.key
         if (key is String) {
-            val itemBounds = Rect(
-                itemInfo.offset.x.toFloat(),
-                itemInfo.offset.y.toFloat(),
-                (itemInfo.offset.x + itemInfo.size.width).toFloat(),
-                (itemInfo.offset.y + itemInfo.size.height).toFloat(),
-            )
+            val itemBounds =
+                Rect(
+                    itemInfo.offset.x.toFloat(),
+                    itemInfo.offset.y.toFloat(),
+                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+                )
             if (itemBounds.contains(position)) {
                 val photo = allPhotos.find { it.photoId == key }
                 if (photo != null) {
@@ -487,7 +488,8 @@ fun LocalAlbumScreen(
                                                 isSelectionMode = true
                                             }
                                             gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
-                                                dragAnchorIndex = allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
+                                                dragAnchorIndex =
+                                                    allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
                                                 if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.contains(photo)) {
                                                     localViewModel.togglePhotoSelection(photo)
                                                 }
@@ -510,9 +512,11 @@ fun LocalAlbumScreen(
                                             change.consume()
                                             val currentItem = gridState.findPhotoItemAtPosition(change.position, allPhotosState.value)
                                             val currentIndex =
-                                                currentItem?.first?.let { id ->
-                                                    allPhotosState.value.indexOfFirst { it.photoId == id }
-                                                }?.takeIf { it >= 0 }
+                                                currentItem
+                                                    ?.first
+                                                    ?.let { id ->
+                                                        allPhotosState.value.indexOfFirst { it.photoId == id }
+                                                    }?.takeIf { it >= 0 }
                                                     ?: findNearestItemByRow(change.position)
 
                                             if (currentIndex != null) {
@@ -526,14 +530,17 @@ fun LocalAlbumScreen(
                                                     }
 
                                                 val newRangePhotoIds =
-                                                    range.mapNotNull { idx ->
-                                                        allPhotosState.value.getOrNull(idx)?.photoId
-                                                    }.toSet()
+                                                    range
+                                                        .mapNotNull { idx ->
+                                                            allPhotosState.value.getOrNull(idx)?.photoId
+                                                        }.toSet()
                                                 applyRangeSelection(newRangePhotoIds)
                                             }
 
                                             // --- Auto-Scroll Logic ---
-                                            val viewportHeight = gridState.layoutInfo.viewportSize.height.toFloat()
+                                            val viewportHeight =
+                                                gridState.layoutInfo.viewportSize.height
+                                                    .toFloat()
                                             val pointerY = change.position.y
 
                                             val scrollAmount =
@@ -545,12 +552,13 @@ fun LocalAlbumScreen(
 
                                             if (scrollAmount != 0f) {
                                                 if (autoScrollJob?.isActive != true) {
-                                                    autoScrollJob = pointerScope.launch {
-                                                        while (true) {
-                                                            gridState.scrollBy(scrollAmount)
-                                                            delay(50)
+                                                    autoScrollJob =
+                                                        pointerScope.launch {
+                                                            while (true) {
+                                                                gridState.scrollBy(scrollAmount)
+                                                                delay(50)
+                                                            }
                                                         }
-                                                    }
                                                 }
                                             } else {
                                                 autoScrollJob?.cancel()

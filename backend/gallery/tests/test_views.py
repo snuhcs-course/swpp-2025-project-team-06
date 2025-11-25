@@ -38,10 +38,15 @@ class PhotoViewTest(TestCase):
         file.seek(0)
         return file
 
+    @patch("gallery.views.get_redis")
     @patch("gallery.views.process_and_embed_photos_batch.delay")
     @patch("gallery.views.upload_photo")
-    def test_post_photo_success(self, mock_upload, mock_process):
+    def test_post_photo_success(self, mock_upload, mock_process, mock_get_redis):
         """사진 업로드 성공"""
+        # Mock Redis
+        mock_redis_instance = MagicMock()
+        mock_get_redis.return_value = mock_redis_instance
+
         # Mock upload_photo to return storage keys
         mock_upload.side_effect = lambda data: uuid.uuid4()
 
@@ -78,7 +83,7 @@ class PhotoViewTest(TestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
-        self.assertIn("message", response.data)
+        self.assertIsInstance(response.data, list)
         
         # Verify photos created in DB
         self.assertEqual(Photo.objects.filter(user=self.user).count(), 2)

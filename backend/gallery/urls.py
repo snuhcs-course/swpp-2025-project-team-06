@@ -59,5 +59,11 @@ urlpatterns = [
         views.NewStoryView.as_view(),
         name="new_stories",
         # get, post
-    )
+    ),
+    path(
+        "tasks/",
+        views.TaskStatusView.as_view(),
+        name="task_status",
+        # get
+    ),
 ]

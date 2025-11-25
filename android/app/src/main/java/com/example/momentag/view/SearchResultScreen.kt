@@ -9,6 +9,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -37,6 +43,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -57,6 +64,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -65,6 +77,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -98,20 +111,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
-import androidx.compose.foundation.gestures.drag
-import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.PointerInputScope
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 // Helper data class for item info in the grid
 // private data class PhotoGridItemInfo(
@@ -127,12 +129,13 @@ private fun LazyGridState.findPhotoItemAtPosition(
     for (itemInfo in layoutInfo.visibleItemsInfo) {
         val key = itemInfo.key
         if (key is String) {
-            val itemBounds = Rect(
-                itemInfo.offset.x.toFloat(),
-                itemInfo.offset.y.toFloat(),
-                (itemInfo.offset.x + itemInfo.size.width).toFloat(),
-                (itemInfo.offset.y + itemInfo.size.height).toFloat(),
-            )
+            val itemBounds =
+                Rect(
+                    itemInfo.offset.x.toFloat(),
+                    itemInfo.offset.y.toFloat(),
+                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+                )
             if (itemBounds.contains(position)) {
                 val photo = allPhotos.find { it.photoId == key }
                 if (photo != null) {
@@ -197,6 +200,8 @@ fun SearchResultScreen(
     val shouldShowSearchHistoryDropdown by searchViewModel.shouldShowSearchHistoryDropdown.collectAsState()
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
     val scrollToIndex by searchViewModel.scrollToIndex.collectAsState()
+    val isLoadingMore by searchViewModel.isLoadingMore.collectAsState()
+    val hasMore by searchViewModel.hasMore.collectAsState()
 
     // 4. 로컬 상태 변수
     var searchBarWidth by remember { mutableStateOf(0) }
@@ -551,6 +556,9 @@ fun SearchResultScreen(
         onDismissError = { isErrorBannerVisible = false },
         placeholder = placeholderText,
         onClearSearchContent = { searchViewModel.clearSearchContent(keepFocus = true) },
+        isLoadingMore = isLoadingMore,
+        hasMore = hasMore,
+        onLoadMore = { searchViewModel.loadMore() },
     )
 }
 
@@ -603,6 +611,9 @@ fun SearchResultScreenUi(
     onDismissError: () -> Unit,
     placeholder: String,
     onClearSearchContent: () -> Unit = {},
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
 ) {
     LocalFocusManager.current
     val backgroundBrush = rememberAppBackgroundBrush()
@@ -683,6 +694,9 @@ fun SearchResultScreenUi(
             onDismissError = onDismissError,
             placeholder = placeholder,
             onClearSearchContent = onClearSearchContent,
+            isLoadingMore = isLoadingMore,
+            hasMore = hasMore,
+            onLoadMore = onLoadMore,
         )
     }
 }
@@ -733,6 +747,9 @@ private fun SearchResultContent(
     onDismissError: () -> Unit,
     placeholder: String,
     onClearSearchContent: () -> Unit = {},
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -831,6 +848,9 @@ private fun SearchResultContent(
                 onRetry = onRetry,
                 navController = navController,
                 gridState = gridState,
+                isLoadingMore = isLoadingMore,
+                hasMore = hasMore,
+                onLoadMore = onLoadMore,
             )
 
             AnimatedVisibility(
@@ -954,6 +974,9 @@ private fun SearchResultsFromState(
     onRetry: () -> Unit,
     navController: NavController,
     gridState: LazyGridState,
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
@@ -977,150 +1000,174 @@ private fun SearchResultsFromState(
             }
 
             is SearchViewModel.SearchUiState.Success -> {
+                // Infinite scroll detection
+                LaunchedEffect(gridState) {
+                    snapshotFlow {
+                        val layoutInfo = gridState.layoutInfo
+                        val totalItemsCount = layoutInfo.totalItemsCount
+                        val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+
+                        // Trigger when 6 items (2 rows) from the end
+                        lastVisibleItemIndex >= totalItemsCount - 6
+                    }.collect { shouldLoadMore ->
+                        if (shouldLoadMore && hasMore && !isLoadingMore) {
+                            onLoadMore()
+                        }
+                    }
+                }
+
                 val updatedSelectedPhotos = rememberUpdatedState(selectedPhotos)
                 val updatedIsSelectionMode = rememberUpdatedState(isSelectionMode)
                 val updatedOnImageLongPress = rememberUpdatedState(onImageLongPress)
                 val updatedOnToggleImageSelection = rememberUpdatedState(onToggleImageSelection)
                 val allPhotos = remember(uiState.results) { uiState.results.map { it.photo } }
 
-                val gridGestureModifier = Modifier.pointerInput(Unit) {
-                    coroutineScope {
-                        val pointerScope = this
-                        val autoScrollViewport = 80.dp.toPx()
-                        var autoScrollJob: Job? = null
-                        var dragAnchorIndex: Int? = null
-                        val gestureSelectionIds = mutableSetOf<String>()
-                        val lastRangePhotoIds = mutableSetOf<String>()
+                val gridGestureModifier =
+                    Modifier.pointerInput(Unit) {
+                        coroutineScope {
+                            val pointerScope = this
+                            val autoScrollViewport = 80.dp.toPx()
+                            var autoScrollJob: Job? = null
+                            var dragAnchorIndex: Int? = null
+                            val gestureSelectionIds = mutableSetOf<String>()
+                            val lastRangePhotoIds = mutableSetOf<String>()
 
-                        fun findNearestItemByRow(position: Offset): Int? {
-                            var best: Pair<Int, Float>? = null
-                            gridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
-                                val key = itemInfo.key as? String ?: return@forEach
-                                val photoIndex = allPhotos.indexOfFirst { it.photoId == key }
-                                if (photoIndex >= 0) {
-                                    val top = itemInfo.offset.y.toFloat()
-                                    val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
-                                    if (position.y in top..bottom) {
-                                        val left = itemInfo.offset.x.toFloat()
-                                        val right = (itemInfo.offset.x + itemInfo.size.width).toFloat()
-                                        val dist =
-                                            when {
-                                                position.x < left -> left - position.x
-                                                position.x > right -> position.x - right
-                                                else -> 0f
+                            fun findNearestItemByRow(position: Offset): Int? {
+                                var best: Pair<Int, Float>? = null
+                                gridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
+                                    val key = itemInfo.key as? String ?: return@forEach
+                                    val photoIndex = allPhotos.indexOfFirst { it.photoId == key }
+                                    if (photoIndex >= 0) {
+                                        val top = itemInfo.offset.y.toFloat()
+                                        val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
+                                        if (position.y in top..bottom) {
+                                            val left = itemInfo.offset.x.toFloat()
+                                            val right = (itemInfo.offset.x + itemInfo.size.width).toFloat()
+                                            val dist =
+                                                when {
+                                                    position.x < left -> left - position.x
+                                                    position.x > right -> position.x - right
+                                                    else -> 0f
+                                                }
+                                            if (best == null || dist < best!!.second) {
+                                                best = photoIndex to dist
                                             }
-                                        if (best == null || dist < best!!.second) {
-                                            best = photoIndex to dist
                                         }
                                     }
                                 }
-                            }
-                            return best?.first
-                        }
-
-                        fun applyRangeSelection(newRangePhotoIds: Set<String>) {
-                            val toSelect = newRangePhotoIds - gestureSelectionIds
-                            val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
-
-                            toSelect.forEach { id ->
-                                allPhotos.find { it.photoId == id }?.let { photo ->
-                                    updatedOnToggleImageSelection.value(photo)
-                                    gestureSelectionIds.add(id)
-                                }
-                            }
-                            toDeselect.forEach { id ->
-                                allPhotos.find { it.photoId == id }?.let { photo ->
-                                    updatedOnToggleImageSelection.value(photo)
-                                    gestureSelectionIds.remove(id)
-                                }
+                                return best?.first
                             }
 
-                            lastRangePhotoIds.clear()
-                            lastRangePhotoIds.addAll(newRangePhotoIds)
-                        }
+                            fun applyRangeSelection(newRangePhotoIds: Set<String>) {
+                                val toSelect = newRangePhotoIds - gestureSelectionIds
+                                val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
 
-                        detectDragAfterLongPressIgnoreConsumed(
-                            onDragStart = { offset ->
-                                autoScrollJob?.cancel()
-                                gestureSelectionIds.clear()
-                                gestureSelectionIds.addAll(updatedSelectedPhotos.value.map { it.photoId })
-                                lastRangePhotoIds.clear()
-                                if (!updatedIsSelectionMode.value) {
-                                    updatedOnImageLongPress.value()
-                                }
-                                gridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
-                                    dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                    if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.contains(photo)) {
+                                toSelect.forEach { id ->
+                                    allPhotos.find { it.photoId == id }?.let { photo ->
                                         updatedOnToggleImageSelection.value(photo)
+                                        gestureSelectionIds.add(id)
                                     }
-                                    lastRangePhotoIds.add(photoId)
                                 }
-                            },
-                            onDragEnd = {
-                                dragAnchorIndex = null
+                                toDeselect.forEach { id ->
+                                    allPhotos.find { it.photoId == id }?.let { photo ->
+                                        updatedOnToggleImageSelection.value(photo)
+                                        gestureSelectionIds.remove(id)
+                                    }
+                                }
+
                                 lastRangePhotoIds.clear()
-                                gestureSelectionIds.clear()
-                                autoScrollJob?.cancel()
-                            },
-                            onDragCancel = {
-                                dragAnchorIndex = null
-                                lastRangePhotoIds.clear()
-                                gestureSelectionIds.clear()
-                                autoScrollJob?.cancel()
-                            },
-                            onDrag = { change ->
-                                change.consume()
-                                val currentItem = gridState.findPhotoItemAtPosition(change.position, allPhotos)
-                                val currentIndex =
-                                    currentItem?.first?.let { id ->
-                                        allPhotos.indexOfFirst { it.photoId == id }
-                                    }?.takeIf { it >= 0 }
-                                        ?: findNearestItemByRow(change.position)
+                                lastRangePhotoIds.addAll(newRangePhotoIds)
+                            }
 
-                                if (currentIndex != null) {
-                                    if (dragAnchorIndex == null) dragAnchorIndex = currentIndex
-                                    val startIndex = dragAnchorIndex ?: currentIndex
-                                    val range =
-                                        if (currentIndex >= startIndex) {
-                                            startIndex..currentIndex
-                                        } else {
-                                            currentIndex..startIndex
-                                        }
-
-                                    val newRangePhotoIds =
-                                        range.mapNotNull { idx ->
-                                            allPhotos.getOrNull(idx)?.photoId
-                                        }.toSet()
-                                    if (newRangePhotoIds.isNotEmpty()) {
-                                        applyRangeSelection(newRangePhotoIds)
-                                    }
-                                }
-
-                                val viewportHeight = gridState.layoutInfo.viewportSize.height.toFloat()
-                                val pointerY = change.position.y
-
-                                val scrollAmount = when {
-                                    pointerY < autoScrollViewport -> -50f
-                                    pointerY > viewportHeight - autoScrollViewport -> 50f
-                                    else -> 0f
-                                }
-
-                                if (scrollAmount != 0f) {
-                                    if (autoScrollJob?.isActive != true) {
-                                        autoScrollJob = pointerScope.launch {
-                                            while (true) {
-                                                gridState.scrollBy(scrollAmount)
-                                                delay(50)
-                                            }
-                                        }
-                                    }
-                                } else {
+                            detectDragAfterLongPressIgnoreConsumed(
+                                onDragStart = { offset ->
                                     autoScrollJob?.cancel()
-                                }
-                            },
-                        )
+                                    gestureSelectionIds.clear()
+                                    gestureSelectionIds.addAll(updatedSelectedPhotos.value.map { it.photoId })
+                                    lastRangePhotoIds.clear()
+                                    if (!updatedIsSelectionMode.value) {
+                                        updatedOnImageLongPress.value()
+                                    }
+                                    gridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
+                                        dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
+                                        if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.contains(photo)) {
+                                            updatedOnToggleImageSelection.value(photo)
+                                        }
+                                        lastRangePhotoIds.add(photoId)
+                                    }
+                                },
+                                onDragEnd = {
+                                    dragAnchorIndex = null
+                                    lastRangePhotoIds.clear()
+                                    gestureSelectionIds.clear()
+                                    autoScrollJob?.cancel()
+                                },
+                                onDragCancel = {
+                                    dragAnchorIndex = null
+                                    lastRangePhotoIds.clear()
+                                    gestureSelectionIds.clear()
+                                    autoScrollJob?.cancel()
+                                },
+                                onDrag = { change ->
+                                    change.consume()
+                                    val currentItem = gridState.findPhotoItemAtPosition(change.position, allPhotos)
+                                    val currentIndex =
+                                        currentItem
+                                            ?.first
+                                            ?.let { id ->
+                                                allPhotos.indexOfFirst { it.photoId == id }
+                                            }?.takeIf { it >= 0 }
+                                            ?: findNearestItemByRow(change.position)
+
+                                    if (currentIndex != null) {
+                                        if (dragAnchorIndex == null) dragAnchorIndex = currentIndex
+                                        val startIndex = dragAnchorIndex ?: currentIndex
+                                        val range =
+                                            if (currentIndex >= startIndex) {
+                                                startIndex..currentIndex
+                                            } else {
+                                                currentIndex..startIndex
+                                            }
+
+                                        val newRangePhotoIds =
+                                            range
+                                                .mapNotNull { idx ->
+                                                    allPhotos.getOrNull(idx)?.photoId
+                                                }.toSet()
+                                        if (newRangePhotoIds.isNotEmpty()) {
+                                            applyRangeSelection(newRangePhotoIds)
+                                        }
+                                    }
+
+                                    val viewportHeight =
+                                        gridState.layoutInfo.viewportSize.height
+                                            .toFloat()
+                                    val pointerY = change.position.y
+
+                                    val scrollAmount =
+                                        when {
+                                            pointerY < autoScrollViewport -> -50f
+                                            pointerY > viewportHeight - autoScrollViewport -> 50f
+                                            else -> 0f
+                                        }
+
+                                    if (scrollAmount != 0f) {
+                                        if (autoScrollJob?.isActive != true) {
+                                            autoScrollJob =
+                                                pointerScope.launch {
+                                                    while (true) {
+                                                        gridState.scrollBy(scrollAmount)
+                                                        delay(50)
+                                                    }
+                                                }
+                                        }
+                                    } else {
+                                        autoScrollJob?.cancel()
+                                    }
+                                },
+                            )
+                        }
                     }
-                }
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -1146,6 +1193,28 @@ private fun SearchResultsFromState(
                                 onToggleImageSelection(photo)
                             },
                         )
+                    }
+
+                    // Loading indicator at the bottom
+                    if (isLoadingMore && hasMore) {
+                        item(
+                            key = "loading_indicator",
+                            span = { GridItemSpan(3) },
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = Dimen.ItemSpacingLarge),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(Dimen.CircularProgressSizeMedium),
+                                    strokeWidth = 3.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
                     }
                 }
             }

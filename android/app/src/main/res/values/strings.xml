@@ -196,10 +196,25 @@
     <string name="notification_uploading_photos">Uploading photos</string>
     <string name="notification_uploading_albums">Uploading albums</string>
     <string name="notification_progress_text">Uploading \'%1$s\' (%2$d / %3$d)...</string>
+    <string name="notification_progress_chunk">Uploading chunk (%1$d / %2$d)...</string>
+    <string name="notification_partial_success_album">\'%1$s\': Uploaded %2$d photos. %3$d failed.</string>
+    <string name="notification_partial_success_photos">Uploaded %1$d photos. %2$d failed.</string>
+    <string name="notification_action_retry">Try Again</string>
     <string name="fallback_unknown_album">Unknown Album</string>
     <string name="fallback_unknown_date">Unknown date</string>
     <string name="fallback_unknown_location">Unknown location</string>
     <string name="foreground_preparing_upload">Preparing upload...</string>
+    <string name="notification_analyzing_title">Analyzing Photos</string>
+    <string name="notification_analysis_complete_title">Analysis Complete</string>
+
+    <!-- Task Status Notifications (Background Processing) -->
+    <string name="notification_processing_title">Processing Photos</string>
+    <string name="notification_processing_text">Processing %1$d uploads...</string>
+    <string name="notification_processing_remaining">Processing %1$d remaining uploads...</string>
+    <string name="notification_processing_complete_title">Processing Complete</string>
+    <string name="notification_processing_complete_text">Your photos are ready</string>
+    <string name="notification_channel_processing_name">Photo Processing</string>
+    <string name="notification_channel_processing_description">Shows progress of photo processing</string>
 
     <!-- ============================================ -->
     <!-- CONTENT DESCRIPTIONS (Accessibility) -->

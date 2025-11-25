@@ -193,16 +193,17 @@ SIMPLE_JWT = {
 HYBRID_SEARCH_SETTINGS = {
     # --- (A) 퓨전(Fusion) 가중치 (tasks.py의 execute_hybrid_search가 사용) ---
     "TAG_FUSION_WEIGHT": 1.0,
-    "SEMANTIC_FUSION_WEIGHT": 1.0, 
+    "SEMANTIC_FUSION_WEIGHT": 1.0,
     "CAPTION_BONUS_WEIGHT": 0.1,
-    
-    # --- (B) Qdrant 검색 제한값 (tasks.py의 execute_hybrid_search가 사용) ---
-    "RECOMMEND_LIMIT": 50,  # 태그 기반 `recommend` 시 최대 50개
-    "SEMANTIC_LIMIT": 50,   # 자연어 기반 `search` 시 최대 50개
-    
-    # --- (C) 기존 설정 (계속 사용) ---
-    "FINAL_RESULT_LIMIT": 100, # 최종 퓨전 결과 상위 100개
-    "SEMANTIC_LIMIT_FOR_GRAPH": 50, # SemanticSearchView의 (B)분기(순수 시맨틱)에서 씀
+
+    # --- (B) Pagination 설정 ---
+    "SEARCH_FIRST_PAGE_SIZE": 30,  # 첫 페이지 결과 개수
+    "SEARCH_SUBSEQUENT_PAGE_SIZE": 60,  # 이후 페이지 결과 개수
+    "SEARCH_DEFAULT_OFFSET": 0,  # 기본 offset 값
+
+    # --- (C) 유사도 설정 ---
+    "SEARCH_SCORE_THRESHOLD": 0.2,  # 최소 유사도 threshold (0.0 ~ 1.0)
+    "SEARCH_MAX_LIMIT": 1000,  # threshold 기반 검색 시 Qdrant에서 가져올 최대 개수
 }
 
 CACHES = {

@@ -189,12 +189,13 @@ private fun LazyGridState.findPhotoItemAtPosition(
         // Only consider actual photo items, not headers or other types
         // Check if the key is a String, which it is for Photo items based on the key = { photo -> photo.photoId }
         if (itemInfo.key is String) {
-            val itemBounds = Rect(
-                itemInfo.offset.x.toFloat(),
-                itemInfo.offset.y.toFloat(),
-                (itemInfo.offset.x + itemInfo.size.width).toFloat(),
-                (itemInfo.offset.y + itemInfo.size.height).toFloat(),
-            )
+            val itemBounds =
+                Rect(
+                    itemInfo.offset.x.toFloat(),
+                    itemInfo.offset.y.toFloat(),
+                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+                )
             if (itemBounds.contains(position)) {
                 val photoId = itemInfo.key as String
                 val photo = allPhotosFlat.find { it.photoId == photoId }
@@ -1259,7 +1260,7 @@ private fun MainContent(
             EmptyStatePhotos(modifier = modifier, navController = navController)
         }
 
-                // 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
+        // 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
         isShowingAllPhotos -> {
             Box(modifier = modifier) {
                 val updatedSelectedItems = rememberUpdatedState(selectedItems)
@@ -1267,145 +1268,153 @@ private fun MainContent(
                 val updatedOnEnterSelectionMode = rememberUpdatedState(onEnterSelectionMode)
                 val updatedOnItemSelectionToggle = rememberUpdatedState(onItemSelectionToggle)
 
-                val gridGestureModifier = Modifier.pointerInput(Unit) {
-                    coroutineScope {
-                        val pointerScope = this
-                        val autoScrollViewport = 80.dp.toPx()
-                        var autoScrollJob: Job? = null
-                        var dragAnchorIndex: Int? = null
-                        val gestureSelectionIds = mutableSetOf<String>()
-                        val lastRangePhotoIds = mutableSetOf<String>()
+                val gridGestureModifier =
+                    Modifier.pointerInput(Unit) {
+                        coroutineScope {
+                            val pointerScope = this
+                            val autoScrollViewport = 80.dp.toPx()
+                            var autoScrollJob: Job? = null
+                            var dragAnchorIndex: Int? = null
+                            val gestureSelectionIds = mutableSetOf<String>()
+                            val lastRangePhotoIds = mutableSetOf<String>()
 
-                        fun findNearestItemByRow(position: Offset): Int? {
-                            var best: Pair<Int, Float>? = null
-                            allPhotosGridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
-                                val key = itemInfo.key as? String ?: return@forEach
-                                val photoIndex = allPhotos.indexOfFirst { it.photoId == key }
-                                if (photoIndex >= 0) {
-                                    val top = itemInfo.offset.y.toFloat()
-                                    val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
-                                    if (position.y in top..bottom) {
-                                        val left = itemInfo.offset.x.toFloat()
-                                        val right = (itemInfo.offset.x + itemInfo.size.width).toFloat()
-                                        val dist =
-                                            when {
-                                                position.x < left -> left - position.x
-                                                position.x > right -> position.x - right
-                                                else -> 0f
-                                            }
-                                        if (best == null || dist < best!!.second) {
-                                            best = photoIndex to dist
-                                        }
-                                    }
-                                }
-                            }
-                            return best?.first
-                        }
-
-                        fun applyRangeSelection(newRangePhotoIds: Set<String>) {
-                            val toSelect = newRangePhotoIds - gestureSelectionIds
-                            val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
-
-                            toSelect.forEach { id ->
-                                allPhotos.find { it.photoId == id }?.let { photo ->
-                                    updatedOnItemSelectionToggle.value(photo.photoId)
-                                    gestureSelectionIds.add(id)
-                                }
-                            }
-                            toDeselect.forEach { id ->
-                                allPhotos.find { it.photoId == id }?.let { photo ->
-                                    updatedOnItemSelectionToggle.value(photo.photoId)
-                                    gestureSelectionIds.remove(id)
-                                }
-                            }
-
-                            lastRangePhotoIds.clear()
-                            lastRangePhotoIds.addAll(newRangePhotoIds)
-                        }
-
-                        detectDragAfterLongPressIgnoreConsumed(
-                            onDragStart = { offset ->
-                                autoScrollJob?.cancel()
-                                gestureSelectionIds.clear()
-                                gestureSelectionIds.addAll(updatedSelectedItems.value)
-                                lastRangePhotoIds.clear()
-                                if (!updatedIsSelectionMode.value) {
-                                    updatedOnEnterSelectionMode.value()
-                                }
-                                allPhotosGridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
-                                    dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                    if (gestureSelectionIds.add(photoId) || !updatedSelectedItems.value.contains(photoId)) {
-                                        updatedOnItemSelectionToggle.value(photoId) // anchor select immediately
-                                    }
-                                    lastRangePhotoIds.add(photoId)
-                                }
-                            },
-                            onDragEnd = {
-                                dragAnchorIndex = null
-                                lastRangePhotoIds.clear()
-                                gestureSelectionIds.clear()
-                                autoScrollJob?.cancel()
-                            },
-                            onDragCancel = {
-                                dragAnchorIndex = null
-                                lastRangePhotoIds.clear()
-                                gestureSelectionIds.clear()
-                                autoScrollJob?.cancel()
-                            },
-                            onDrag = { change ->
-                                change.consume()
-                                val currentItem = allPhotosGridState.findPhotoItemAtPosition(change.position, allPhotos)
-                                val currentIndex =
-                                    currentItem?.first?.let { id ->
-                                        allPhotos.indexOfFirst { it.photoId == id }
-                                    }?.takeIf { it >= 0 }
-                                        ?: findNearestItemByRow(change.position)
-
-                                if (currentIndex != null) {
-                                    if (dragAnchorIndex == null) dragAnchorIndex = currentIndex
-                                    val startIndex = dragAnchorIndex ?: currentIndex
-                                    val range =
-                                        if (currentIndex >= startIndex) {
-                                            startIndex..currentIndex
-                                        } else {
-                                            currentIndex..startIndex
-                                        }
-
-                                    val newRangePhotoIds =
-                                        range.mapNotNull { idx ->
-                                            allPhotos.getOrNull(idx)?.photoId
-                                        }.toSet()
-                                    if (newRangePhotoIds.isNotEmpty()) {
-                                        applyRangeSelection(newRangePhotoIds)
-                                    }
-                                }
-
-                                // --- Auto-Scroll Logic ---
-                                val viewportHeight = allPhotosGridState.layoutInfo.viewportSize.height.toFloat()
-                                val pointerY = change.position.y
-
-                                val scrollAmount = when {
-                                    pointerY < autoScrollViewport -> -50f // Scroll up
-                                    pointerY > viewportHeight - autoScrollViewport -> 50f // Scroll down
-                                    else -> 0f
-                                }
-
-                                if (scrollAmount != 0f) {
-                                    if (autoScrollJob?.isActive != true) {
-                                        autoScrollJob = pointerScope.launch {
-                                            while (true) {
-                                                allPhotosGridState.scrollBy(scrollAmount)
-                                                delay(50) // Adjust delay for scroll speed
+                            fun findNearestItemByRow(position: Offset): Int? {
+                                var best: Pair<Int, Float>? = null
+                                allPhotosGridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
+                                    val key = itemInfo.key as? String ?: return@forEach
+                                    val photoIndex = allPhotos.indexOfFirst { it.photoId == key }
+                                    if (photoIndex >= 0) {
+                                        val top = itemInfo.offset.y.toFloat()
+                                        val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
+                                        if (position.y in top..bottom) {
+                                            val left = itemInfo.offset.x.toFloat()
+                                            val right = (itemInfo.offset.x + itemInfo.size.width).toFloat()
+                                            val dist =
+                                                when {
+                                                    position.x < left -> left - position.x
+                                                    position.x > right -> position.x - right
+                                                    else -> 0f
+                                                }
+                                            if (best == null || dist < best!!.second) {
+                                                best = photoIndex to dist
                                             }
                                         }
                                     }
-                                } else {
+                                }
+                                return best?.first
+                            }
+
+                            fun applyRangeSelection(newRangePhotoIds: Set<String>) {
+                                val toSelect = newRangePhotoIds - gestureSelectionIds
+                                val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
+
+                                toSelect.forEach { id ->
+                                    allPhotos.find { it.photoId == id }?.let { photo ->
+                                        updatedOnItemSelectionToggle.value(photo.photoId)
+                                        gestureSelectionIds.add(id)
+                                    }
+                                }
+                                toDeselect.forEach { id ->
+                                    allPhotos.find { it.photoId == id }?.let { photo ->
+                                        updatedOnItemSelectionToggle.value(photo.photoId)
+                                        gestureSelectionIds.remove(id)
+                                    }
+                                }
+
+                                lastRangePhotoIds.clear()
+                                lastRangePhotoIds.addAll(newRangePhotoIds)
+                            }
+
+                            detectDragAfterLongPressIgnoreConsumed(
+                                onDragStart = { offset ->
                                     autoScrollJob?.cancel()
-                                }
-                            },
-                        )
+                                    gestureSelectionIds.clear()
+                                    gestureSelectionIds.addAll(updatedSelectedItems.value)
+                                    lastRangePhotoIds.clear()
+                                    if (!updatedIsSelectionMode.value) {
+                                        updatedOnEnterSelectionMode.value()
+                                    }
+                                    allPhotosGridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
+                                        dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
+                                        if (gestureSelectionIds.add(photoId) || !updatedSelectedItems.value.contains(photoId)) {
+                                            updatedOnItemSelectionToggle.value(photoId) // anchor select immediately
+                                        }
+                                        lastRangePhotoIds.add(photoId)
+                                    }
+                                },
+                                onDragEnd = {
+                                    dragAnchorIndex = null
+                                    lastRangePhotoIds.clear()
+                                    gestureSelectionIds.clear()
+                                    autoScrollJob?.cancel()
+                                },
+                                onDragCancel = {
+                                    dragAnchorIndex = null
+                                    lastRangePhotoIds.clear()
+                                    gestureSelectionIds.clear()
+                                    autoScrollJob?.cancel()
+                                },
+                                onDrag = { change ->
+                                    change.consume()
+                                    val currentItem = allPhotosGridState.findPhotoItemAtPosition(change.position, allPhotos)
+                                    val currentIndex =
+                                        currentItem
+                                            ?.first
+                                            ?.let { id ->
+                                                allPhotos.indexOfFirst { it.photoId == id }
+                                            }?.takeIf { it >= 0 }
+                                            ?: findNearestItemByRow(change.position)
+
+                                    if (currentIndex != null) {
+                                        if (dragAnchorIndex == null) dragAnchorIndex = currentIndex
+                                        val startIndex = dragAnchorIndex ?: currentIndex
+                                        val range =
+                                            if (currentIndex >= startIndex) {
+                                                startIndex..currentIndex
+                                            } else {
+                                                currentIndex..startIndex
+                                            }
+
+                                        val newRangePhotoIds =
+                                            range
+                                                .mapNotNull { idx ->
+                                                    allPhotos.getOrNull(idx)?.photoId
+                                                }.toSet()
+                                        if (newRangePhotoIds.isNotEmpty()) {
+                                            applyRangeSelection(newRangePhotoIds)
+                                        }
+                                    }
+
+                                    // --- Auto-Scroll Logic ---
+                                    val viewportHeight =
+                                        allPhotosGridState.layoutInfo.viewportSize.height
+                                            .toFloat()
+                                    val pointerY = change.position.y
+
+                                    val scrollAmount =
+                                        when {
+                                            pointerY < autoScrollViewport -> -50f // Scroll up
+                                            pointerY > viewportHeight - autoScrollViewport -> 50f // Scroll down
+                                            else -> 0f
+                                        }
+
+                                    if (scrollAmount != 0f) {
+                                        if (autoScrollJob?.isActive != true) {
+                                            autoScrollJob =
+                                                pointerScope.launch {
+                                                    while (true) {
+                                                        allPhotosGridState.scrollBy(scrollAmount)
+                                                        delay(50) // Adjust delay for scroll speed
+                                                    }
+                                                }
+                                        }
+                                    } else {
+                                        autoScrollJob?.cancel()
+                                    }
+                                },
+                            )
+                        }
                     }
-                }
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -1424,9 +1433,9 @@ private fun MainContent(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier =
-                                Modifier
-                                    .padding(horizontal = Dimen.GridItemSpacing)
-                                    .padding(vertical = Dimen.GridItemSpacing),
+                                    Modifier
+                                        .padding(horizontal = Dimen.GridItemSpacing)
+                                        .padding(vertical = Dimen.GridItemSpacing),
                             )
                         }
 
@@ -1441,63 +1450,63 @@ private fun MainContent(
                                     model = photo.contentUri,
                                     contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
                                     modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
-                                        .clickable(
-                                            onClick = {
-                                                if (isSelectionMode) {
-                                                    onItemSelectionToggle(photo.photoId)
-                                                } else {
-                                                    homeViewModel?.setGalleryBrowsingSession()
-                                                    homeViewModel?.setShouldReturnToAllPhotos(true)
+                                        Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
+                                            .clickable(
+                                                onClick = {
+                                                    if (isSelectionMode) {
+                                                        onItemSelectionToggle(photo.photoId)
+                                                    } else {
+                                                        homeViewModel?.setGalleryBrowsingSession()
+                                                        homeViewModel?.setShouldReturnToAllPhotos(true)
 
-                                                    navController.navigate(
-                                                        Screen.Image.createRoute(
-                                                            uri = photo.contentUri,
-                                                            imageId = photo.photoId,
-                                                        ),
-                                                    )
-                                                }
-                                            },
-                                        ),
+                                                        navController.navigate(
+                                                            Screen.Image.createRoute(
+                                                                uri = photo.contentUri,
+                                                                imageId = photo.photoId,
+                                                            ),
+                                                        )
+                                                    }
+                                                },
+                                            ),
                                     contentScale = ContentScale.Crop,
                                 )
 
                                 if (isSelectionMode) {
                                     Box(
                                         modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
-                                            .background(
-                                                if (isSelected) {
-                                                    MaterialTheme.colorScheme.onSurface.copy(
-                                                        alpha = 0.3f,
-                                                    )
-                                                } else {
-                                                    Color.Transparent
-                                                },
-                                            ),
+                                            Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
+                                                .background(
+                                                    if (isSelected) {
+                                                        MaterialTheme.colorScheme.onSurface.copy(
+                                                            alpha = 0.3f,
+                                                        )
+                                                    } else {
+                                                        Color.Transparent
+                                                    },
+                                                ),
                                     )
 
                                     Box(
                                         modifier =
-                                        Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(Dimen.GridItemSpacing)
-                                            .size(Dimen.IconButtonSizeSmall)
-                                            .background(
-                                                if (isSelected) {
-                                                    MaterialTheme.colorScheme.primaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.surface
-                                                        .copy(
-                                                            alpha = 0.8f,
-                                                        )
-                                                },
-                                                RoundedCornerShape(Dimen.ComponentCornerRadius),
-                                            ),
+                                            Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(Dimen.GridItemSpacing)
+                                                .size(Dimen.IconButtonSizeSmall)
+                                                .background(
+                                                    if (isSelected) {
+                                                        MaterialTheme.colorScheme.primaryContainer
+                                                    } else {
+                                                        MaterialTheme.colorScheme.surface
+                                                            .copy(
+                                                                alpha = 0.8f,
+                                                            )
+                                                    },
+                                                    RoundedCornerShape(Dimen.ComponentCornerRadius),
+                                                ),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         if (isSelected) {
@@ -1519,9 +1528,9 @@ private fun MainContent(
                                 // 3칸 모두 차지
                                 Box(
                                     modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(Dimen.ComponentPadding),
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(Dimen.ComponentPadding),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     CircularProgressIndicator(
