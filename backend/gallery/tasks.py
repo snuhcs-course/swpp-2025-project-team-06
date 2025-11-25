@@ -364,10 +364,10 @@ def execute_hybrid_search(
     query_string: str,
     tag_weight: float = SEARCH_SETTINGS.get("TAG_FUSION_WEIGHT", 1.0),
     semantic_weight: float = SEARCH_SETTINGS.get("SEMANTIC_FUSION_WEIGHT", 1.0),
-    caption_bonus_weight: float = SEARCH_SETTINGS.get("CAPTION_BONUS_WEIGHT", 0.5),
-    recommend_limit: int = SEARCH_SETTINGS.get("RECOMMEND_LIMIT", 50),
-    semantic_limit: int = SEARCH_SETTINGS.get("SEMANTIC_LIMIT", 50),
-    final_limit: int = SEARCH_SETTINGS.get("FINAL_RESULT_LIMIT", 100),
+    caption_bonus_weight: float = SEARCH_SETTINGS.get("CAPTION_BONUS_WEIGHT", 0.1),
+    offset: int = SEARCH_SETTINGS.get("SEARCH_DEFAULT_OFFSET", 0),
+    limit: int = SEARCH_SETTINGS.get("SEARCH_PAGE_SIZE", 30),
+    score_threshold: float = SEARCH_SETTINGS.get("SEARCH_SCORE_THRESHOLD", 0.2),
 ):
     client = get_qdrant_client()
     phase_1_scores = {}
@@ -396,14 +396,15 @@ def execute_hybrid_search(
         # 1.2: Qdrant `recommend` API 호출
         if tag_photo_ids_str:
             try:
-                # Qdrant `recommend` API
+                # Qdrant `recommend` API with threshold
                 recommend_results = client.recommend(
                     collection_name=IMAGE_COLLECTION_NAME,
                     positive=list(tag_photo_ids_str),
                     query_filter=user_filter,
-                    limit=recommend_limit,
+                    limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
                     with_vectors=False,
                     with_payload=False,
+                    score_threshold=score_threshold,
                 )
 
                 for result in recommend_results:
@@ -421,15 +422,16 @@ def execute_hybrid_search(
         # 2.1: 자연어 쿼리를 임베딩 벡터로 변환
         query_vector = create_query_embedding(query_string)
 
-        # 2.2: Qdrant `search` API 호출 (문법 정확)
+        # 2.2: Qdrant `search` API 호출 with threshold
         try:
             search_results = client.search(
                 collection_name=IMAGE_COLLECTION_NAME,
                 query_vector=query_vector,
                 query_filter=user_filter,
-                limit=semantic_limit,
+                limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
                 with_vectors=False,
                 with_payload=False,
+                score_threshold=score_threshold,
             )
 
             for result in search_results:
@@ -475,8 +477,9 @@ def execute_hybrid_search(
         final_scores.items(), key=lambda item: item[1], reverse=True
     )
 
-    # 3.4: 최종 결과 포맷팅
-    recommend_photo_ids_str = [item[0] for item in sorted_scores_tuple[:final_limit]]
+    # 3.4: Apply pagination to sorted results
+    all_photo_ids_str = [item[0] for item in sorted_scores_tuple]
+    recommend_photo_ids_str = all_photo_ids_str[offset:offset + limit]
 
     if not recommend_photo_ids_str:
         return []

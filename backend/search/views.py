@@ -39,7 +39,15 @@ class SemanticSearchView(APIView):
                 description="Number of results to skip (for pagination)",
                 type=openapi.TYPE_INTEGER,
                 required=False,
-                default=0,
+                default=SEARCH_SETTINGS.get("SEARCH_DEFAULT_OFFSET", 0),
+            ),
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description="Number of results to return per page (30 for first page, 60 for subsequent pages)",
+                type=openapi.TYPE_INTEGER,
+                required=False,
+                default=SEARCH_SETTINGS.get("SEARCH_FIRST_PAGE_SIZE", 30),
             ),
             openapi.Parameter(
                 "Authorization",
@@ -66,12 +74,17 @@ class SemanticSearchView(APIView):
         query = request.GET.get("query", "")
         if not query:
             return Response(
-                {"error": "query parameter is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+                    {"error": "query parameter is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         offset = request.validated_offset
         user = request.user
+        default_limit = (
+                SEARCH_SETTINGS.get("SEARCH_FIRST_PAGE_SIZE", 30) if offset == 0
+                else SEARCH_SETTINGS.get("SEARCH_SUBSEQUENT_PAGE_SIZE", 60)
+            )
+        limit = int(request.GET.get("limit", default_limit))
 
         # Parse tags and semantic query
         tag_names = TAG_REGEX.findall(query)
@@ -96,8 +109,11 @@ class SemanticSearchView(APIView):
             'tag_ids': valid_tag_ids,
             'query_text': semantic_query,
             'offset': offset,
-            'limit': 50
+            'limit': limit
         })
 
         serializer = PhotoResponseSerializer(results, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+        
+
