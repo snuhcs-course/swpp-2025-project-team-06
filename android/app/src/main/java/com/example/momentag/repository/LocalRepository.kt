@@ -1,5 +1,6 @@
 package com.example.momentag.repository
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.SharedPreferences
@@ -9,7 +10,9 @@ import android.graphics.ImageDecoder
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import com.example.momentag.R
 import com.example.momentag.model.Album
 import com.example.momentag.model.Photo
@@ -309,6 +312,78 @@ class LocalRepository
                             }
                         }
                         // --- [수정] 끝 ---
+
+                        val contentUri =
+                            ContentUris.withAppendedId(
+                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                id,
+                            )
+                        val createdAt =
+                            try {
+                                val date = Date(dateValue)
+                                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                                sdf.format(date)
+                            } catch (e: Exception) {
+                                ""
+                            }
+                        images.add(
+                            Photo(
+                                photoId = id.toString(),
+                                contentUri = contentUri,
+                                createdAt = createdAt,
+                            ),
+                        )
+                    }
+                }
+            return images
+        }
+
+        @RequiresApi(Build.VERSION_CODES.O)
+        fun getImagesForAlbumPaginated(
+            albumId: Long,
+            limit: Int,
+            offset: Int,
+        ): List<Photo> {
+            val images = mutableListOf<Photo>()
+            val projection =
+                arrayOf(
+                    MediaStore.Images.Media._ID,
+                    MediaStore.Images.Media.DATE_TAKEN,
+                    MediaStore.Images.Media.DATE_ADDED,
+                )
+
+            // Use Bundle for pagination (ContentResolver doesn't support raw LIMIT/OFFSET)
+            val queryArgs =
+                Bundle().apply {
+                    putString(ContentResolver.QUERY_ARG_SQL_SELECTION, "${MediaStore.Images.Media.BUCKET_ID} = ?")
+                    putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, arrayOf(albumId.toString()))
+                    putStringArray(ContentResolver.QUERY_ARG_SORT_COLUMNS, arrayOf(MediaStore.Images.Media.DATE_TAKEN))
+                    putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION, ContentResolver.QUERY_SORT_DIRECTION_DESCENDING)
+                    putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+                    putInt(ContentResolver.QUERY_ARG_OFFSET, offset)
+                }
+
+            context.contentResolver
+                .query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    projection,
+                    queryArgs,
+                    null,
+                )?.use { cursor ->
+                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                    val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+                    val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getLong(idColumn)
+                        var dateValue = cursor.getLong(dateTakenColumn)
+                        if (dateValue == 0L) {
+                            val dateAddedSeconds = cursor.getLong(dateAddedColumn)
+                            if (dateAddedSeconds > 0L) {
+                                dateValue = dateAddedSeconds * 1000L
+                            }
+                        }
 
                         val contentUri =
                             ContentUris.withAppendedId(

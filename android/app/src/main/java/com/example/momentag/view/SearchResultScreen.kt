@@ -970,7 +970,7 @@ private fun SearchResultsFromState(
                 val allPhotos = remember(uiState.results) { uiState.results.map { it.photo } }
 
                 val gridGestureModifier =
-                    Modifier.pointerInput(Unit) {
+                    Modifier.pointerInput(allPhotos) {
                         coroutineScope {
                             val pointerScope = this
                             val autoScrollViewport = 80.dp.toPx()

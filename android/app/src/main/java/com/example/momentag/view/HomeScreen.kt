@@ -1214,7 +1214,7 @@ private fun MainContent(
                 val updatedOnItemSelectionToggle = rememberUpdatedState(onItemSelectionToggle)
 
                 val gridGestureModifier =
-                    Modifier.pointerInput(Unit) {
+                    Modifier.pointerInput(allPhotos) {
                         coroutineScope {
                             val pointerScope = this
                             val autoScrollViewport = 80.dp.toPx()
