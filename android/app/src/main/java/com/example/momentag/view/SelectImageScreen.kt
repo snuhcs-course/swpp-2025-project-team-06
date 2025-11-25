@@ -14,7 +14,12 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +41,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -60,13 +66,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -95,9 +106,65 @@ import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.viewmodel.SelectImageViewModel
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
+
+// Helper data class for item info in the grid
+// private data class PhotoGridItemInfo(
+//    val photoId: String,
+//    val photo: Photo,
+// )
+
+// Extension function for LazyGridState to find an item at a given position
+private fun LazyGridState.findPhotoItemAtPosition(
+    position: Offset,
+    allPhotos: List<Photo>,
+): Pair<String, Photo>? {
+    for (itemInfo in layoutInfo.visibleItemsInfo) {
+        val key = itemInfo.key
+        if (key is String) {
+            val itemBounds =
+                Rect(
+                    itemInfo.offset.x.toFloat(),
+                    itemInfo.offset.y.toFloat(),
+                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+                )
+            if (itemBounds.contains(position)) {
+                val photo = allPhotos.find { it.photoId == key }
+                if (photo != null) {
+                    return key to photo
+                }
+            }
+        }
+    }
+    return null
+}
+
+private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
+    onDragStart: (Offset) -> Unit,
+    onDrag: (PointerInputChange) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val longPress = awaitLongPressOrCancellation(down.id)
+        if (longPress != null) {
+            onDragStart(longPress.position)
+            drag(longPress.id) { change ->
+                onDrag(change)
+            }
+            onDragEnd()
+        } else {
+            onDragCancel()
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
@@ -120,7 +187,6 @@ fun SelectImageScreen(navController: NavController) {
     val recommendedPhotos by selectImageViewModel.recommendedPhotos.collectAsState()
     val isSelectionMode by selectImageViewModel.isSelectionMode.collectAsState()
     val addPhotosState by selectImageViewModel.addPhotosState.collectAsState()
-
     // 4. 로컬 상태 변수
     var isRecommendationExpanded by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(true) }
@@ -381,12 +447,88 @@ fun SelectImageScreen(navController: NavController) {
                         )
                     }
                 } else if (hasPermission) {
+                    var lastProcessedPhotoId by remember { mutableStateOf<String?>(null) }
+                    val lastProcessedPhotoIdRef = rememberUpdatedState(lastProcessedPhotoId)
+                    val updatedSelectedPhotos = rememberUpdatedState(selectedPhotos)
+                    val updatedIsSelectionMode = rememberUpdatedState(isSelectionMode)
+                    val allPhotosState = rememberUpdatedState(allPhotos)
+
+                    val gridGestureModifier =
+                        Modifier.pointerInput(Unit) {
+                            coroutineScope {
+                                val pointerScope = this
+                                val autoScrollViewport = 80.dp.toPx()
+                                var autoScrollJob: Job? = null
+
+                                detectDragAfterLongPressIgnoreConsumed(
+                                    onDragStart = { offset ->
+                                        autoScrollJob?.cancel()
+                                        listState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
+                                            if (!updatedIsSelectionMode.value) {
+                                                selectImageViewModel.setSelectionMode(true)
+                                            }
+                                            if (!updatedSelectedPhotos.value.any { it.photoId == photoId }) {
+                                                selectImageViewModel.addPhoto(photo)
+                                            }
+                                            lastProcessedPhotoId = photoId
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        lastProcessedPhotoId = null
+                                        autoScrollJob?.cancel()
+                                    },
+                                    onDragCancel = {
+                                        lastProcessedPhotoId = null
+                                        autoScrollJob?.cancel()
+                                    },
+                                    onDrag = { change ->
+                                        // --- Item Selection Logic ---
+                                        listState.findPhotoItemAtPosition(change.position, allPhotosState.value)?.let { (photoId, photo) ->
+                                            if (photoId != lastProcessedPhotoIdRef.value) {
+                                                if (!updatedSelectedPhotos.value.any { it.photoId == photoId }) {
+                                                    selectImageViewModel.addPhoto(photo)
+                                                }
+                                                lastProcessedPhotoId = photoId
+                                            }
+                                        }
+
+                                        // --- Auto-Scroll Logic ---
+                                        val viewportHeight =
+                                            listState.layoutInfo.viewportSize.height
+                                                .toFloat()
+                                        val pointerY = change.position.y
+
+                                        val scrollAmount =
+                                            when {
+                                                pointerY < autoScrollViewport -> -50f // Scroll up
+                                                pointerY > viewportHeight - autoScrollViewport -> 50f // Scroll down
+                                                else -> 0f
+                                            }
+
+                                        if (scrollAmount != 0f) {
+                                            if (autoScrollJob?.isActive != true) {
+                                                autoScrollJob =
+                                                    pointerScope.launch {
+                                                        while (true) {
+                                                            listState.scrollBy(scrollAmount)
+                                                            delay(50)
+                                                        }
+                                                    }
+                                            }
+                                        } else {
+                                            autoScrollJob?.cancel()
+                                        }
+                                    },
+                                )
+                            }
+                        }
+
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         state = listState,
                         horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                         verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().then(gridGestureModifier),
                         contentPadding =
                             PaddingValues(
                                 bottom =
@@ -409,7 +551,10 @@ fun SelectImageScreen(navController: NavController) {
                                 isSelected = isSelected,
                                 isSelectionMode = isSelectionMode,
                                 onClick = { onPhotoClick(photo) },
-                                onLongClick = { selectImageViewModel.handleLongClick(photo) },
+                                onLongClick = {
+                                    // This now primarily handles "long-press-and-release"
+                                    selectImageViewModel.handleLongClick(photo)
+                                },
                                 modifier = Modifier.aspectRatio(1f),
                             )
                         }
