@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -37,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -65,6 +67,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -131,6 +134,8 @@ fun SearchResultScreen(
     val shouldShowSearchHistoryDropdown by searchViewModel.shouldShowSearchHistoryDropdown.collectAsState()
     val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
     val scrollToIndex by searchViewModel.scrollToIndex.collectAsState()
+    val isLoadingMore by searchViewModel.isLoadingMore.collectAsState()
+    val hasMore by searchViewModel.hasMore.collectAsState()
 
     // 4. 로컬 상태 변수
     var searchBarWidth by remember { mutableStateOf(0) }
@@ -485,6 +490,9 @@ fun SearchResultScreen(
         onDismissError = { isErrorBannerVisible = false },
         placeholder = placeholderText,
         onClearSearchContent = { searchViewModel.clearSearchContent(keepFocus = true) },
+        isLoadingMore = isLoadingMore,
+        hasMore = hasMore,
+        onLoadMore = { searchViewModel.loadMore() },
     )
 }
 
@@ -537,6 +545,9 @@ fun SearchResultScreenUi(
     onDismissError: () -> Unit,
     placeholder: String,
     onClearSearchContent: () -> Unit = {},
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
 ) {
     LocalFocusManager.current
     val backgroundBrush = rememberAppBackgroundBrush()
@@ -617,6 +628,9 @@ fun SearchResultScreenUi(
             onDismissError = onDismissError,
             placeholder = placeholder,
             onClearSearchContent = onClearSearchContent,
+            isLoadingMore = isLoadingMore,
+            hasMore = hasMore,
+            onLoadMore = onLoadMore,
         )
     }
 }
@@ -667,6 +681,9 @@ private fun SearchResultContent(
     onDismissError: () -> Unit,
     placeholder: String,
     onClearSearchContent: () -> Unit = {},
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -765,6 +782,9 @@ private fun SearchResultContent(
                 onRetry = onRetry,
                 navController = navController,
                 gridState = gridState,
+                isLoadingMore = isLoadingMore,
+                hasMore = hasMore,
+                onLoadMore = onLoadMore,
             )
 
             AnimatedVisibility(
@@ -888,6 +908,9 @@ private fun SearchResultsFromState(
     onRetry: () -> Unit,
     navController: NavController,
     gridState: LazyGridState,
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit,
 ) {
     Box(modifier = modifier) {
         when (uiState) {
@@ -911,6 +934,22 @@ private fun SearchResultsFromState(
             }
 
             is SearchViewModel.SearchUiState.Success -> {
+                // Infinite scroll detection
+                LaunchedEffect(gridState) {
+                    snapshotFlow {
+                        val layoutInfo = gridState.layoutInfo
+                        val totalItemsCount = layoutInfo.totalItemsCount
+                        val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+
+                        // Trigger when 6 items (2 rows) from the end
+                        lastVisibleItemIndex >= totalItemsCount - 6
+                    }.collect { shouldLoadMore ->
+                        if (shouldLoadMore && hasMore && !isLoadingMore) {
+                            onLoadMore()
+                        }
+                    }
+                }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     state = gridState,
@@ -934,6 +973,28 @@ private fun SearchResultsFromState(
                                 onImageLongPress()
                             },
                         )
+                    }
+
+                    // Loading indicator at the bottom
+                    if (isLoadingMore && hasMore) {
+                        item(
+                            key = "loading_indicator",
+                            span = { GridItemSpan(3) },
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = Dimen.ItemSpacingLarge),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(Dimen.CircularProgressSizeMedium),
+                                    strokeWidth = 3.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
                     }
                 }
             }

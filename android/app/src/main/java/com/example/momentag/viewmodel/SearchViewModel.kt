@@ -126,6 +126,12 @@ class SearchViewModel
         private val _bringIntoView = MutableSharedFlow<String>()
         private val _scrollToIndex = MutableStateFlow<Int?>(null)
 
+        // Pagination state
+        private val _isLoadingMore = MutableStateFlow(false)
+        private val _hasMore = MutableStateFlow(true)
+        private var currentOffset = 0
+        private var currentQuery = ""
+
         // 3. Public StateFlow (exposed state)
         val tagLoadingState = _tagLoadingState.asStateFlow()
         val searchState = _searchState.asStateFlow()
@@ -136,6 +142,9 @@ class SearchViewModel
         val requestFocus = _requestFocus.asSharedFlow()
         val bringIntoView = _bringIntoView.asSharedFlow()
         val scrollToIndex = _scrollToIndex.asStateFlow()
+
+        val isLoadingMore = _isLoadingMore.asStateFlow()
+        val hasMore = _hasMore.asStateFlow()
 
         // 4. Private 변수
         private val isLoggedInFlow = tokenRepository.isLoggedIn
@@ -254,6 +263,11 @@ class SearchViewModel
                 return
             }
 
+            // Reset pagination state for new search
+            currentQuery = query
+            currentOffset = 0
+            _hasMore.value = true
+
             viewModelScope.launch {
                 localRepository.addSearchHistory(query)
                 loadSearchHistory()
@@ -270,11 +284,17 @@ class SearchViewModel
                                 photos = photos,
                                 query = query,
                             )
+
+                        // Update pagination state based on actual response
+                        currentOffset += photos.size
+                        // If we got 0 photos, there's nothing more to load
+                        _hasMore.value = photos.isNotEmpty()
                     }
 
                     is SearchRepository.SearchResult.Empty -> {
                         _searchState.value = SemanticSearchState.Empty(query)
                         imageBrowserRepository.clear()
+                        _hasMore.value = false
                     }
 
                     is SearchRepository.SearchResult.BadRequest -> {
@@ -293,6 +313,63 @@ class SearchViewModel
                         _searchState.value = SemanticSearchState.Error(SearchError.UnknownError)
                     }
                 }
+            }
+        }
+
+        /**
+         * Load more search results (infinite scroll)
+         */
+        fun loadMore() {
+            // Prevent multiple simultaneous loads
+            if (_isLoadingMore.value || !_hasMore.value) return
+
+            val currentState = _searchState.value
+            if (currentState !is SemanticSearchState.Success) return
+
+            viewModelScope.launch {
+                _isLoadingMore.value = true
+
+                when (val result = searchRepository.semanticSearch(currentQuery, currentOffset)) {
+                    is SearchRepository.SearchResult.Success -> {
+                        val newPhotos = localRepository.toPhotos(result.photos)
+
+                        if (newPhotos.isNotEmpty()) {
+                            // Append new photos to existing results
+                            val existingPhotos = currentState.photos
+                            val updatedPhotos = existingPhotos + newPhotos
+
+                            imageBrowserRepository.setSearchResults(updatedPhotos, currentQuery)
+                            _searchState.value =
+                                SemanticSearchState.Success(
+                                    photos = updatedPhotos,
+                                    query = currentQuery,
+                                )
+
+                            // Update pagination state based on actual response
+                            currentOffset += newPhotos.size
+                            // If we got results, there might be more
+                            _hasMore.value = true
+                        } else {
+                            // No more results
+                            _hasMore.value = false
+                        }
+                    }
+
+                    is SearchRepository.SearchResult.Empty -> {
+                        _hasMore.value = false
+                    }
+
+                    is SearchRepository.SearchResult.BadRequest,
+                    is SearchRepository.SearchResult.Unauthorized,
+                    is SearchRepository.SearchResult.NetworkError,
+                    is SearchRepository.SearchResult.Error,
+                    -> {
+                        // Keep hasMore true to allow retry
+                        _hasMore.value = true
+                    }
+                }
+
+                _isLoadingMore.value = false
             }
         }
 
