@@ -4,10 +4,13 @@ import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.example.momentag.worker.SelectedPhotoUploadWorker
+import java.util.UUID
 
 class UploadRetryReceiver : BroadcastReceiver() {
     companion object {
@@ -25,12 +28,27 @@ class UploadRetryReceiver : BroadcastReceiver() {
             val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1)
 
             if (failedIds != null && failedIds.isNotEmpty()) {
+                // Generate a new job ID for the retry upload
+                val retryJobId = "retry-${UUID.randomUUID()}"
+
                 val workRequest =
                     OneTimeWorkRequestBuilder<SelectedPhotoUploadWorker>()
-                        .setInputData(workDataOf(SelectedPhotoUploadWorker.KEY_PHOTO_IDS to failedIds))
+                        .setInputData(
+                            workDataOf(
+                                SelectedPhotoUploadWorker.KEY_PHOTO_IDS to failedIds,
+                                SelectedPhotoUploadWorker.KEY_JOB_ID to retryJobId,
+                            ),
+                        ).addTag("upload-$retryJobId")
+                        .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                         .build()
 
-                WorkManager.getInstance(context).enqueue(workRequest)
+                WorkManager
+                    .getInstance(context)
+                    .enqueueUniqueWork(
+                        "upload-$retryJobId",
+                        ExistingWorkPolicy.REPLACE,
+                        workRequest,
+                    )
             }
 
             if (notificationId != -1) {

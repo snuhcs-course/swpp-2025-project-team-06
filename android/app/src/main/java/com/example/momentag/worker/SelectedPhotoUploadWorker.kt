@@ -21,18 +21,25 @@ import androidx.work.workDataOf
 import com.example.momentag.R
 import com.example.momentag.di.AlbumUploadJobCountQualifier
 import com.example.momentag.di.AlbumUploadSuccessEventQualifier
+import com.example.momentag.di.UploadCancelRequestQualifier
+import com.example.momentag.di.UploadPauseRequestQualifier
 import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoUploadData
+import com.example.momentag.model.UploadJobState
+import com.example.momentag.model.UploadStatus
+import com.example.momentag.model.UploadType
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoInfoForUpload
 import com.example.momentag.repository.RemoteRepository
 import com.example.momentag.repository.TaskRepository
+import com.example.momentag.repository.UploadStateRepository
 import com.google.gson.Gson
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -40,6 +47,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.UUID
 
 private data class PhotoMetadataHolder(
     val filename: String,
@@ -57,15 +65,19 @@ class SelectedPhotoUploadWorker
         private val localRepository: LocalRepository,
         private val remoteRepository: RemoteRepository,
         private val taskRepository: TaskRepository, // Injected
+        private val uploadStateRepository: UploadStateRepository,
         private val gson: Gson,
         @AlbumUploadJobCountQualifier private val albumUploadJobCount: MutableStateFlow<Int>,
         @AlbumUploadSuccessEventQualifier private val albumUploadSuccessEvent: MutableSharedFlow<Long>,
+        @UploadPauseRequestQualifier private val uploadPauseRequestFlow: MutableSharedFlow<String>,
+        @UploadCancelRequestQualifier private val uploadCancelRequestFlow: MutableSharedFlow<String>,
     ) : CoroutineWorker(appContext, params) {
         private val notificationManager =
             appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         companion object {
             const val KEY_PHOTO_IDS = "PHOTO_IDS"
+            const val KEY_JOB_ID = "JOB_ID"
             const val KEY_PROGRESS = "PROGRESS"
 
             private const val NOTIFICATION_ID = 12345
@@ -74,10 +86,19 @@ class SelectedPhotoUploadWorker
             private const val RESULT_NOTIFICATION_ID = 12346
         }
 
-        private fun createForegroundInfo(progress: String): ForegroundInfo {
+        @Volatile
+        private var shouldPause = false
+
+        @Volatile
+        private var shouldCancel = false
+
+        private fun createForegroundInfo(
+            progress: String,
+            jobId: String? = null,
+        ): ForegroundInfo {
             createNotificationChannel()
 
-            val notification = createNotification(progress, true)
+            val notification = createNotification(progress, true, jobId)
 
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ForegroundInfo(
@@ -93,15 +114,54 @@ class SelectedPhotoUploadWorker
         private fun createNotification(
             text: String,
             ongoing: Boolean,
-        ): Notification =
-            NotificationCompat
-                .Builder(applicationContext, CHANNEL_ID)
-                .setContentTitle(applicationContext.getString(R.string.notification_upload_title))
-                .setContentText(text)
-                .setSmallIcon(R.mipmap.ic_launcher_foreground)
-                .setOngoing(ongoing)
-                .setAutoCancel(!ongoing)
-                .build()
+            jobId: String? = null,
+        ): Notification {
+            val builder =
+                NotificationCompat
+                    .Builder(applicationContext, CHANNEL_ID)
+                    .setContentTitle(applicationContext.getString(R.string.notification_upload_title))
+                    .setContentText(text)
+                    .setSmallIcon(R.mipmap.ic_launcher_foreground)
+                    .setOngoing(ongoing)
+                    .setAutoCancel(!ongoing)
+
+            // Add pause and cancel action buttons if jobId is provided
+            if (jobId != null) {
+                // Pause button
+                val pauseIntent =
+                    android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                        action = com.example.momentag.receiver.UploadControlReceiver.ACTION_PAUSE
+                        putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_JOB_ID, jobId)
+                    }
+                val pausePendingIntent =
+                    android.app.PendingIntent.getBroadcast(
+                        applicationContext,
+                        jobId.hashCode(),
+                        pauseIntent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+                    )
+
+                // Cancel button
+                val cancelIntent =
+                    android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                        action = com.example.momentag.receiver.UploadControlReceiver.ACTION_CANCEL
+                        putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_JOB_ID, jobId)
+                    }
+                val cancelPendingIntent =
+                    android.app.PendingIntent.getBroadcast(
+                        applicationContext,
+                        jobId.hashCode() + 1,
+                        cancelIntent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+                    )
+
+                builder
+                    .addAction(android.R.drawable.ic_media_pause, "Pause", pausePendingIntent)
+                    .addAction(android.R.drawable.ic_delete, "Cancel", cancelPendingIntent)
+            }
+
+            return builder.build()
+        }
 
         private fun updateNotification(
             title: String,
@@ -109,6 +169,7 @@ class SelectedPhotoUploadWorker
             id: Int,
             ongoing: Boolean,
             retryPendingIntent: android.app.PendingIntent? = null,
+            jobId: String? = null,
         ) {
             val builder =
                 NotificationCompat
@@ -121,10 +182,43 @@ class SelectedPhotoUploadWorker
 
             if (retryPendingIntent != null) {
                 builder.addAction(
-                    R.drawable.ic_launcher_foreground, // Placeholder icon, ideally use a refresh/retry icon
+                    android.R.drawable.ic_menu_rotate,
                     applicationContext.getString(R.string.notification_action_retry),
                     retryPendingIntent,
                 )
+            }
+
+            // Add pause and cancel action buttons if jobId is provided
+            if (jobId != null && ongoing) {
+                val pauseIntent =
+                    android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                        action = com.example.momentag.receiver.UploadControlReceiver.ACTION_PAUSE
+                        putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_JOB_ID, jobId)
+                    }
+                val pausePendingIntent =
+                    android.app.PendingIntent.getBroadcast(
+                        applicationContext,
+                        jobId.hashCode(),
+                        pauseIntent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+                    )
+
+                val cancelIntent =
+                    android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                        action = com.example.momentag.receiver.UploadControlReceiver.ACTION_CANCEL
+                        putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_JOB_ID, jobId)
+                    }
+                val cancelPendingIntent =
+                    android.app.PendingIntent.getBroadcast(
+                        applicationContext,
+                        jobId.hashCode() + 1,
+                        cancelIntent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+                    )
+
+                builder
+                    .addAction(android.R.drawable.ic_media_pause, "Pause", pausePendingIntent)
+                    .addAction(android.R.drawable.ic_delete, "Cancel", cancelPendingIntent)
             }
 
             notificationManager.notify(id, builder.build())
@@ -150,17 +244,97 @@ class SelectedPhotoUploadWorker
                 return Result.failure()
             }
 
+            // Get or create job ID
+            val jobId = inputData.getString(KEY_JOB_ID) ?: UUID.randomUUID().toString()
+
+            // Listen for pause/cancel requests
+            val pauseJob =
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                    uploadPauseRequestFlow.collect { requestedJobId ->
+                        if (requestedJobId == jobId) {
+                            shouldPause = true
+                        }
+                    }
+                }
+
+            val cancelJob =
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                    uploadCancelRequestFlow.collect { requestedJobId ->
+                        if (requestedJobId == jobId) {
+                            shouldCancel = true
+                        }
+                    }
+                }
+
             val initialProgress = applicationContext.getString(R.string.foreground_preparing_upload)
-            setForeground(createForegroundInfo(initialProgress))
+            setForeground(createForegroundInfo(initialProgress, jobId))
 
             albumUploadJobCount.update { it + 1 }
 
             try {
-                val (successCount, failCount, taskIds, failedIds) = processPhotosInChunks(photoIds, 8)
+                // Get or create upload state
+                val existingState = uploadStateRepository.getState(jobId)
+                val startChunkIndex = existingState?.currentChunkIndex ?: 0
+
+                // Use saved photo IDs or input data on first run
+                val photoIdsToUpload = existingState?.totalPhotoIds ?: photoIds.toList()
+
+                // Initialize state if new
+                if (existingState == null) {
+                    uploadStateRepository.saveState(
+                        UploadJobState(
+                            jobId = jobId,
+                            type = UploadType.SELECTED_PHOTOS,
+                            albumId = null,
+                            status = UploadStatus.RUNNING,
+                            totalPhotoIds = photoIdsToUpload,
+                            failedPhotoIds = emptyList(),
+                            currentChunkIndex = 0,
+                            createdAt = System.currentTimeMillis(),
+                        ),
+                    )
+                } else {
+                    // Update to RUNNING status
+                    uploadStateRepository.saveState(existingState.copy(status = UploadStatus.RUNNING))
+                }
+
+                val (successCount, failCount, taskIds, failedIds, wasPaused) =
+                    processPhotosInChunks(photoIdsToUpload, 8, jobId, startChunkIndex)
 
                 // Save successful task IDs
                 if (taskIds.isNotEmpty()) {
                     taskRepository.saveTaskIds(taskIds)
+                }
+
+                // Handle pause
+                if (wasPaused || shouldPause) {
+                    val currentState = uploadStateRepository.getState(jobId)
+                    if (currentState != null) {
+                        uploadStateRepository.saveState(currentState.copy(status = UploadStatus.PAUSED))
+                    }
+                    return Result.failure()
+                }
+
+                // Handle cancel
+                if (shouldCancel) {
+                    val currentState = uploadStateRepository.getState(jobId)
+                    if (currentState != null) {
+                        uploadStateRepository.saveState(currentState.copy(status = UploadStatus.CANCELLED))
+                    }
+                    notificationManager.cancel(NOTIFICATION_ID)
+                    return Result.failure()
+                }
+
+                // Update final state
+                val currentState = uploadStateRepository.getState(jobId)
+                if (currentState != null) {
+                    val finalStatus = if (failCount > 0 && successCount == 0) UploadStatus.FAILED else UploadStatus.COMPLETED
+                    uploadStateRepository.saveState(
+                        currentState.copy(
+                            status = finalStatus,
+                            failedPhotoIds = failedIds,
+                        ),
+                    )
                 }
 
                 if (successCount > 0) {
@@ -199,6 +373,10 @@ class SelectedPhotoUploadWorker
                     return Result.failure()
                 }
             } catch (e: Exception) {
+                val currentState = uploadStateRepository.getState(jobId)
+                if (currentState != null) {
+                    uploadStateRepository.saveState(currentState.copy(status = UploadStatus.FAILED))
+                }
                 updateNotification(
                     applicationContext.getString(R.string.notification_upload_error),
                     applicationContext.getString(R.string.error_message_generic),
@@ -208,6 +386,8 @@ class SelectedPhotoUploadWorker
                 return Result.failure()
             } finally {
                 albumUploadJobCount.update { it - 1 }
+                pauseJob.cancel()
+                cancelJob.cancel()
             }
         }
 
@@ -231,24 +411,41 @@ class SelectedPhotoUploadWorker
             val failCount: Int,
             val taskIds: List<String>,
             val failedIds: List<Long>,
+            val wasPaused: Boolean,
         )
 
         private suspend fun processPhotosInChunks(
-            photoIds: LongArray,
+            photoIds: List<Long>,
             chunkSize: Int,
+            jobId: String,
+            startChunkIndex: Int,
         ): UploadResult {
-            val totalPhotos = photoIds.size
-            if (totalPhotos == 0) return UploadResult(0, 0, emptyList(), emptyList())
-
-            val totalChunks = (totalPhotos + chunkSize - 1) / chunkSize
-            var chunkCount = 0
+            val chunks = photoIds.chunked(chunkSize)
+            val totalChunks = chunks.size
 
             var successCount = 0
             var failCount = 0
             val allTaskIds = mutableListOf<String>()
             val failedIds = mutableListOf<Long>()
 
-            photoIds.asSequence().chunked(chunkSize).forEach { chunkIds ->
+            // Process chunks starting from startChunkIndex
+            for (i in startChunkIndex until chunks.size) {
+                // Check for pause/cancel before processing each chunk
+                if (shouldPause || shouldCancel || isStopped) {
+                    // Save current state before pausing
+                    val currentState = uploadStateRepository.getState(jobId)
+                    if (currentState != null) {
+                        uploadStateRepository.saveState(
+                            currentState.copy(
+                                currentChunkIndex = i,
+                                failedPhotoIds = failedIds,
+                            ),
+                        )
+                    }
+                    return UploadResult(successCount, failCount, allTaskIds, failedIds, true)
+                }
+
+                val chunkIds = chunks[i]
                 val currentChunk = mutableListOf<PhotoInfoForUpload>()
 
                 chunkIds.forEach { id ->
@@ -267,14 +464,14 @@ class SelectedPhotoUploadWorker
                     currentChunk.add(PhotoInfoForUpload(contentUri, meta))
                 }
 
-                chunkCount++
-                val progressText = applicationContext.getString(R.string.notification_progress_chunk, chunkCount, totalChunks)
+                val progressText = applicationContext.getString(R.string.notification_progress_chunk, i + 1, totalChunks)
                 setProgress(workDataOf(KEY_PROGRESS to progressText))
                 updateNotification(
                     applicationContext.getString(R.string.notification_uploading_photos),
                     progressText,
                     NOTIFICATION_ID,
                     true,
+                    jobId = jobId,
                 )
 
                 val uploadData = createUploadDataFromChunk(currentChunk)
@@ -283,7 +480,7 @@ class SelectedPhotoUploadWorker
                 if (uploadData.photo.isEmpty()) {
                     failCount += chunkIds.size
                     failedIds.addAll(chunkIds)
-                    return@forEach
+                    continue
                 }
 
                 val response = remoteRepository.uploadPhotos(uploadData)
@@ -291,16 +488,32 @@ class SelectedPhotoUploadWorker
                 if (response is RemoteRepository.Result.Success) {
                     successCount += uploadData.photo.size
                     // Add task IDs from response
-                    allTaskIds.addAll(response.data.map { it.taskId })
+                    val taskIds = response.data.map { it.taskId }
+                    allTaskIds.addAll(taskIds)
+
+                    // Save task IDs immediately after each successful chunk
+                    if (taskIds.isNotEmpty()) {
+                        taskRepository.saveTaskIds(taskIds)
+                    }
                 } else {
                     failCount += uploadData.photo.size
                     failedIds.addAll(chunkIds)
                     Log.e("SelectedPhotoUploadWorker", "Chunk upload failed: $response")
                 }
-                currentChunk.clear()
+
+                // Update state after each chunk
+                val currentState = uploadStateRepository.getState(jobId)
+                if (currentState != null) {
+                    uploadStateRepository.saveState(
+                        currentState.copy(
+                            currentChunkIndex = i + 1,
+                            failedPhotoIds = failedIds,
+                        ),
+                    )
+                }
             }
 
-            return UploadResult(successCount, failCount, allTaskIds, failedIds)
+            return UploadResult(successCount, failCount, allTaskIds, failedIds, false)
         }
 
         private fun getMetadataForPhoto(
