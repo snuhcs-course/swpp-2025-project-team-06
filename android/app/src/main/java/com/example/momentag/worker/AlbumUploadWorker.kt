@@ -331,17 +331,13 @@ class AlbumUploadWorker
                 val (successCount, failCount, taskIds, failedPhotoIds, wasPaused) =
                     processAlbumInChunks(photoIdsToUpload, albumName, 8, jobId, startChunkIndex)
 
-                // Save task IDs for successful uploads
-                if (taskIds.isNotEmpty()) {
-                    taskRepository.saveTaskIds(taskIds)
-                }
-
                 // Handle pause
                 if (wasPaused || shouldPause) {
                     val currentState = uploadStateRepository.getState(jobId)
                     if (currentState != null) {
                         uploadStateRepository.saveState(currentState.copy(status = UploadStatus.PAUSED))
                     }
+                    // Note: Task IDs already saved incrementally during processAlbumInChunks
                     return Result.failure()
                 }
 
@@ -352,7 +348,15 @@ class AlbumUploadWorker
                         uploadStateRepository.saveState(currentState.copy(status = UploadStatus.CANCELLED))
                     }
                     notificationManager.cancel(NOTIFICATION_ID)
+                    // Note: Task IDs already saved incrementally during processAlbumInChunks
                     return Result.failure()
+                }
+
+                // Save task IDs for successful uploads (only when completed, not paused/cancelled)
+                // This is redundant safety since task IDs are already saved incrementally,
+                // but ensures we have all task IDs even if incremental saves failed
+                if (taskIds.isNotEmpty()) {
+                    taskRepository.saveTaskIds(taskIds)
                 }
 
                 // Update final state

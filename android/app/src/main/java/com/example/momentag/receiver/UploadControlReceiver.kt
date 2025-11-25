@@ -23,7 +23,6 @@ import com.example.momentag.worker.SelectedPhotoUploadWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -77,21 +76,16 @@ class UploadControlReceiver : BroadcastReceiver() {
         jobId: String,
         context: Context,
     ) {
-        // Get current state and update to PAUSED
+        // Emit pause request to worker (so it stops processing and saves state)
+        uploadPauseRequestFlow.emit(jobId)
+
+        // Worker will detect pause, save state with correct currentChunkIndex, and exit gracefully
+        // Show paused notification with current state (will be updated by worker)
         val state = uploadStateRepository.getState(jobId)
         if (state != null) {
-            uploadStateRepository.saveState(state.copy(status = UploadStatus.PAUSED))
-
-            // Show paused notification immediately
             val text = getNotificationText(context, state)
             showPausedNotification(context, jobId, text)
         }
-
-        // Emit pause request to worker (so it stops processing)
-        uploadPauseRequestFlow.emit(jobId)
-
-        // Cancel the worker
-        WorkManager.getInstance(context).cancelAllWorkByTag("upload-$jobId")
     }
 
     private suspend fun resumeUpload(
@@ -122,13 +116,11 @@ class UploadControlReceiver : BroadcastReceiver() {
         jobId: String,
         context: Context,
     ) {
-        // Emit cancel request to worker
+        // Emit cancel request to worker (so it stops processing and exits)
         uploadCancelRequestFlow.emit(jobId)
 
-        // Cancel the worker
-        WorkManager.getInstance(context).cancelAllWorkByTag("upload-$jobId")
-
-        // Remove the state
+        // Worker will detect cancel and exit gracefully
+        // We can remove the state immediately since user explicitly cancelled
         uploadStateRepository.removeState(jobId)
 
         // Cancel the paused notification if it exists
