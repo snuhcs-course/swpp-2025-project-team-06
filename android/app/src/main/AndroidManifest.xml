@@ -35,20 +35,13 @@
         </activity>
 
         <receiver
-            android:name=".receiver.UploadRetryReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.example.momentag.action.RETRY_UPLOAD" />
-            </intent-filter>
-        </receiver>
-
-        <receiver
             android:name=".receiver.UploadControlReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.example.momentag.ACTION_PAUSE_UPLOAD" />
                 <action android:name="com.example.momentag.ACTION_RESUME_UPLOAD" />
                 <action android:name="com.example.momentag.ACTION_CANCEL_UPLOAD" />
+                <action android:name="com.example.momentag.ACTION_RETRY_UPLOAD" />
             </intent-filter>
         </receiver>
 

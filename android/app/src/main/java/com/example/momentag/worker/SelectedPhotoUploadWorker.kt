@@ -397,10 +397,10 @@ class SelectedPhotoUploadWorker
 
         private fun createRetryPendingIntent(failedIds: LongArray): android.app.PendingIntent {
             val intent =
-                android.content.Intent(applicationContext, com.example.momentag.receiver.UploadRetryReceiver::class.java).apply {
-                    action = com.example.momentag.receiver.UploadRetryReceiver.ACTION_RETRY_UPLOAD
-                    putExtra(com.example.momentag.receiver.UploadRetryReceiver.EXTRA_FAILED_PHOTO_IDS, failedIds)
-                    putExtra(com.example.momentag.receiver.UploadRetryReceiver.EXTRA_NOTIFICATION_ID, RESULT_NOTIFICATION_ID)
+                android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                    action = com.example.momentag.receiver.UploadControlReceiver.ACTION_RETRY
+                    putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_FAILED_PHOTO_IDS, failedIds)
+                    putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_NOTIFICATION_ID, RESULT_NOTIFICATION_ID)
                 }
             return android.app.PendingIntent.getBroadcast(
                 applicationContext,

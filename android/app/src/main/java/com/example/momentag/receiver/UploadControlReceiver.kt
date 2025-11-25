@@ -11,7 +11,9 @@ import androidx.core.app.NotificationCompat
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.example.momentag.R
 import com.example.momentag.di.UploadCancelRequestQualifier
 import com.example.momentag.di.UploadPauseRequestQualifier
@@ -25,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -44,7 +47,10 @@ class UploadControlReceiver : BroadcastReceiver() {
         const val ACTION_PAUSE = "com.example.momentag.ACTION_PAUSE_UPLOAD"
         const val ACTION_RESUME = "com.example.momentag.ACTION_RESUME_UPLOAD"
         const val ACTION_CANCEL = "com.example.momentag.ACTION_CANCEL_UPLOAD"
+        const val ACTION_RETRY = "com.example.momentag.ACTION_RETRY_UPLOAD"
         const val EXTRA_JOB_ID = "EXTRA_JOB_ID"
+        const val EXTRA_FAILED_PHOTO_IDS = "FAILED_PHOTO_IDS"
+        const val EXTRA_NOTIFICATION_ID = "NOTIFICATION_ID"
 
         private const val PAUSED_NOTIFICATION_ID = 12347
         private const val CHANNEL_ID = "AlbumUploadChannel"
@@ -54,17 +60,27 @@ class UploadControlReceiver : BroadcastReceiver() {
         context: Context,
         intent: Intent,
     ) {
-        val jobId = intent.getStringExtra(EXTRA_JOB_ID) ?: return
-
         // Use goAsync for coroutine operations
         val pendingResult = goAsync()
 
         CoroutineScope(Dispatchers.Default).launch {
             try {
                 when (intent.action) {
-                    ACTION_PAUSE -> pauseUpload(jobId, context)
-                    ACTION_RESUME -> resumeUpload(jobId, context)
-                    ACTION_CANCEL -> cancelUpload(jobId, context)
+                    ACTION_PAUSE -> {
+                        val jobId = intent.getStringExtra(EXTRA_JOB_ID) ?: return@launch
+                        pauseUpload(jobId, context)
+                    }
+                    ACTION_RESUME -> {
+                        val jobId = intent.getStringExtra(EXTRA_JOB_ID) ?: return@launch
+                        resumeUpload(jobId, context)
+                    }
+                    ACTION_CANCEL -> {
+                        val jobId = intent.getStringExtra(EXTRA_JOB_ID) ?: return@launch
+                        cancelUpload(jobId, context)
+                    }
+                    ACTION_RETRY -> {
+                        retryUpload(intent, context)
+                    }
                 }
             } finally {
                 pendingResult.finish()
@@ -126,6 +142,44 @@ class UploadControlReceiver : BroadcastReceiver() {
         // Cancel the paused notification if it exists
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(PAUSED_NOTIFICATION_ID)
+    }
+
+    private fun retryUpload(
+        intent: Intent,
+        context: Context,
+    ) {
+        val failedIds = intent.getLongArrayExtra(EXTRA_FAILED_PHOTO_IDS)
+        val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1)
+
+        if (failedIds != null && failedIds.isNotEmpty()) {
+            // Generate a new job ID for the retry upload
+            val retryJobId = "retry-${UUID.randomUUID()}"
+
+            val workRequest =
+                OneTimeWorkRequestBuilder<SelectedPhotoUploadWorker>()
+                    .setInputData(
+                        workDataOf(
+                            SelectedPhotoUploadWorker.KEY_PHOTO_IDS to failedIds,
+                            SelectedPhotoUploadWorker.KEY_JOB_ID to retryJobId,
+                        ),
+                    ).addTag("upload-$retryJobId")
+                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .build()
+
+            WorkManager
+                .getInstance(context)
+                .enqueueUniqueWork(
+                    "upload-$retryJobId",
+                    ExistingWorkPolicy.REPLACE,
+                    workRequest,
+                )
+        }
+
+        if (notificationId != -1) {
+            val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancel(notificationId)
+        }
     }
 
     private fun showPausedNotification(
