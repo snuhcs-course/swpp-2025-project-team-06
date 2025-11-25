@@ -23,34 +23,23 @@ class TagOnlySearchStrategy(SearchStrategy):
     """Search photos by tags only"""
 
     def search(self, user, query_params: Dict) -> List[Dict]:
-        tag_ids = query_params['tag_ids']
-        photo_tags = Photo_Tag.objects.filter(
-            user=user, tag_id__in=tag_ids
-        ).values_list("photo_id", flat=True).distinct()
-
         client = get_qdrant_client()
+        tag_ids = query_params['tag_ids']
+        offset = query_params.get('offset', 0)
+        limit = query_params.get('limit', 50)
+        tagged_photo_ids = list(
+            Photo_Tag.objects.filter(user=user, tag_id__in=tag_ids)
+            .values_list("photo_id", flat=True)
+            .distinct()
+        )
+
+        tagged_photo_ids_str = [str(pid) for pid in tagged_photo_ids]
 
         # Get representative vectors for the tags
         all_rep_vectors = []
         for tag_id in tag_ids:
             rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
             all_rep_vectors.extend(rep_vectors)
-
-        # Get photos directly tagged
-        photos = Photo.objects.filter(photo_id__in=photo_tags).values(
-            "photo_id", "photo_path_id", "created_at"
-        )
-
-        directly_tagged = [
-            {
-                "photo_id": str(p["photo_id"]),
-                "photo_path_id": p["photo_path_id"],
-                "created_at": p["created_at"],
-            }
-            for p in photos
-        ]
-
-        tagged_photo_ids_str = [str(pid) for pid in tag_ids]
 
         # Recommend similar photos using representative vectors
         similar_photo_ids = []
@@ -80,38 +69,40 @@ class TagOnlySearchStrategy(SearchStrategy):
                     point.id for point in recommend_results
                     if point.id not in tagged_photo_ids_str
                 ]
-
             except Exception as e:
-                raise SearchExecutionError(f"Tag-based recommendation failed: {str(e)}") from e
+                print(f"Recommend failed: {e}")
 
-        # Get photo metadata for similar photos
-        similar = []
-        if similar_photo_ids:
-            similar_photo_uuids = [uuid.UUID(pid) for pid in similar_photo_ids]
-            similar_photos = Photo.objects.filter(photo_id__in=similar_photo_uuids).values(
+        # Combine: tagged photos first, then similar photos
+        all_photo_ids = tagged_photo_ids_str + similar_photo_ids
+        paginated_photo_ids = all_photo_ids[offset:offset + limit]
+
+        if paginated_photo_ids:
+            photo_uuids = [uuid.UUID(pid) for pid in paginated_photo_ids]
+            photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
                 "photo_id", "photo_path_id", "created_at"
             )
-            
-            # Create a mapping to preserve order
+
             id_to_meta = {
                 str(p["photo_id"]): {
                     "photo_path_id": p["photo_path_id"],
                     "created_at": p["created_at"]
                 }
-                for p in similar_photos
+                for p in photos
             }
-            
-            similar = [
+
+            # Maintain order
+            final_results = [
                 {
                     "photo_id": pid,
                     "photo_path_id": id_to_meta[pid]["photo_path_id"],
-                    "created_at": id_to_meta[pid]["created_at"],
+                    "created_at": id_to_meta[pid]["created_at"]
                 }
-                for pid in similar_photo_ids
+                for pid in paginated_photo_ids
                 if pid in id_to_meta
             ]
-            
-        return directly_tagged + similar
+            return final_results
+        else:
+            return []
 
 
 class SemanticOnlySearchStrategy(SearchStrategy):
