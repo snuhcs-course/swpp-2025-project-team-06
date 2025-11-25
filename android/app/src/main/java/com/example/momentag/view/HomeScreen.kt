@@ -23,6 +23,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,7 +74,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
@@ -101,8 +105,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -125,6 +134,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
+import com.example.momentag.model.Photo
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.BottomNavBar
 import com.example.momentag.ui.components.BottomTab
@@ -153,13 +163,70 @@ import com.example.momentag.viewmodel.PhotoViewModel
 import com.example.momentag.viewmodel.SearchViewModel
 import com.example.momentag.viewmodel.TagSortOrder
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.android.awaitFrame
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.Photo as PhotoIcon
+
+// Helper data class for item info in the grid
+// private data class PhotoGridItemInfo(
+//    val photoId: String,
+//    val photo: Photo, // Include the Photo object for easier access
+// )
+
+// Extension function for LazyGridState to find an item at a given position
+private fun LazyGridState.findPhotoItemAtPosition(
+    position: Offset,
+    allPhotosFlat: List<Photo>, // Fully qualified name to avoid ambiguity
+): Pair<String, Photo>? {
+    for (itemInfo in layoutInfo.visibleItemsInfo) {
+        // Only consider actual photo items, not headers or other types
+        // Check if the key is a String, which it is for Photo items based on the key = { photo -> photo.photoId }
+        if (itemInfo.key is String) {
+            val itemBounds = Rect(
+                itemInfo.offset.x.toFloat(),
+                itemInfo.offset.y.toFloat(),
+                (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+            )
+            if (itemBounds.contains(position)) {
+                val photoId = itemInfo.key as String
+                val photo = allPhotosFlat.find { it.photoId == photoId }
+                if (photo != null) {
+                    return Pair(photoId, photo)
+                }
+            }
+        }
+    }
+    return null
+}
+
+private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
+    onDragStart: (Offset) -> Unit,
+    onDrag: (PointerInputChange) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val longPress = awaitLongPressOrCancellation(down.id)
+        if (longPress != null) {
+            onDragStart(longPress.position)
+            drag(longPress.id) { change ->
+                onDrag(change)
+            }
+            onDragEnd()
+        } else {
+            onDragCancel()
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
@@ -880,6 +947,7 @@ fun HomeScreen(
                             isSelectionMode = isSelectionMode,
                             onEnterSelectionMode = { homeViewModel.setSelectionMode(true) },
                             selectedItems = selectedPhotos.map { it.photoId }.toSet(),
+                            allPhotos = allPhotos, // Pass the allPhotos state here
                             onItemSelectionToggle = { photoId ->
                                 val photo = allPhotos.find { it.photoId == photoId }
                                 photo?.let { homeViewModel.togglePhoto(it) }
@@ -1137,7 +1205,7 @@ private fun ViewToggle(
                             .padding(Dimen.ItemSpacingSmall),
                 ) {
                     StandardIcon.Icon(
-                        imageVector = Icons.Default.Photo,
+                        imageVector = Icons.Default.PhotoIcon,
                         contentDescription = stringResource(R.string.cd_all_photos),
                         sizeRole = IconSizeRole.Navigation,
                         intent = if (isShowingAllPhotos) IconIntent.Surface else IconIntent.Muted,
@@ -1165,6 +1233,7 @@ private fun MainContent(
     onEnterSelectionMode: () -> Unit,
     selectedItems: Set<String>,
     onItemSelectionToggle: (String) -> Unit,
+    allPhotos: List<Photo>, // New parameter for the flat list of all photos
     homeViewModel: HomeViewModel? = null,
     allPhotosGridState: LazyGridState,
     tagAlbumGridState: LazyGridState,
@@ -1190,13 +1259,158 @@ private fun MainContent(
             EmptyStatePhotos(modifier = modifier, navController = navController)
         }
 
-        // 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
+                // 로직 2순위: 'All Photos' 뷰 (사진이 반드시 있음)
         isShowingAllPhotos -> {
             Box(modifier = modifier) {
+                val updatedSelectedItems = rememberUpdatedState(selectedItems)
+                val updatedIsSelectionMode = rememberUpdatedState(isSelectionMode)
+                val updatedOnEnterSelectionMode = rememberUpdatedState(onEnterSelectionMode)
+                val updatedOnItemSelectionToggle = rememberUpdatedState(onItemSelectionToggle)
+
+                val gridGestureModifier = Modifier.pointerInput(Unit) {
+                    coroutineScope {
+                        val pointerScope = this
+                        val autoScrollViewport = 80.dp.toPx()
+                        var autoScrollJob: Job? = null
+                        var dragAnchorIndex: Int? = null
+                        val gestureSelectionIds = mutableSetOf<String>()
+                        val lastRangePhotoIds = mutableSetOf<String>()
+
+                        fun findNearestItemByRow(position: Offset): Int? {
+                            var best: Pair<Int, Float>? = null
+                            allPhotosGridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
+                                val key = itemInfo.key as? String ?: return@forEach
+                                val photoIndex = allPhotos.indexOfFirst { it.photoId == key }
+                                if (photoIndex >= 0) {
+                                    val top = itemInfo.offset.y.toFloat()
+                                    val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
+                                    if (position.y in top..bottom) {
+                                        val left = itemInfo.offset.x.toFloat()
+                                        val right = (itemInfo.offset.x + itemInfo.size.width).toFloat()
+                                        val dist =
+                                            when {
+                                                position.x < left -> left - position.x
+                                                position.x > right -> position.x - right
+                                                else -> 0f
+                                            }
+                                        if (best == null || dist < best!!.second) {
+                                            best = photoIndex to dist
+                                        }
+                                    }
+                                }
+                            }
+                            return best?.first
+                        }
+
+                        fun applyRangeSelection(newRangePhotoIds: Set<String>) {
+                            val toSelect = newRangePhotoIds - gestureSelectionIds
+                            val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
+
+                            toSelect.forEach { id ->
+                                allPhotos.find { it.photoId == id }?.let { photo ->
+                                    updatedOnItemSelectionToggle.value(photo.photoId)
+                                    gestureSelectionIds.add(id)
+                                }
+                            }
+                            toDeselect.forEach { id ->
+                                allPhotos.find { it.photoId == id }?.let { photo ->
+                                    updatedOnItemSelectionToggle.value(photo.photoId)
+                                    gestureSelectionIds.remove(id)
+                                }
+                            }
+
+                            lastRangePhotoIds.clear()
+                            lastRangePhotoIds.addAll(newRangePhotoIds)
+                        }
+
+                        detectDragAfterLongPressIgnoreConsumed(
+                            onDragStart = { offset ->
+                                autoScrollJob?.cancel()
+                                gestureSelectionIds.clear()
+                                gestureSelectionIds.addAll(updatedSelectedItems.value)
+                                lastRangePhotoIds.clear()
+                                if (!updatedIsSelectionMode.value) {
+                                    updatedOnEnterSelectionMode.value()
+                                }
+                                allPhotosGridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
+                                    dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
+                                    if (gestureSelectionIds.add(photoId) || !updatedSelectedItems.value.contains(photoId)) {
+                                        updatedOnItemSelectionToggle.value(photoId) // anchor select immediately
+                                    }
+                                    lastRangePhotoIds.add(photoId)
+                                }
+                            },
+                            onDragEnd = {
+                                dragAnchorIndex = null
+                                lastRangePhotoIds.clear()
+                                gestureSelectionIds.clear()
+                                autoScrollJob?.cancel()
+                            },
+                            onDragCancel = {
+                                dragAnchorIndex = null
+                                lastRangePhotoIds.clear()
+                                gestureSelectionIds.clear()
+                                autoScrollJob?.cancel()
+                            },
+                            onDrag = { change ->
+                                change.consume()
+                                val currentItem = allPhotosGridState.findPhotoItemAtPosition(change.position, allPhotos)
+                                val currentIndex =
+                                    currentItem?.first?.let { id ->
+                                        allPhotos.indexOfFirst { it.photoId == id }
+                                    }?.takeIf { it >= 0 }
+                                        ?: findNearestItemByRow(change.position)
+
+                                if (currentIndex != null) {
+                                    if (dragAnchorIndex == null) dragAnchorIndex = currentIndex
+                                    val startIndex = dragAnchorIndex ?: currentIndex
+                                    val range =
+                                        if (currentIndex >= startIndex) {
+                                            startIndex..currentIndex
+                                        } else {
+                                            currentIndex..startIndex
+                                        }
+
+                                    val newRangePhotoIds =
+                                        range.mapNotNull { idx ->
+                                            allPhotos.getOrNull(idx)?.photoId
+                                        }.toSet()
+                                    if (newRangePhotoIds.isNotEmpty()) {
+                                        applyRangeSelection(newRangePhotoIds)
+                                    }
+                                }
+
+                                // --- Auto-Scroll Logic ---
+                                val viewportHeight = allPhotosGridState.layoutInfo.viewportSize.height.toFloat()
+                                val pointerY = change.position.y
+
+                                val scrollAmount = when {
+                                    pointerY < autoScrollViewport -> -50f // Scroll up
+                                    pointerY > viewportHeight - autoScrollViewport -> 50f // Scroll down
+                                    else -> 0f
+                                }
+
+                                if (scrollAmount != 0f) {
+                                    if (autoScrollJob?.isActive != true) {
+                                        autoScrollJob = pointerScope.launch {
+                                            while (true) {
+                                                allPhotosGridState.scrollBy(scrollAmount)
+                                                delay(50) // Adjust delay for scroll speed
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    autoScrollJob?.cancel()
+                                }
+                            },
+                        )
+                    }
+                }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     state = allPhotosGridState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().then(gridGestureModifier),
                     horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                     verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                 ) {
@@ -1210,9 +1424,9 @@ private fun MainContent(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier =
-                                    Modifier
-                                        .padding(horizontal = Dimen.GridItemSpacing)
-                                        .padding(vertical = Dimen.GridItemSpacing),
+                                Modifier
+                                    .padding(horizontal = Dimen.GridItemSpacing)
+                                    .padding(vertical = Dimen.GridItemSpacing),
                             )
                         }
 
@@ -1227,69 +1441,63 @@ private fun MainContent(
                                     model = photo.contentUri,
                                     contentDescription = stringResource(R.string.cd_photo_item, photo.photoId),
                                     modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
-                                            .combinedClickable(
-                                                onClick = {
-                                                    if (isSelectionMode) {
-                                                        onItemSelectionToggle(photo.photoId)
-                                                    } else {
-                                                        homeViewModel?.setGalleryBrowsingSession()
-                                                        homeViewModel?.setShouldReturnToAllPhotos(true)
+                                    Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
+                                        .clickable(
+                                            onClick = {
+                                                if (isSelectionMode) {
+                                                    onItemSelectionToggle(photo.photoId)
+                                                } else {
+                                                    homeViewModel?.setGalleryBrowsingSession()
+                                                    homeViewModel?.setShouldReturnToAllPhotos(true)
 
-                                                        navController.navigate(
-                                                            Screen.Image.createRoute(
-                                                                uri = photo.contentUri,
-                                                                imageId = photo.photoId,
-                                                            ),
-                                                        )
-                                                    }
-                                                },
-                                                onLongClick = {
-                                                    if (!isSelectionMode) {
-                                                        onEnterSelectionMode()
-                                                        onItemSelectionToggle(photo.photoId)
-                                                    }
-                                                },
-                                            ),
+                                                    navController.navigate(
+                                                        Screen.Image.createRoute(
+                                                            uri = photo.contentUri,
+                                                            imageId = photo.photoId,
+                                                        ),
+                                                    )
+                                                }
+                                            },
+                                        ),
                                     contentScale = ContentScale.Crop,
                                 )
 
                                 if (isSelectionMode) {
                                     Box(
                                         modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
-                                                .background(
-                                                    if (isSelected) {
-                                                        MaterialTheme.colorScheme.onSurface.copy(
-                                                            alpha = 0.3f,
-                                                        )
-                                                    } else {
-                                                        Color.Transparent
-                                                    },
-                                                ),
+                                        Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
+                                            .background(
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.onSurface.copy(
+                                                        alpha = 0.3f,
+                                                    )
+                                                } else {
+                                                    Color.Transparent
+                                                },
+                                            ),
                                     )
 
                                     Box(
                                         modifier =
-                                            Modifier
-                                                .align(Alignment.TopEnd)
-                                                .padding(Dimen.GridItemSpacing)
-                                                .size(Dimen.IconButtonSizeSmall)
-                                                .background(
-                                                    if (isSelected) {
-                                                        MaterialTheme.colorScheme.primaryContainer
-                                                    } else {
-                                                        MaterialTheme.colorScheme.surface
-                                                            .copy(
-                                                                alpha = 0.8f,
-                                                            )
-                                                    },
-                                                    RoundedCornerShape(Dimen.ComponentCornerRadius),
-                                                ),
+                                        Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(Dimen.GridItemSpacing)
+                                            .size(Dimen.IconButtonSizeSmall)
+                                            .background(
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.surface
+                                                        .copy(
+                                                            alpha = 0.8f,
+                                                        )
+                                                },
+                                                RoundedCornerShape(Dimen.ComponentCornerRadius),
+                                            ),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         if (isSelected) {
@@ -1311,9 +1519,9 @@ private fun MainContent(
                                 // 3칸 모두 차지
                                 Box(
                                     modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(Dimen.ComponentPadding),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(Dimen.ComponentPadding),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     CircularProgressIndicator(

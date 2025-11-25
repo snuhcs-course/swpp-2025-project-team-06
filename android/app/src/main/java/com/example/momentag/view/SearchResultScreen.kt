@@ -94,10 +94,76 @@ import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.SearchViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.android.awaitFrame
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
+
+// Helper data class for item info in the grid
+// private data class PhotoGridItemInfo(
+//    val photoId: String,
+//    val photo: Photo,
+// )
+
+// Extension function for LazyGridState to find an item at a given position
+private fun LazyGridState.findPhotoItemAtPosition(
+    position: Offset,
+    allPhotos: List<Photo>,
+): Pair<String, Photo>? {
+    for (itemInfo in layoutInfo.visibleItemsInfo) {
+        val key = itemInfo.key
+        if (key is String) {
+            val itemBounds = Rect(
+                itemInfo.offset.x.toFloat(),
+                itemInfo.offset.y.toFloat(),
+                (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+            )
+            if (itemBounds.contains(position)) {
+                val photo = allPhotos.find { it.photoId == key }
+                if (photo != null) {
+                    return key to photo
+                }
+            }
+        }
+    }
+    return null
+}
+
+private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
+    onDragStart: (Offset) -> Unit,
+    onDrag: (PointerInputChange) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val longPress = awaitLongPressOrCancellation(down.id)
+        if (longPress != null) {
+            onDragStart(longPress.position)
+            drag(longPress.id) { change ->
+                onDrag(change)
+            }
+            onDragEnd()
+        } else {
+            onDragCancel()
+        }
+    }
+}
 
 /**
  *  * ========================================
@@ -911,16 +977,161 @@ private fun SearchResultsFromState(
             }
 
             is SearchViewModel.SearchUiState.Success -> {
+                val updatedSelectedPhotos = rememberUpdatedState(selectedPhotos)
+                val updatedIsSelectionMode = rememberUpdatedState(isSelectionMode)
+                val updatedOnImageLongPress = rememberUpdatedState(onImageLongPress)
+                val updatedOnToggleImageSelection = rememberUpdatedState(onToggleImageSelection)
+                val allPhotos = remember(uiState.results) { uiState.results.map { it.photo } }
+
+                val gridGestureModifier = Modifier.pointerInput(Unit) {
+                    coroutineScope {
+                        val pointerScope = this
+                        val autoScrollViewport = 80.dp.toPx()
+                        var autoScrollJob: Job? = null
+                        var dragAnchorIndex: Int? = null
+                        val gestureSelectionIds = mutableSetOf<String>()
+                        val lastRangePhotoIds = mutableSetOf<String>()
+
+                        fun findNearestItemByRow(position: Offset): Int? {
+                            var best: Pair<Int, Float>? = null
+                            gridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
+                                val key = itemInfo.key as? String ?: return@forEach
+                                val photoIndex = allPhotos.indexOfFirst { it.photoId == key }
+                                if (photoIndex >= 0) {
+                                    val top = itemInfo.offset.y.toFloat()
+                                    val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
+                                    if (position.y in top..bottom) {
+                                        val left = itemInfo.offset.x.toFloat()
+                                        val right = (itemInfo.offset.x + itemInfo.size.width).toFloat()
+                                        val dist =
+                                            when {
+                                                position.x < left -> left - position.x
+                                                position.x > right -> position.x - right
+                                                else -> 0f
+                                            }
+                                        if (best == null || dist < best!!.second) {
+                                            best = photoIndex to dist
+                                        }
+                                    }
+                                }
+                            }
+                            return best?.first
+                        }
+
+                        fun applyRangeSelection(newRangePhotoIds: Set<String>) {
+                            val toSelect = newRangePhotoIds - gestureSelectionIds
+                            val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
+
+                            toSelect.forEach { id ->
+                                allPhotos.find { it.photoId == id }?.let { photo ->
+                                    updatedOnToggleImageSelection.value(photo)
+                                    gestureSelectionIds.add(id)
+                                }
+                            }
+                            toDeselect.forEach { id ->
+                                allPhotos.find { it.photoId == id }?.let { photo ->
+                                    updatedOnToggleImageSelection.value(photo)
+                                    gestureSelectionIds.remove(id)
+                                }
+                            }
+
+                            lastRangePhotoIds.clear()
+                            lastRangePhotoIds.addAll(newRangePhotoIds)
+                        }
+
+                        detectDragAfterLongPressIgnoreConsumed(
+                            onDragStart = { offset ->
+                                autoScrollJob?.cancel()
+                                gestureSelectionIds.clear()
+                                gestureSelectionIds.addAll(updatedSelectedPhotos.value.map { it.photoId })
+                                lastRangePhotoIds.clear()
+                                if (!updatedIsSelectionMode.value) {
+                                    updatedOnImageLongPress.value()
+                                }
+                                gridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
+                                    dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
+                                    if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.contains(photo)) {
+                                        updatedOnToggleImageSelection.value(photo)
+                                    }
+                                    lastRangePhotoIds.add(photoId)
+                                }
+                            },
+                            onDragEnd = {
+                                dragAnchorIndex = null
+                                lastRangePhotoIds.clear()
+                                gestureSelectionIds.clear()
+                                autoScrollJob?.cancel()
+                            },
+                            onDragCancel = {
+                                dragAnchorIndex = null
+                                lastRangePhotoIds.clear()
+                                gestureSelectionIds.clear()
+                                autoScrollJob?.cancel()
+                            },
+                            onDrag = { change ->
+                                change.consume()
+                                val currentItem = gridState.findPhotoItemAtPosition(change.position, allPhotos)
+                                val currentIndex =
+                                    currentItem?.first?.let { id ->
+                                        allPhotos.indexOfFirst { it.photoId == id }
+                                    }?.takeIf { it >= 0 }
+                                        ?: findNearestItemByRow(change.position)
+
+                                if (currentIndex != null) {
+                                    if (dragAnchorIndex == null) dragAnchorIndex = currentIndex
+                                    val startIndex = dragAnchorIndex ?: currentIndex
+                                    val range =
+                                        if (currentIndex >= startIndex) {
+                                            startIndex..currentIndex
+                                        } else {
+                                            currentIndex..startIndex
+                                        }
+
+                                    val newRangePhotoIds =
+                                        range.mapNotNull { idx ->
+                                            allPhotos.getOrNull(idx)?.photoId
+                                        }.toSet()
+                                    if (newRangePhotoIds.isNotEmpty()) {
+                                        applyRangeSelection(newRangePhotoIds)
+                                    }
+                                }
+
+                                val viewportHeight = gridState.layoutInfo.viewportSize.height.toFloat()
+                                val pointerY = change.position.y
+
+                                val scrollAmount = when {
+                                    pointerY < autoScrollViewport -> -50f
+                                    pointerY > viewportHeight - autoScrollViewport -> 50f
+                                    else -> 0f
+                                }
+
+                                if (scrollAmount != 0f) {
+                                    if (autoScrollJob?.isActive != true) {
+                                        autoScrollJob = pointerScope.launch {
+                                            while (true) {
+                                                gridState.scrollBy(scrollAmount)
+                                                delay(50)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    autoScrollJob?.cancel()
+                                }
+                            },
+                        )
+                    }
+                }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     state = gridState,
-                    modifier = modifier.fillMaxSize(),
+                    modifier = modifier.fillMaxSize().then(gridGestureModifier),
                     horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                     verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                 ) {
                     items(
                         count = uiState.results.size,
-                        key = { index -> index },
+                        key = { index -> uiState.results[index].photo.photoId }, // Use stable photoId as key
                     ) { index ->
                         val result = uiState.results[index]
                         val photo = result.photo
@@ -932,6 +1143,7 @@ private fun SearchResultsFromState(
                             onToggleSelection = { onToggleImageSelection(photo) },
                             onLongPress = {
                                 onImageLongPress()
+                                onToggleImageSelection(photo)
                             },
                         )
                     }

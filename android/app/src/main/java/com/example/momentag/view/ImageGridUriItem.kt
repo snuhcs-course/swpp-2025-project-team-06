@@ -78,12 +78,7 @@ fun ImageGridUriItem(
                                 navController.navigate(Screen.Image.createRoute(photo.contentUri, photo.photoId))
                             }
                         },
-                        onLongClick = {
-                            if (!isSelectionMode && onLongPress != null) {
-                                onLongPress()
-                                onToggleSelection?.invoke()
-                            }
-                        },
+                        onLongClick = null,
                     ),
             contentScale = ContentScale.Crop,
         )
