@@ -1,4 +1,3 @@
-import uuid
 import requests
 from django.db.models import Exists, OuterRef, Count, Subquery, Q
 from rest_framework.views import APIView
@@ -8,7 +7,6 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.db import IntegrityError
-
 
 from .reponse_serializers import (
     ResPhotoSerializer,
@@ -48,6 +46,13 @@ import logging
 from config.redis import get_redis
 import json
 from django.conf import settings
+from .decorators import (
+    log_request,
+    validate_pagination,
+    handle_exceptions,
+    validate_uuid,
+    require_ownership
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,143 +97,136 @@ class PhotoView(APIView):
         ],
         consumes=["multipart/form-data"],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
+        import json
+
+        photos = request.FILES.getlist("photo")
+        metadata_json = request.POST.get("metadata")
+
+        if not metadata_json:
+            return Response(
+                {"error": "metadata field is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
-            import json
+            metadata_list = json.loads(metadata_json)
+        except json.JSONDecodeError:
+            return Response(
+                {"error": "Invalid JSON format in metadata field"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-            photos = request.FILES.getlist("photo")
-            metadata_json = request.POST.get("metadata")
+        if len(photos) != len(metadata_list):
+            return Response(
+                {"error": "Number of photos and metadata entries must match"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-            if not metadata_json:
+        photos_data = []
+        for i, photo in enumerate(photos):
+            if i >= len(metadata_list):
                 return Response(
-                    {"error": "metadata field is required"},
+                    {"error": "Insufficient metadata for all photos"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
+            metadata = metadata_list[i]
+            photos_data.append(
+                {
+                    "photo": photo,
+                    "filename": metadata.get("filename"),
+                    "photo_path_id": metadata.get("photo_path_id"),
+                    "created_at": metadata.get("created_at"),
+                    "lat": metadata.get("lat"),
+                    "lng": metadata.get("lng"),
+                }
+            )
+
+        serializer = ReqPhotoDetailSerializer(data=photos_data, many=True)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        photos_data = serializer.validated_data
+
+        all_metadata = []
+        skipped_count = 0
+
+        for data in photos_data:
+            storage_key = None
 
             try:
-                metadata_list = json.loads(metadata_json)
-            except json.JSONDecodeError:
-                return Response(
-                    {"error": "Invalid JSON format in metadata field"},
-                    status=status.HTTP_400_BAD_REQUEST,
+                image_file = data["photo"]
+
+                storage_key = upload_photo(image_file)
+
+                photo = Photo.objects.create(
+                    user=request.user,
+                    photo_id=storage_key,
+                    photo_path_id=data["photo_path_id"],
+                    filename=data["filename"],
+                    created_at=data["created_at"],
+                    lat=data["lat"],
+                    lng=data["lng"],
                 )
 
-            if len(photos) != len(metadata_list):
-                return Response(
-                    {"error": "Number of photos and metadata entries must match"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            photos_data = []
-            for i, photo in enumerate(photos):
-                if i >= len(metadata_list):
-                    return Response(
-                        {"error": "Insufficient metadata for all photos"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                metadata = metadata_list[i]
-                photos_data.append(
+                all_metadata.append(
                     {
-                        "photo": photo,
-                        "filename": metadata.get("filename"),
-                        "photo_path_id": metadata.get("photo_path_id"),
-                        "created_at": metadata.get("created_at"),
-                        "lat": metadata.get("lat"),
-                        "lng": metadata.get("lng"),
+                        "storage_key": storage_key,
+                        "user_id": request.user.id,
+                        "filename": data["filename"],
+                        "photo_path_id": data["photo_path_id"],
+                        "created_at": data["created_at"].isoformat(),
+                        "lat": data["lat"],
+                        "lng": data["lng"],
                     }
                 )
 
-            serializer = ReqPhotoDetailSerializer(data=photos_data, many=True)
-
-            if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            photos_data = serializer.validated_data
-
-            all_metadata = []
-            skipped_count = 0
-
-            for data in photos_data:
-                storage_key = None
-
-                try:
-                    image_file = data["photo"]
-
-                    storage_key = upload_photo(image_file)
-
-                    photo = Photo.objects.create(
-                        user=request.user,
-                        photo_id=storage_key,
-                        photo_path_id=data["photo_path_id"],
-                        filename=data["filename"],
-                        created_at=data["created_at"],
-                        lat=data["lat"],
-                        lng=data["lng"],
-                    )
-
-                    all_metadata.append(
-                        {
-                            "storage_key": storage_key,
-                            "user_id": request.user.id,
-                            "filename": data["filename"],
-                            "photo_path_id": data["photo_path_id"],
-                            "created_at": data["created_at"].isoformat(),
-                            "lat": data["lat"],
-                            "lng": data["lng"],
-                        }
-                    )
-
-                except IntegrityError:
-                    skipped_count += 1
-                    print(
-                        f"[INFO] Skipping duplicate photo: User {request.user.id}, Path ID {data['photo_path_id']}"
-                    )
-
-                    if storage_key:
-                        print(
-                            f"       ... Cleaning up orphaned file from storage: {storage_key}"
-                        )
-                        delete_photo(storage_key)
-
-                    continue
-
-            # Split into batches of 8 for GPU memory management
-            if not all_metadata:
-                return Response([], status=status.HTTP_200_OK)  # 새 작업이 없으므로 200 OK
-
-            # all_metadata 리스트 (신규 사진) 기준으로 배치 생성
-            BATCH_SIZE = 8
-            r = get_redis()
-            tasks_info = []
-
-            for i in range(0, len(all_metadata), BATCH_SIZE):
-                batch_metadata = all_metadata[i : i + BATCH_SIZE]
-                task = process_and_embed_photos_batch.delay(batch_metadata)
-                
-                # Store task ID in Redis list for the user
-                redis_key = f"user_tasks:{request.user.id}"
-                r.lpush(redis_key, task.id)
-                r.expire(redis_key, 60 * 60 * 24)
-                
-                tasks_info.append({
-                    "task_id": str(task.id),
-                    "photo_path_ids": [m["photo_path_id"] for m in batch_metadata]
-                })
-
-                print(
-                    f"[INFO] Dispatched batch task {task.id} for {len(batch_metadata)} new photos (batch {i // BATCH_SIZE + 1})"
+            except IntegrityError:
+                skipped_count += 1
+                logger.warning(
+                    f"Skipping duplicate photo: User {request.user.id}, Path ID {data['photo_path_id']}"
                 )
 
-            # 응답 메시지를 더 명확하게
-            return Response(
-                tasks_info,
-                status=status.HTTP_202_ACCEPTED,
+                if storage_key:
+                    logger.warning(
+                        f"Cleaning up orphaned file from storage: {storage_key}"
+                    )
+                    delete_photo(storage_key)
+
+                continue
+
+        if not all_metadata:
+            return Response([], status=status.HTTP_200_OK)
+
+        BATCH_SIZE = 8
+        r = get_redis()
+        tasks_info = []
+
+        for i in range(0, len(all_metadata), BATCH_SIZE):
+            batch_metadata = all_metadata[i : i + BATCH_SIZE]
+            task = process_and_embed_photos_batch.delay(batch_metadata)
+            
+            redis_key = f"user_tasks:{request.user.id}"
+            r.lpush(redis_key, task.id)
+            r.expire(redis_key, 60 * 60 * 24)
+            
+            tasks_info.append({
+                "task_id": str(task.id),
+                "photo_path_ids": [m["photo_path_id"] for m in batch_metadata]
+            })
+
+            logger.info(
+                f"Dispatched batch task {task.id} for {len(batch_metadata)} new photos (batch {i // BATCH_SIZE + 1})"
             )
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+
+        return Response(
+            tasks_info,
+            status=status.HTTP_202_ACCEPTED,
+        )
 
     @swagger_auto_schema(
         operation_summary="Photo All View",
@@ -266,38 +264,18 @@ class PhotoView(APIView):
             ),
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_pagination(max_limit=100)
     def get(self, request):
-        try:
-            # Pagination 파라미터 검증
-            try:
-                offset = int(request.GET.get("offset", 0))
-                limit = int(request.GET.get("limit", 100))
-                if offset < 0 or limit < 1:
-                    return Response(
-                        {
-                            "error": "Offset must be non-negative and limit must be positive"
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                limit = min(limit, 100)  # 최대 100개 제한
-            except ValueError:
-                return Response(
-                    {"error": "Invalid offset or limit parameter"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        offset = request.validated_offset
+        limit = request.validated_limit
 
-            # created_at 기준으로 최신순 정렬 (가장 최신이 먼저)
-            photos = Photo.objects.filter(user=request.user).order_by("-created_at")
+        photos = Photo.objects.filter(user=request.user).order_by("-created_at")
+        photos = photos[offset : offset + limit]
 
-            # 페이지네이션 적용
-            photos = photos[offset : offset + limit]
-
-            serializer = ResPhotoSerializer(photos, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        serializer = ResPhotoSerializer(photos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class PhotoDetailView(APIView):
@@ -328,71 +306,53 @@ class PhotoDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
     def get(self, request, photo_id):
-        try:
-            photo = Photo.objects.get(photo_id=photo_id, user=request.user)
-            photo_tags = Photo_Tag.objects.filter(photo=photo, user=request.user)
-            tags = [photo_tag.tag for photo_tag in photo_tags]
+        photo = Photo.objects.get(photo_id=photo_id)
+        photo_tags = Photo_Tag.objects.filter(photo=photo, user=request.user)
+        tags = [photo_tag.tag for photo_tag in photo_tags]
 
-            tag_list = [
-                {
-                    "tag_id": str(tag.tag_id),
-                    "tag": tag.tag,
-                }
-                for tag in tags
-            ]
-
-            lat = str(photo.lat)
-            lng = str(photo.lng)
-
-            r = get_redis()
-
-            address = ""
-            key = f"cord:({lat},{lng})"
-            hashed_key = hash(key)
-
-            # Check cache first
-            if r.get(hashed_key):
-                address = r.get(hashed_key)
-                print("[INFO] Cache hit for coordinates:", hashed_key)
-            else:
-                # URL for kakaomap lacation query
-                URL = f"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x={lng}&y={lat}"
-
-                # Headers for authentication
-                KM_REST_API_KEY = settings.KM_REST_API_KEY
-                headers = {"Authorization": f"KakaoAK {KM_REST_API_KEY}"}
-
-                # KakaoMap REST API Call
-                resp = requests.get(URL, headers=headers, timeout=5)
-
-                if resp.status_code == 200:
-                    data = resp.json()
-                    if data.get("documents"):
-                        address = data["documents"][0]["address_name"]
-
-                # Cache the result
-                r.set(hashed_key, address, ex=60 * 60 * 24)  # Cache for a day
-
-            photo_data = {
-                "photo_path_id": photo.photo_path_id,
-                "address": address,
-                "tags": tag_list,
+        tag_list = [
+            {
+                "tag_id": str(tag.tag_id),
+                "tag": tag.tag,
             }
+            for tag in tags
+        ]
 
-            serializer = ResPhotoTagListSerializer(photo_data)
+        lat = str(photo.lat)
+        lng = str(photo.lng)
 
-            return Response(serializer.data, status=status.HTTP_200_OK)
+        r = get_redis()
+        address = ""
+        key = f"cord:({lat},{lng})"
+        
+        if r.get(key):
+            address = r.get(key)
+        else:
+            URL = f"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x={lng}&y={lat}"
+            KM_REST_API_KEY = settings.KM_REST_API_KEY
+            headers = {"Authorization": f"KakaoAK {KM_REST_API_KEY}"}
+            resp = requests.get(URL, headers=headers, timeout=5)
 
-        except Photo.DoesNotExist:
-            return Response(
-                {"error": "Photo not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("documents"):
+                    address = data["documents"][0]["address_name"]
 
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            r.set(key, address, ex=60 * 60 * 24)
+
+        photo_data = {
+            "photo_path_id": photo.photo_path_id,
+            "address": address,
+            "tags": tag_list,
+        }
+
+        serializer = ResPhotoTagListSerializer(photo_data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         operation_summary="Delete a Photo",
@@ -413,31 +373,30 @@ class PhotoDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
     def delete(self, request, photo_id):
-        try:
-            client = get_qdrant_client()
+        client = get_qdrant_client()
 
-            associated_photo_tags = Photo_Tag.objects.filter(
-                photo__photo_id=photo_id, user=request.user
-            )
-            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_photo_tags]
+        associated_photo_tags = Photo_Tag.objects.filter(
+            photo__photo_id=photo_id, user=request.user
+        )
+        tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_photo_tags]
 
-            Photo.objects.filter(photo_id=photo_id, user=request.user).delete()
+        Photo.objects.filter(photo_id=photo_id, user=request.user).delete()
 
-            client.delete(
-                collection_name=IMAGE_COLLECTION_NAME,
-                points_selector=[str(photo_id)],
-                wait=True,
-            )
+        client.delete(
+            collection_name=IMAGE_COLLECTION_NAME,
+            points_selector=[str(photo_id)],
+            wait=True,
+        )
 
-            for tag_id in tag_ids_to_recompute:
-                compute_and_store_rep_vectors.delay(request.user.id, tag_id)
+        for tag_id in tag_ids_to_recompute:
+            compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class BulkDeletePhotoView(APIView):
@@ -464,42 +423,36 @@ class BulkDeletePhotoView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
-        try:
-            client = get_qdrant_client()
-            serializer = ReqPhotoBulkDeleteSerializer(data=request.data)
+        client = get_qdrant_client()
+        serializer = ReqPhotoBulkDeleteSerializer(data=request.data)
 
-            if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            photos_raw_data = serializer.validated_data["photos"]
+        photos_raw_data = serializer.validated_data["photos"]
+        photo_ids_to_delete = [data["photo_id"] for data in photos_raw_data]
 
-            photo_ids_to_delete = [data["photo_id"] for data in photos_raw_data]
+        associated_photo_tags = Photo_Tag.objects.filter(
+            photo__photo_id__in=photo_ids_to_delete, user=request.user
+        )
+        tag_ids_to_recompute = {str(pt.tag.tag_id) for pt in associated_photo_tags}
 
-            associated_photo_tags = Photo_Tag.objects.filter(
-                photo__photo_id__in=photo_ids_to_delete, user=request.user
-            )
+        Photo.objects.filter(
+            photo_id__in=photo_ids_to_delete, user=request.user
+        ).delete()
+        client.delete(
+            collection_name=IMAGE_COLLECTION_NAME,
+            points_selector=[str(pid) for pid in photo_ids_to_delete],
+            wait=True,
+        )
 
-            tag_ids_to_recompute = [str(pt.tag.tag_id) for pt in associated_photo_tags]
+        for tag_id in tag_ids_to_recompute:
+            compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
-            client.delete(
-                collection_name=IMAGE_COLLECTION_NAME,
-                points_selector=[str(photo_id) for photo_id in photo_ids_to_delete],
-                wait=True,
-            )
-
-            for tag_id in tag_ids_to_recompute:
-                compute_and_store_rep_vectors.delay(request.user.id, tag_id)
-
-            Photo.objects.filter(
-                photo_id__in=photo_ids_to_delete, user=request.user
-            ).delete()
-
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class GetPhotosByTagView(APIView):
@@ -528,34 +481,17 @@ class GetPhotosByTagView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def get(self, request, tag_id):
-        try:
-            tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+        tag = Tag.objects.get(tag_id=tag_id)
+        photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user)
+        photos = [photo_tag.photo for photo_tag in photo_tags]
 
-            photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user)
-
-            photos = [photo_tag.photo for photo_tag in photo_tags]
-
-            photos_data = [
-                {
-                    "photo_id": photo.photo_id,
-                    "photo_path_id": photo.photo_path_id,
-                    "created_at": photo.created_at,
-                }
-                for photo in photos
-            ]
-
-            serializer = ResPhotoSerializer(photos_data, many=True)
-
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Tag.DoesNotExist:
-            return Response(
-                {"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        serializer = ResPhotoSerializer(photos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class PostPhotoTagsView(APIView):
@@ -583,43 +519,29 @@ class PostPhotoTagsView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
     def post(self, request, photo_id):
-        try:
-            serializer = ReqTagIdSerializer(data=request.data, many=True)
+        serializer = ReqTagIdSerializer(data=request.data, many=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        tag_ids = [data["tag_id"] for data in serializer.validated_data]
+        photo = Photo.objects.get(photo_id=photo_id)
 
-            tag_ids = [data["tag_id"] for data in serializer.validated_data]
+        tags_to_recompute = set()
+        for tag_id in tag_ids:
+            tag = Tag.objects.get(tag_id=tag_id, user=request.user)
+            if not Photo_Tag.objects.filter(photo=photo, tag=tag, user=request.user).exists():
+                Photo_Tag.objects.create(photo=photo, tag=tag, user=request.user)
+                tags_to_recompute.add(str(tag_id))
 
-            photo = Photo.objects.get(photo_id=photo_id, user=request.user)
+        for tag_id in tags_to_recompute:
+            compute_and_store_rep_vectors.delay(request.user.id, tag_id)
 
-            for tag_id in tag_ids:
-                tag = Tag.objects.get(tag_id=tag_id, user=request.user)
-
-                if Photo_Tag.objects.filter(
-                    photo=photo, tag=tag, user=request.user
-                ).exists():
-                    continue  # Skip if the relationship already exists
-
-                Photo_Tag.objects.create(
-                    pt_id=uuid.uuid4(), photo=photo, tag=tag, user=request.user
-                )
-                tag.save()
-
-                compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
-
-            return Response(status=status.HTTP_200_OK)
-        except Photo.DoesNotExist:
-            return Response(
-                {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
-            )
-        except Tag.DoesNotExist:
-            return Response({"error": "No such tag"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return Response(status=status.HTTP_200_OK)
 
 
 class DeletePhotoTagsView(APIView):
@@ -646,32 +568,19 @@ class DeletePhotoTagsView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @validate_uuid('tag_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def delete(self, request, photo_id, tag_id):
-        try:
-            photo = Photo.objects.get(photo_id=photo_id, user=request.user)
-            tag = Tag.objects.get(tag_id=tag_id, user=request.user)
-
-            photo_tag = Photo_Tag.objects.get(photo=photo, tag=tag, user=request.user)
-
-            photo_tag.delete()
-            tag.save()
-
-            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
-
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except (Photo.DoesNotExist, Tag.DoesNotExist):
-            return Response(
-                {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
-            )
-        except Photo_Tag.DoesNotExist:
-            return Response(
-                {"error": "No such tag or photo"}, status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            print(str(e))
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        photo_tag = Photo_Tag.objects.get(
+            photo__photo_id=photo_id, tag__tag_id=tag_id, user=request.user
+        )
+        photo_tag.delete()
+        compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class GetRecommendTagView(APIView):
@@ -703,23 +612,14 @@ class GetRecommendTagView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('photo_id')
+    @require_ownership(Photo, 'photo_id', 'photo_id')
     def get(self, request, photo_id, *args, **kwargs):
-        try:
-            if not Photo.objects.filter(photo_id=photo_id).exists():
-                return Response(
-                    {"error": "No such photo"}, status=status.HTTP_404_NOT_FOUND
-                )
-
-            tags = tag_recommendation(request.user, photo_id)
-
-            serializer = TagSerializer(tags, many=True)
-
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            print(str(e))
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        tags = tag_recommendation(request.user, photo_id)
+        serializer = TagSerializer(tags, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class PhotoRecommendationView(APIView):
@@ -752,24 +652,14 @@ class PhotoRecommendationView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def get(self, request, tag_id, *args, **kwargs):
-        try:
-            if not Tag.objects.filter(tag_id=tag_id, user=request.user).exists():
-                return Response(
-                    {"error": f"No tag with id {tag_id}"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            photos = recommend_photo_from_tag(request.user, tag_id)
-
-            serializer = ResPhotoSerializer(photos, many=True)
-
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        photos = recommend_photo_from_tag(request.user, tag_id)
+        serializer = ResPhotoSerializer(photos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class PhotoToPhotoRecommendationView(APIView):
@@ -799,15 +689,15 @@ class PhotoToPhotoRecommendationView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
         serializer = ReqPhotoListSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         photo_ids = serializer.validated_data["photos"]
-        user = request.user
-
-        photos = recommend_photo_from_photo(user, photo_ids)
+        photos = recommend_photo_from_photo(request.user, photo_ids)
 
         return Response(photos, status=status.HTTP_200_OK)
 
@@ -841,36 +731,24 @@ class TagView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def get(self, request):
-        try:
-            latest_photo_subquery = (
-                Photo_Tag.objects.filter(tag=OuterRef("pk"), user=request.user)
-                .select_related("photo")
-                .order_by("-photo__created_at")
-            )
+        latest_photo_subquery = (
+            Photo_Tag.objects.filter(tag=OuterRef("pk"), user=request.user)
+            .select_related("photo")
+            .order_by("-photo__created_at")
+        )
 
-            tags = Tag.objects.filter(user=request.user).annotate(
-                photo_count=Count("photo_tag", filter=Q(photo_tag__user=request.user)),
-                thumbnail_path_id=Subquery(
-                    latest_photo_subquery.values("photo__photo_path_id")[:1]
-                ),
-            )
+        tags = Tag.objects.filter(user=request.user).annotate(
+            photo_count=Count("photo_tag", filter=Q(photo_tag__user=request.user)),
+            thumbnail_path_id=Subquery(
+                latest_photo_subquery.values("photo__photo_path_id")[:1]
+            ),
+        )
 
-            response_serializer = ResTagThumbnailSerializer(tags, many=True)
-
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-        except Tag.DoesNotExist:
-            return Response(
-                {"error": "The user has no tags"}, status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            logger.error(
-                f"[TagView GET] 500 ERROR for user: {request.user.id}. Exception: {str(e)}",
-                exc_info=True,
-            )
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        response_serializer = ResTagThumbnailSerializer(tags, many=True)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         operation_summary="Create a Tag",
@@ -892,35 +770,28 @@ class TagView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
-        try:
-            serializer = ReqTagNameSerializer(data=request.data)
+        serializer = ReqTagNameSerializer(data=request.data)
 
-            if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            data = serializer.validated_data
+        data = serializer.validated_data
 
-            if len(data["tag"]) > 50:
-                return Response(
-                    {"error": "Tag name cannot exceed 50 characters."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if Tag.objects.filter(tag=data["tag"], user=request.user).exists():
-                tag = Tag.objects.get(tag=data["tag"], user=request.user)
-                response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
-                return Response(response_serializer.data, status=status.HTTP_200_OK)
-
-            new_tag = Tag.objects.create(tag=data["tag"], user=request.user)
-
-            response_serializer = ResTagIdSerializer({"tag_id": new_tag.tag_id})
-
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        except Exception as e:
+        if len(data["tag"]) > 50:
             return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Tag name cannot exceed 50 characters."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        tag, created = Tag.objects.get_or_create(tag=data["tag"], user=request.user)
+        
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        
+        response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
+        return Response(response_serializer.data, status=status_code)
 
 
 class TagDetailView(APIView):
@@ -952,30 +823,15 @@ class TagDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def delete(self, request, tag_id):
-        try:
-            try:
-                tag = Tag.objects.get(tag_id=tag_id)
-            except Tag.DoesNotExist:
-                return Response(
-                    {"error": "Tag not found."}, status=status.HTTP_404_NOT_FOUND
-                )
-
-            if tag.user != request.user:
-                return Response(
-                    {"error": "Forbidden - you are not the owner of this tag."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
-
-            tag.delete()
-
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        tag = Tag.objects.get(tag_id=tag_id)
+        compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+        tag.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(
         operation_summary="Rename a Tag",
@@ -1000,37 +856,22 @@ class TagDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def put(self, request, tag_id):
-        try:
-            serializer = ReqTagNameSerializer(data=request.data)
+        serializer = ReqTagNameSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data = serializer.validated_data
+        old_tag = Tag.objects.get(tag_id=tag_id)
+        old_tag.tag = data["tag"]
+        old_tag.save()
 
-            data = serializer.validated_data
-
-            try:
-                old_tag = Tag.objects.get(tag_id=tag_id)
-            except Tag.DoesNotExist:
-                return Response(
-                    {"error": "Tag not found"}, status=status.HTTP_404_NOT_FOUND
-                )
-
-            if old_tag.user != request.user:
-                return Response(
-                    {"error": "Forbidden - you are not the owner of this tag."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            old_tag.tag = data["tag"]
-            old_tag.save()
-
-            response_serializer = ResTagIdSerializer({"tag_id": tag_id})
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        response_serializer = ResTagIdSerializer({"tag_id": tag_id})
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         operation_summary="Get Tag Info",
@@ -1059,28 +900,14 @@ class TagDetailView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
+    @validate_uuid('tag_id')
+    @require_ownership(Tag, 'tag_id', 'tag_id')
     def get(self, request, tag_id):
-        try:
-            tag = Tag.objects.get(tag_id=tag_id)
-
-            if tag.user != request.user:
-                return Response(
-                    {"error": "Forbidden - you are not the owner of this tag."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            response_serializer = ResTagVectorSerializer({"tag": tag.tag})
-
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-        except Tag.DoesNotExist:
-            return Response(
-                {"error": "No tag with tag_id as its id"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        tag = Tag.objects.get(tag_id=tag_id)
+        response_serializer = ResTagVectorSerializer({"tag": tag.tag})
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
 class StoryView(APIView):
@@ -1112,55 +939,43 @@ class StoryView(APIView):
             ),
         ],
     )
+    @log_request
+    @handle_exceptions
     def get(self, request):
         try:
-            # 페이지네이션 파라미터 가져오기 및 검증
-            try:
-                size = int(request.GET.get("size", 20))
-                if size < 1:
-                    return Response(
-                        {"error": "Size parameter must be positive"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                size = min(size, 200)  # 최대 200개 제한
-            except ValueError:
+            size = int(request.GET.get("size", 20))
+            if size < 1:
                 return Response(
-                    {"error": "Invalid size parameter"},
+                    {"error": "Size parameter must be positive"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-            # 랜덤 정렬로 매번 다른 순서 보장
-            # Filter photos that don't have any Photo_Tag relations
-            has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=request.user)
-            photos_queryset = (
-                Photo.objects.filter(user=request.user)
-                .exclude(Exists(has_tags))
-                .order_by("?")[:size]
-            )  # 랜덤 정렬 + 슬라이싱
-
-            # QuerySet을 유지하면서 데이터 직렬화
-            photos_data = [
-                {
-                    "photo_id": str(photo.photo_id),
-                    "photo_path_id": photo.photo_path_id,
-                    "created_at": photo.created_at,
-                }
-                for photo in photos_queryset
-            ]
-
-            # 빈 결과 처리
-            if not photos_data:
-                story_response = {"recs": []}
-            else:
-                story_response = {"recs": photos_data}
-
-            serializer = ResStorySerializer(story_response)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        except Exception as e:
+            size = min(size, 200)
+        except ValueError:
             return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Invalid size parameter"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=request.user)
+        photos_queryset = (
+            Photo.objects.filter(user=request.user)
+            .exclude(Exists(has_tags))
+            .order_by("?")[:size]
+        )
+
+        photos_data = [
+            {
+                "photo_id": str(photo.photo_id),
+                "photo_path_id": photo.photo_path_id,
+                "created_at": photo.created_at,
+            }
+            for photo in photos_queryset
+        ]
+
+        story_response = {"recs": photos_data}
+        serializer = ResStorySerializer(story_response)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class NewStoryView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -1187,28 +1002,24 @@ class NewStoryView(APIView):
             )
         ],
     )
+    @log_request
+    @handle_exceptions
     def get(self, request):
-        try:
-            r = get_redis()
-            exists = r.exists(request.user.id)
-            if not exists:
-                return Response(
-                    {"error": "We're working on your stories! Please wait a moment."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            story_data_json = r.get(request.user.id)
-            story_data = json.loads(story_data_json)
-            serializer = NewResStorySerializer(story_data, many=True)
-
-            r.delete(request.user.id)
-
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        except Exception as e:
+        r = get_redis()
+        exists = r.exists(request.user.id)
+        if not exists:
             return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "We're working on your stories! Please wait a moment."},
+                status=status.HTTP_404_NOT_FOUND,
             )
+
+        story_data_json = r.get(request.user.id)
+        story_data = json.loads(story_data_json)
+        serializer = NewResStorySerializer(story_data, many=True)
+
+        r.delete(request.user.id)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         operation_summary="Generate and save stories into redis",
@@ -1236,34 +1047,28 @@ class NewStoryView(APIView):
             ),
         ],
     )
+    @log_request
+    @handle_exceptions
     def post(self, request):
         try:
-            # 페이지네이션 파라미터 가져오기 및 검증
-            try:
-                size = int(request.GET.get("size", 20))
-                if size < 1:
-                    return Response(
-                        {"error": "Size parameter must be positive"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                size = min(size, 200)  # 최대 200개 제한
-            except ValueError:
+            size = int(request.GET.get("size", 20))
+            if size < 1:
                 return Response(
-                    {"error": "Invalid size parameter"},
+                    {"error": "Size parameter must be positive"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-            # Celery 백그라운드 작업으로 위임
-            generate_stories_task.delay(request.user.id, size)
-
+            size = min(size, 200)
+        except ValueError:
             return Response(
-                {"message": "Story generation started"}, status=status.HTTP_202_ACCEPTED
+                {"error": "Invalid size parameter"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        generate_stories_task.delay(request.user.id, size)
+
+        return Response(
+            {"message": "Story generation started"}, status=status.HTTP_202_ACCEPTED
+        )
 
 
 class TaskStatusView(APIView):
@@ -1322,38 +1127,31 @@ class TaskStatusView(APIView):
             500: openapi.Response(description="Internal Server Error"),
         },
     )
+    @log_request
+    @handle_exceptions
     def get(self, request):
-        try:
-            from celery.result import AsyncResult
+        from celery.result import AsyncResult
+        
+        task_ids_param = request.GET.get("task_ids")
+        r = get_redis()
+        
+        if task_ids_param:
+            task_ids = [tid.strip() for tid in task_ids_param.split(",") if tid.strip()]
+        else:
+            limit = int(request.GET.get("limit", 100))
+            offset = int(request.GET.get("offset", 0))
             
-            task_ids_param = request.GET.get("task_ids")
-            r = get_redis()
+            redis_key = f"user_tasks:{request.user.id}"
             
-            if task_ids_param:
-                # If specific IDs are requested, fetch only those
-                task_ids = [tid.strip() for tid in task_ids_param.split(",") if tid.strip()]
-            else:
-                # Fallback to history pagination
-                limit = int(request.GET.get("limit", 100))
-                offset = int(request.GET.get("offset", 0))
-                
-                redis_key = f"user_tasks:{request.user.id}"
-                
-                # Get task IDs from Redis list (paginated)
-                task_ids_bytes = r.lrange(redis_key, offset, offset + limit - 1)
-                task_ids = [t.decode('utf-8') for t in task_ids_bytes]
+            task_ids_bytes = r.lrange(redis_key, offset, offset + limit - 1)
+            task_ids = [t.decode('utf-8') for t in task_ids_bytes]
+        
+        results = []
+        for task_id in task_ids:
+            res = AsyncResult(task_id)
+            results.append({
+                "task_id": task_id,
+                "status": res.status,
+            })
             
-            results = []
-            for task_id in task_ids:
-                res = AsyncResult(task_id)
-                results.append({
-                    "task_id": task_id,
-                    "status": res.status,
-                })
-                
-            return Response(results, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return Response(results, status=status.HTTP_200_OK)

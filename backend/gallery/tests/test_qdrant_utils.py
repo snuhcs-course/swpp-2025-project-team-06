@@ -1,3 +1,4 @@
+import gallery.qdrant_utils
 from django.test import TestCase
 from unittest.mock import patch, MagicMock, call
 from qdrant_client.http.exceptions import UnexpectedResponse
@@ -10,12 +11,16 @@ from gallery.qdrant_utils import (
     REPVEC_COLLECTION_NAME,
     TAG_PRESET_COLLECTION_NAME,
     QDRANT_URL,
-    QDRANT_API_KEY
+    QDRANT_API_KEY,
 )
 
 
 class GetQdrantClientTest(TestCase):
     """Tests for get_qdrant_client function"""
+
+    def setUp(self):
+        """Reset the singleton client before each test."""
+        gallery.qdrant_utils._qdrant_client = None
 
     @patch('gallery.qdrant_utils.QdrantClient')
     def test_get_qdrant_client_returns_client(self, mock_qdrant_client_class):

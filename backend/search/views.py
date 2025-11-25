@@ -1,19 +1,17 @@
+from .decorators import log_request, handle_exceptions, validate_pagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import re
-from gallery.models import Tag, Photo_Tag, Photo
-from .embedding_service import create_query_embedding
-from gallery.tasks import execute_hybrid_search
-from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
-from qdrant_client.http import models
+from gallery.models import Tag
 from .response_serializers import PhotoResponseSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-import uuid
 from django.conf import settings
+
+from .search_strategies import SearchStrategyFactory
 
 TAG_REGEX = re.compile(r"\{([^}]+)\}")
 
@@ -69,194 +67,53 @@ class SemanticSearchView(APIView):
             ),
         },
     )
+    @log_request
+    @handle_exceptions
+    @validate_pagination(max_limit=50)
     def get(self, request):
-        try:
-            client = get_qdrant_client()
-            query = request.GET.get("query", "")
-            if not query:
-                return Response(
+        query = request.GET.get("query", "")
+        if not query:
+            return Response(
                     {"error": "query parameter is required."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            offset = int(request.GET.get("offset", SEARCH_SETTINGS.get("SEARCH_DEFAULT_OFFSET", 0)))
-            # First page uses SEARCH_FIRST_PAGE_SIZE, subsequent pages use SEARCH_SUBSEQUENT_PAGE_SIZE
-            default_limit = (
+        offset = request.validated_offset
+        user = request.user
+        default_limit = (
                 SEARCH_SETTINGS.get("SEARCH_FIRST_PAGE_SIZE", 30) if offset == 0
                 else SEARCH_SETTINGS.get("SEARCH_SUBSEQUENT_PAGE_SIZE", 60)
             )
-            limit = int(request.GET.get("limit", default_limit))
-            user = request.user
+        limit = int(request.GET.get("limit", default_limit))
 
-            tag_names = TAG_REGEX.findall(query)
-            semantic_query = TAG_REGEX.sub("", query).strip()
+        # Parse tags and semantic query
+        tag_names = TAG_REGEX.findall(query)
+        semantic_query = TAG_REGEX.sub("", query).strip()
 
-            valid_tag_ids = []
-            if tag_names:
-                valid_tag_ids = list(
-                    Tag.objects.filter(
-                        user=user, tag__in=tag_names
-                    ).values_list("tag_id", flat=True)
-                )
-
-            final_results = []
-
-            if not semantic_query and valid_tag_ids:
-                # Get photos directly tagged
-                tagged_photo_ids = list(
-                    Photo_Tag.objects.filter(user=user, tag_id__in=valid_tag_ids)
-                    .values_list("photo_id", flat=True)
-                    .distinct()
-                )
-
-                tagged_photo_ids_str = [str(pid) for pid in tagged_photo_ids]
-
-                # Get representative vectors for the tags
-                from gallery.tasks import retrieve_all_rep_vectors_of_tag
-                all_rep_vectors = []
-                for tag_id in valid_tag_ids:
-                    rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
-                    all_rep_vectors.extend(rep_vectors)
-
-                # Recommend similar photos using representative vectors
-                similar_photo_ids = []
-                if all_rep_vectors:
-                    try:
-                        user_filter = models.Filter(
-                            must=[
-                                models.FieldCondition(
-                                    key="user_id",
-                                    match=models.MatchValue(value=user.id),
-                                )
-                            ]
-                        )
-
-                        recommend_results = client.recommend(
-                            collection_name=IMAGE_COLLECTION_NAME,
-                            positive=all_rep_vectors,
-                            query_filter=user_filter,
-                            limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
-                            with_payload=False,
-                            with_vectors=False,
-                            score_threshold=SEARCH_SETTINGS.get("SEARCH_SCORE_THRESHOLD", 0.2),
-                        )
-
-                        # Exclude already tagged photos
-                        similar_photo_ids = [
-                            point.id for point in recommend_results
-                            if point.id not in tagged_photo_ids_str
-                        ]
-                    except Exception as e:
-                        print(f"Recommend failed: {e}")
-
-                # Combine: tagged photos first, then similar photos
-                all_photo_ids = tagged_photo_ids_str + similar_photo_ids
-                paginated_photo_ids = all_photo_ids[offset:offset + limit]
-
-                if paginated_photo_ids:
-                    photo_uuids = [uuid.UUID(pid) for pid in paginated_photo_ids]
-                    photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
-                        "photo_id", "photo_path_id", "created_at"
-                    )
-
-                    id_to_meta = {
-                        str(p["photo_id"]): {
-                            "photo_path_id": p["photo_path_id"],
-                            "created_at": p["created_at"]
-                        }
-                        for p in photos
-                    }
-
-                    # Maintain order
-                    final_results = [
-                        {
-                            "photo_id": pid,
-                            "photo_path_id": id_to_meta[pid]["photo_path_id"],
-                            "created_at": id_to_meta[pid]["created_at"]
-                        }
-                        for pid in paginated_photo_ids
-                        if pid in id_to_meta
-                    ]
-
-            elif semantic_query and not valid_tag_ids:
-                try:
-                    query_vector = create_query_embedding(semantic_query)
-
-                    user_filter = models.Filter(
-                        must=[
-                            models.FieldCondition(
-                                key="user_id",
-                                match=models.MatchValue(value=user.id),
-                            )
-                        ]
-                    )
-
-                    # Search with large limit to get all results above threshold
-                    # Then apply pagination manually
-                    search_result = client.search(
-                        collection_name=IMAGE_COLLECTION_NAME,
-                        query_vector=query_vector,
-                        query_filter=user_filter,
-                        limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
-                        with_payload=True,
-                        with_vectors=False,
-                        score_threshold=SEARCH_SETTINGS.get("SEARCH_SCORE_THRESHOLD", 0.4),
-                    )
-
-                    # Apply pagination to similarity-filtered results
-                    all_semantic_photo_ids = [point.id for point in search_result]
-                    semantic_photo_ids = all_semantic_photo_ids[offset:offset + limit]
-
-                    if semantic_photo_ids:
-                        photo_uuids = [uuid.UUID(pid) for pid in semantic_photo_ids]
-
-                        photos = Photo.objects.filter(photo_id__in=photo_uuids).values(
-                            "photo_id", "photo_path_id", "created_at"
-                        )
-
-                        id_to_meta = {
-                            str(p["photo_id"]): {
-                                "photo_path_id": p["photo_path_id"],
-                                "created_at": p["created_at"]
-                            }
-                            for p in photos
-                        }
-
-                        # Qdrant 검색 순서 유지
-                        final_results = [
-                            {
-                                "photo_id": pid, 
-                                "photo_path_id": id_to_meta[pid]["photo_path_id"],
-                                "created_at": id_to_meta[pid]["created_at"]
-                            }
-                            for pid in semantic_photo_ids
-                            if pid in id_to_meta 
-                        ]
-                except Exception as e:
-                    return Response(
-                        {"error": f"Semantic search failed: {str(e)}"},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    )
-
-            elif semantic_query and valid_tag_ids:
-                final_results = execute_hybrid_search(
-                    user=user,
-                    tag_ids=valid_tag_ids,
-                    query_string=semantic_query,
-                    offset=offset,
-                    limit=limit
-                )
-
-            else:
-                return Response(
-                    {"message": "No valid tags found or query is empty."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            serializer = PhotoResponseSerializer(final_results, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        # Get valid tag IDs
+        valid_tag_ids = []
+        if tag_names:
+            valid_tag_ids = list(
+                Tag.objects.filter(
+                    user=user, tag__in=tag_names
+                ).values_list("tag_id", flat=True)
             )
+
+        # Select and execute strategy
+        strategy = SearchStrategyFactory.create_strategy(
+            has_query=bool(semantic_query),
+            has_tags=bool(valid_tag_ids)
+        )
+
+        results = strategy.search(user, {
+            'tag_ids': valid_tag_ids,
+            'query_text': semantic_query,
+            'offset': offset,
+            'limit': limit
+        })
+
+        serializer = PhotoResponseSerializer(results, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        
+
