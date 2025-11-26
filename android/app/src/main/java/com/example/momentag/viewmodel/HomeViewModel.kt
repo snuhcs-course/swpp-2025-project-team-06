@@ -10,10 +10,14 @@ import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
+import com.example.momentag.repository.TagStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -44,6 +48,7 @@ class HomeViewModel
         private val recommendRepository: RecommendRepository,
         private val photoSelectionRepository: PhotoSelectionRepository,
         private val imageBrowserRepository: ImageBrowserRepository,
+        private val tagStateRepository: TagStateRepository,
     ) : ViewModel() {
         // 1. Companion object
         companion object {
@@ -96,8 +101,6 @@ class HomeViewModel
         private val _isSelectionMode = MutableStateFlow(false)
         private val _isShowingAllPhotos = MutableStateFlow(false)
         private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
-        private val _rawTagList = MutableStateFlow<List<TagItem>>(emptyList())
-        private val _homeLoadingState = MutableStateFlow<HomeLoadingState>(HomeLoadingState.Idle)
         private val _homeDeleteState = MutableStateFlow<HomeDeleteState>(HomeDeleteState.Idle)
         private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
         private val _isLoadingPhotos = MutableStateFlow(false)
@@ -114,10 +117,35 @@ class HomeViewModel
         val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
         val isShowingAllPhotos: StateFlow<Boolean> = _isShowingAllPhotos.asStateFlow()
         val sortOrder = _sortOrder.asStateFlow()
-        val rawTagList = _rawTagList.asStateFlow()
-        val homeLoadingState = _homeLoadingState.asStateFlow()
         val homeDeleteState = _homeDeleteState.asStateFlow()
         val selectedPhotos: StateFlow<Map<String, Photo>> = photoSelectionRepository.selectedPhotos
+
+        // Observe sorted tags from TagStateRepository
+        val homeLoadingState: StateFlow<HomeLoadingState> =
+            tagStateRepository.loadingState
+                .map { tagState ->
+                    when (tagState) {
+                        is TagStateRepository.LoadingState.Idle -> HomeLoadingState.Idle
+                        is TagStateRepository.LoadingState.Loading -> HomeLoadingState.Loading
+                        is TagStateRepository.LoadingState.Success -> {
+                            val sortedTags = sortTags(tagState.tags, _sortOrder.value)
+                            HomeLoadingState.Success(sortedTags)
+                        }
+                        is TagStateRepository.LoadingState.Error -> {
+                            val homeError =
+                                when (tagState.error) {
+                                    TagStateRepository.TagError.NetworkError -> HomeError.NetworkError
+                                    TagStateRepository.TagError.Unauthorized -> HomeError.Unauthorized
+                                    TagStateRepository.TagError.UnknownError -> HomeError.UnknownError
+                                }
+                            HomeLoadingState.Error(homeError)
+                        }
+                    }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = HomeLoadingState.Idle,
+                )
         val allPhotos = _allPhotos.asStateFlow()
         val isLoadingPhotos = _isLoadingPhotos.asStateFlow()
         val isLoadingMorePhotos = _isLoadingMorePhotos.asStateFlow()
@@ -243,43 +271,7 @@ class HomeViewModel
 
         fun loadServerTags() {
             viewModelScope.launch {
-                _homeLoadingState.value = HomeLoadingState.Loading
-
-                when (val result = remoteRepository.getAllTags()) {
-                    is RemoteRepository.Result.Success -> {
-                        val tags = result.data
-
-                        val tagItems =
-                            tags.map { tag ->
-                                TagItem(
-                                    tagName = tag.tagName,
-                                    coverImageId = tag.thumbnailPhotoPathId,
-                                    tagId = tag.tagId,
-                                    createdAt = tag.createdAt,
-                                    updatedAt = tag.updatedAt,
-                                    photoCount = tag.photoCount,
-                                )
-                            }
-                        _rawTagList.value = tagItems
-                        sortAndPublishTags()
-                    }
-
-                    is RemoteRepository.Result.Error -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.UnknownError)
-                    }
-                    is RemoteRepository.Result.Unauthorized -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.Unauthorized)
-                    }
-                    is RemoteRepository.Result.BadRequest -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.UnknownError)
-                    }
-                    is RemoteRepository.Result.NetworkError -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.NetworkError)
-                    }
-                    is RemoteRepository.Result.Exception -> {
-                        _homeLoadingState.value = HomeLoadingState.Error(HomeError.UnknownError)
-                    }
-                }
+                tagStateRepository.loadTags()
             }
         }
 
@@ -287,7 +279,7 @@ class HomeViewModel
             viewModelScope.launch {
                 _homeDeleteState.value = HomeDeleteState.Loading
 
-                when (val result = remoteRepository.removeTag(tagId)) {
+                when (val result = tagStateRepository.deleteTag(tagId)) {
                     is RemoteRepository.Result.Success -> {
                         _homeDeleteState.value = HomeDeleteState.Success
                     }
@@ -318,7 +310,7 @@ class HomeViewModel
 
         fun setSortOrder(newOrder: TagSortOrder) {
             _sortOrder.value = newOrder
-            sortAndPublishTags()
+            // homeLoadingState will automatically update via the flow transformation
         }
 
         fun resetDeleteState() {
@@ -404,9 +396,10 @@ class HomeViewModel
             return null // Should not happen if photo is in _allPhotos
         }
 
-        private fun sortAndPublishTags() {
-            val currentList = _rawTagList.value
-
+        private fun sortTags(
+            tags: List<TagItem>,
+            sortOrder: TagSortOrder,
+        ): List<TagItem> {
             fun parseDate(dateStr: String?): Date? {
                 if (dateStr == null) return null
 
@@ -429,15 +422,13 @@ class HomeViewModel
                 return null
             }
 
-            val sortedList =
-                when (_sortOrder.value) {
-                    TagSortOrder.NAME_ASC -> currentList.sortedBy { it.tagName }
-                    TagSortOrder.NAME_DESC -> currentList.sortedByDescending { it.tagName }
-                    TagSortOrder.CREATED_DESC -> currentList.sortedByDescending { parseDate(it.updatedAt) }
-                    TagSortOrder.COUNT_ASC -> currentList.sortedBy { it.photoCount }
-                    TagSortOrder.COUNT_DESC -> currentList.sortedByDescending { it.photoCount }
-                }
-            _homeLoadingState.value = HomeLoadingState.Success(tags = sortedList)
+            return when (sortOrder) {
+                TagSortOrder.NAME_ASC -> tags.sortedBy { it.tagName }
+                TagSortOrder.NAME_DESC -> tags.sortedByDescending { it.tagName }
+                TagSortOrder.CREATED_DESC -> tags.sortedByDescending { parseDate(it.updatedAt) }
+                TagSortOrder.COUNT_ASC -> tags.sortedBy { it.photoCount }
+                TagSortOrder.COUNT_DESC -> tags.sortedByDescending { it.photoCount }
+            }
         }
 
         /**

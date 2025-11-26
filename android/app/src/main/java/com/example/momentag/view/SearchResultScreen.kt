@@ -57,6 +57,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -87,11 +88,11 @@ import androidx.navigation.NavController
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
-import com.example.momentag.model.SearchResultItem
 import com.example.momentag.model.TagItem
 import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.CreateTagButton
+import com.example.momentag.ui.components.SearchBarState
 import com.example.momentag.ui.components.SearchContentElement
 import com.example.momentag.ui.components.SearchEmptyStateCustom
 import com.example.momentag.ui.components.SearchHistoryItem
@@ -142,14 +143,10 @@ fun SearchResultScreen(
     val selectedPhotoIds = selectedPhotos.keys
     val searchHistory by searchViewModel.searchHistory.collectAsState()
     val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
-    val tagLoadingState by searchViewModel.tagLoadingState.collectAsState()
-    val focusedElementId by searchViewModel.focusedElementId
-    val tagSuggestions by searchViewModel.tagSuggestions.collectAsState()
-    val shouldShowSearchHistoryDropdown by searchViewModel.shouldShowSearchHistoryDropdown.collectAsState()
-    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
     val scrollToIndex by searchViewModel.scrollToIndex.collectAsState()
     val isLoadingMore by searchViewModel.isLoadingMore.collectAsState()
     val hasMore by searchViewModel.hasMore.collectAsState()
+    val tags by searchViewModel.tags.collectAsState()
 
     // 4. 로컬 상태 변수
     var searchBarWidth by remember { mutableStateOf(0) }
@@ -159,42 +156,29 @@ fun SearchResultScreen(
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
 
     // 5. Derived 상태 및 계산된 값
-    val allTags = (tagLoadingState as? SearchViewModel.TagLoadingState.Success)?.tags ?: emptyList<TagItem>()
+    val allTags = tags
     val topSpacerHeight = Dimen.ItemSpacingSmall
-    val contentItems = searchViewModel.contentItems
-    val textStates = searchViewModel.textStates
-    val focusRequesters = searchViewModel.focusRequesters
-    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
-    val currentFocusedElementId = rememberUpdatedState(focusedElementId)
-    val currentFocusManager = rememberUpdatedState(focusManager)
 
     // 6. Remember된 객체들
+    val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
 
-    LaunchedEffect(tagLoadingState) {
-        if (tagLoadingState is SearchViewModel.TagLoadingState.Error) {
-            val errorState = tagLoadingState as SearchViewModel.TagLoadingState.Error
-            val errorMessage =
-                when (errorState.error) {
-                    SearchViewModel.SearchError.NetworkError -> context.getString(R.string.error_message_network)
-                    SearchViewModel.SearchError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
-                    SearchViewModel.SearchError.EmptyQuery -> context.getString(R.string.error_message_empty_query)
-                    SearchViewModel.SearchError.UnknownError -> context.getString(R.string.error_message_search)
-                }
-
-            // TODO : change to error box
-            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
-
-            searchViewModel.resetTagLoadingState()
-        }
-    }
+    // 7. SearchBarState instance
+    val searchBarState = remember { SearchBarState(scope) }
+    val contentItems = searchBarState.contentItems
+    val textStates = searchBarState.textStates
+    val focusRequesters = searchBarState.focusRequesters
+    val bringIntoViewRequesters = searchBarState.bringIntoViewRequesters
+    val focusedElementId = searchBarState.focusedElementId.value
+    val ignoreFocusLoss = searchBarState.ignoreFocusLoss.value
+    val currentFocusedElementId = rememberUpdatedState(focusedElementId)
+    val currentFocusManager = rememberUpdatedState(focusManager)
 
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
-                    searchViewModel.loadServerTags()
                     isCursorHidden = false
                     // Restore scroll position when returning from ImageDetailScreen
                     searchViewModel.restoreScrollPosition()
@@ -229,8 +213,8 @@ fun SearchResultScreen(
         previousImeBottom = imeBottom
     }
 
-    LaunchedEffect(searchViewModel.requestFocus) {
-        searchViewModel.requestFocus.collect { id ->
+    LaunchedEffect(searchBarState.requestFocus) {
+        searchBarState.requestFocus.collect { id ->
             isCursorHidden = true
 
             try {
@@ -239,7 +223,7 @@ fun SearchResultScreen(
                     .first()
             } catch (e: Exception) {
                 isCursorHidden = false
-                searchViewModel.resetIgnoreFocusLossFlag()
+                searchBarState.resetIgnoreFocusLossFlag()
                 return@collect
             }
 
@@ -267,15 +251,62 @@ fun SearchResultScreen(
             focusRequesters[id]?.requestFocus()
 
             isCursorHidden = false
-            searchViewModel.resetIgnoreFocusLossFlag()
+            searchBarState.resetIgnoreFocusLossFlag()
         }
     }
 
-    LaunchedEffect(searchViewModel.bringIntoView) {
-        searchViewModel.bringIntoView.collect { id ->
+    LaunchedEffect(searchBarState.bringIntoView) {
+        searchBarState.bringIntoView.collect { id ->
             bringIntoViewRequesters[id]?.bringIntoView()
         }
     }
+
+    // Compute tag suggestions locally
+    val tagSuggestions =
+        remember(focusedElementId, textStates, tags) {
+            val id = focusedElementId
+            if (id == null) {
+                emptyList()
+            } else {
+                val currentInput =
+                    textStates[id] ?: androidx.compose.ui.text.input
+                        .TextFieldValue()
+                val cursorPosition = currentInput.selection.start
+                if (cursorPosition == 0) {
+                    emptyList()
+                } else {
+                    val textUpToCursor = currentInput.text.substring(0, cursorPosition)
+                    val lastHashIndex = textUpToCursor.lastIndexOf('#')
+
+                    if (lastHashIndex == -1 || " " in textUpToCursor.substring(lastHashIndex)) {
+                        emptyList()
+                    } else {
+                        val tagQuery = textUpToCursor.substring(lastHashIndex + 1)
+                        tags.filter { it.tagName.contains(tagQuery, ignoreCase = true) }
+                    }
+                }
+            }
+        }
+
+    // Compute shouldShowSearchHistoryDropdown locally
+    val shouldShowSearchHistoryDropdown =
+        remember(focusedElementId, contentItems.size, searchHistory) {
+            val isFocused = focusedElementId != null
+            val isOnlyOneElement = contentItems.size == 1
+            val firstElement = contentItems.firstOrNull()
+
+            if (isFocused && isOnlyOneElement && firstElement is SearchContentElement.Text) {
+                if (focusedElementId == firstElement.id) {
+                    val currentText = textStates[firstElement.id]?.text ?: ""
+                    val hasHistory = searchHistory.isNotEmpty()
+                    (currentText.isEmpty() || currentText == "\u200B") && hasHistory
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
 
     var hasPerformedInitialSearch by rememberSaveable { mutableStateOf(false) }
 
@@ -321,63 +352,36 @@ fun SearchResultScreen(
         }
     }
 
-    LaunchedEffect(initialQuery, hasPerformedInitialSearch, tagLoadingState) {
-        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch && tagLoadingState is SearchViewModel.TagLoadingState.Success) {
-            searchViewModel.selectHistoryItem(initialQuery)
+    LaunchedEffect(initialQuery, hasPerformedInitialSearch, tags) {
+        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch && tags.isNotEmpty()) {
+            searchBarState.selectHistoryItem(initialQuery, tags)
             hasPerformedInitialSearch = true
         }
     }
 
-    // SemanticSearchState를 SearchUiState로 변환
-    val uiState =
-        remember(semanticSearchState) {
-            when (semanticSearchState) {
-                is SearchViewModel.SemanticSearchState.Idle -> SearchViewModel.SearchUiState.Idle
-                is SearchViewModel.SemanticSearchState.Loading -> SearchViewModel.SearchUiState.Loading
-                is SearchViewModel.SemanticSearchState.Success -> {
-                    val photos = (semanticSearchState as SearchViewModel.SemanticSearchState.Success).photos
-                    val searchResults =
-                        photos.map { photo ->
-                            SearchResultItem(
-                                query = (semanticSearchState as SearchViewModel.SemanticSearchState.Success).query,
-                                photo = photo,
-                            )
-                        }
-                    SearchViewModel.SearchUiState.Success(
-                        searchResults,
-                        (semanticSearchState as SearchViewModel.SemanticSearchState.Success).query,
-                    )
-                }
-                is SearchViewModel.SemanticSearchState.Empty -> {
-                    SearchViewModel.SearchUiState.Empty((semanticSearchState as SearchViewModel.SemanticSearchState.Empty).query)
-                }
-                is SearchViewModel.SemanticSearchState.Error -> {
-                    val errorState = semanticSearchState as SearchViewModel.SemanticSearchState.Error
-                    SearchViewModel.SearchUiState.Error(errorState.error)
-                }
-            }
-        }
-
     var isErrorBannerVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(uiState) {
-        if (uiState is SearchViewModel.SearchUiState.Error) {
-            errorMessage =
-                when (uiState.error) {
-                    SearchViewModel.SearchError.NetworkError -> context.getString(R.string.error_message_network)
-                    SearchViewModel.SearchError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
-                    SearchViewModel.SearchError.EmptyQuery -> context.getString(R.string.error_message_empty_query)
-                    SearchViewModel.SearchError.UnknownError -> context.getString(R.string.error_message_search)
-                }
-            isErrorBannerVisible = true
-        } else {
-            // 로딩이 성공하거나, Idle 상태가 되면 배너를 숨깁니다.
-            if (uiState is SearchViewModel.SearchUiState.Success ||
-                uiState is SearchViewModel.SearchUiState.Loading ||
-                uiState is SearchViewModel.SearchUiState.Idle
-            ) {
+    LaunchedEffect(semanticSearchState) {
+        when (val state = semanticSearchState) {
+            is SearchViewModel.SemanticSearchState.Error -> {
+                errorMessage =
+                    when (state.error) {
+                        SearchViewModel.SearchError.NetworkError -> context.getString(R.string.error_message_network)
+                        SearchViewModel.SearchError.Unauthorized -> context.getString(R.string.error_message_authentication_required)
+                        SearchViewModel.SearchError.EmptyQuery -> context.getString(R.string.error_message_empty_query)
+                        SearchViewModel.SearchError.UnknownError -> context.getString(R.string.error_message_search)
+                    }
+                isErrorBannerVisible = true
+            }
+            is SearchViewModel.SemanticSearchState.Success,
+            is SearchViewModel.SemanticSearchState.Loading,
+            is SearchViewModel.SemanticSearchState.Idle,
+            -> {
                 isErrorBannerVisible = false
+            }
+            else -> {
+                // Empty state - keep current banner state
             }
         }
     }
@@ -416,8 +420,9 @@ fun SearchResultScreen(
 
     val performSearch = {
         focusManager.clearFocus()
-        searchViewModel.performSearch { route ->
-            // Already on search result screen
+        val query = searchBarState.buildSearchQuery()
+        if (query.isNotEmpty()) {
+            searchViewModel.search(query)
         }
     }
 
@@ -433,19 +438,19 @@ fun SearchResultScreen(
         tagSuggestions = tagSuggestions,
         shouldShowSearchHistoryDropdown = shouldShowSearchHistoryDropdown,
         allTags = allTags,
-        parser = searchViewModel::parseQueryToElements,
+        parser = searchBarState::parseQueryToElements,
         onPerformSearch = performSearch,
-        onChipSearchBarContainerClick = searchViewModel::onContainerClick,
-        onChipClick = searchViewModel::onChipClick,
-        onFocus = searchViewModel::onFocus,
-        onTextChange = searchViewModel::onTextChange,
-        onAddTagFromSuggestion = searchViewModel::addTagFromSuggestion,
+        onChipSearchBarContainerClick = searchBarState::onContainerClick,
+        onChipClick = searchBarState::onChipClick,
+        onFocus = searchBarState::onFocus,
+        onTextChange = searchBarState::onTextChange,
+        onAddTagFromSuggestion = searchBarState::addTagFromSuggestion,
         searchBarRowHeight = searchBarRowHeight,
         onSearchBarRowHeightChange = { searchBarRowHeight = it },
         topSpacerHeight = topSpacerHeight,
         searchBarWidth = searchBarWidth,
         onSearchBarWidthChange = { searchBarWidth = it },
-        uiState = uiState,
+        semanticSearchState = semanticSearchState,
         isSelectionMode = isSelectionMode,
         selectedPhotos = selectedPhotos,
         selectedPhotoIds = selectedPhotoIds,
@@ -473,7 +478,7 @@ fun SearchResultScreen(
         },
         onCreateTagClick = {
             // Get the current search results
-            val currentState = uiState as? SearchViewModel.SearchUiState.Success
+            val currentState = semanticSearchState as? SearchViewModel.SemanticSearchState.Success
             if (currentState != null) {
                 // photo selection already stored in draftRepository
                 // isSelectionMode = false
@@ -486,14 +491,14 @@ fun SearchResultScreen(
         },
         navController = navController,
         topBarActions =
-            if (uiState is SearchViewModel.SearchUiState.Success) {
+            if (semanticSearchState is SearchViewModel.SemanticSearchState.Success) {
                 topBarActions
             } else {
                 {}
             },
         searchHistory = searchHistory,
         onHistoryClick = { clickedQuery ->
-            searchViewModel.selectHistoryItem(clickedQuery)
+            searchBarState.selectHistoryItem(clickedQuery, allTags)
             focusManager.clearFocus()
             performSearch()
         },
@@ -504,7 +509,7 @@ fun SearchResultScreen(
         errorMessage = errorMessage,
         onDismissError = { isErrorBannerVisible = false },
         placeholder = placeholderText,
-        onClearSearchContent = { searchViewModel.clearSearchContent(keepFocus = true) },
+        onClearSearchContent = { searchBarState.clearSearchContent(keepFocus = true) },
         isLoadingMore = isLoadingMore,
         hasMore = hasMore,
         onLoadMore = { searchViewModel.loadMore() },
@@ -541,7 +546,7 @@ fun SearchResultScreenUi(
     topSpacerHeight: Dp,
     searchBarWidth: Int,
     onSearchBarWidthChange: (Int) -> Unit,
-    uiState: SearchViewModel.SearchUiState,
+    semanticSearchState: SearchViewModel.SemanticSearchState,
     isSelectionMode: Boolean,
     selectedPhotos: Map<String, Photo>,
     selectedPhotoIds: Set<String>,
@@ -627,7 +632,7 @@ fun SearchResultScreenUi(
             topSpacerHeight = topSpacerHeight,
             searchBarWidth = searchBarWidth,
             onSearchBarWidthChange = onSearchBarWidthChange,
-            uiState = uiState,
+            semanticSearchState = semanticSearchState,
             isSelectionMode = isSelectionMode,
             selectedPhotos = selectedPhotos,
             selectedPhotoIds = selectedPhotoIds,
@@ -681,7 +686,7 @@ private fun SearchResultContent(
     topSpacerHeight: Dp,
     searchBarWidth: Int,
     onSearchBarWidthChange: (Int) -> Unit,
-    uiState: SearchViewModel.SearchUiState,
+    semanticSearchState: SearchViewModel.SemanticSearchState,
     isSelectionMode: Boolean,
     selectedPhotos: Map<String, Photo>,
     selectedPhotoIds: Set<String>,
@@ -792,7 +797,7 @@ private fun SearchResultContent(
                     Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                uiState = uiState,
+                semanticSearchState = semanticSearchState,
                 isSelectionMode = isSelectionMode,
                 selectedPhotos = selectedPhotos,
                 selectedPhotoIds = selectedPhotoIds,
@@ -826,7 +831,7 @@ private fun SearchResultContent(
         }
 
         // Scrollbar positioned outside Column to span padding boundary
-        if (uiState is SearchViewModel.SearchUiState.Success) {
+        if (semanticSearchState is SearchViewModel.SemanticSearchState.Success) {
             VerticalScrollbar(
                 state = gridState,
                 modifier =
@@ -882,7 +887,7 @@ private fun SearchResultContent(
         }
 
         // Bottom overlay: Photo count + Create Tag button
-        if (uiState is SearchViewModel.SearchUiState.Success) {
+        if (semanticSearchState is SearchViewModel.SemanticSearchState.Success) {
             Box(
                 modifier =
                     Modifier
@@ -919,7 +924,7 @@ private fun SearchResultContent(
 @Composable
 private fun SearchResultsFromState(
     modifier: Modifier = Modifier,
-    uiState: SearchViewModel.SearchUiState,
+    semanticSearchState: SearchViewModel.SemanticSearchState,
     isSelectionMode: Boolean,
     selectedPhotos: Map<String, Photo>,
     selectedPhotoIds: Set<String>,
@@ -933,12 +938,12 @@ private fun SearchResultsFromState(
     onLoadMore: () -> Unit,
 ) {
     Box(modifier = modifier) {
-        when (uiState) {
-            is SearchViewModel.SearchUiState.Idle -> {
+        when (semanticSearchState) {
+            is SearchViewModel.SemanticSearchState.Idle -> {
                 Box(modifier = Modifier.fillMaxSize()) // ?
             }
 
-            is SearchViewModel.SearchUiState.Loading -> {
+            is SearchViewModel.SemanticSearchState.Loading -> {
                 SearchLoadingStateCustom(
                     modifier = modifier,
                     onRefresh = onRetry,
@@ -946,14 +951,14 @@ private fun SearchResultsFromState(
                 )
             }
 
-            is SearchViewModel.SearchUiState.Empty -> {
+            is SearchViewModel.SemanticSearchState.Empty -> {
                 SearchEmptyStateCustom(
-                    query = uiState.query,
+                    query = semanticSearchState.query,
                     modifier = modifier,
                 )
             }
 
-            is SearchViewModel.SearchUiState.Success -> {
+            is SearchViewModel.SemanticSearchState.Success -> {
                 // Infinite scroll detection
                 LaunchedEffect(gridState) {
                     snapshotFlow {
@@ -975,7 +980,7 @@ private fun SearchResultsFromState(
                 val updatedIsSelectionMode = rememberUpdatedState(isSelectionMode)
                 val updatedOnImageLongPress = rememberUpdatedState(onImageLongPress)
                 val updatedOnToggleImageSelection = rememberUpdatedState(onToggleImageSelection)
-                val allPhotos = remember(uiState.results) { uiState.results.map { it.photo } }
+                val allPhotos = (semanticSearchState as SearchViewModel.SemanticSearchState.Success).photos
 
                 val gridGestureModifier =
                     Modifier.pointerInput(allPhotos) {
@@ -1132,11 +1137,10 @@ private fun SearchResultsFromState(
                     verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                 ) {
                     items(
-                        count = uiState.results.size,
-                        key = { index -> uiState.results[index].photo.photoId }, // Use stable photoId as key
+                        count = semanticSearchState.photos.size,
+                        key = { index -> semanticSearchState.photos[index].photoId }, // Use stable photoId as key
                     ) { index ->
-                        val result = uiState.results[index]
-                        val photo = result.photo
+                        val photo = semanticSearchState.photos[index]
                         ImageGridUriItem(
                             photo = photo,
                             navController = navController,
@@ -1174,7 +1178,7 @@ private fun SearchResultsFromState(
                 }
             }
 
-            is SearchViewModel.SearchUiState.Error -> {
+            is SearchViewModel.SemanticSearchState.Error -> {
                 Box(modifier = Modifier.fillMaxHeight())
             }
         }
