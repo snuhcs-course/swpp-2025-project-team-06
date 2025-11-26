@@ -39,6 +39,17 @@ class SignUpViewTest(APITestCase):
         response = self.client.post(self.signup_url, incomplete_payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_signup_duplicate_username(self):
+        """중복된 username으로 회원가입 시도"""
+        # 먼저 사용자 생성
+        User.objects.create_user(
+            username='testuser',
+            password='password123'
+        )
+
+        response = self.client.post(self.signup_url, self.valid_payload)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
 
 class SignInViewTest(APITestCase):
     def setUp(self):

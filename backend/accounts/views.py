@@ -26,6 +26,9 @@ class SignUpView(APIView):
             ),
             400: openapi.Response(
                 description="Bad Request - Invalid input data"
+            ),
+            409: openapi.Response(
+                description="Conflict - Username already in use"
             )
         },
     )
@@ -33,6 +36,9 @@ class SignUpView(APIView):
         serializer = UserSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(username=request.data['username']).exists():
+            return Response({"detail": "username conflict"}, status=status.HTTP_409_CONFLICT)
 
         user = serializer.save()
         user.set_password(request.data['password'])

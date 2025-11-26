@@ -121,6 +121,13 @@ fun RegisterScreen(navController: NavController) {
                 isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
+            is AuthViewModel.RegisterState.Conflict -> {
+                isLoading = false
+                errorMessage = state.message
+                isUsernameError = true
+                isErrorBannerVisible = true
+                authViewModel.resetRegisterState()
+            }
             is AuthViewModel.RegisterState.NetworkError -> {
                 isLoading = false
                 errorMessage = state.message

@@ -64,6 +64,10 @@ class TokenRepository
                 val message: String,
             ) : RegisterResult()
 
+            data class Conflict(
+                val message: String,
+            ) : RegisterResult()
+
             data class NetworkError(
                 val message: String,
             ) : RegisterResult()
@@ -152,6 +156,10 @@ class TokenRepository
 
                     response.code() == 400 -> {
                         RegisterResult.BadRequest("Request form mismatch")
+                    }
+
+                    response.code() == 409 -> {
+                        RegisterResult.Conflict("Username already in use")
                     }
 
                     else -> {

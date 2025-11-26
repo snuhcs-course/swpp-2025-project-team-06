@@ -58,6 +58,10 @@ class AuthViewModel
                 val message: String,
             ) : RegisterState()
 
+            data class Conflict(
+                val message: String,
+            ) : RegisterState()
+
             data class NetworkError(
                 val message: String,
             ) : RegisterState()
@@ -153,6 +157,9 @@ class AuthViewModel
                     }
                     is TokenRepository.RegisterResult.BadRequest -> {
                         _registerState.value = RegisterState.BadRequest(result.message)
+                    }
+                    is TokenRepository.RegisterResult.Conflict -> {
+                        _registerState.value = RegisterState.Conflict(result.message)
                     }
                     is TokenRepository.RegisterResult.NetworkError -> {
                         _registerState.value = RegisterState.NetworkError(result.message)
