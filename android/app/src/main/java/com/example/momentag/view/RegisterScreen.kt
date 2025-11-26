@@ -1,6 +1,5 @@
 package com.example.momentag.view
 
-import android.util.Patterns
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.togetherWith
