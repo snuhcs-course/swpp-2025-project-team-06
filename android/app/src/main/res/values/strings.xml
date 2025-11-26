@@ -152,6 +152,7 @@
     <string name="validation_required_password_check">Please confirm your password</string>
     <string name="validation_required_tag_name">Please enter a tag name</string>
     <string name="validation_tag_exists">The tag \'%1$s\' already exists. This will add photos to it.</string>
+    <string name="validation_username_taken">Username already taken. Please try another.</string>
 
     <!-- ============================================ -->
     <!-- DIALOGS -->
