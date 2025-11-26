@@ -261,21 +261,23 @@ fun SearchResultScreen(
         }
     }
 
+    // Read focused text value outside remember to trigger recomputation on text changes
+    val focusedTextValue = focusedElementId?.let { textStates[it] }
+    val focusedText = focusedTextValue?.text ?: ""
+    val focusedCursorPosition = focusedTextValue?.selection?.start ?: 0
+
     // Compute tag suggestions locally
     val tagSuggestions =
-        remember(focusedElementId, textStates, tags) {
+        remember(focusedElementId, focusedText, focusedCursorPosition, tags) {
             val id = focusedElementId
             if (id == null) {
                 emptyList()
             } else {
-                val currentInput =
-                    textStates[id] ?: androidx.compose.ui.text.input
-                        .TextFieldValue()
-                val cursorPosition = currentInput.selection.start
+                val cursorPosition = focusedCursorPosition
                 if (cursorPosition == 0) {
                     emptyList()
                 } else {
-                    val textUpToCursor = currentInput.text.substring(0, cursorPosition)
+                    val textUpToCursor = focusedText.substring(0, cursorPosition)
                     val lastHashIndex = textUpToCursor.lastIndexOf('#')
 
                     if (lastHashIndex == -1 || " " in textUpToCursor.substring(lastHashIndex)) {
@@ -288,16 +290,26 @@ fun SearchResultScreen(
             }
         }
 
+    // Read first element text value outside remember
+    val firstElementText =
+        contentItems.firstOrNull()?.let { firstElement ->
+            if (firstElement is SearchContentElement.Text) {
+                textStates[firstElement.id]?.text ?: ""
+            } else {
+                null
+            }
+        }
+
     // Compute shouldShowSearchHistoryDropdown locally
     val shouldShowSearchHistoryDropdown =
-        remember(focusedElementId, contentItems.size, searchHistory) {
+        remember(focusedElementId, contentItems.size, searchHistory, firstElementText) {
             val isFocused = focusedElementId != null
             val isOnlyOneElement = contentItems.size == 1
             val firstElement = contentItems.firstOrNull()
 
             if (isFocused && isOnlyOneElement && firstElement is SearchContentElement.Text) {
                 if (focusedElementId == firstElement.id) {
-                    val currentText = textStates[firstElement.id]?.text ?: ""
+                    val currentText = firstElementText ?: ""
                     val hasHistory = searchHistory.isNotEmpty()
                     (currentText.isEmpty() || currentText == "\u200B") && hasHistory
                 } else {
