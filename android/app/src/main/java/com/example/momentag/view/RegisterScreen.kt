@@ -73,9 +73,6 @@ fun RegisterScreen(navController: NavController) {
     // State collected from ViewModel
     val registerState by authViewModel.registerState.collectAsState()
 
-    // Error messages from resources
-    val usernameTakenMessage = stringResource(R.string.validation_username_taken)
-
     // Local state variables
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -125,7 +122,7 @@ fun RegisterScreen(navController: NavController) {
             }
             is AuthViewModel.RegisterState.Conflict -> {
                 isLoading = false
-                errorMessage = usernameTakenMessage
+                errorMessage = state.message
                 isUsernameError = true
                 isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
