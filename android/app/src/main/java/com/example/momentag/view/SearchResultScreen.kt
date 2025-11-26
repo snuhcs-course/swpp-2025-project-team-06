@@ -139,6 +139,7 @@ fun SearchResultScreen(
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val semanticSearchState by searchViewModel.searchState.collectAsState()
     val selectedPhotos by searchViewModel.selectedPhotos.collectAsState()
+    val selectedPhotoIds = selectedPhotos.keys
     val searchHistory by searchViewModel.searchHistory.collectAsState()
     val isSelectionMode by searchViewModel.isSelectionMode.collectAsState()
     val tagLoadingState by searchViewModel.tagLoadingState.collectAsState()
@@ -447,6 +448,7 @@ fun SearchResultScreen(
         uiState = uiState,
         isSelectionMode = isSelectionMode,
         selectedPhotos = selectedPhotos,
+        selectedPhotoIds = selectedPhotoIds,
         onBackClick = {
             if (isSelectionMode) {
                 searchViewModel.setSelectionMode(false)
@@ -541,7 +543,8 @@ fun SearchResultScreenUi(
     onSearchBarWidthChange: (Int) -> Unit,
     uiState: SearchViewModel.SearchUiState,
     isSelectionMode: Boolean,
-    selectedPhotos: List<Photo>,
+    selectedPhotos: Map<String, Photo>,
+    selectedPhotoIds: Set<String>,
     onBackClick: () -> Unit,
     onToggleSelectionMode: () -> Unit,
     onToggleImageSelection: (Photo) -> Unit,
@@ -627,6 +630,7 @@ fun SearchResultScreenUi(
             uiState = uiState,
             isSelectionMode = isSelectionMode,
             selectedPhotos = selectedPhotos,
+            selectedPhotoIds = selectedPhotoIds,
             onToggleSelectionMode = onToggleSelectionMode,
             onToggleImageSelection = onToggleImageSelection,
             onImageLongPress = onImageLongPress,
@@ -679,7 +683,8 @@ private fun SearchResultContent(
     onSearchBarWidthChange: (Int) -> Unit,
     uiState: SearchViewModel.SearchUiState,
     isSelectionMode: Boolean,
-    selectedPhotos: List<Photo>,
+    selectedPhotos: Map<String, Photo>,
+    selectedPhotoIds: Set<String>,
     onToggleSelectionMode: () -> Unit,
     onToggleImageSelection: (Photo) -> Unit,
     onImageLongPress: () -> Unit,
@@ -790,6 +795,7 @@ private fun SearchResultContent(
                 uiState = uiState,
                 isSelectionMode = isSelectionMode,
                 selectedPhotos = selectedPhotos,
+                selectedPhotoIds = selectedPhotoIds,
                 onToggleImageSelection = onToggleImageSelection,
                 onImageLongPress = onImageLongPress,
                 onRetry = onRetry,
@@ -915,7 +921,8 @@ private fun SearchResultsFromState(
     modifier: Modifier = Modifier,
     uiState: SearchViewModel.SearchUiState,
     isSelectionMode: Boolean,
-    selectedPhotos: List<Photo>,
+    selectedPhotos: Map<String, Photo>,
+    selectedPhotoIds: Set<String>,
     onToggleImageSelection: (Photo) -> Unit,
     onImageLongPress: () -> Unit,
     onRetry: () -> Unit,
@@ -964,6 +971,7 @@ private fun SearchResultsFromState(
                 }
 
                 val updatedSelectedPhotos = rememberUpdatedState(selectedPhotos)
+                val updatedSelectedPhotoIds = rememberUpdatedState(selectedPhotoIds)
                 val updatedIsSelectionMode = rememberUpdatedState(isSelectionMode)
                 val updatedOnImageLongPress = rememberUpdatedState(onImageLongPress)
                 val updatedOnToggleImageSelection = rememberUpdatedState(onToggleImageSelection)
@@ -1030,14 +1038,14 @@ private fun SearchResultsFromState(
                                 onDragStart = { offset ->
                                     autoScrollJob?.cancel()
                                     gestureSelectionIds.clear()
-                                    gestureSelectionIds.addAll(updatedSelectedPhotos.value.map { it.photoId })
+                                    gestureSelectionIds.addAll(updatedSelectedPhotos.value.keys)
                                     lastRangePhotoIds.clear()
                                     if (!updatedIsSelectionMode.value) {
                                         updatedOnImageLongPress.value()
                                     }
                                     gridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
                                         dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                        if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.contains(photo)) {
+                                        if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.containsKey(photo.photoId)) {
                                             updatedOnToggleImageSelection.value(photo)
                                         }
                                         lastRangePhotoIds.add(photoId)
@@ -1133,7 +1141,7 @@ private fun SearchResultsFromState(
                             photo = photo,
                             navController = navController,
                             isSelectionMode = isSelectionMode,
-                            isSelected = selectedPhotos.contains(photo),
+                            isSelected = selectedPhotoIds.contains(photo.photoId),
                             onToggleSelection = { onToggleImageSelection(photo) },
                             onLongPress = {
                                 onImageLongPress()

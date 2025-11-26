@@ -121,7 +121,7 @@ fun LocalAlbumScreen(
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val photos by localViewModel.imagesInAlbum.collectAsState()
-    val selectedPhotos by localViewModel.selectedPhotosInAlbum.collectAsState()
+    val selectedPhotos: Map<Uri, Photo> by localViewModel.selectedPhotosInAlbum.collectAsState()
     val uploadState by photoViewModel.uiState.collectAsState()
     val scrollToIndex by localViewModel.scrollToIndex.collectAsState()
     val isLoadingMorePhotos by localViewModel.isLoadingMorePhotos.collectAsState()
@@ -339,7 +339,7 @@ fun LocalAlbumScreen(
                     onClick = {
                         if (uploadState.isLoading) return@ExtendedFloatingActionButton
 
-                        photoViewModel.uploadSelectedPhotos(selectedPhotos, context)
+                        photoViewModel.uploadSelectedPhotos(selectedPhotos.values.toSet(), context)
                     },
                 )
             }
@@ -454,7 +454,7 @@ fun LocalAlbumScreen(
                                         onDragStart = { offset ->
                                             autoScrollJob?.cancel()
                                             gestureSelectionIds.clear()
-                                            gestureSelectionIds.addAll(updatedSelectedPhotos.value.map { it.contentUri })
+                                            gestureSelectionIds.addAll(updatedSelectedPhotos.value.keys)
                                             lastRangePhotoIds.clear()
                                             if (!updatedIsSelectionMode.value) {
                                                 isSelectionMode = true
@@ -462,7 +462,9 @@ fun LocalAlbumScreen(
                                             gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (contentUri, photo) ->
                                                 dragAnchorIndex =
                                                     allPhotosState.value.indexOfFirst { it.contentUri == contentUri }.takeIf { it >= 0 }
-                                                if (gestureSelectionIds.add(contentUri) || !updatedSelectedPhotos.value.contains(photo)) {
+                                                if (gestureSelectionIds.add(contentUri) ||
+                                                    !updatedSelectedPhotos.value.containsKey(photo.contentUri)
+                                                ) {
                                                     localViewModel.togglePhotoSelection(photo)
                                                 }
                                                 lastRangePhotoIds.add(contentUri)
@@ -551,7 +553,7 @@ fun LocalAlbumScreen(
                                 key = { index -> photos[index].contentUri },
                             ) { index ->
                                 val photo = photos[index]
-                                val isSelected = selectedPhotos.any { it.contentUri == photo.contentUri }
+                                val isSelected = selectedPhotos.containsKey(photo.contentUri)
 
                                 Box(modifier = Modifier.aspectRatio(1f)) {
                                     AsyncImage(

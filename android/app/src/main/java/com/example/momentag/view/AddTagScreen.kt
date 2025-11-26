@@ -250,7 +250,7 @@ fun AddTagScreen(navController: NavController) {
 
                     if (hasPermission) {
                         SelectedPhotosGrid(
-                            photos = selectedPhotos,
+                            photos = selectedPhotos.values.toList(),
                             onPhotoClick = onDeselectPhoto,
                             onAddPhotosClick = {
                                 navController.navigate(Screen.SelectImage.route)

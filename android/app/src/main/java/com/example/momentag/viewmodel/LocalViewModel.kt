@@ -12,6 +12,7 @@ import com.example.momentag.repository.LocalRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,7 +30,9 @@ class LocalViewModel
         private val _image = MutableStateFlow<List<Uri>>(emptyList())
         private val _albums = MutableStateFlow<List<Album>>(emptyList())
         private val _imagesInAlbum = MutableStateFlow<List<Photo>>(emptyList())
-        private val _selectedPhotosInAlbum = MutableStateFlow<Set<Photo>>(emptySet())
+
+        // Selected photos as Map for O(1) operations (contentUri -> Photo)
+        private val _selectedPhotosInAlbum = MutableStateFlow<Map<Uri, Photo>>(emptyMap())
         private val _selectedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
         private val _scrollToIndex = MutableStateFlow<Int?>(null)
 
@@ -46,7 +49,7 @@ class LocalViewModel
         val image = _image.asStateFlow()
         val albums = _albums.asStateFlow()
         val imagesInAlbum = _imagesInAlbum.asStateFlow()
-        val selectedPhotosInAlbum = _selectedPhotosInAlbum.asStateFlow()
+        val selectedPhotosInAlbum: StateFlow<Map<Uri, Photo>> = _selectedPhotosInAlbum.asStateFlow()
         val selectedAlbumIds = _selectedAlbumIds.asStateFlow()
         val scrollToIndex = _scrollToIndex.asStateFlow()
         val isLoadingMorePhotos = _isLoadingMorePhotos.asStateFlow()
@@ -68,17 +71,17 @@ class LocalViewModel
 
         // 4. Public functions
         fun togglePhotoSelection(photo: Photo) {
-            _selectedPhotosInAlbum.update { currentSet ->
-                if (currentSet.any { it.contentUri == photo.contentUri }) {
-                    currentSet.filter { it.contentUri != photo.contentUri }.toSet()
+            _selectedPhotosInAlbum.update { currentMap ->
+                if (currentMap.containsKey(photo.contentUri)) {
+                    currentMap - photo.contentUri // O(1) removal
                 } else {
-                    currentSet + photo
+                    currentMap + (photo.contentUri to photo) // O(1) addition
                 }
             }
         }
 
         fun clearPhotoSelection() {
-            _selectedPhotosInAlbum.value = emptySet()
+            _selectedPhotosInAlbum.value = emptyMap()
         }
 
         fun getAlbums() {

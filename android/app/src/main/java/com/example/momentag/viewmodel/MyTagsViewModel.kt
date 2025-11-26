@@ -97,7 +97,7 @@ class MyTagsViewModel
         val selectedTagsForBulkEdit: StateFlow<Set<String>> = _selectedTagsForBulkEdit.asStateFlow()
         val sortOrder: StateFlow<TagSortOrder> = _sortOrder.asStateFlow()
         val tagActionState: StateFlow<TagActionState> = _tagActionState.asStateFlow()
-        val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+        val selectedPhotos: StateFlow<Map<String, Photo>> = photoSelectionRepository.selectedPhotos
         val saveState = _saveState.asStateFlow()
 
         // 5. init 블록
@@ -268,7 +268,7 @@ class MyTagsViewModel
                 _saveState.value = SaveState.Loading
 
                 var isAllSucceeded = true
-                for (photo in selectedPhotos.value) {
+                for (photo in selectedPhotos.value.values) {
                     when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
                         is RemoteRepository.Result.Success -> {
                         }

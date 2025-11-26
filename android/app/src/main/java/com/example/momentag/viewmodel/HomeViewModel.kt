@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -116,7 +117,7 @@ class HomeViewModel
         val rawTagList = _rawTagList.asStateFlow()
         val homeLoadingState = _homeLoadingState.asStateFlow()
         val homeDeleteState = _homeDeleteState.asStateFlow()
-        val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+        val selectedPhotos: StateFlow<Map<String, Photo>> = photoSelectionRepository.selectedPhotos
         val allPhotos = _allPhotos.asStateFlow()
         val isLoadingPhotos = _isLoadingPhotos.asStateFlow()
         val isLoadingMorePhotos = _isLoadingMorePhotos.asStateFlow()
@@ -170,7 +171,7 @@ class HomeViewModel
             photoSelectionRepository.clear()
         }
 
-        fun getPhotosToShare() = selectedPhotos.value
+        fun getPhotosToShare() = selectedPhotos.value.values.toList()
 
         fun loadAllPhotos() {
             viewModelScope.launch {
@@ -213,8 +214,8 @@ class HomeViewModel
                         is RemoteRepository.Result.Success -> {
                             val newPhotos = localRepository.toPhotos(result.data)
                             if (newPhotos.isNotEmpty()) {
-                                _allPhotos.value = _allPhotos.value + newPhotos
-                                updateGroupedPhotos()
+                                _allPhotos.update { it + newPhotos }
+                                updateGroupedPhotosIncremental(newPhotos)
                                 currentOffset += pageSize // 다음 요청을 위해 pageSize만큼 증가
                                 hasMorePhotos = newPhotos.size == pageSize // 정확히 pageSize개 받았으면 더 있을 가능성
 
@@ -354,6 +355,26 @@ class HomeViewModel
                         DatedPhotoGroup(date, photos)
                     }
             _groupedPhotos.value = grouped
+            imageBrowserRepository.setGallery(_allPhotos.value)
+        }
+
+        private fun updateGroupedPhotosIncremental(newPhotos: List<Photo>) {
+            // Group new photos by date
+            val newPhotosByDate = newPhotos.groupBy { formatISODate(it.createdAt) }
+
+            // Create a mutable map from existing groups
+            val existingGroupMap = _groupedPhotos.value.associateBy { it.date }.toMutableMap()
+
+            // Merge new photos into existing groups or create new groups
+            newPhotosByDate.forEach { (date, photos) ->
+                existingGroupMap[date] = existingGroupMap[date]?.let { existingGroup ->
+                    // Append to existing group
+                    DatedPhotoGroup(date, existingGroup.photos + photos)
+                } ?: DatedPhotoGroup(date, photos) // Create new group
+            }
+
+            // Convert back to list and sort by date (descending)
+            _groupedPhotos.value = existingGroupMap.values.sortedByDescending { it.date }
             imageBrowserRepository.setGallery(_allPhotos.value)
         }
 

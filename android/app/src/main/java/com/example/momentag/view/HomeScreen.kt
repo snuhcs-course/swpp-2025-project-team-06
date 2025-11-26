@@ -892,11 +892,10 @@ fun HomeScreen(
                             onExitDeleteMode = { isDeleteMode = false },
                             isSelectionMode = isSelectionMode,
                             onEnterSelectionMode = { homeViewModel.setSelectionMode(true) },
-                            selectedItems = selectedPhotos.map { it.photoId }.toSet(),
+                            selectedItems = selectedPhotos.keys,
                             allPhotos = allPhotos, // Pass the allPhotos state here
-                            onItemSelectionToggle = { photoId ->
-                                val photo = allPhotos.find { it.photoId == photoId }
-                                photo?.let { homeViewModel.togglePhoto(it) }
+                            onItemSelectionToggle = { photo ->
+                                homeViewModel.togglePhoto(photo)
                             },
                             homeViewModel = homeViewModel,
                             allPhotosGridState = allPhotosGridState,
@@ -1178,7 +1177,7 @@ private fun MainContent(
     isSelectionMode: Boolean,
     onEnterSelectionMode: () -> Unit,
     selectedItems: Set<String>,
-    onItemSelectionToggle: (String) -> Unit,
+    onItemSelectionToggle: (Photo) -> Unit,
     allPhotos: List<Photo>, // New parameter for the flat list of all photos
     homeViewModel: HomeViewModel? = null,
     allPhotosGridState: LazyGridState,
@@ -1255,13 +1254,13 @@ private fun MainContent(
 
                                 toSelect.forEach { id ->
                                     allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnItemSelectionToggle.value(photo.photoId)
+                                        updatedOnItemSelectionToggle.value(photo)
                                         gestureSelectionIds.add(id)
                                     }
                                 }
                                 toDeselect.forEach { id ->
                                     allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnItemSelectionToggle.value(photo.photoId)
+                                        updatedOnItemSelectionToggle.value(photo)
                                         gestureSelectionIds.remove(id)
                                     }
                                 }
@@ -1282,7 +1281,7 @@ private fun MainContent(
                                     allPhotosGridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
                                         dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
                                         if (gestureSelectionIds.add(photoId) || !updatedSelectedItems.value.contains(photoId)) {
-                                            updatedOnItemSelectionToggle.value(photoId) // anchor select immediately
+                                            updatedOnItemSelectionToggle.value(photo) // anchor select immediately
                                         }
                                         lastRangePhotoIds.add(photoId)
                                     }
@@ -1401,7 +1400,7 @@ private fun MainContent(
                                             .clickable(
                                                 onClick = {
                                                     if (isSelectionMode) {
-                                                        onItemSelectionToggle(photo.photoId)
+                                                        onItemSelectionToggle(photo)
                                                     } else {
                                                         homeViewModel?.setGalleryBrowsingSession()
                                                         homeViewModel?.setShouldReturnToAllPhotos(true)

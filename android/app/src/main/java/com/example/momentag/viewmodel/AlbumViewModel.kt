@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -106,8 +107,10 @@ class AlbumViewModel
         // 2. Private MutableStateFlow
         private val _albumLoadingState = MutableStateFlow<AlbumLoadingState>(AlbumLoadingState.Idle)
         private val _recommendLoadingState = MutableStateFlow<RecommendLoadingState>(RecommendLoadingState.Idle)
-        private val _selectedRecommendPhotos = MutableStateFlow<List<Photo>>(emptyList())
-        private val _selectedTagAlbumPhotos = MutableStateFlow<List<Photo>>(emptyList())
+
+        // Maps for O(1) photo selection lookups by photoId
+        private val _selectedRecommendPhotos = MutableStateFlow<Map<String, Photo>>(emptyMap())
+        private val _selectedTagAlbumPhotos = MutableStateFlow<Map<String, Photo>>(emptyMap())
         private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
         private val _tagRenameState = MutableStateFlow<TagRenameState>(TagRenameState.Idle)
         private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
@@ -116,8 +119,8 @@ class AlbumViewModel
         // 3. Public StateFlow (exposed state)
         val albumLoadingState = _albumLoadingState.asStateFlow()
         val recommendLoadingState = _recommendLoadingState.asStateFlow()
-        val selectedRecommendPhotos = _selectedRecommendPhotos.asStateFlow()
-        val selectedTagAlbumPhotos = _selectedTagAlbumPhotos.asStateFlow()
+        val selectedRecommendPhotos: StateFlow<Map<String, Photo>> = _selectedRecommendPhotos.asStateFlow()
+        val selectedTagAlbumPhotos: StateFlow<Map<String, Photo>> = _selectedTagAlbumPhotos.asStateFlow()
         val tagDeleteState = _tagDeleteState.asStateFlow()
         val tagRenameState = _tagRenameState.asStateFlow()
         val tagAddState = _tagAddState.asStateFlow()
@@ -187,31 +190,27 @@ class AlbumViewModel
         }
 
         fun toggleRecommendPhoto(photo: Photo) {
-            val currentSelection = _selectedRecommendPhotos.value.toMutableList()
-            if (currentSelection.contains(photo)) {
-                currentSelection.remove(photo)
+            if (_selectedRecommendPhotos.value.containsKey(photo.photoId)) {
+                _selectedRecommendPhotos.value = _selectedRecommendPhotos.value - photo.photoId
             } else {
-                currentSelection.add(photo)
+                _selectedRecommendPhotos.value = _selectedRecommendPhotos.value + (photo.photoId to photo)
             }
-            _selectedRecommendPhotos.value = currentSelection
         }
 
         fun resetRecommendSelection() {
-            _selectedRecommendPhotos.value = emptyList()
+            _selectedRecommendPhotos.value = emptyMap()
         }
 
         fun toggleTagAlbumPhoto(photo: Photo) {
-            val currentSelection = _selectedTagAlbumPhotos.value.toMutableList()
-            if (currentSelection.contains(photo)) {
-                currentSelection.remove(photo)
+            if (_selectedTagAlbumPhotos.value.containsKey(photo.photoId)) {
+                _selectedTagAlbumPhotos.value = _selectedTagAlbumPhotos.value - photo.photoId
             } else {
-                currentSelection.add(photo)
+                _selectedTagAlbumPhotos.value = _selectedTagAlbumPhotos.value + (photo.photoId to photo)
             }
-            _selectedTagAlbumPhotos.value = currentSelection
         }
 
         fun resetTagAlbumPhotoSelection() {
-            _selectedTagAlbumPhotos.value = emptyList()
+            _selectedTagAlbumPhotos.value = emptyMap()
         }
 
         // logic duplicated with ImageDetailViewModel
@@ -391,7 +390,7 @@ class AlbumViewModel
          * Get photos ready for sharing
          * Returns list of content URIs to share via Android ShareSheet
          */
-        fun getPhotosToShare() = selectedTagAlbumPhotos.value
+        fun getPhotosToShare() = _selectedTagAlbumPhotos.value.values.toList()
 
         /**
          * Initialize photo selection for adding photos to existing tag

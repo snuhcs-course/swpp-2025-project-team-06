@@ -135,7 +135,7 @@ class SearchViewModel
         // 3. Public StateFlow (exposed state)
         val tagLoadingState = _tagLoadingState.asStateFlow()
         val searchState = _searchState.asStateFlow()
-        val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+        val selectedPhotos: StateFlow<Map<String, Photo>> = photoSelectionRepository.selectedPhotos
         val searchHistory = _searchHistory.asStateFlow()
         val searchText: StateFlow<String> = _searchText.asStateFlow()
         val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
@@ -392,7 +392,7 @@ class SearchViewModel
          * Get photos ready for sharing
          * Returns list of content URIs to share via Android ShareSheet
          */
-        fun getPhotosToShare() = selectedPhotos.value
+        fun getPhotosToShare() = selectedPhotos.value.values.toList()
 
         /**
          * 검색 상태 초기화
