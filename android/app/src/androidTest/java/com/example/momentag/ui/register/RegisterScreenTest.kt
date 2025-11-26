@@ -97,7 +97,6 @@ class RegisterScreenTest {
         val appName = composeRule.activity.getString(R.string.app_name)
         val signUp = composeRule.activity.getString(R.string.login_sign_up)
         val logIn = composeRule.activity.getString(R.string.register_log_in)
-        val emailAddress = composeRule.activity.getString(R.string.field_email)
         val username = composeRule.activity.getString(R.string.field_username)
 
         // 화면이 완전히 로드될 때까지 기다림
@@ -110,7 +109,6 @@ class RegisterScreenTest {
         composeRule.onNodeWithText(appName).assertIsDisplayed()
         composeRule.onAllNodesWithText(signUp).assertCountEquals(2) // 제목과 버튼
         composeRule.onNodeWithText(logIn).assertIsDisplayed()
-        composeRule.onAllNodesWithText(emailAddress).assertCountEquals(2) // 라벨과 placeholder
         composeRule.onAllNodesWithText(username).assertCountEquals(2)
         composeRule.onAllNodesWithText(signUp)[1].assertIsDisplayed() // 버튼
         composeRule.onAllNodesWithText(signUp)[1].assertIsEnabled()
@@ -129,7 +127,6 @@ class RegisterScreenTest {
 
         // 문자열 리소스 가져오기
         val signUp = composeRule.activity.getString(R.string.login_sign_up)
-        val emailAddress = composeRule.activity.getString(R.string.field_email)
         val username = composeRule.activity.getString(R.string.field_username)
 
         // 화면이 완전히 로드될 때까지 기다림
@@ -139,15 +136,6 @@ class RegisterScreenTest {
         }
 
         // 모든 필드 입력 테스트
-        composeRule
-            .onAllNodesWithText(emailAddress)
-            .filter(hasSetTextAction())
-            .onFirst()
-            .performTextInput("test@example.com")
-
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText("test@example.com").assertIsDisplayed()
-
         composeRule
             .onAllNodesWithText(username)
             .filter(hasSetTextAction())
@@ -205,7 +193,6 @@ class RegisterScreenTest {
 
         // 문자열 리소스 가져오기
         val signUp = composeRule.activity.getString(R.string.login_sign_up)
-        val errorEmail = composeRule.activity.getString(R.string.validation_required_email)
         val errorUsername = composeRule.activity.getString(R.string.validation_required_username)
 
         // 화면이 완전히 로드될 때까지 기다림
@@ -220,53 +207,7 @@ class RegisterScreenTest {
         composeRule.waitForIdle()
 
         // 에러 메시지 확인
-        composeRule.onNodeWithText(errorEmail).assertIsDisplayed()
         composeRule.onNodeWithText(errorUsername).assertIsDisplayed()
-    }
-
-    @Test
-    fun registerScreen_invalidEmail_showsError() {
-        composeRule.setContent {
-            MomenTagTheme {
-                val navController = rememberNavController()
-                RegisterScreen(navController = navController)
-            }
-        }
-
-        // 문자열 리소스 가져오기
-        val signUp = composeRule.activity.getString(R.string.login_sign_up)
-        val emailAddress = composeRule.activity.getString(R.string.field_email)
-        val username = composeRule.activity.getString(R.string.field_username)
-        val errorInvalidEmail = composeRule.activity.getString(R.string.validation_invalid_email)
-
-        // 화면이 완전히 로드될 때까지 기다림
-        composeRule.waitForIdle()
-        composeRule.waitUntil(10000) {
-            composeRule.onAllNodes(hasText(signUp)).fetchSemanticsNodes().size >= 2
-        }
-
-        // 잘못된 이메일 입력
-        val emailField =
-            composeRule
-                .onAllNodesWithText(emailAddress)
-                .filter(hasSetTextAction())
-                .onFirst()
-
-        emailField.performTextInput("invalidemail")
-
-        composeRule.waitForIdle()
-
-        // 다른 필드로 포커스 이동
-        composeRule
-            .onAllNodesWithText(username)
-            .filter(hasSetTextAction())
-            .onFirst()
-            .performClick()
-
-        composeRule.waitForIdle()
-
-        // 이메일 유효성 에러 메시지 확인
-        composeRule.onNodeWithText(errorInvalidEmail).assertIsDisplayed()
     }
 
     @Test
@@ -330,7 +271,6 @@ class RegisterScreenTest {
 
         // 문자열 리소스 가져오기
         val signUp = composeRule.activity.getString(R.string.login_sign_up)
-        val emailAddress = composeRule.activity.getString(R.string.field_email)
         val username = composeRule.activity.getString(R.string.field_username)
         val password = composeRule.activity.getString(R.string.field_password)
         val confirmPassword = composeRule.activity.getString(R.string.field_confirm_password)
@@ -342,14 +282,6 @@ class RegisterScreenTest {
         }
 
         // 모든 필드 입력
-        composeRule
-            .onAllNodesWithText(emailAddress)
-            .filter(hasSetTextAction())
-            .onFirst()
-            .performTextInput("newuser@example.com")
-
-        composeRule.waitForIdle()
-
         composeRule
             .onAllNodesWithText(username)
             .filter(hasSetTextAction())

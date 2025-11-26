@@ -146,13 +146,12 @@ class AuthViewModel
         }
 
         fun register(
-            email: String,
             username: String,
             password: String,
         ) {
             viewModelScope.launch {
                 // TokenRepository에 비즈니스 로직 위임
-                when (val result = tokenRepository.register(email, username, password)) {
+                when (val result = tokenRepository.register(username, password)) {
                     is TokenRepository.RegisterResult.Success -> {
                         _registerState.value = RegisterState.Success(result.userId)
                     }
