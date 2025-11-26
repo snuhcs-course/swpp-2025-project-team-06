@@ -226,22 +226,14 @@ class AlbumViewModel
                 val removedPhotoIds = mutableListOf<String>()
 
                 for (photo in photos) {
-                    // If photoId is numeric (photo_path_id from local album), find the actual UUID
-                    val actualPhotoId =
-                        if (photo.photoId.toLongOrNull() != null) {
-                            findPhotoIdByPathId(photo.photoId.toLong())
-                        } else {
-                            photo.photoId
-                        }
-
-                    if (actualPhotoId == null) {
-                        _tagDeleteState.value = TagDeleteState.Error(AlbumError.NotFound)
-                        return@launch // exit for one or more error
+                    // Skip photos without valid backend UUID (local images not uploaded yet)
+                    if (photo.photoId.isBlank()) {
+                        continue
                     }
 
-                    when (val result = remoteRepository.removeTagFromPhoto(actualPhotoId, tagId)) {
+                    when (val result = remoteRepository.removeTagFromPhoto(photo.photoId, tagId)) {
                         is RemoteRepository.Result.Success -> {
-                            removedPhotoIds.add(actualPhotoId)
+                            removedPhotoIds.add(photo.photoId)
                         }
 
                         is RemoteRepository.Result.Error -> {
@@ -289,21 +281,6 @@ class AlbumViewModel
         fun resetDeleteState() {
             _tagDeleteState.value = TagDeleteState.Idle
         }
-
-        // also duplicated with ImageDetailViewModel
-        private suspend fun findPhotoIdByPathId(photoPathId: Long): String? =
-            try {
-                val allPhotosResult = remoteRepository.getAllPhotos()
-                when (allPhotosResult) {
-                    is RemoteRepository.Result.Success -> {
-                        val photo = allPhotosResult.data.find { it.photoPathId == photoPathId }
-                        photo?.photoId
-                    }
-                    else -> null
-                }
-            } catch (e: Exception) {
-                null
-            }
 
         fun renameTag(
             tagId: String,
@@ -362,19 +339,12 @@ class AlbumViewModel
                 val addedPhotos = mutableListOf<Photo>()
 
                 for (photo in photos) {
-                    val actualPhotoId =
-                        if (photo.photoId.toLongOrNull() != null) {
-                            findPhotoIdByPathId(photo.photoId.toLong())
-                        } else {
-                            photo.photoId
-                        }
-
-                    if (actualPhotoId == null) {
-                        _tagAddState.value = TagAddState.Error(AlbumError.UnknownError)
+                    // Skip photos without valid backend UUID (local images not uploaded yet)
+                    if (photo.photoId.isBlank()) {
                         continue
                     }
 
-                    when (val result = remoteRepository.postTagsToPhoto(actualPhotoId, tagId)) {
+                    when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
                         is RemoteRepository.Result.Success -> {
                             addedPhotos.add(photo)
                             (_albumLoadingState.value as? AlbumLoadingState.Success)?.let {

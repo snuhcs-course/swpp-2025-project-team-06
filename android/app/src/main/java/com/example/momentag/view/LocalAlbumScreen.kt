@@ -1,11 +1,13 @@
 package com.example.momentag.view
 
 import android.Manifest
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -101,6 +103,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocalAlbumScreen(
@@ -397,14 +400,14 @@ fun LocalAlbumScreen(
                                     val autoScrollViewport = 80.dp.toPx()
                                     var autoScrollJob: Job? = null
                                     var dragAnchorIndex: Int? = null
-                                    val gestureSelectionIds = mutableSetOf<String>()
-                                    val lastRangePhotoIds = mutableSetOf<String>()
+                                    val gestureSelectionIds = mutableSetOf<Uri>()
+                                    val lastRangePhotoIds = mutableSetOf<Uri>()
 
                                     fun findNearestItemByRow(position: Offset): Int? {
                                         var best: Pair<Int, Float>? = null
                                         gridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
-                                            val key = itemInfo.key as? String ?: return@forEach
-                                            val photoIndex = allPhotosState.value.indexOfFirst { it.photoId == key }
+                                            val key = itemInfo.key as? Uri ?: return@forEach
+                                            val photoIndex = allPhotosState.value.indexOfFirst { it.contentUri == key }
                                             if (photoIndex >= 0) {
                                                 val top = itemInfo.offset.y.toFloat()
                                                 val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
@@ -417,7 +420,7 @@ fun LocalAlbumScreen(
                                                             position.x > right -> position.x - right
                                                             else -> 0f
                                                         }
-                                                    if (best == null || dist < best!!.second) {
+                                                    if (best == null || dist < best.second) {
                                                         best = photoIndex to dist
                                                     }
                                                 }
@@ -426,43 +429,43 @@ fun LocalAlbumScreen(
                                         return best?.first
                                     }
 
-                                    fun applyRangeSelection(newRangePhotoIds: Set<String>) {
-                                        val toSelect = newRangePhotoIds - gestureSelectionIds
-                                        val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
+                                    fun applyRangeSelection(newRangeContentUris: Set<Uri>) {
+                                        val toSelect = newRangeContentUris - gestureSelectionIds
+                                        val toDeselect = (lastRangePhotoIds - newRangeContentUris).intersect(gestureSelectionIds)
 
                                         toSelect.forEach { id ->
-                                            allPhotosState.value.find { it.photoId == id }?.let { photo ->
+                                            allPhotosState.value.find { it.contentUri == id }?.let { photo ->
                                                 localViewModel.togglePhotoSelection(photo)
                                                 gestureSelectionIds.add(id)
                                             }
                                         }
                                         toDeselect.forEach { id ->
-                                            allPhotosState.value.find { it.photoId == id }?.let { photo ->
+                                            allPhotosState.value.find { it.contentUri == id }?.let { photo ->
                                                 localViewModel.togglePhotoSelection(photo)
                                                 gestureSelectionIds.remove(id)
                                             }
                                         }
 
                                         lastRangePhotoIds.clear()
-                                        lastRangePhotoIds.addAll(newRangePhotoIds)
+                                        lastRangePhotoIds.addAll(newRangeContentUris)
                                     }
 
                                     detectDragAfterLongPressIgnoreConsumed(
                                         onDragStart = { offset ->
                                             autoScrollJob?.cancel()
                                             gestureSelectionIds.clear()
-                                            gestureSelectionIds.addAll(updatedSelectedPhotos.value.map { it.photoId })
+                                            gestureSelectionIds.addAll(updatedSelectedPhotos.value.map { it.contentUri })
                                             lastRangePhotoIds.clear()
                                             if (!updatedIsSelectionMode.value) {
                                                 isSelectionMode = true
                                             }
-                                            gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
+                                            gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (contentUri, photo) ->
                                                 dragAnchorIndex =
-                                                    allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                                if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.contains(photo)) {
+                                                    allPhotosState.value.indexOfFirst { it.contentUri == contentUri }.takeIf { it >= 0 }
+                                                if (gestureSelectionIds.add(contentUri) || !updatedSelectedPhotos.value.contains(photo)) {
                                                     localViewModel.togglePhotoSelection(photo)
                                                 }
-                                                lastRangePhotoIds.add(photoId)
+                                                lastRangePhotoIds.add(contentUri)
                                             }
                                         },
                                         onDragEnd = {
@@ -484,7 +487,7 @@ fun LocalAlbumScreen(
                                                 currentItem
                                                     ?.first
                                                     ?.let { id ->
-                                                        allPhotosState.value.indexOfFirst { it.photoId == id }
+                                                        allPhotosState.value.indexOfFirst { it.contentUri == id }
                                                     }?.takeIf { it >= 0 }
                                                     ?: findNearestItemByRow(change.position)
 
@@ -498,12 +501,12 @@ fun LocalAlbumScreen(
                                                         currentIndex..startIndex
                                                     }
 
-                                                val newRangePhotoIds =
+                                                val newRangeContentUris =
                                                     range
                                                         .mapNotNull { idx ->
-                                                            allPhotosState.value.getOrNull(idx)?.photoId
+                                                            allPhotosState.value.getOrNull(idx)?.contentUri
                                                         }.toSet()
-                                                applyRangeSelection(newRangePhotoIds)
+                                                applyRangeSelection(newRangeContentUris)
                                             }
 
                                             // --- Auto-Scroll Logic ---
@@ -545,10 +548,10 @@ fun LocalAlbumScreen(
                         ) {
                             items(
                                 count = photos.size,
-                                key = { index -> photos[index].photoId },
+                                key = { index -> photos[index].contentUri },
                             ) { index ->
                                 val photo = photos[index]
-                                val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
+                                val isSelected = selectedPhotos.any { it.contentUri == photo.contentUri }
 
                                 Box(modifier = Modifier.aspectRatio(1f)) {
                                     AsyncImage(
@@ -675,7 +678,7 @@ fun LocalAlbumScreen(
                         isRefreshing = true
                         try {
                             if (hasPermission) {
-                                localViewModel.getImagesForAlbum(albumId)
+                                localViewModel.loadAlbumPhotos(albumId, albumName)
                             }
                         } finally {
                             isRefreshing = false
@@ -694,10 +697,10 @@ fun LocalAlbumScreen(
 private fun LazyGridState.findPhotoItemAtPosition(
     position: Offset,
     allPhotos: List<Photo>,
-): Pair<String, Photo>? {
+): Pair<Uri, Photo>? {
     for (itemInfo in layoutInfo.visibleItemsInfo) {
         val key = itemInfo.key
-        if (key is String) {
+        if (key is Uri) {
             val itemBounds =
                 Rect(
                     itemInfo.offset.x.toFloat(),
@@ -706,7 +709,7 @@ private fun LazyGridState.findPhotoItemAtPosition(
                     (itemInfo.offset.y + itemInfo.size.height).toFloat(),
                 )
             if (itemBounds.contains(position)) {
-                val photo = allPhotos.find { it.photoId == key }
+                val photo = allPhotos.find { it.contentUri == key }
                 if (photo != null) {
                     return key to photo
                 }

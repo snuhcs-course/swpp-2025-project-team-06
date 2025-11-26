@@ -1,6 +1,8 @@
 package com.example.momentag.viewmodel
 
 import android.net.Uri
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.momentag.model.Album
@@ -67,8 +69,8 @@ class LocalViewModel
         // 4. Public functions
         fun togglePhotoSelection(photo: Photo) {
             _selectedPhotosInAlbum.update { currentSet ->
-                if (currentSet.any { it.photoId == photo.photoId }) {
-                    currentSet.filter { it.photoId != photo.photoId }.toSet()
+                if (currentSet.any { it.contentUri == photo.contentUri }) {
+                    currentSet.filter { it.contentUri != photo.contentUri }.toSet()
                 } else {
                     currentSet + photo
                 }
@@ -92,6 +94,7 @@ class LocalViewModel
             }
         }
 
+        @RequiresApi(Build.VERSION_CODES.O)
         fun loadAlbumPhotos(
             albumId: Long,
             albumName: String,
@@ -156,25 +159,6 @@ class LocalViewModel
         }
 
         /**
-         * Set tag album browsing session
-         * Converts URIs to Photos and stores in ImageBrowserRepository
-         */
-        fun setTagAlbumBrowsingSession(
-            uris: List<Uri>,
-            tagName: String,
-        ) {
-            val photos =
-                uris.map { uri ->
-                    Photo(
-                        photoId = uri.lastPathSegment ?: uri.toString(),
-                        contentUri = uri,
-                        createdAt = "",
-                    )
-                }
-            imageBrowserRepository.setTagAlbum(photos, tagName)
-        }
-
-        /**
          * Set local album browsing session
          * Converts URIs to Photos and stores in ImageBrowserRepository
          */
@@ -183,22 +167,6 @@ class LocalViewModel
             albumName: String,
         ) {
             imageBrowserRepository.setLocalAlbum(photos, albumName)
-        }
-
-        /**
-         * Set gallery browsing session
-         * Converts URIs to Photos and stores in ImageBrowserRepository
-         */
-        fun setGalleryBrowsingSession(uris: List<Uri>) {
-            val photos =
-                uris.map { uri ->
-                    Photo(
-                        photoId = uri.lastPathSegment ?: uri.toString(),
-                        contentUri = uri,
-                        createdAt = "",
-                    )
-                }
-            imageBrowserRepository.setGallery(photos)
         }
 
         fun clearAlbumSelection() {
