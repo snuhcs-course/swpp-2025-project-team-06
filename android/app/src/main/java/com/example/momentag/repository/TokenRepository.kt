@@ -64,10 +64,6 @@ class TokenRepository
                 val message: String,
             ) : RegisterResult()
 
-            data class Conflict(
-                val message: String,
-            ) : RegisterResult()
-
             data class NetworkError(
                 val message: String,
             ) : RegisterResult()
