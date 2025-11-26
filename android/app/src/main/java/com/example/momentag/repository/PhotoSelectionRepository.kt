@@ -28,8 +28,9 @@ class PhotoSelectionRepository
         private val _tagName = MutableStateFlow("")
         val tagName: StateFlow<String> = _tagName.asStateFlow()
 
-        private val _selectedPhotos = MutableStateFlow<List<Photo>>(emptyList())
-        val selectedPhotos: StateFlow<List<Photo>> = _selectedPhotos.asStateFlow()
+        // Selected photos as Map for O(1) operations (photoId -> Photo)
+        private val _selectedPhotos = MutableStateFlow<Map<String, Photo>>(emptyMap())
+        val selectedPhotos: StateFlow<Map<String, Photo>> = _selectedPhotos.asStateFlow()
 
         private val _existingTagId = MutableStateFlow<String?>(null)
         val existingTagId: StateFlow<String?> = _existingTagId.asStateFlow()
@@ -44,7 +45,7 @@ class PhotoSelectionRepository
             existingTagId: String? = null,
         ) {
             _tagName.value = initialTagName ?: ""
-            _selectedPhotos.value = initialPhotos
+            _selectedPhotos.value = initialPhotos.associateBy { it.photoId }
             _existingTagId.value = existingTagId
         }
 
@@ -59,9 +60,8 @@ class PhotoSelectionRepository
          * Add a photo to the selection
          */
         fun addPhoto(photo: Photo) {
-            val current = _selectedPhotos.value
-            if (!current.any { it.photoId == photo.photoId }) {
-                _selectedPhotos.value = current + photo
+            if (!_selectedPhotos.value.containsKey(photo.photoId)) {
+                _selectedPhotos.value = _selectedPhotos.value + (photo.photoId to photo)
             }
         }
 
@@ -69,15 +69,14 @@ class PhotoSelectionRepository
          * Remove a photo from the selection
          */
         fun removePhoto(photo: Photo) {
-            _selectedPhotos.value = _selectedPhotos.value.filter { it.photoId != photo.photoId }
+            _selectedPhotos.value = _selectedPhotos.value - photo.photoId
         }
 
         /**
          * Toggle photo selection
          */
         fun togglePhoto(photo: Photo) {
-            val current = _selectedPhotos.value
-            if (current.any { it.photoId == photo.photoId }) {
+            if (_selectedPhotos.value.containsKey(photo.photoId)) {
                 removePhoto(photo)
             } else {
                 addPhoto(photo)
@@ -90,7 +89,7 @@ class PhotoSelectionRepository
          */
         fun clear() {
             _tagName.value = ""
-            _selectedPhotos.value = emptyList()
+            _selectedPhotos.value = emptyMap()
             _existingTagId.value = null
         }
 
