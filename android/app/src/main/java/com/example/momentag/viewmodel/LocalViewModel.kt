@@ -31,6 +31,15 @@ class LocalViewModel
         private val _selectedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
         private val _scrollToIndex = MutableStateFlow<Int?>(null)
 
+        // Pagination state
+        private var currentAlbumId: Long? = null
+        private var currentAlbumName: String? = null
+        private var currentOffset = 0
+        private val pageSize = 66
+        private var hasMorePhotos = true
+
+        private val _isLoadingMorePhotos = MutableStateFlow(false)
+
         // 2. Public StateFlow (exposed state)
         val image = _image.asStateFlow()
         val albums = _albums.asStateFlow()
@@ -38,6 +47,7 @@ class LocalViewModel
         val selectedPhotosInAlbum = _selectedPhotosInAlbum.asStateFlow()
         val selectedAlbumIds = _selectedAlbumIds.asStateFlow()
         val scrollToIndex = _scrollToIndex.asStateFlow()
+        val isLoadingMorePhotos = _isLoadingMorePhotos.asStateFlow()
 
         // 3. init 블록
         init {
@@ -79,6 +89,69 @@ class LocalViewModel
             viewModelScope.launch {
                 clearPhotoSelection()
                 _imagesInAlbum.value = localRepository.getImagesForAlbum(albumId)
+            }
+        }
+
+        fun loadAlbumPhotos(
+            albumId: Long,
+            albumName: String,
+        ) {
+            viewModelScope.launch {
+                clearPhotoSelection()
+                currentAlbumId = albumId
+                currentAlbumName = albumName
+                currentOffset = 0
+                hasMorePhotos = true
+
+                // Load first page
+                val firstPage =
+                    localRepository.getImagesForAlbumPaginated(
+                        albumId = albumId,
+                        limit = pageSize,
+                        offset = 0,
+                    )
+
+                _imagesInAlbum.value = firstPage
+                currentOffset = pageSize
+                hasMorePhotos = firstPage.size == pageSize
+
+                // Update ImageBrowserRepository with initial photos
+                if (firstPage.isNotEmpty()) {
+                    imageBrowserRepository.setLocalAlbum(firstPage, albumName)
+                }
+            }
+        }
+
+        fun loadMorePhotos() {
+            val albumId = currentAlbumId ?: return
+            val albumName = currentAlbumName ?: return
+
+            if (_isLoadingMorePhotos.value || !hasMorePhotos) return
+
+            viewModelScope.launch {
+                _isLoadingMorePhotos.value = true
+
+                try {
+                    val nextPage =
+                        localRepository.getImagesForAlbumPaginated(
+                            albumId = albumId,
+                            limit = pageSize,
+                            offset = currentOffset,
+                        )
+
+                    if (nextPage.isNotEmpty()) {
+                        _imagesInAlbum.value = _imagesInAlbum.value + nextPage
+                        currentOffset += pageSize
+                        hasMorePhotos = nextPage.size == pageSize
+
+                        // Critical: Update ImageBrowserRepository with expanded list
+                        imageBrowserRepository.setLocalAlbum(_imagesInAlbum.value, albumName)
+                    } else {
+                        hasMorePhotos = false
+                    }
+                } finally {
+                    _isLoadingMorePhotos.value = false
+                }
             }
         }
 

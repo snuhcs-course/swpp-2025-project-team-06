@@ -262,7 +262,9 @@ class SelectImageViewModel
         fun handleLongClick(photo: Photo) {
             if (!_isSelectionMode.value) {
                 setSelectionMode(true)
-                togglePhoto(photo)
+            }
+            if (!isPhotoSelected(photo)) {
+                addPhoto(photo)
             }
         }
 

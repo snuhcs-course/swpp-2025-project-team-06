@@ -200,3 +200,29 @@ data class TaskStatus(
     @SerializedName("status")
     val status: String,
 )
+
+// ========== Upload Job Models =================
+
+data class UploadJobState(
+    val jobId: String, // Unique ID for this upload job
+    val type: UploadType, // ALBUM or SELECTED_PHOTOS
+    val albumId: Long?, // For album uploads
+    val status: UploadStatus, // RUNNING, PAUSED, COMPLETED, FAILED
+    val totalPhotoIds: List<Long>, // Fixed list of photos to upload (never re-query)
+    val failedPhotoIds: List<Long>, // Failed photos (for retry)
+    val currentChunkIndex: Int, // Resume point (chunks before this are done)
+    val createdAt: Long, // Timestamp for sorting
+)
+
+enum class UploadType {
+    ALBUM,
+    SELECTED_PHOTOS,
+}
+
+enum class UploadStatus {
+    RUNNING,
+    PAUSED,
+    COMPLETED,
+    FAILED,
+    CANCELLED,
+}

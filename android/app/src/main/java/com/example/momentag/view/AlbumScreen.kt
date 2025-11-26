@@ -12,7 +12,12 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,13 +69,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -102,6 +112,8 @@ import com.example.momentag.ui.theme.StandardIcon
 import com.example.momentag.ui.theme.rememberAppBackgroundBrush
 import com.example.momentag.util.ShareUtils
 import com.example.momentag.viewmodel.AlbumViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -128,6 +140,7 @@ fun AlbumScreen(
     val tagRenameState by albumViewModel.tagRenameState.collectAsState()
     val tagAddState by albumViewModel.tagAddState.collectAsState()
     val selectedTagAlbumPhotos by albumViewModel.selectedTagAlbumPhotos.collectAsState()
+    var isDragSelecting by remember { mutableStateOf(false) }
     val scrollToIndex by albumViewModel.scrollToIndex.collectAsState()
 
     // 4. 로컬 상태 변수
@@ -449,6 +462,168 @@ fun AlbumScreen(
     ) { paddingValues ->
 
         // === 최상단 레이어 컨테이너: Edge-to-edge 오버레이를 Column 밖의 sibling으로 렌더링 ===
+        val bodyModifier =
+            Modifier
+                .fillMaxSize()
+                .background(backgroundBrush)
+                .padding(paddingValues)
+
+        val content: @Composable () -> Unit = {
+            // 본문: 가로 16dp 패딩
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { submitAndClearFocus() },
+            ) {
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+
+                // 제목(태그명) 행
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "#",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
+                        BasicTextField(
+                            value = editableTagName,
+                            onValueChange = { editableTagName = it },
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .onFocusChanged { isFocused = it.isFocused },
+                            textStyle =
+                                MaterialTheme.typography.headlineMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { submitAndClearFocus() }),
+                            singleLine = true,
+                        )
+                    }
+
+                    if (editableTagName.isNotEmpty() && isFocused) {
+                        IconButton(
+                            onClick = { editableTagName = "" },
+                            modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(20.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            shape = CircleShape,
+                                        ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                StandardIcon.Icon(
+                                    imageVector = Icons.Default.Close,
+                                    sizeRole = IconSizeRole.InlineAction,
+                                    tintOverride = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                    contentDescription = stringResource(R.string.cd_clear_text),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                )
+
+                AnimatedVisibility(
+                    visible = isSelectPhotosBannerShareVisible,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
+                        title = stringResource(R.string.album_no_photos_selected_title),
+                        message = stringResource(R.string.album_select_photos_to_share),
+                        onActionClick = { isSelectPhotosBannerShareVisible = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { isSelectPhotosBannerShareVisible = false },
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = isSelectPhotosBannerUntagVisible,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
+                        title = stringResource(R.string.album_no_photos_selected_title),
+                        message = stringResource(R.string.album_select_photos_to_untag),
+                        onActionClick = { isSelectPhotosBannerUntagVisible = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { isSelectPhotosBannerUntagVisible = false },
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = isErrorBannerVisible,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    WarningBanner(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
+                        title = errorBannerTitle,
+                        message = errorBannerMessage,
+                        onActionClick = { isErrorBannerVisible = false },
+                        showActionButton = false,
+                        showDismissButton = true,
+                        onDismiss = { isErrorBannerVisible = false },
+                    )
+                }
+
+                if (!hasPermission) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(stringResource(R.string.album_permission_required))
+                    }
+                } else {
+                    AlbumGridArea(
+                        albumLoadState = imageLoadState,
+                        recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
+                        selectedTagAlbumPhotos = selectedTagAlbumPhotos,
+                        navController = navController,
+                        isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
+                        onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
+                        onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
+                        // 펼쳐짐 여부와 패널 높이에 따라 그리드 bottom padding 조절
+                        isRecommendationExpanded = isRecommendationExpanded,
+                        panelHeight = panelHeight,
+                        // Chip 클릭 시 오버레이 열기
+                        onExpandRecommend = { isRecommendationExpanded = true },
+                        // Add photos button handler
+                        albumViewModel = albumViewModel,
+                        tagId = tagId,
+                        tagName = currentTagName,
+                        gridState = gridState,
+                        onDragSelectionStart = { isDragSelecting = true },
+                        onDragSelectionEnd = { isDragSelecting = false },
+                    )
+                }
+            }
+        }
+
         Box(
             modifier =
                 Modifier
@@ -456,166 +631,20 @@ fun AlbumScreen(
                     .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
-            // 당겨서 새로고침은 본문 레이어에만
-            PullToRefreshBox(
-                isRefreshing = imageLoadState is AlbumViewModel.AlbumLoadingState.Loading,
-                onRefresh = {
-                    scope.launch {
-                        if (hasPermission) albumViewModel.loadAlbum(tagId, tagName)
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                // 본문: 가로 16dp 패딩
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) { submitAndClearFocus() },
+            if (isTagAlbumPhotoSelectionMode || isDragSelecting) {
+                content()
+            } else {
+                // 당겨서 새로고침은 선택모드가 아닐 때만
+                PullToRefreshBox(
+                    isRefreshing = imageLoadState is AlbumViewModel.AlbumLoadingState.Loading,
+                    onRefresh = {
+                        scope.launch {
+                            if (hasPermission) albumViewModel.loadAlbum(tagId, tagName)
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
                 ) {
-                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
-
-                    // 제목(태그명) 행
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "#",
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
-                            BasicTextField(
-                                value = editableTagName,
-                                onValueChange = { editableTagName = it },
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .onFocusChanged { isFocused = it.isFocused },
-                                textStyle =
-                                    MaterialTheme.typography.headlineMedium.copy(
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    ),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { submitAndClearFocus() }),
-                                singleLine = true,
-                            )
-                        }
-
-                        if (editableTagName.isNotEmpty() && isFocused) {
-                            IconButton(
-                                onClick = { editableTagName = "" },
-                                modifier = Modifier.size(Dimen.IconButtonSizeSmall),
-                            ) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .size(20.dp)
-                                            .background(
-                                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                                shape = CircleShape,
-                                            ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    StandardIcon.Icon(
-                                        imageVector = Icons.Default.Close,
-                                        sizeRole = IconSizeRole.InlineAction,
-                                        tintOverride = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                        contentDescription = stringResource(R.string.cd_clear_text),
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                    )
-
-                    AnimatedVisibility(
-                        visible = isSelectPhotosBannerShareVisible,
-                        enter = Animation.EnterFromBottom,
-                        exit = Animation.ExitToBottom,
-                    ) {
-                        WarningBanner(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                            title = stringResource(R.string.album_no_photos_selected_title),
-                            message = stringResource(R.string.album_select_photos_to_share),
-                            onActionClick = { isSelectPhotosBannerShareVisible = false },
-                            showActionButton = false,
-                            showDismissButton = true,
-                            onDismiss = { isSelectPhotosBannerShareVisible = false },
-                        )
-                    }
-
-                    AnimatedVisibility(
-                        visible = isSelectPhotosBannerUntagVisible,
-                        enter = Animation.EnterFromBottom,
-                        exit = Animation.ExitToBottom,
-                    ) {
-                        WarningBanner(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                            title = stringResource(R.string.album_no_photos_selected_title),
-                            message = stringResource(R.string.album_select_photos_to_untag),
-                            onActionClick = { isSelectPhotosBannerUntagVisible = false },
-                            showActionButton = false,
-                            showDismissButton = true,
-                            onDismiss = { isSelectPhotosBannerUntagVisible = false },
-                        )
-                    }
-
-                    AnimatedVisibility(
-                        visible = isErrorBannerVisible,
-                        enter = Animation.EnterFromBottom,
-                        exit = Animation.ExitToBottom,
-                    ) {
-                        WarningBanner(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                            title = errorBannerTitle,
-                            message = errorBannerMessage,
-                            onActionClick = { isErrorBannerVisible = false },
-                            showActionButton = false,
-                            showDismissButton = true,
-                            onDismiss = { isErrorBannerVisible = false },
-                        )
-                    }
-
-                    if (!hasPermission) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.album_permission_required))
-                        }
-                    } else {
-                        AlbumGridArea(
-                            albumLoadState = imageLoadState,
-                            recommendLoadState = albumViewModel.recommendLoadingState.collectAsState().value,
-                            selectedTagAlbumPhotos = selectedTagAlbumPhotos,
-                            navController = navController,
-                            isTagAlbumPhotoSelectionMode = isTagAlbumPhotoSelectionMode,
-                            onSetTagAlbumPhotoSelectionMode = { isTagAlbumPhotoSelectionMode = it },
-                            onToggleTagAlbumPhoto = { photo -> albumViewModel.toggleTagAlbumPhoto(photo) },
-                            // 펼쳐짐 여부와 패널 높이에 따라 그리드 bottom padding 조절
-                            isRecommendationExpanded = isRecommendationExpanded,
-                            panelHeight = panelHeight,
-                            // Chip 클릭 시 오버레이 열기
-                            onExpandRecommend = { isRecommendationExpanded = true },
-                            // Add photos button handler
-                            albumViewModel = albumViewModel,
-                            tagId = tagId,
-                            tagName = currentTagName,
-                            gridState = gridState,
-                        )
-                    }
+                    content()
                 }
             }
 
@@ -678,6 +707,8 @@ private fun AlbumGridArea(
     tagId: String,
     tagName: String,
     gridState: LazyGridState,
+    onDragSelectionStart: () -> Unit,
+    onDragSelectionEnd: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (albumLoadState) {
@@ -689,6 +720,161 @@ private fun AlbumGridArea(
             is AlbumViewModel.AlbumLoadingState.Success -> {
                 val photos = albumLoadState.photos
 
+                val updatedSelectedPhotos = rememberUpdatedState(selectedTagAlbumPhotos)
+                val updatedIsSelectionMode = rememberUpdatedState(isTagAlbumPhotoSelectionMode)
+                val allPhotosState = rememberUpdatedState(photos)
+
+                val gridGestureModifier =
+                    Modifier.pointerInput(Unit) {
+                        coroutineScope {
+                            val pointerScope = this
+                            val autoScrollViewport = 80.dp.toPx()
+                            var autoScrollJob: Job? = null
+                            var dragAnchorIndex: Int? = null
+                            var gestureSelectionIds: MutableSet<String> = mutableSetOf()
+                            val lastRangePhotoIds = mutableSetOf<String>()
+
+                            fun findNearestItemByRow(position: Offset): Int? {
+                                var best: Pair<Int, Float>? = null // index to horizontal distance
+                                gridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
+                                    val key = itemInfo.key as? String ?: return@forEach
+                                    val photoIndex = allPhotosState.value.indexOfFirst { it.photoId == key }
+                                    if (photoIndex >= 0) {
+                                        val top = itemInfo.offset.y.toFloat()
+                                        val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
+                                        if (position.y in top..bottom) {
+                                            val left = itemInfo.offset.x.toFloat()
+                                            val right = (itemInfo.offset.x + itemInfo.size.width).toFloat()
+                                            val horizontalDistance =
+                                                when {
+                                                    position.x < left -> left - position.x
+                                                    position.x > right -> position.x - right
+                                                    else -> 0f
+                                                }
+                                            if (best == null || horizontalDistance < best!!.second) {
+                                                best = photoIndex to horizontalDistance
+                                            }
+                                        }
+                                    }
+                                }
+                                return best?.first
+                            }
+
+                            fun applyRangeSelection(newRangePhotoIds: Set<String>) {
+                                val toSelect = newRangePhotoIds - gestureSelectionIds
+                                val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
+
+                                toSelect.forEach { id ->
+                                    allPhotosState.value.find { it.photoId == id }?.let { photo ->
+                                        onToggleTagAlbumPhoto(photo)
+                                        gestureSelectionIds.add(id)
+                                    }
+                                }
+                                toDeselect.forEach { id ->
+                                    allPhotosState.value.find { it.photoId == id }?.let { photo ->
+                                        onToggleTagAlbumPhoto(photo)
+                                        gestureSelectionIds.remove(id)
+                                    }
+                                }
+
+                                lastRangePhotoIds.clear()
+                                lastRangePhotoIds.addAll(newRangePhotoIds)
+                            }
+
+                            detectDragAfterLongPressIgnoreConsumed(
+                                onDragStart = { offset ->
+                                    autoScrollJob?.cancel()
+                                    gestureSelectionIds = updatedSelectedPhotos.value.map { it.photoId }.toMutableSet()
+                                    lastRangePhotoIds.clear()
+                                    if (!updatedIsSelectionMode.value) {
+                                        onSetTagAlbumPhotoSelectionMode(true)
+                                    }
+                                    onDragSelectionStart()
+                                    gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
+                                        dragAnchorIndex = allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
+                                        if (gestureSelectionIds.add(photoId) ||
+                                            !updatedSelectedPhotos.value.any { it.photoId == photoId }
+                                        ) {
+                                            onToggleTagAlbumPhoto(photo)
+                                        }
+                                        lastRangePhotoIds.add(photoId)
+                                    }
+                                },
+                                onDragEnd = {
+                                    dragAnchorIndex = null
+                                    lastRangePhotoIds.clear()
+                                    gestureSelectionIds.clear()
+                                    autoScrollJob?.cancel()
+                                    onDragSelectionEnd()
+                                },
+                                onDragCancel = {
+                                    dragAnchorIndex = null
+                                    lastRangePhotoIds.clear()
+                                    gestureSelectionIds.clear()
+                                    autoScrollJob?.cancel()
+                                    onDragSelectionEnd()
+                                },
+                                onDrag = { change ->
+                                    change.consume()
+                                    val currentItem = gridState.findPhotoItemAtPosition(change.position, allPhotosState.value)
+                                    val currentIndex =
+                                        currentItem
+                                            ?.first
+                                            ?.let { id ->
+                                                allPhotosState.value.indexOfFirst { it.photoId == id }
+                                            }?.takeIf { it >= 0 }
+                                            ?: findNearestItemByRow(change.position)
+
+                                    if (currentIndex != null) {
+                                        if (dragAnchorIndex == null) dragAnchorIndex = currentIndex
+                                        val startIndex = dragAnchorIndex ?: currentIndex
+                                        val range =
+                                            if (currentIndex >= startIndex) {
+                                                startIndex..currentIndex
+                                            } else {
+                                                currentIndex..startIndex
+                                            }
+
+                                        val newRangePhotoIds =
+                                            range
+                                                .mapNotNull { idx ->
+                                                    allPhotosState.value.getOrNull(idx)?.photoId
+                                                }.toSet()
+                                        if (newRangePhotoIds.isNotEmpty()) {
+                                            applyRangeSelection(newRangePhotoIds)
+                                        }
+                                    }
+
+                                    val viewportHeight =
+                                        gridState.layoutInfo.viewportSize.height
+                                            .toFloat()
+                                    val pointerY = change.position.y
+
+                                    val scrollAmount =
+                                        when {
+                                            pointerY < autoScrollViewport -> -50f
+                                            pointerY > viewportHeight - autoScrollViewport -> 50f
+                                            else -> 0f
+                                        }
+
+                                    if (scrollAmount != 0f) {
+                                        if (autoScrollJob?.isActive != true) {
+                                            autoScrollJob =
+                                                pointerScope.launch {
+                                                    while (true) {
+                                                        gridState.scrollBy(scrollAmount)
+                                                        delay(50)
+                                                    }
+                                                }
+                                        }
+                                    } else {
+                                        autoScrollJob?.cancel()
+                                    }
+                                },
+                            )
+                        }
+                    }
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
@@ -699,9 +885,8 @@ private fun AlbumGridArea(
                             PaddingValues(
                                 bottom = if (isRecommendationExpanded) panelHeight else Dimen.FloatingButtonAreaPadding,
                             ),
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().then(gridGestureModifier),
                     ) {
-                        // Add Photos Button as first item
                         item(
                             key = "add_photos_button",
                         ) {
@@ -714,18 +899,19 @@ private fun AlbumGridArea(
                             )
                         }
 
-                        // Photo grid items
                         items(
                             count = photos.size,
-                            key = { index -> "photo_$index" },
+                            key = { index -> photos[index].photoId },
                         ) { index ->
+                            val photo = photos[index]
                             ImageGridUriItem(
-                                photo = photos[index],
+                                photo = photo,
                                 navController = navController,
                                 isSelectionMode = isTagAlbumPhotoSelectionMode,
-                                isSelected = selectedTagAlbumPhotos.contains(photos[index]),
-                                onToggleSelection = { onToggleTagAlbumPhoto(photos[index]) },
-                                onLongPress = { onSetTagAlbumPhotoSelectionMode(true) },
+                                isSelected = selectedTagAlbumPhotos.contains(photo),
+                                onToggleSelection = { onToggleTagAlbumPhoto(photo) },
+                                // 롱프레스는 부모(pointerInput)에서 처리 (onLongPress는 사용하지 않음)
+                                onLongPress = {},
                             )
                         }
                     }
@@ -1080,4 +1266,53 @@ private fun RecommendExpandedPanel(
             }
         }
     }
+}
+
+private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
+    onDragStart: (Offset) -> Unit,
+    onDrag: (PointerInputChange) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val longPress = awaitLongPressOrCancellation(down.id)
+        if (longPress != null) {
+            onDragStart(longPress.position)
+
+            // 롱프레스 이벤트 자체를 첫 드래그로 처리 (HomeScreen과 동일)
+            onDrag(longPress)
+
+            // 이어서 드래그 계속 추적
+            drag(longPress.id) { change ->
+                onDrag(change)
+            }
+            onDragEnd()
+        } else {
+            onDragCancel()
+        }
+    }
+}
+
+private fun LazyGridState.findPhotoItemAtPosition(
+    position: Offset,
+    allPhotos: List<Photo>,
+): Pair<String, Photo>? {
+    for (itemInfo in layoutInfo.visibleItemsInfo) {
+        val key = itemInfo.key
+        if (key is String) {
+            val itemBounds =
+                Rect(
+                    itemInfo.offset.x.toFloat(),
+                    itemInfo.offset.y.toFloat(),
+                    (itemInfo.offset.x + itemInfo.size.width).toFloat(),
+                    (itemInfo.offset.y + itemInfo.size.height).toFloat(),
+                )
+            if (itemBounds.contains(position)) {
+                val photo = allPhotos.find { it.photoId == key } ?: continue
+                return key to photo
+            }
+        }
+    }
+    return null
 }

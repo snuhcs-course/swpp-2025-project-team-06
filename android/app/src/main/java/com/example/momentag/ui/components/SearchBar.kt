@@ -109,8 +109,8 @@ fun ChipSearchBar(
         TextFieldDefaults.colors(
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
-            focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-            unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+            focusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
         )
 
     val containerColor =

@@ -51,6 +51,24 @@ object AppStateModule {
     fun provideAlbumUploadSuccessEvent(
         @AlbumUploadSuccessEventQualifier mutableFlow: MutableSharedFlow<Long>,
     ): SharedFlow<Long> = mutableFlow.asSharedFlow()
+
+    /**
+     * Provides MutableSharedFlow for upload pause requests
+     * Emits job IDs to pause
+     */
+    @Provides
+    @Singleton
+    @UploadPauseRequestQualifier
+    fun provideUploadPauseRequestFlow(): MutableSharedFlow<String> = MutableSharedFlow(replay = 0)
+
+    /**
+     * Provides MutableSharedFlow for upload cancel requests
+     * Emits job IDs to cancel
+     */
+    @Provides
+    @Singleton
+    @UploadCancelRequestQualifier
+    fun provideUploadCancelRequestFlow(): MutableSharedFlow<String> = MutableSharedFlow(replay = 0)
 }
 
 /**
@@ -63,3 +81,11 @@ annotation class AlbumUploadJobCountQualifier
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class AlbumUploadSuccessEventQualifier
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class UploadPauseRequestQualifier
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class UploadCancelRequestQualifier

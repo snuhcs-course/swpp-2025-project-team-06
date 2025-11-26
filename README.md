@@ -1,111 +1,122 @@
-# Iteration 3 Working Demo
+# MomenTag
 
-## MomenTag application
+## About the App
 
-MomenTag android application and backend API server are implemented.
+MomenTag is a photo search and management application combining AI-powered semantic search with user tagging features. It helps users organize, search, and discover meaningful moments from their photo collections through intelligent recommendations and natural language processing.
 
-### Implemented features
+## Key Features
 
-- Authentication
-  - Sign up
-  - Sign in
-  - Sign out
-  - Refresh token
-- Image upload
-  - Upload image after allowing access
-- Image search
-  - Search using natural language query
-  - Natural language search aware of tag names
-  - Browse search results
-  - Select photos from search results to create tags
-- Tag
-  - Create tag
-  - Display tag albums in a grid on the home screen
-  - View photos contained in a tag album
-  - Delete tag albums
-  - Delete tags from individual photos
-- Recommend
-  - Photo recommendations based on selected photos when creating a tag
-  - Photo recommendations that fit a tag album, within the tag album
-  - Recommend tags for individual photos
-- Moment (Story of Memory)
-  - Scroll down through photos
-  - Recommend 3 tags that fit each photo
-  - Select recommended tags to add them to the corresponding photo
+### Main Features
 
-### Getting started
+1. Semantic image search based on user-generated tags
 
-#### Prerequisite
+2. Tag recommendations for images
 
-**The backend server is not deployed on cloud. You have to run local server instance.**
+3. Image recommendations for image sets grouped by tags
 
-This demo uses
+4. Moment: Tag recommendations for old photos
+
+### Detailed Features
+
+| Feature | Description |
+|---------|-------------|
+| Authentication | JWT-based Sign Up/Log In/Log Out, Token refresh |
+| Photo Upload | Batch processing (8 photos per batch), GPS metadata extraction |
+| Tag Management | Create/Delete user tag albums, Link photos to tags |
+| Semantic Search | Natural language photo search (powered by Qdrant Vector DB) |
+| Hybrid Search | Combined Tag + Semantic search using `{TagName}` syntax |
+| AI Recommendation | Recommend photos for tags, Recommend tags for photos |
+| Moments | Scrollable photo feed + Dynamic tag recommendations |
+| Auto Captioning | Automatic photo description generation using Vision-Language models |
+
+## Core Workflow
+
+1. **Photo Upload** → GPU worker generates image embeddings → Stored in Qdrant
+2. **Search** → Query embedding generated → Vector similarity search → Results returned
+3. **Recommendation** → K-means clustering + Graph analysis → Related photos/tags suggested
+
+## Getting Started
+
+### Prerequisite
+
+This program uses
 
 - `uv` for dependency management
-- `docker, docker-compose` for running local services
 - `MySQL` for database
+- `Redis` for Celery broker
+- `Qdrant Cloud` for vector database
 
 Install above tools properly.
 
-Also, this demo targets python >= 3.13. If necessary, install appropriate version with uv.
+Also, this program targets python >= 3.13. If necessary, install appropriate version with uv.
 
-#### MySQL setup
+### MySQL Setup
 
-Inside the MySQL prompt, run the following commands. Modify userid and password as you wish.
+Inside the MySQL prompt on the CPU server, run the following commands. Modify userid and password as you wish.
 
 ```SQL
 CREATE DATABASE momentag_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'userid'@'localhost' IDENTIFIED BY 'password';
-GRANT ALL PRIVILEGES ON momentag_db.* TO 'userid'@'localhost';
+CREATE USER 'userid'@'%' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON momentag_db.* TO 'userid'@'%';
 FLUSH PRIVILEGES;
 EXIT;
 ```
 
-#### Running demo
+### Running
 
-After tool installation, modify line 3 of `strings.xml` on android code to match your local server IP.
+#### Environment Variables
 
-Since this demo version supports only HTTP endpoints, test on local network.
-
-**Avoid exposing the backend server on the internet directly**
-
-Furthermore, if you want to test with more images, feel free to modify line 264 of `LocalRepository.kt` to increase numbers of images uploaded.
+Set the following environment variables on both CPU and GPU servers:
 
 ```bash
-# Following commands are executed in backend dir
-cd backend
-
-# Sync dependencies
-uv sync
-
-# Set env variables
 export SECRET_KEY="$YOUR_SECRET_KEY"
-export QDRANT_CLIENT_URL="http://localhost:6333"
-export QDRANT_API_KEY="dummy_API_KEY"
+export QDRANT_CLIENT_URL="$YOUR_QDRANT_CLOUD_URL"
+export QDRANT_API_KEY="$YOUR_QDRANT_API_KEY"
 export DJANGO_ALLOWED_HOSTS="$YOUR_IP_ADDRESS"
 
-export DB_HOST="127.0.0.1"
+export DB_HOST="$CPU_SERVER_IP"
 export DB_PORT="3306"
 export DB_NAME="momentag_db"
 export DB_USER="userid"
 export DB_PASSWORD="password"
 
-# Run local qdrant, redis container
-docker-compose up -d
+export REDIS_URL="redis://$CPU_SERVER_IP:6379"
+```
+
+#### CPU Server
+
+```bash
+cd backend
+
+# Sync dependencies
+uv sync
 
 # Run database migrations
 uv run manage.py migrate
 
-# Run local celery workers (terminal 1)
-uv run celery -A config worker -l info
-
-# Run local backend server (terminal 2)
-uv run manage.py runserver 0.0.0.0:8000
+# Run Django server
+uv run manage.py runserver 0.0.0.0:8080
 ```
 
-Build android application and install it.
+#### GPU Server
 
-Run MomenTag application to test features.
+Run the following commands in separate terminals:
 
-### Demo video
-[Video link](https://drive.google.com/file/d/1YTWzfTmbdSTkusysYr-jriLLWG-_Lq1F/view?usp=sharing)
+```bash
+cd backend
+
+# Sync dependencies
+uv sync
+
+# Run Celery worker for GPU queue (terminal 1)
+uv run celery -A config worker -Q gpu -l info --pool=threads -c4
+
+# Run Celery worker for interactive queue (terminal 2)
+uv run celery -A config worker -Q interactive -l info --pool=threads -c4
+```
+
+#### Android
+
+Build and install the android application, then run MomenTag to test features.
+
+## Demo Video

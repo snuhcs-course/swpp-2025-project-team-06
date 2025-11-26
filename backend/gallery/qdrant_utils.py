@@ -8,6 +8,9 @@ from qdrant_client.http.exceptions import UnexpectedResponse
 _qdrant_client = None
 _qdrant_lock = threading.Lock()
 
+QDRANT_URL = settings.QDRANT_CLUSTER_URL
+QDRANT_API_KEY = settings.QDRANT_API_KEY
+
 def get_qdrant_client():
     # 싱글톤 Qdrant Client 인스턴스 반환 (Thread-safe)
     global _qdrant_client
@@ -16,8 +19,8 @@ def get_qdrant_client():
             # Double-checked locking pattern
             if _qdrant_client is None:
                 _qdrant_client = QdrantClient(
-                    url=settings.QDRANT_CLUSTER_URL,
-                    api_key=settings.QDRANT_API_KEY,
+                    url=QDRANT_URL,
+                    api_key=QDRANT_API_KEY,
                 )
     return _qdrant_client
 
