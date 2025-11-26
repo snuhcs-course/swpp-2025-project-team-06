@@ -10,7 +10,6 @@ class SignUpViewTest(APITestCase):
         self.signup_url = reverse('accounts:signup')
         self.valid_payload = {
             'username': 'testuser',
-            'email': 'test@example.com',
             'password': 'testpassword123'
         }
 
@@ -26,29 +25,16 @@ class SignUpViewTest(APITestCase):
         """잘못된 데이터로 회원가입 시도"""
         invalid_payload = {
             'username': '',  # 빈 username
-            'email': 'invalid-email',  # 잘못된 이메일 형식
             'password': '123'  # 너무 짧은 패스워드
         }
         response = self.client.post(self.signup_url, invalid_payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_signup_duplicate_email(self):
-        """중복된 이메일로 회원가입 시도"""
-        # 먼저 사용자 생성
-        User.objects.create_user(
-            username='existinguser',
-            email='test@example.com',
-            password='password123'
-        )
-        
-        response = self.client.post(self.signup_url, self.valid_payload)
-        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-
     def test_signup_missing_fields(self):
         """필수 필드 누락 시 테스트"""
         incomplete_payload = {
             'username': 'testuser'
-            # email과 password 누락
+            # password 누락
         }
         response = self.client.post(self.signup_url, incomplete_payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -59,7 +45,6 @@ class SignInViewTest(APITestCase):
         self.signin_url = reverse('accounts:signin')
         self.user = User.objects.create_user(
             username='testuser',
-            email='test@example.com',
             password='testpassword123'
         )
 
@@ -107,7 +92,6 @@ class SignOutViewTest(APITestCase):
         self.signout_url = reverse('accounts:signout')
         self.user = User.objects.create_user(
             username='testuser',
-            email='test@example.com',
             password='testpassword123'
         )
         self.refresh_token = RefreshToken.for_user(self.user)
@@ -135,7 +119,6 @@ class SignOutViewTest(APITestCase):
         """다른 사용자의 토큰으로 로그아웃 시도"""
         other_user = User.objects.create_user(
             username='otheruser',
-            email='other@example.com',
             password='password123'
         )
         other_refresh_token = RefreshToken.for_user(other_user)
@@ -168,7 +151,6 @@ class TokenRefreshViewTest(APITestCase):
         self.refresh_url = reverse('accounts:token_refresh')
         self.user = User.objects.create_user(
             username='testuser',
-            email='test@example.com',
             password='testpassword123'
         )
         self.refresh_token = RefreshToken.for_user(self.user)
@@ -218,7 +200,6 @@ class AuthenticationIntegrationTest(APITestCase):
         # 1. 회원가입
         signup_payload = {
             'username': 'testuser',
-            'email': 'test@example.com',
             'password': 'testpassword123'
         }
         signup_response = self.client.post(reverse('accounts:signup'), signup_payload)

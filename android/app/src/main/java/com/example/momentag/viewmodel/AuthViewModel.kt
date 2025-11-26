@@ -58,10 +58,6 @@ class AuthViewModel
                 val message: String,
             ) : RegisterState()
 
-            data class Conflict(
-                val message: String,
-            ) : RegisterState()
-
             data class NetworkError(
                 val message: String,
             ) : RegisterState()
@@ -146,21 +142,17 @@ class AuthViewModel
         }
 
         fun register(
-            email: String,
             username: String,
             password: String,
         ) {
             viewModelScope.launch {
                 // TokenRepository에 비즈니스 로직 위임
-                when (val result = tokenRepository.register(email, username, password)) {
+                when (val result = tokenRepository.register(username, password)) {
                     is TokenRepository.RegisterResult.Success -> {
                         _registerState.value = RegisterState.Success(result.userId)
                     }
                     is TokenRepository.RegisterResult.BadRequest -> {
                         _registerState.value = RegisterState.BadRequest(result.message)
-                    }
-                    is TokenRepository.RegisterResult.Conflict -> {
-                        _registerState.value = RegisterState.Conflict(result.message)
                     }
                     is TokenRepository.RegisterResult.NetworkError -> {
                         _registerState.value = RegisterState.NetworkError(result.message)

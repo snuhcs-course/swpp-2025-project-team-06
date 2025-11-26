@@ -17,7 +17,7 @@ from drf_yasg import openapi
 class SignUpView(APIView):
     @swagger_auto_schema(
         operation_summary="User signup",
-        operation_description="Register a new user with username, email, and password",
+        operation_description="Register a new user with username and password",
         request_body=SignUpRequest,
         responses={
             201: openapi.Response(
@@ -26,9 +26,6 @@ class SignUpView(APIView):
             ),
             400: openapi.Response(
                 description="Bad Request - Invalid input data"
-            ),
-            409: openapi.Response(
-                description="Conflict - Email already in use"
             )
         },
     )
@@ -36,9 +33,6 @@ class SignUpView(APIView):
         serializer = UserSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        if User.objects.filter(email=request.data['email']).exists():
-            return Response({"detail": "email conflict"}, status=status.HTTP_409_CONFLICT)
 
         user = serializer.save()
         user.set_password(request.data['password'])
@@ -51,7 +45,7 @@ class SignUpView(APIView):
 class SignInView(APIView):
     @swagger_auto_schema(
         operation_summary="User signin",
-        operation_description="Log in a user with email and password, returning access and refresh tokens.",
+        operation_description="Log in a user with username and password, returning access and refresh tokens.",
         request_body=SignInRequest,
         responses={
             200: openapi.Response(

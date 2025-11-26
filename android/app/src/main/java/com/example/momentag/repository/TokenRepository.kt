@@ -136,18 +136,16 @@ class TokenRepository
 
         /**
          * 회원가입 수행
-         * @param email 이메일
          * @param username 사용자명
          * @param password 비밀번호
          * @return RegisterResult
          */
         suspend fun register(
-            email: String,
             username: String,
             password: String,
         ): RegisterResult =
             try {
-                val request = RegisterRequest(email, username, password)
+                val request = RegisterRequest(username, password)
                 val response = apiService.register(request)
 
                 when {
@@ -158,10 +156,6 @@ class TokenRepository
 
                     response.code() == 400 -> {
                         RegisterResult.BadRequest("Request form mismatch")
-                    }
-
-                    response.code() == 409 -> {
-                        RegisterResult.Conflict("Email already in use")
                     }
 
                     else -> {
