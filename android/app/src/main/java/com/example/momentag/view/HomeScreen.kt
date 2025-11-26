@@ -276,6 +276,8 @@ fun HomeScreen(
                     // Clear search bar content when HomeScreen becomes visible again.
                     searchViewModel.clearSearchContent()
                     homeViewModel.restoreScrollPosition()
+                    // Reload search history to reflect any searches made in SearchResultScreen
+                    searchViewModel.loadSearchHistory()
                 }
             }
         lifecycleOwner.lifecycle.addObserver(observer)

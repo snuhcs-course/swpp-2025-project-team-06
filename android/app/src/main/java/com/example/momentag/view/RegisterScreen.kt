@@ -1,6 +1,5 @@
 package com.example.momentag.view
 
-import android.util.Patterns
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.togetherWith
@@ -75,34 +74,23 @@ fun RegisterScreen(navController: NavController) {
     val registerState by authViewModel.registerState.collectAsState()
 
     // Local state variables
-    var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordCheck by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordCheckVisible by rememberSaveable { mutableStateOf(false) }
-    var isEmailError by remember { mutableStateOf(false) }
     var isUsernameError by remember { mutableStateOf(false) }
     var isPasswordError by remember { mutableStateOf(false) }
     var isPasswordCheckError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isEmailTouched by remember { mutableStateOf(false) }
     var isUsernameTouched by remember { mutableStateOf(false) }
     var isPasswordTouched by remember { mutableStateOf(false) }
     var isPasswordCheckTouched by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
 
-    // Email validation helper
-    fun isValidEmail(email: String): Boolean =
-        Patterns
-            .EMAIL_ADDRESS
-            .matcher(email)
-            .matches()
-
     // Callback function to clear all errors
     val clearAllErrors = {
-        isEmailError = false
         isUsernameError = false
         isPasswordError = false
         isPasswordCheckError = false
@@ -126,7 +114,6 @@ fun RegisterScreen(navController: NavController) {
             is AuthViewModel.RegisterState.BadRequest -> {
                 isLoading = false
                 errorMessage = state.message
-                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
@@ -136,17 +123,13 @@ fun RegisterScreen(navController: NavController) {
             is AuthViewModel.RegisterState.Conflict -> {
                 isLoading = false
                 errorMessage = state.message
-                isEmailError = true
                 isUsernameError = true
-                isPasswordError = true
-                isPasswordCheckError = true
                 isErrorBannerVisible = true
                 authViewModel.resetRegisterState()
             }
             is AuthViewModel.RegisterState.NetworkError -> {
                 isLoading = false
                 errorMessage = state.message
-                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
@@ -156,7 +139,6 @@ fun RegisterScreen(navController: NavController) {
             is AuthViewModel.RegisterState.Error -> {
                 isLoading = false
                 errorMessage = state.message
-                isEmailError = true
                 isUsernameError = true
                 isPasswordError = true
                 isPasswordCheckError = true
@@ -221,79 +203,6 @@ fun RegisterScreen(navController: NavController) {
                 }
 
                 Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
-
-                // email input
-                Text(
-                    text = stringResource(R.string.field_email),
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedTextField(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(Dimen.ButtonHeightLarge)
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    isEmailTouched = true
-                                    if (errorMessage != null) {
-                                        clearAllErrors()
-                                    } else {
-                                        isEmailError = false
-                                    }
-                                } else {
-                                    if (isEmailTouched && (email.isEmpty() || !isValidEmail(email))) {
-                                        isEmailError = true
-                                    }
-                                }
-                            },
-                    value = email,
-                    onValueChange = {
-                        email = it
-                        if (errorMessage != null) {
-                            clearAllErrors()
-                        } else {
-                            isEmailError = false
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.field_email), color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
-                    isError = isEmailError || (isEmailTouched && email.isNotEmpty() && !isValidEmail(email)),
-                    colors =
-                        OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                            disabledContainerColor = MaterialTheme.colorScheme.surface,
-                            focusedBorderColor = MaterialTheme.colorScheme.outline,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                            errorBorderColor = MaterialTheme.colorScheme.error,
-                            errorContainerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                )
-
-                // Email validation error box
-                Box(
-                    modifier =
-                        Modifier
-                            .height(Dimen.InputHelperTextHeight)
-                            .fillMaxWidth()
-                            .padding(top = Dimen.ErrorMessagePadding, start = Dimen.ErrorMessagePadding),
-                ) {
-                    if (isEmailError && email.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.validation_required_email),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    } else if (isEmailTouched && email.isNotEmpty() && !isValidEmail(email)) {
-                        Text(
-                            text = stringResource(R.string.validation_invalid_email),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
 
                 // username input
                 Text(
@@ -554,20 +463,17 @@ fun RegisterScreen(navController: NavController) {
                 // register button
                 Button(
                     onClick = {
-                        val emailEmpty = email.isEmpty()
-                        val emailInvalid = !isValidEmail(email)
                         val usernameEmpty = username.isEmpty()
                         val passwordEmpty = password.isEmpty()
                         val passwordCheckEmpty = passwordCheck.isEmpty()
-                        isEmailError = emailEmpty || emailInvalid
                         isUsernameError = usernameEmpty
                         isPasswordError = passwordEmpty
                         isPasswordCheckError = passwordCheckEmpty
 
                         if (password != passwordCheck) {
                             isPasswordCheckError = true
-                        } else if (!emailEmpty && !emailInvalid && !usernameEmpty && !passwordEmpty && !passwordCheckEmpty) {
-                            authViewModel.register(email, username, password)
+                        } else if (!usernameEmpty && !passwordEmpty && !passwordCheckEmpty) {
+                            authViewModel.register(username, password)
                         }
                     },
                     modifier =

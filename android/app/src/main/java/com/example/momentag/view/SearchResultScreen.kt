@@ -855,7 +855,7 @@ private fun SearchResultContent(
                     fadeOut(animationSpec = Animation.mediumTween()),
             modifier =
                 Modifier
-                    .offset(y = topSpacerHeight + with(LocalDensity.current) { searchBarRowHeight.toDp() } + Dimen.GridItemSpacing)
+                    .offset(y = with(LocalDensity.current) { searchBarRowHeight.toDp() + 16.dp })
                     .padding(horizontal = Dimen.ScreenHorizontalPadding)
                     .zIndex(1f),
         ) {
