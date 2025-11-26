@@ -299,6 +299,7 @@ fun HomeScreen(
                 allPhotosGridState.firstVisibleItemScrollOffset,
             )
         }.distinctUntilChanged()
+            .debounce(100)
             .collect { (index, offset) ->
                 homeViewModel.setAllPhotosScrollPosition(index, offset)
             }
@@ -311,6 +312,7 @@ fun HomeScreen(
                 tagAlbumGridState.firstVisibleItemScrollOffset,
             )
         }.distinctUntilChanged()
+            .debounce(100)
             .collect { (index, offset) ->
                 homeViewModel.setTagAlbumScrollPosition(index, offset)
             }
