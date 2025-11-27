@@ -37,7 +37,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Upload
@@ -85,6 +84,7 @@ import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
@@ -247,24 +247,19 @@ fun LocalAlbumScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+            AnimatedContent(
+                targetState = isSelectionMode,
+                transitionSpec = {
+                    (Animation.DefaultFadeIn)
+                        .togetherWith(Animation.DefaultFadeOut)
+                        .using(SizeTransform(clip = false))
                 },
-                navigationIcon = {
-                    AnimatedContent(
-                        targetState = isSelectionMode,
-                        transitionSpec = {
-                            (Animation.DefaultFadeIn)
-                                .togetherWith(Animation.DefaultFadeOut)
-                                .using(SizeTransform(clip = false))
-                        },
-                        label = "TopAppBarNavIcon",
-                    ) { selectionMode ->
-                        if (selectionMode) {
+                label = "TopAppBarAnimation",
+            ) { selectionMode ->
+                if (selectionMode) {
+                    TopAppBar(
+                        title = { Text(stringResource(R.string.photos_selected_count, selectedPhotos.size)) },
+                        navigationIcon = {
                             IconButton(onClick = {
                                 isSelectionMode = false
                                 localViewModel.clearPhotoSelection()
@@ -275,22 +270,19 @@ fun LocalAlbumScreen(
                                     sizeRole = IconSizeRole.DefaultAction,
                                 )
                             }
-                        } else {
-                            IconButton(onClick = onNavigateBack) {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = stringResource(R.string.cd_navigate_back),
-                                    sizeRole = IconSizeRole.Navigation,
-                                )
-                            }
-                        }
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-            )
+                        },
+                        colors =
+                            TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                            ),
+                    )
+                } else {
+                    BackTopBar(
+                        title = stringResource(R.string.app_name),
+                        onBackClick = onNavigateBack,
+                    )
+                }
+            }
         },
         floatingActionButton = {
             AnimatedVisibility(
@@ -362,12 +354,18 @@ fun LocalAlbumScreen(
                     Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                     Text(
                         text = albumName,
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineLarge,
                     )
                     HorizontalDivider(
-                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingXSmall),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
+                    Text(
+                        text = stringResource(R.string.help_upload_pictures),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     AnimatedVisibility(
                         visible = isErrorBannerVisible && errorMessage != null,
@@ -668,29 +666,25 @@ fun LocalAlbumScreen(
             }
         }
 
-        if (isSelectionMode) {
-            Box(modifier = bodyModifier) {
-                albumContent()
-            }
-        } else {
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    scope.launch {
-                        isRefreshing = true
-                        try {
-                            if (hasPermission) {
-                                localViewModel.loadAlbumPhotos(albumId, albumName)
-                            }
-                        } finally {
-                            isRefreshing = false
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                if (isSelectionMode) return@PullToRefreshBox // Keep gesture coroutine alive when toggling selection
+
+                scope.launch {
+                    isRefreshing = true
+                    try {
+                        if (hasPermission) {
+                            localViewModel.loadAlbumPhotos(albumId, albumName)
                         }
+                    } finally {
+                        isRefreshing = false
                     }
-                },
-                modifier = bodyModifier,
-            ) {
-                albumContent()
-            }
+                }
+            },
+            modifier = bodyModifier,
+        ) {
+            albumContent()
         }
     }
 }

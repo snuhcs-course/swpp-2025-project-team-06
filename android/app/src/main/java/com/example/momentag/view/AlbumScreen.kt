@@ -632,21 +632,19 @@ fun AlbumScreen(
                     .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
-            if (isTagAlbumPhotoSelectionMode || isDragSelecting) {
+            // Keep the same gesture scope alive while toggling selection mode by always wrapping content
+            PullToRefreshBox(
+                isRefreshing = imageLoadState is AlbumViewModel.AlbumLoadingState.Loading,
+                onRefresh = {
+                    if (isTagAlbumPhotoSelectionMode || isDragSelecting) return@PullToRefreshBox
+
+                    scope.launch {
+                        if (hasPermission) albumViewModel.loadAlbum(tagId, tagName)
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) {
                 content()
-            } else {
-                // 당겨서 새로고침은 선택모드가 아닐 때만
-                PullToRefreshBox(
-                    isRefreshing = imageLoadState is AlbumViewModel.AlbumLoadingState.Loading,
-                    onRefresh = {
-                        scope.launch {
-                            if (hasPermission) albumViewModel.loadAlbum(tagId, tagName)
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    content()
-                }
             }
 
             // Scrollbar positioned outside Column to span padding boundary
