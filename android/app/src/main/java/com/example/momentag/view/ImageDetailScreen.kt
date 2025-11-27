@@ -666,17 +666,18 @@ fun ImageDetailScreen(
                                 }
                             },
                             onAddTag = { tagName ->
-                                if (tagName.length > 25) {
-                                    warningBannerMessage = "Tag name is too long. Please < 25 characters."
-                                    isWarningBannerVisible = true
+                                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                                if (currentPhotoId.isNotEmpty()) {
+                                    imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
                                 } else {
-                                    val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                                    if (currentPhotoId.isNotEmpty()) {
-                                        imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
-                                    } else {
-                                        warningBannerMessage = context.getString(R.string.image_detail_no_photo_add)
-                                        isWarningBannerVisible = true
-                                    }
+                                    warningBannerMessage = context.getString(R.string.image_detail_no_photo_add)
+                                    isWarningBannerVisible = true
+                                }
+                            },
+                            onTagValidationError = { isError ->
+                                if (isError) {
+                                    warningBannerMessage = context.getString(R.string.error_message_tag_name_too_long)
+                                    isWarningBannerVisible = true
                                 }
                             },
                         )
@@ -689,7 +690,7 @@ fun ImageDetailScreen(
                 visible = isWarningBannerVisible && !isFocusMode,
                 enter = Animation.EnterFromBottom,
                 exit = Animation.ExitToBottom,
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = Dimen.ItemSpacingSmall),
             ) {
                 WarningBanner(
                     title = stringResource(R.string.error_title),
@@ -777,6 +778,7 @@ fun TagsSection(
     onEnterDeleteMode: () -> Unit,
     onExitDeleteMode: () -> Unit,
     onAddTag: (String) -> Unit,
+    onTagValidationError: (Boolean) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
@@ -853,6 +855,7 @@ fun TagsSection(
                     scrollState.animateScrollTo(scrollState.maxValue)
                 }
             },
+            onValidationError = onTagValidationError,
         )
     }
 }

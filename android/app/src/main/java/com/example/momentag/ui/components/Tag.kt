@@ -31,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -423,10 +424,15 @@ fun CustomTagChip(
     onTagAdded: (String) -> Unit,
     modifier: Modifier = Modifier,
     onExpanded: (() -> Unit)? = null,
+    onValidationError: ((Boolean) -> Unit)? = null,
 ) {
     // 4. 로컬 상태 변수
     var isExpanded by remember { mutableStateOf(false) }
     var tagText by remember { mutableStateOf("") }
+
+    LaunchedEffect(tagText) {
+        onValidationError?.invoke(tagText.length > 25)
+    }
 
     // 13. UI (AnimatedContent)
     AnimatedContent(
@@ -480,17 +486,17 @@ fun CustomTagChip(
                 // 왼쪽: Confirm button (Checkmark)
                 IconButton(
                     onClick = {
-                        if (tagText.isNotBlank()) {
+                        if (tagText.isNotBlank() && tagText.length <= 25) {
                             onTagAdded(tagText.trim())
                             isExpanded = false
                             tagText = ""
                         }
                     },
                     modifier = Modifier.size(Dimen.IconButtonSizeSmall),
-                    enabled = tagText.isNotBlank(),
+                    enabled = tagText.isNotBlank() && tagText.length <= 25,
                 ) {
                     val confirmTint =
-                        if (tagText.isNotBlank()) {
+                        if (tagText.isNotBlank() && tagText.length <= 25) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
