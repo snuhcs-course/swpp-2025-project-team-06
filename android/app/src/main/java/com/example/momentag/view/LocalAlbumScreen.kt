@@ -667,29 +667,25 @@ fun LocalAlbumScreen(
             }
         }
 
-        if (isSelectionMode) {
-            Box(modifier = bodyModifier) {
-                albumContent()
-            }
-        } else {
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    scope.launch {
-                        isRefreshing = true
-                        try {
-                            if (hasPermission) {
-                                localViewModel.loadAlbumPhotos(albumId, albumName)
-                            }
-                        } finally {
-                            isRefreshing = false
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                if (isSelectionMode) return@PullToRefreshBox // Keep gesture coroutine alive when toggling selection
+
+                scope.launch {
+                    isRefreshing = true
+                    try {
+                        if (hasPermission) {
+                            localViewModel.loadAlbumPhotos(albumId, albumName)
                         }
+                    } finally {
+                        isRefreshing = false
                     }
-                },
-                modifier = bodyModifier,
-            ) {
-                albumContent()
-            }
+                }
+            },
+            modifier = bodyModifier,
+        ) {
+            albumContent()
         }
     }
 }
