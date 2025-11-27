@@ -61,6 +61,8 @@ sealed class Screen(
 
     object Register : Screen("register_screen")
 
+    object Onboarding : Screen("onboarding_screen")
+
     object Story : Screen("story_screen")
 
     object AddTag : Screen("add_tag_screen")

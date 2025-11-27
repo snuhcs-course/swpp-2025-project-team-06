@@ -24,6 +24,7 @@ import com.example.momentag.view.LocalAlbumScreen
 import com.example.momentag.view.LocalGalleryScreen
 import com.example.momentag.view.LoginScreen
 import com.example.momentag.view.MyTagsScreen
+import com.example.momentag.view.OnboardingScreen
 import com.example.momentag.view.RegisterScreen
 import com.example.momentag.view.SearchResultScreen
 import com.example.momentag.view.SelectImageScreen
@@ -39,11 +40,13 @@ import java.nio.charset.StandardCharsets
 fun AppNavigation(
     tokenRepository: TokenRepository,
     sessionExpirationManager: SessionExpirationManager,
+    onboardingPreferences: com.example.momentag.data.OnboardingPreferences,
     navController: NavHostController = rememberNavController(),
 ) {
     val isLoaded by tokenRepository.isSessionLoaded.collectAsState()
     val accessToken by tokenRepository.isLoggedIn.collectAsState()
     val scope = rememberCoroutineScope()
+    val hasCompletedOnboarding = onboardingPreferences.hasCompletedOnboarding()
 
     // Handle session expiration navigation
     LaunchedEffect(Unit) {
@@ -74,9 +77,16 @@ fun AppNavigation(
         return
     }
 
+    val startDestination =
+        if (!hasCompletedOnboarding) {
+            Screen.Onboarding.route
+        } else {
+            Screen.Login.createRoute(false)
+        }
+
     NavHost(
         navController = navController,
-        startDestination = Screen.Login.createRoute(false), // Always start at Login
+        startDestination = startDestination,
     ) {
         composable(
             route = Screen.Home.route,
@@ -191,6 +201,17 @@ fun AppNavigation(
         ) {
             RegisterScreen(
                 navController = navController,
+            )
+        }
+
+        composable(
+            route = Screen.Onboarding.route,
+        ) {
+            OnboardingScreen(
+                navController = navController,
+                onComplete = {
+                    onboardingPreferences.setOnboardingCompleted()
+                },
             )
         }
 

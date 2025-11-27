@@ -430,4 +430,26 @@
     <string name="localrepo_unknown_date">Unknown date</string>
     <string name="localrepo_unknown_location">Unknown location</string>
 
+    <!-- ============================================ -->
+    <!-- ONBOARDING -->
+    <!-- ============================================ -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_start">Get Started</string>
+    <string name="onboarding_page1_title">Organize with Tag Albums</string>
+    <string name="onboarding_page1_description">Group your photos by events, places, or any keyword you like</string>
+    <string name="onboarding_page2_title">Smart Search with Tags</string>
+    <string name="onboarding_page2_description">Tap # to select tags, then combine with natural language</string>
+    <string name="onboarding_page3_title">Browse Your Results</string>
+    <string name="onboarding_page3_description">View all photos matching your search instantly</string>
+    <string name="onboarding_page4_title">Create Tags Easily</string>
+    <string name="onboarding_page4_description">Select photos and add them to tags in just a few taps</string>
+    <string name="onboarding_page5_title">Relive Your Moments</string>
+    <string name="onboarding_page5_description">Tag your memories as you scroll through special moments</string>
+    <string name="onboarding_page6_title">Swipe Through Memories</string>
+    <string name="onboarding_page6_description">Scroll vertically to discover more moments from your life</string>
+    <string name="onboarding_tag_suggestions">Suggested Tags</string>
+    <string name="onboarding_add_tag_button">Add Tag</string>
+    <string name="onboarding_moment_date">December 15, 2024</string>
+    <string name="onboarding_swipe_vertical">Swipe up or down</string>
+
 </resources>
