@@ -26,23 +26,19 @@ class ResTagVectorSerializer(serializers.Serializer):
     tag = serializers.CharField(help_text="태그 이름")
 
 
-class NewResStorySerializer(serializers.Serializer):
+class ResStorySerializer(serializers.Serializer):
     photo_id = serializers.UUIDField(help_text="사진의 고유 ID")
     photo_path_id = serializers.IntegerField(help_text="사진 파일의 경로 ID")
     tags = serializers.ListField(child=serializers.CharField(max_length="255"))
 
 
-class NewResStoryWrapperSerializer(serializers.Serializer):
+class ResStoryStateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(
         choices=["PROCESSING", "SUCCESS"], help_text="스토리 생성 상태"
     )
-    stories = NewResStorySerializer(
+    stories = ResStorySerializer(
         many=True, help_text="생성된 스토리 목록 (status가 SUCCESS일 때만 포함)"
     )
-
-
-class ResStorySerializer(serializers.Serializer):
-    recs = ResPhotoSerializer(many=True)
 
 
 class ResTagAlbumSerializer(serializers.Serializer):
