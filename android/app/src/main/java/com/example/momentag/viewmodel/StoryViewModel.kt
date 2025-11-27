@@ -99,102 +99,9 @@ class StoryViewModel
         // 4. Public functions
 
         /**
-         * Trigger story generation in the background (for pre-loading)
-         * This is called from HomeScreen to prepare stories before user navigates to StoryScreen
-         * @param size Number of stories to generate
-         */
-        fun preGenerateStories(size: Int) {
-            viewModelScope.launch {
-                recommendRepository.getStories(size)
-                android.util.Log.d("StoryViewModel", "Pre-generation of $size stories triggered")
-            }
-        }
-
-        // 5. Private functions (helpers)
-
-        private fun generateStoryInstanceId(photoId: String): String {
-            val nextCount = (storyInstanceCounts[photoId] ?: 0) + 1
-            storyInstanceCounts[photoId] = nextCount
-            return if (nextCount == 1) {
-                photoId
-            } else {
-                "$photoId-$nextCount"
-            }
-        }
-
-        private fun buildStoryModels(
-            storyResponses: List<StoryResponse>,
-            photos: List<com.example.momentag.model.Photo>,
-        ): List<StoryModel> =
-            photos.mapIndexed { index, photo ->
-                val story = storyResponses[index]
-                val date = localRepository.getPhotoDate(story.photoPathId)
-                val location = localRepository.getPhotoLocation(story.photoPathId)
-
-                // Pre-populate suggested tags from the API response
-                val suggestedTags = story.tags.take(4)
-
-                StoryModel(
-                    id = generateStoryInstanceId(photo.photoId),
-                    photoId = photo.photoId,
-                    images = listOf(photo.contentUri),
-                    date = date,
-                    location = location,
-                    suggestedTags = suggestedTags,
-                )
-            }
-
-        /**
-         * Process story responses and update state
-         * @param storyResponses List of story responses from API
-         * @param size Number of stories for next batch generation
-         * @return true if processing succeeded, false otherwise
-         */
-        private fun processInitialStories(
-            storyResponses: List<StoryResponse>,
-            size: Int,
-        ): Boolean {
-            val photos =
-                localRepository.toPhotos(
-                    storyResponses.map { story ->
-                        com.example.momentag.model.PhotoResponse(
-                            photoId = story.photoId,
-                            photoPathId = story.photoPathId,
-                            createdAt = "",
-                        )
-                    },
-                )
-
-            storyInstanceCounts.clear()
-
-            if (photos.isEmpty()) {
-                _storyState.value = StoryState.Success(emptyList(), 0, false)
-                // Still trigger next generation
-                preGenerateStories(size)
-                return true
-            }
-
-            // Convert photos to StoryModels with metadata
-            val stories = buildStoryModels(storyResponses, photos)
-
-            currentStories.clear()
-            currentStories.addAll(stories)
-
-            _storyState.value =
-                StoryState.Success(
-                    stories = stories,
-                    currentIndex = 0,
-                    hasMore = true, // Enable pagination
-                )
-
-            // Trigger next batch generation
-            preGenerateStories(size)
-            return true
-        }
-
-        /**
-         * Load initial stories - fetches pre-generated stories and triggers next batch generation
+         * Load initial stories - fetches stories from backend
          * Polls with 1-second interval if stories are not ready
+         * Backend automatically starts generation for the next batch
          * @param size Number of stories to fetch
          */
         fun loadStories(size: Int) {
@@ -293,15 +200,14 @@ class StoryViewModel
                     hasMore = true, // Always has more since we keep pre-generating
                 )
 
-            // Trigger next batch generation
-            preGenerateStories(size)
             return true
         }
 
         /**
-         * Load more stories for pagination - fetches pre-generated stories and triggers next batch
+         * Load more stories for pagination - fetches stories from backend
          * Polls with 1-second interval if stories are not ready
          * Does not transition to loading state since stories already exist
+         * Backend automatically starts generation for the next batch
          * @param size Number of additional stories to fetch
          */
         fun loadMoreStories(size: Int) {
@@ -386,6 +292,84 @@ class StoryViewModel
                     }
                 }
             }
+        }
+
+        // 5. Private functions (helpers)
+
+        private fun generateStoryInstanceId(photoId: String): String {
+            val nextCount = (storyInstanceCounts[photoId] ?: 0) + 1
+            storyInstanceCounts[photoId] = nextCount
+            return if (nextCount == 1) {
+                photoId
+            } else {
+                "$photoId-$nextCount"
+            }
+        }
+
+        private fun buildStoryModels(
+            storyResponses: List<StoryResponse>,
+            photos: List<com.example.momentag.model.Photo>,
+        ): List<StoryModel> =
+            photos.mapIndexed { index, photo ->
+                val story = storyResponses[index]
+                val date = localRepository.getPhotoDate(story.photoPathId)
+                val location = localRepository.getPhotoLocation(story.photoPathId)
+
+                // Pre-populate suggested tags from the API response
+                val suggestedTags = story.tags.take(4)
+
+                StoryModel(
+                    id = generateStoryInstanceId(photo.photoId),
+                    photoId = photo.photoId,
+                    images = listOf(photo.contentUri),
+                    date = date,
+                    location = location,
+                    suggestedTags = suggestedTags,
+                )
+            }
+
+        /**
+         * Process story responses and update state
+         * @param storyResponses List of story responses from API
+         * @param size Number of stories for next batch generation
+         * @return true if processing succeeded, false otherwise
+         */
+        private fun processInitialStories(
+            storyResponses: List<StoryResponse>,
+            size: Int,
+        ): Boolean {
+            val photos =
+                localRepository.toPhotos(
+                    storyResponses.map { story ->
+                        com.example.momentag.model.PhotoResponse(
+                            photoId = story.photoId,
+                            photoPathId = story.photoPathId,
+                            createdAt = "",
+                        )
+                    },
+                )
+
+            storyInstanceCounts.clear()
+
+            if (photos.isEmpty()) {
+                _storyState.value = StoryState.Success(emptyList(), 0, false)
+                return true
+            }
+
+            // Convert photos to StoryModels with metadata
+            val stories = buildStoryModels(storyResponses, photos)
+
+            currentStories.clear()
+            currentStories.addAll(stories)
+
+            _storyState.value =
+                StoryState.Success(
+                    stories = stories,
+                    currentIndex = 0,
+                    hasMore = true, // Enable pagination
+                )
+
+            return true
         }
 
         /**

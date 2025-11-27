@@ -156,7 +156,7 @@ data class StoryResponse(
     val tags: List<String>,
 )
 
-data class StoryWrapperResponse(
+data class StoryStateResponse(
     val status: String,
     val stories: List<StoryResponse>,
 )

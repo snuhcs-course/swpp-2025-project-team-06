@@ -2,7 +2,7 @@ package com.example.momentag.repository
 
 import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.PhotoToPhotoRequest
-import com.example.momentag.model.StoryWrapperResponse
+import com.example.momentag.model.StoryStateResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.network.ApiService
 import java.io.IOException
@@ -122,7 +122,7 @@ class RecommendRepository
                 RecommendResult.Error("An unexpected error occurred: ${e.message}")
             }
 
-        suspend fun getStories(size: Int? = null): StoryResult<StoryWrapperResponse> =
+        suspend fun getStories(size: Int? = null): StoryResult<StoryStateResponse> =
             try {
                 val response = apiService.getStories(size)
 
