@@ -986,8 +986,8 @@ class NewStoryView(APIView):
         operation_summary="Get or generate stories",
         operation_description=(
             "Get stories if ready, or trigger generation if not started. "
-            "Returns status='PROCESSING' with empty stories if still generating, "
-            "or status='SUCCESS' with stories if ready."
+            "When stories are ready, returns status='SUCCESS' with stories and automatically triggers new generation for the next request. "
+            "Returns status='PROCESSING' with empty stories if still generating."
         ),
         request_body=None,
         responses={
@@ -1026,12 +1026,30 @@ class NewStoryView(APIView):
         story_key = str(user_id)
         task_key = f"story_task:{user_id}"
 
+        # Parse size parameter early
+        try:
+            size = int(request.GET.get("size", 20))
+            if size < 1:
+                return Response(
+                    {"error": "Size parameter must be positive"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            size = min(size, 200)
+        except ValueError:
+            return Response(
+                {"error": "Invalid size parameter"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Check if stories are ready in Redis
         if r.exists(story_key):
             story_data_json = r.get(story_key)
             story_data = json.loads(story_data_json)
             r.delete(story_key)
-            r.delete(task_key)  # Clean up task ID
+
+            # Trigger new generation for next request
+            task = generate_stories_task.delay(user_id, size)
+            r.set(task_key, task.id, ex=3600)  # Store task ID for 1 hour
 
             response_data = {"status": "SUCCESS", "stories": story_data}
             serializer = NewResStoryWrapperSerializer(response_data)
@@ -1053,21 +1071,6 @@ class NewStoryView(APIView):
             r.delete(task_key)
 
         # No task running and no results - start new task
-        try:
-            size = int(request.GET.get("size", 20))
-            if size < 1:
-                return Response(
-                    {"error": "Size parameter must be positive"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            size = min(size, 200)
-        except ValueError:
-            return Response(
-                {"error": "Invalid size parameter"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Start new task and store task ID
         task = generate_stories_task.delay(user_id, size)
         r.set(task_key, task.id, ex=3600)  # Store task ID for 1 hour
 
