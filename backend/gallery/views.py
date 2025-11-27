@@ -578,8 +578,22 @@ class DeletePhotoTagsView(APIView):
         photo_tag = Photo_Tag.objects.get(
             photo__photo_id=photo_id, tag__tag_id=tag_id, user=request.user
         )
+        tag = photo_tag.tag
         photo_tag.delete()
-        compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+
+        # Check if tag still has any photos associated
+        remaining_photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user).count()
+
+        if remaining_photo_tags == 0:
+            # No photos left for this tag - delete the tag itself
+            tag.delete()
+            # No need to compute repvec - tag is gone
+            # compute_and_store_rep_vectors will handle cleanup in Qdrant
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+        else:
+            # Tag still has photos - recompute representative vectors
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

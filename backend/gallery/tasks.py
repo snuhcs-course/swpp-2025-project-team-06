@@ -189,61 +189,40 @@ def tag_recommendation(user, photo_id):
         with_payload=True,
     )
 
-    # Combine all results with their scores
-    all_results = []
-
-    # Add preset tags
-    for result in preset_results:
-        all_results.append({
-            'type': 'preset',
-            'name': result.payload['name'],
-            'score': result.score,
-        })
-
-    # Add user tags
-    for result in user_results:
-        all_results.append({
-            'type': 'user',
-            'tag_id': result.payload['tag_id'],
-            'score': result.score,
-        })
-
-    # Sort by score in descending order (highest similarity first)
-    all_results.sort(key=lambda x: x['score'], reverse=True)
-
-    # Build result list with tag information
+    # Combine all results (preset and user tags)
+    # Frontend will select top preset and top user tag separately using is_preset field
     recommendations = []
     existing_tag_names = set()
 
-    for result in all_results:
-        if result['type'] == 'preset':
-            tag_name = result['name']
-            # Skip if user already has a tag with this name
-            if tag_name in existing_tag_names:
-                continue
-            # Check if user has this tag in database
-            if Tag.objects.filter(tag=tag_name, user=user).exists():
+    # Add preset tags (ordered by similarity within preset collection)
+    for result in preset_results:
+        tag_name = result.payload['name']
+        if tag_name in existing_tag_names:
+            continue
+        # Check if user has this tag in database
+        if Tag.objects.filter(tag=tag_name, user=user).exists():
+            continue
+        recommendations.append({
+            'tag': tag_name,
+            'tag_id': '',  # Empty for preset tags (will be created on selection)
+            'is_preset': True
+        })
+        existing_tag_names.add(tag_name)
+
+    # Add user tags (ordered by similarity within repvec collection)
+    for result in user_results:
+        try:
+            tag = Tag.objects.get(tag_id=result.payload['tag_id'])
+            if tag.tag in existing_tag_names:
                 continue
             recommendations.append({
-                'tag': tag_name,
-                'tag_id': '',  # Empty for preset tags (will be created on selection)
-                'is_preset': True
+                'tag': tag.tag,
+                'tag_id': str(tag.tag_id),
+                'is_preset': False
             })
-            existing_tag_names.add(tag_name)
-        else:
-            # For user tags, get the Tag object by ID
-            try:
-                tag = Tag.objects.get(tag_id=result['tag_id'])
-                if tag.tag in existing_tag_names:
-                    continue
-                recommendations.append({
-                    'tag': tag.tag,
-                    'tag_id': str(tag.tag_id),
-                    'is_preset': False
-                })
-                existing_tag_names.add(tag.tag)
-            except Tag.DoesNotExist:
-                continue
+            existing_tag_names.add(tag.tag)
+        except Tag.DoesNotExist:
+            continue
 
     return recommendations
 
