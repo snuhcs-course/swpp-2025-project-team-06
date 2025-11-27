@@ -158,7 +158,11 @@ class PhotoViewModel
         ) {
             if (photos.isEmpty()) return
 
-            val photoIds = photos.mapNotNull { it.photoId.toLongOrNull() }.toLongArray()
+            val photoIds =
+                photos
+                    .mapNotNull {
+                        it.contentUri.lastPathSegment?.toLongOrNull()
+                    }.toLongArray()
 
             if (photoIds.isEmpty()) {
                 _uiState.update { it.copy(error = PhotoError.NoPhotosSelected) }
