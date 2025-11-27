@@ -139,6 +139,7 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
 
 
 def tag_recommendation(user, photo_id):
+    PRESET_LIMIT = 10
     LIMIT = 10
     client = get_qdrant_client()
 
@@ -153,6 +154,15 @@ def tag_recommendation(user, photo_id):
 
     image_vector = retrieved_points[0].vector
 
+    # Search preset tags (no user filter - shared across all users)
+    preset_results = client.search(
+        collection_name=TAG_PRESET_COLLECTION_NAME,
+        query_vector=image_vector,
+        limit=PRESET_LIMIT,
+        with_payload=True,
+    )
+
+    # Search user's tags (with user filter)
     user_filter = models.Filter(
         must=[
             models.FieldCondition(
@@ -162,7 +172,7 @@ def tag_recommendation(user, photo_id):
         ]
     )
 
-    search_results = client.search(
+    user_results = client.search(
         collection_name=REPVEC_COLLECTION_NAME,
         query_vector=image_vector,
         query_filter=user_filter,
@@ -170,16 +180,46 @@ def tag_recommendation(user, photo_id):
         with_payload=True,
     )
 
-    tag_ids = list(dict.fromkeys(result.payload["tag_id"] for result in search_results))
+    # Combine all results with their scores
+    all_results = []
 
+    # Add preset tags
+    for result in preset_results:
+        all_results.append({
+            'type': 'preset',
+            'name': result.payload['name'],
+            'score': result.score,
+        })
+
+    # Add user tags
+    for result in user_results:
+        all_results.append({
+            'type': 'user',
+            'tag_id': result.payload['tag_id'],
+            'score': result.score,
+        })
+
+    # Sort by score in descending order (highest similarity first)
+    all_results.sort(key=lambda x: x['score'], reverse=True)
+
+    # Convert to Tag objects in score order
     recommendations = []
-
-    for tag_id in tag_ids:
-        try:
-            tag = Tag.objects.get(tag_id=tag_id)
-            recommendations.append(tag)
-        except Tag.DoesNotExist:
-            continue
+    for result in all_results:
+        if result['type'] == 'preset':
+            # For preset tags, check if user has a tag with the same name
+            try:
+                tag = Tag.objects.get(tag=result['name'], user=user)
+                recommendations.append(tag)
+            except Tag.DoesNotExist:
+                # User doesn't have this preset tag, skip it
+                continue
+        else:
+            # For user tags, get the Tag object by ID
+            try:
+                tag = Tag.objects.get(tag_id=result['tag_id'])
+                recommendations.append(tag)
+            except Tag.DoesNotExist:
+                continue
 
     return recommendations
 
