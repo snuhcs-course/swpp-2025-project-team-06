@@ -11,9 +11,9 @@ data class Tag(
     @SerializedName("tag")
     val tagName: String,
     @SerializedName("tag_id")
-    val tagId: String = "",  // Default empty for preset tags (not yet created)
+    val tagId: String = "", // Default empty for preset tags (not yet created)
     @SerializedName("is_preset")
-    val isPreset: Boolean = false,  // True for preset tags, false for user tags
+    val isPreset: Boolean = false, // True for preset tags, false for user tags
 )
 
 data class TagName(
