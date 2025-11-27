@@ -85,6 +85,7 @@ import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
@@ -247,24 +248,19 @@ fun LocalAlbumScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+            AnimatedContent(
+                targetState = isSelectionMode,
+                transitionSpec = {
+                    (Animation.DefaultFadeIn)
+                        .togetherWith(Animation.DefaultFadeOut)
+                        .using(SizeTransform(clip = false))
                 },
-                navigationIcon = {
-                    AnimatedContent(
-                        targetState = isSelectionMode,
-                        transitionSpec = {
-                            (Animation.DefaultFadeIn)
-                                .togetherWith(Animation.DefaultFadeOut)
-                                .using(SizeTransform(clip = false))
-                        },
-                        label = "TopAppBarNavIcon",
-                    ) { selectionMode ->
-                        if (selectionMode) {
+                label = "TopAppBarAnimation",
+            ) { selectionMode ->
+                if (selectionMode) {
+                    TopAppBar(
+                        title = { Text(stringResource(R.string.photos_selected_count, selectedPhotos.size)) },
+                        navigationIcon = {
                             IconButton(onClick = {
                                 isSelectionMode = false
                                 localViewModel.clearPhotoSelection()
@@ -275,22 +271,19 @@ fun LocalAlbumScreen(
                                     sizeRole = IconSizeRole.DefaultAction,
                                 )
                             }
-                        } else {
-                            IconButton(onClick = onNavigateBack) {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = stringResource(R.string.cd_navigate_back),
-                                    sizeRole = IconSizeRole.Navigation,
-                                )
-                            }
-                        }
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-            )
+                        },
+                        colors =
+                            TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                            ),
+                    )
+                } else {
+                    BackTopBar(
+                        title = stringResource(R.string.app_name),
+                        onBackClick = onNavigateBack,
+                    )
+                }
+            }
         },
         floatingActionButton = {
             AnimatedVisibility(
