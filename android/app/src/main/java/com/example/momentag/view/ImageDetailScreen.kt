@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -542,12 +543,6 @@ fun ImageDetailScreen(
                             onClick = {
                                 currentPhoto?.let { photo ->
                                     ShareUtils.sharePhotos(context, listOf(photo))
-                                    Toast
-                                        .makeText(
-                                            context,
-                                            context.getString(R.string.share_photos_count, 1),
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
                                 }
                             },
                             colors =
@@ -671,12 +666,17 @@ fun ImageDetailScreen(
                                 }
                             },
                             onAddTag = { tagName ->
-                                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
-                                if (currentPhotoId.isNotEmpty()) {
-                                    imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
-                                } else {
-                                    warningBannerMessage = context.getString(R.string.image_detail_no_photo_add)
+                                if (tagName.length > 25) {
+                                    warningBannerMessage = "Tag name is too long. Please < 25 characters."
                                     isWarningBannerVisible = true
+                                } else {
+                                    val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                                    if (currentPhotoId.isNotEmpty()) {
+                                        imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
+                                    } else {
+                                        warningBannerMessage = context.getString(R.string.image_detail_no_photo_add)
+                                        isWarningBannerVisible = true
+                                    }
                                 }
                             },
                         )
@@ -700,6 +700,7 @@ fun ImageDetailScreen(
                     showDismissButton = true,
                     modifier =
                         Modifier
+                            .navigationBarsPadding()
                             .padding(Dimen.ComponentPadding),
                 )
             }
