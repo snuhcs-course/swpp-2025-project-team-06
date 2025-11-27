@@ -617,9 +617,9 @@ class GetRecommendTagView(APIView):
     @validate_uuid('photo_id')
     @require_ownership(Photo, 'photo_id', 'photo_id')
     def get(self, request, photo_id, *args, **kwargs):
-        tags = tag_recommendation(request.user, photo_id)
-        serializer = TagSerializer(tags, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        # Returns list of dicts: {'tag': name, 'tag_id': id_or_empty, 'is_preset': bool}
+        tag_recommendations = tag_recommendation(request.user, photo_id)
+        return Response(tag_recommendations, status=status.HTTP_200_OK)
 
 
 class PhotoRecommendationView(APIView):
