@@ -14,6 +14,7 @@ from .reponse_serializers import (
     ResTagIdSerializer,
     ResTagVectorSerializer,
     NewResStorySerializer,
+    NewResStoryWrapperSerializer,
     ResTagThumbnailSerializer,
     ResStorySerializer,
 )
@@ -982,51 +983,18 @@ class NewStoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        operation_summary="Get Stories from redis",
-        operation_description="Get stories from redis",
+        operation_summary="Get or generate stories",
+        operation_description=(
+            "Get stories if ready, or trigger generation if not started. "
+            "Returns status='PROCESSING' with empty stories if still generating, "
+            "or status='SUCCESS' with stories if ready."
+        ),
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success", schema=NewResStorySerializer()
+                description="Success - Returns status and stories",
+                schema=NewResStoryWrapperSerializer(),
             ),
-            401: openapi.Response(
-                description="Unauthorized - The refresh token is expired"
-            ),
-        },
-        manual_parameters=[
-            openapi.Parameter(
-                "Authorization",
-                openapi.IN_HEADER,
-                description="access token",
-                type=openapi.TYPE_STRING,
-            )
-        ],
-    )
-    @log_request
-    @handle_exceptions
-    def get(self, request):
-        r = get_redis()
-        exists = r.exists(request.user.id)
-        if not exists:
-            return Response(
-                {"error": "We're working on your stories! Please wait a moment."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        story_data_json = r.get(request.user.id)
-        story_data = json.loads(story_data_json)
-        serializer = NewResStorySerializer(story_data, many=True)
-
-        r.delete(request.user.id)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @swagger_auto_schema(
-        operation_summary="Generate and save stories into redis",
-        operation_description="Generate and save stories into redis",
-        request_body=None,
-        responses={
-            202: openapi.Response(description="Accepted - Story generation started"),
             400: openapi.Response(description="Bad Request - Invalid size parameter"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -1042,14 +1010,49 @@ class NewStoryView(APIView):
             openapi.Parameter(
                 "size",
                 openapi.IN_QUERY,
-                description="number of photos",
+                description="number of photos (default: 20, max: 200)",
                 type=openapi.TYPE_INTEGER,
+                required=False,
             ),
         ],
     )
     @log_request
     @handle_exceptions
-    def post(self, request):
+    def get(self, request):
+        from celery.result import AsyncResult
+
+        r = get_redis()
+        user_id = request.user.id
+        story_key = str(user_id)
+        task_key = f"story_task:{user_id}"
+
+        # Check if stories are ready in Redis
+        if r.exists(story_key):
+            story_data_json = r.get(story_key)
+            story_data = json.loads(story_data_json)
+            r.delete(story_key)
+            r.delete(task_key)  # Clean up task ID
+
+            response_data = {"status": "SUCCESS", "stories": story_data}
+            serializer = NewResStoryWrapperSerializer(response_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Check if a task is currently running
+        task_id = r.get(task_key)
+        if task_id:
+            task_id = task_id.decode("utf-8") if isinstance(task_id, bytes) else task_id
+            task_result = AsyncResult(task_id)
+
+            # If task is still pending or running, return PROCESSING status
+            if task_result.state in ["PENDING", "STARTED", "RETRY"]:
+                response_data = {"status": "PROCESSING", "stories": []}
+                serializer = NewResStoryWrapperSerializer(response_data)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            # If task failed or is in unknown state, clean up and start new task
+            r.delete(task_key)
+
+        # No task running and no results - start new task
         try:
             size = int(request.GET.get("size", 20))
             if size < 1:
@@ -1064,11 +1067,13 @@ class NewStoryView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        generate_stories_task.delay(request.user.id, size)
+        # Start new task and store task ID
+        task = generate_stories_task.delay(user_id, size)
+        r.set(task_key, task.id, ex=3600)  # Store task ID for 1 hour
 
-        return Response(
-            {"message": "Story generation started"}, status=status.HTTP_202_ACCEPTED
-        )
+        response_data = {"status": "PROCESSING", "stories": []}
+        serializer = NewResStoryWrapperSerializer(response_data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class TaskStatusView(APIView):

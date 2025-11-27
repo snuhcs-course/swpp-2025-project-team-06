@@ -32,6 +32,15 @@ class NewResStorySerializer(serializers.Serializer):
     tags = serializers.ListField(child=serializers.CharField(max_length="255"))
 
 
+class NewResStoryWrapperSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=["PROCESSING", "SUCCESS"], help_text="스토리 생성 상태"
+    )
+    stories = NewResStorySerializer(
+        many=True, help_text="생성된 스토리 목록 (status가 SUCCESS일 때만 포함)"
+    )
+
+
 class ResStorySerializer(serializers.Serializer):
     recs = ResPhotoSerializer(many=True)
 
