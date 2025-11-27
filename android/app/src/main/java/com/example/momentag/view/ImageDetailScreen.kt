@@ -830,14 +830,15 @@ fun TagsSection(
         // 여기는 애니메이션 없애고, 추천태그 나올 때 FadeIn
 
         AnimatedVisibility(visible = !isRecommendedTagsLoading, enter = Animation.DefaultFadeIn) {
-//            if (!isRecommendedTagsLoading) {
-            // Display recommended tags (통일된 색상 사용)
-            recommendedTags.forEach { tagName ->
-                ConfirmableRecommendedTag(
-                    tagName = tagName,
-                    onConfirm = { onAddTag(it) },
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall)) {
+                // Display recommended tags (통일된 색상 사용)
+                recommendedTags.forEach { tagName ->
+                    ConfirmableRecommendedTag(
+                        tagName = tagName,
+                        onConfirm = { onAddTag(it) },
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    )
+                }
             }
         }
 
