@@ -140,6 +140,8 @@
     <string name="help_no_tags">Create your first tag to start organizing your memories</string>
     <string name="help_no_photos_in_tag">Add photos to bring this tag to life</string>
     <string name="help_select_photos">Tap photos to select them for your tag</string>
+    <string name="help_upload_albums">Long press to upload the entire album, or tap to select photos.</string>
+    <string name="help_upload_pictures">Long press to select, tap or drag for more.</string>
 
     <!-- ============================================ -->
     <!-- VALIDATION MESSAGES -->
