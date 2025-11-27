@@ -32,6 +32,8 @@ object Dimen {
 
     /** 아이템 사이의 좁은 간격 */
     val ItemSpacingSmall = 8.dp
+    val ItemSpacingXSmall = 4.dp
+
 
     /** 가장 좁은 간격 */
     val SpacingXXSmall = 2.dp

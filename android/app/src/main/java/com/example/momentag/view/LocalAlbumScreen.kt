@@ -355,12 +355,18 @@ fun LocalAlbumScreen(
                     Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                     Text(
                         text = albumName,
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineLarge,
                     )
                     HorizontalDivider(
-                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingXSmall),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
+                    Text(
+                        text = stringResource(R.string.help_upload_pictures),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     AnimatedVisibility(
                         visible = isErrorBannerVisible && errorMessage != null,
