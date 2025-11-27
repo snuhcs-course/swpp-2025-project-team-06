@@ -156,6 +156,11 @@ data class StoryResponse(
     val tags: List<String>,
 )
 
+data class StoryWrapperResponse(
+    val status: String,
+    val stories: List<StoryResponse>,
+)
+
 // ========== Auth Models ==========
 
 data class LoginRequest(

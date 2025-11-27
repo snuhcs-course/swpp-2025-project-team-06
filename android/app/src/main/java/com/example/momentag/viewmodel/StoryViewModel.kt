@@ -105,7 +105,7 @@ class StoryViewModel
          */
         fun preGenerateStories(size: Int) {
             viewModelScope.launch {
-                recommendRepository.generateStories(size)
+                recommendRepository.getStories(size)
                 android.util.Log.d("StoryViewModel", "Pre-generation of $size stories triggered")
             }
         }
@@ -207,16 +207,18 @@ class StoryViewModel
 
                     // Poll until stories are ready or error occurs
                     while (true) {
-                        when (val result = recommendRepository.getStories()) {
+                        when (val result = recommendRepository.getStories(size)) {
                             is RecommendRepository.StoryResult.Success -> {
-                                processInitialStories(result.data, size)
-                                return@launch
-                            }
-
-                            is RecommendRepository.StoryResult.NotReady -> {
-                                // Wait 1 second before retrying
-                                delay(1000)
-                                continue
+                                val wrapper = result.data
+                                if (wrapper.status == "PROCESSING") {
+                                    // Wait 1 second before retrying
+                                    delay(1000)
+                                    continue
+                                } else {
+                                    // Status is SUCCESS
+                                    processInitialStories(wrapper.stories, size)
+                                    return@launch
+                                }
                             }
 
                             is RecommendRepository.StoryResult.NetworkError -> {
@@ -235,6 +237,12 @@ class StoryViewModel
                             }
 
                             is RecommendRepository.StoryResult.Error -> {
+                                _storyState.value = StoryState.Error(StoryError.UnknownError)
+                                return@launch
+                            }
+
+                            is RecommendRepository.StoryResult.NotReady -> {
+                                // This case should no longer occur with the new API
                                 _storyState.value = StoryState.Error(StoryError.UnknownError)
                                 return@launch
                             }
@@ -307,22 +315,25 @@ class StoryViewModel
                 viewModelScope.launch {
                     // Poll until stories are ready or error occurs
                     while (true) {
-                        when (val result = recommendRepository.getStories()) {
+                        when (val result = recommendRepository.getStories(size)) {
                             is RecommendRepository.StoryResult.Success -> {
-                                processAdditionalStories(result.data, currentState, size)
-                                return@launch
-                            }
-
-                            is RecommendRepository.StoryResult.NotReady -> {
-                                // Wait 1 second before retrying
-                                delay(1000)
-                                continue
+                                val wrapper = result.data
+                                if (wrapper.status == "PROCESSING") {
+                                    // Wait 1 second before retrying
+                                    delay(1000)
+                                    continue
+                                } else {
+                                    // Status is SUCCESS
+                                    processAdditionalStories(wrapper.stories, currentState, size)
+                                    return@launch
+                                }
                             }
 
                             is RecommendRepository.StoryResult.NetworkError,
                             is RecommendRepository.StoryResult.Unauthorized,
                             is RecommendRepository.StoryResult.BadRequest,
                             is RecommendRepository.StoryResult.Error,
+                            is RecommendRepository.StoryResult.NotReady,
                             -> {
                                 // Silently fail for pagination - don't disrupt current state
                                 return@launch
