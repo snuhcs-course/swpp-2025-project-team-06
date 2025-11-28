@@ -1281,11 +1281,6 @@ private fun RecommendExpandedPanel(
                             )
                         }
                     }
-                    is AlbumViewModel.RecommendLoadingState.Idle -> {
-                        Box(modifier = Modifier.fillMaxWidth().height(Dimen.ExpandedPanelHeight), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
                 }
             }
         }
