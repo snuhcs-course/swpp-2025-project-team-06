@@ -1002,7 +1002,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.album_ai_recommending),
+                    text = stringResource(R.string.photos_finding_suggestions),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1016,7 +1016,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.album_ai_recommend),
+                    text = stringResource(R.string.photos_suggested_for_you),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1156,7 +1156,7 @@ private fun RecommendExpandedPanel(
                                 },
                                 colors =
                                     ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.error,
+                                        containerColor = MaterialTheme.colorScheme.primary,
                                     ),
                                 shape = RoundedCornerShape(Dimen.Radius20),
                                 contentPadding =
@@ -1172,6 +1172,7 @@ private fun RecommendExpandedPanel(
                                             selectedRecommendPhotos.size,
                                             if (selectedRecommendPhotos.size > 1) "s" else "",
                                         ),
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                     style = MaterialTheme.typography.labelLarge,
                                 )
                             }
@@ -1186,7 +1187,7 @@ private fun RecommendExpandedPanel(
                             )
                             Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                             Text(
-                                text = stringResource(R.string.album_ai_recommend),
+                                text = stringResource(R.string.photos_suggested_for_you),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -1233,7 +1234,7 @@ private fun RecommendExpandedPanel(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    stringResource(R.string.album_no_recommendations),
+                                    stringResource(R.string.select_image_no_suggestions),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
