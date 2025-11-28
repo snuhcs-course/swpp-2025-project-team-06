@@ -88,6 +88,8 @@
     <string name="error_message_convert_photo_id">We couldn\'t process this photo. Please try again.</string>
     <string name="error_message_tag_name_and_photos_required">Please enter a tag name and select at least one photo</string>
     <string name="error_message_no_photo_ids">No photos to upload</string>
+    <string name="error_message_tag_name_too_long">Tag name is too long. Please &lt; 25 characters.</string>
+
 
     <!-- ============================================ -->
     <!-- SUCCESS MESSAGES - Casual, friendly tone -->
@@ -142,6 +144,7 @@
     <string name="help_select_photos">Tap photos to select them for your tag</string>
     <string name="help_upload_albums">Long press to upload the entire album, or tap to select photos.</string>
     <string name="help_upload_pictures">Long press to select, tap or drag for more.</string>
+    <string name="help_tag_album_edit">Long press to select Photos / Tap tag name to edit</string>
 
     <!-- ============================================ -->
     <!-- VALIDATION MESSAGES -->

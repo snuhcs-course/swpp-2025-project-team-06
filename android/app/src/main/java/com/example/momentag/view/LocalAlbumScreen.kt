@@ -291,6 +291,8 @@ fun LocalAlbumScreen(
                 exit = Animation.ExitToBottom,
             ) {
                 ExtendedFloatingActionButton(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     text = {
                         AnimatedContent(
                             targetState = uploadState.isLoading,
@@ -318,12 +320,14 @@ fun LocalAlbumScreen(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(Dimen.IconButtonSizeSmall),
                                     strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                 )
                             } else {
                                 StandardIcon.Icon(
                                     imageVector = Icons.Default.Upload,
                                     contentDescription = stringResource(R.string.cd_upload),
                                     sizeRole = IconSizeRole.DefaultAction,
+                                    tintOverride = MaterialTheme.colorScheme.onPrimary,
                                 )
                             }
                         }

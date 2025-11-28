@@ -1,6 +1,7 @@
 package com.example.momentag.view
 
 import android.Manifest
+import android.R.attr.content
 import android.annotation.SuppressLint
 import android.os.Build
 import android.widget.Toast
@@ -106,6 +107,7 @@ import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
 import com.example.momentag.ui.theme.Dimen
+import com.example.momentag.ui.theme.Dimen.ItemSpacingXSmall
 import com.example.momentag.ui.theme.IconIntent
 import com.example.momentag.ui.theme.IconSizeRole
 import com.example.momentag.ui.theme.StandardIcon
@@ -178,14 +180,18 @@ fun AlbumScreen(
             },
         )
     val submitAndClearFocus = {
-        if (editableTagName.isNotBlank() && editableTagName != currentTagName) {
-            albumViewModel.renameTag(tagId, editableTagName)
-        } else if (editableTagName.isBlank()) { // If text is blank, revert to the last good name
-            editableTagName = currentTagName
-        }
+        if (editableTagName.length > 25) {
+            // Do nothing, keep focus to let user fix it
+        } else {
+            if (editableTagName.isNotBlank() && editableTagName != currentTagName) {
+                albumViewModel.renameTag(tagId, editableTagName)
+            } else if (editableTagName.isBlank()) { // If text is blank, revert to the last good name
+                editableTagName = currentTagName
+            }
 
-        keyboardController?.hide() // Hide keyboard
-        focusManager.clearFocus() // Remove focus (cursor)
+            keyboardController?.hide() // Hide keyboard
+            focusManager.clearFocus() // Remove focus (cursor)
+        }
     }
     // 7. LaunchedEffect
     LaunchedEffect(isSelectPhotosBannerShareVisible) {
@@ -543,9 +549,25 @@ fun AlbumScreen(
                 }
 
                 HorizontalDivider(
-                    modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
+                    modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = ItemSpacingXSmall),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 )
+
+                if (editableTagName.length > 25) {
+                    Text(
+                        text = stringResource(R.string.error_message_tag_name_too_long),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = Dimen.ItemSpacingSmall),
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.help_tag_album_edit),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = Dimen.ItemSpacingSmall),
+                    )
+                }
 
                 AnimatedVisibility(
                     visible = isSelectPhotosBannerShareVisible,

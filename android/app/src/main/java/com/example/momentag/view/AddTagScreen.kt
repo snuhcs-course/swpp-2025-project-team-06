@@ -300,7 +300,7 @@ fun AddTagScreen(navController: NavController) {
                         enter = Animation.EnterFromBottom,
                         exit = Animation.ExitToBottom,
                     ) {
-                        val isFormValid = selectedPhotos.isNotEmpty() && tagName.isNotBlank()
+                        val isFormValid = selectedPhotos.isNotEmpty() && tagName.isNotBlank() && tagName.length <= 25
                         val canSubmit = isFormValid && saveState != AddTagViewModel.SaveState.Loading
 
                         Button(
@@ -418,7 +418,7 @@ private fun TagNameSection(
         }
 
         HorizontalDivider(
-            modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingSmall),
+            modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingXSmall),
             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
         )
 
@@ -443,6 +443,18 @@ private fun TagNameSection(
                 text = stringResource(R.string.help_tag_name),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        AnimatedVisibility(
+            visible = tagName.length > 25,
+            enter = expandVertically(expandFrom = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeIn,
+            exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = Animation.mediumTween()) + Animation.DefaultFadeOut,
+        ) {
+            Text(
+                text = stringResource(R.string.error_message_tag_name_too_long),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
     }

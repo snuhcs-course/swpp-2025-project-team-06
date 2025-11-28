@@ -512,6 +512,8 @@ internal fun TagSelectionCard(
     // Determine if in read-only mode (viewed but not editing)
     val isReadOnly = isViewed && !isEditMode
 
+    var isValidationError by remember { mutableStateOf(false) }
+
     // Trigger auto-advance when submission succeeds (both initial submission and edits)
     LaunchedEffect(storyTagSubmissionState) {
         if (storyTagSubmissionState is StoryViewModel.StoryTagSubmissionState.Success) {
@@ -584,6 +586,9 @@ internal fun TagSelectionCard(
                         onTagAdded = { customTag ->
                             onAddCustomTag(customTag)
                         },
+                        onValidationError = { isError ->
+                            isValidationError = isError
+                        },
                     )
                 }
             }
@@ -612,6 +617,23 @@ internal fun TagSelectionCard(
                     onActionClick = onRetry, // Retry button (GradientPillButton changes to Retry)
                     showActionButton = false, // Button is handled by GradientPillButton
                     showDismissButton = false,
+                    modifier = Modifier.padding(bottom = Dimen.ItemSpacingSmall),
+                )
+            }
+
+            // Show validation error
+            AnimatedVisibility(
+                visible = isValidationError,
+                enter = Animation.DefaultFadeIn,
+                exit = Animation.DefaultFadeOut,
+            ) {
+                WarningBanner(
+                    title = stringResource(R.string.error_title),
+                    message = stringResource(R.string.error_message_tag_name_too_long),
+                    onActionClick = {},
+                    showActionButton = false,
+                    showDismissButton = true,
+                    onDismiss = { isValidationError = false },
                     modifier = Modifier.padding(bottom = Dimen.ItemSpacingSmall),
                 )
             }

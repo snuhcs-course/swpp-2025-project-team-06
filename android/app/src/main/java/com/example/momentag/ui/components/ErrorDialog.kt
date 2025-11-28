@@ -382,6 +382,7 @@ fun RenameTagDialog(
     dismissible: Boolean = true,
 ) {
     var editedTagName by remember(initialValue) { mutableStateOf(initialValue) }
+    val isNameTooLong = editedTagName.length > 25
 
     Dialog(
         onDismissRequest = {
@@ -452,6 +453,7 @@ fun RenameTagDialog(
                             value = editedTagName,
                             onValueChange = { editedTagName = it },
                             singleLine = true,
+                            isError = isNameTooLong,
                             placeholder = { Text(stringResource(R.string.field_tag_name)) },
                             modifier = Modifier.fillMaxWidth(),
                             colors =
@@ -469,22 +471,34 @@ fun RenameTagDialog(
                                 ),
                         )
 
+                        if (isNameTooLong) {
+                            Text(
+                                text = "Tag name is too long. Please < 25 characters.",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier =
+                                    Modifier
+                                        .padding(top = Dimen.ItemSpacingSmall)
+                                        .align(Alignment.Start),
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(Dimen.SectionSpacing))
 
                         Button(
                             onClick = {
-                                if (editedTagName.isNotBlank()) {
+                                if (editedTagName.isNotBlank() && !isNameTooLong) {
                                     onConfirm(editedTagName.trim())
                                 }
                             },
                             colors =
                                 ButtonDefaults.buttonColors(
                                     containerColor = Color.White,
-                                    contentColor = Color.Red,
+                                    contentColor = MaterialTheme.colorScheme.primary,
                                 ),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
-                            enabled = editedTagName.isNotBlank(),
+                            enabled = editedTagName.isNotBlank() && !isNameTooLong,
                         ) {
                             Text(
                                 text = stringResource(R.string.action_update),
