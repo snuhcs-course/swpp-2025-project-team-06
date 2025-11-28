@@ -148,8 +148,13 @@ def tag_recommendation(user, photo_id):
 
     Frontend will create preset tags when user selects them.
     """
-    PRESET_LIMIT = 10
-    LIMIT = 10
+    # Load settings from Django settings
+    tag_settings = settings.TAG_RECOMMENDATION_SETTINGS
+    PRESET_LIMIT = tag_settings.get("PRESET_TAG_LIMIT", 10)
+    USER_LIMIT = tag_settings.get("USER_TAG_LIMIT", 10)
+    PRESET_THRESHOLD = tag_settings.get("PRESET_TAG_SCORE_THRESHOLD", 0.35)
+    USER_THRESHOLD = tag_settings.get("USER_TAG_SCORE_THRESHOLD", 0.50)
+
     client = get_qdrant_client()
 
     retrieved_points = client.retrieve(
@@ -169,6 +174,7 @@ def tag_recommendation(user, photo_id):
         query_vector=image_vector,
         limit=PRESET_LIMIT,
         with_payload=True,
+        score_threshold=PRESET_THRESHOLD,
     )
 
     # Search user's tags (with user filter)
@@ -185,8 +191,9 @@ def tag_recommendation(user, photo_id):
         collection_name=REPVEC_COLLECTION_NAME,
         query_vector=image_vector,
         query_filter=user_filter,
-        limit=LIMIT,
+        limit=USER_LIMIT,
         with_payload=True,
+        score_threshold=USER_THRESHOLD,
     )
 
     # Combine all results (preset and user tags)
