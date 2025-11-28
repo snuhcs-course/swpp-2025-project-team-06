@@ -253,18 +253,18 @@ fun SelectImageScreen(navController: NavController) {
         isSelectionModeDelay = isSelectionMode
     }
 
-    // Delay AI recommendation to improve initial screen load performance
-    LaunchedEffect(Unit) {
-        // Wait for initial photos to load first
-        delay(500L) // 0.5초 지연으로 화면 로딩 우선
-        selectImageViewModel.recommendPhoto()
+    // Request recommendations when user expands the panel
+    LaunchedEffect(isRecommendationExpanded) {
+        if (isRecommendationExpanded && selectedPhotos.isNotEmpty()) {
+            selectImageViewModel.recommendPhoto()
+        }
     }
 
-    // Re-recommend when AI recommendation is collapsed after adding photos
-    // Only re-recommend if recommendation was successful before
-    LaunchedEffect(isRecommendationExpanded) {
-        if (!isRecommendationExpanded && selectedPhotos.isNotEmpty()) {
-            selectImageViewModel.recommendPhoto()
+    // Reset recommendation state when selection becomes empty
+    LaunchedEffect(selectedPhotos.isEmpty()) {
+        if (selectedPhotos.isEmpty()) {
+            selectImageViewModel.resetRecommendState()
+            isRecommendationExpanded = false
         }
     }
 
@@ -584,8 +584,9 @@ fun SelectImageScreen(navController: NavController) {
             }
 
             // AI Recommendation Section - 축소/확장 가능
+            // Only show when user has selected photos
             AnimatedVisibility(
-                visible = !isRecommendationExpanded,
+                visible = !isRecommendationExpanded && selectedPhotos.isNotEmpty(),
                 enter = Animation.DefaultFadeIn + expandVertically(animationSpec = Animation.mediumTween()),
                 exit = Animation.DefaultFadeOut + shrinkVertically(animationSpec = Animation.mediumTween()),
                 modifier =
@@ -822,14 +823,15 @@ private fun RecommendChip(
                 )
             }
             else -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
-                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                StandardIcon.Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Primary,
+                    contentDescription = stringResource(R.string.cd_ai),
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.photos_getting_ready),
+                    text = stringResource(R.string.photos_suggested_for_you),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -950,7 +952,12 @@ private fun RecommendExpandedPanel(
                         }
                         Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                         Text(
-                            text = stringResource(R.string.photos_suggested_for_you),
+                            text =
+                                when (recommendState) {
+                                    is SelectImageViewModel.RecommendState.Loading ->
+                                        stringResource(R.string.photos_finding_suggestions)
+                                    else -> stringResource(R.string.photos_suggested_for_you)
+                                },
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
