@@ -290,6 +290,7 @@ fun ImageDetailScreen(
     // 4. 로컬 상태 변수 (remember, mutableStateOf)
     var isWarningBannerVisible by remember { mutableStateOf(false) }
     var warningBannerMessage by remember { mutableStateOf("") }
+    var hasShownLengthError by remember { mutableStateOf(false) }
     var isFocusMode by remember { mutableStateOf(false) }
     var isZoomed by remember { mutableStateOf(false) }
     var isDeleteMode by remember { mutableStateOf(false) }
@@ -676,8 +677,13 @@ fun ImageDetailScreen(
                             },
                             onTagValidationError = { isError ->
                                 if (isError) {
-                                    warningBannerMessage = context.getString(R.string.error_message_tag_name_too_long)
-                                    isWarningBannerVisible = true
+                                    if (!hasShownLengthError) {
+                                        warningBannerMessage = context.getString(R.string.error_message_tag_name_too_long)
+                                        isWarningBannerVisible = true
+                                        hasShownLengthError = true
+                                    }
+                                } else {
+                                    hasShownLengthError = false
                                 }
                             },
                         )
