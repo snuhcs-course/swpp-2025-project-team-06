@@ -5,7 +5,6 @@ import android.app.Activity
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -293,10 +292,8 @@ fun ImageDetailScreen(
     var hasShownLengthError by remember { mutableStateOf(false) }
     var isFocusMode by remember { mutableStateOf(false) }
     var isZoomed by remember { mutableStateOf(false) }
-    var isDeleteMode by remember { mutableStateOf(false) }
     var hasPermission by remember { mutableStateOf(false) }
     var dateTime: String? by remember { mutableStateOf(null) }
-    var latLong: DoubleArray? by remember { mutableStateOf(null) }
 
     // 5. Derived 상태 및 계산된 값
     val photos =
@@ -393,12 +390,10 @@ fun ImageDetailScreen(
                 context.contentResolver.openInputStream(photo.contentUri)?.use { inputStream ->
                     val exifInterface = ExifInterface(inputStream)
                     dateTime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
-                    latLong = exifInterface.latLong
                 }
             } catch (e: IOException) {
                 e.printStackTrace()
                 dateTime = null
-                latLong = null
             }
         }
 
@@ -421,7 +416,6 @@ fun ImageDetailScreen(
                     imageDetailViewModel.loadPhotoTags(currentPhotoId)
                 }
 
-                isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
             }
 
@@ -438,7 +432,6 @@ fun ImageDetailScreen(
                         ImageDetailViewModel.ImageDetailError.UnknownError -> context.getString(R.string.error_message_unknown)
                     }
                 isWarningBannerVisible = true
-                isDeleteMode = false
                 imageDetailViewModel.resetDeleteState()
             }
 
@@ -512,11 +505,6 @@ fun ImageDetailScreen(
         onDispose {
             imageDetailViewModel.clearImageContext()
         }
-    }
-
-    // 10. BackHandler
-    BackHandler(enabled = isDeleteMode) {
-        isDeleteMode = false
     }
 
     Scaffold(
@@ -654,9 +642,6 @@ fun ImageDetailScreen(
                             recommendedTags = recommendedTags,
                             isExistingTagsLoading = isExistingLoading,
                             isRecommendedTagsLoading = isRecommendedLoading,
-                            isDeleteMode = isDeleteMode,
-                            onEnterDeleteMode = { isDeleteMode = true },
-                            onExitDeleteMode = { isDeleteMode = false },
                             onDeleteClick = { tagId ->
                                 val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
                                 if (currentPhotoId.isNotEmpty()) {
@@ -715,62 +700,6 @@ fun ImageDetailScreen(
     }
 }
 
-// UI 디자인의 색상들을 순서대로 할당
-private val tagColors =
-    listOf(
-        Color(0xFF93C5FD), // Blue
-        Color(0xFFFCA5A5), // Red
-        Color(0xFF86EFAC), // Green
-        Color(0xFFFDE047), // Yellow
-        Color(0xFFFDA4AF), // Pink
-        Color(0xFFA78BFA), // Purple
-        Color(0xFF67E8F9), // Cyan
-        Color(0xFFFBBF24), // Amber
-        Color(0xFFE879F9), // Magenta
-        Color(0xFF34D399), // Emerald
-        Color(0xFFF97316), // Orange
-        Color(0xFF94A3B8), // Slate
-        Color(0xFFE7A396), // Dusty Rose
-        Color(0xFFEACE84), // Soft Gold
-        Color(0xFF9AB9E1), // Periwinkle
-        Color(0xFFD9A1C0), // Mauve
-        Color(0xFFF7A97B), // Peach
-        Color(0xFFF0ACB7), // Blush Pink
-        Color(0xFFEBCF92), // Cream
-        Color(0xFFDDE49E), // Pale Lime
-        Color(0xFF80E3CD), // Mint Green
-        Color(0xFFCCC0F2), // Lavender
-        Color(0xFFCAD892), // Sage Green
-        Color(0xFF969A60), // Olive
-        Color(0xFF758D46), // Moss Green
-        Color(0xFF98D0F5), // Baby Blue
-        Color(0xFF5E9D8E), // Dusty Teal
-        Color(0xFF3C8782), // Deep Teal
-        Color(0xFFEB5A6D), // Coral Red
-        Color(0xFFF3C9E4), // Light Orchid
-        Color(0xFFEEADA7), // Salmon Pink
-        Color(0xFFBD8DBD), // Soft Purple
-        Color(0xFFFAF5AF), // Pale Yellow
-        Color(0xFFAD9281), // Warm Gray
-        Color(0xFFF2C6C7), // Rose Beige
-        Color(0xFFE87757), // Terracotta
-        Color(0xFFED6C84), // Watermelon
-        Color(0xFFB9A061), // Khaki
-        Color(0xFFA0BA46), // Lime Green
-    )
-
-private fun getTagColor(tagId: String): Color = tagColors[abs(tagId.hashCode()) % tagColors.size]
-
-private fun lightenColor(
-    color: Color,
-    factor: Float = 0.5f,
-): Color {
-    val red = (color.red + (1 - color.red) * factor)
-    val green = (color.green + (1 - color.green) * factor)
-    val blue = (color.blue + (1 - color.blue) * factor)
-    return Color(red, green, blue, color.alpha)
-}
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TagsSection(
@@ -779,10 +708,7 @@ fun TagsSection(
     modifier: Modifier = Modifier,
     isExistingTagsLoading: Boolean,
     isRecommendedTagsLoading: Boolean,
-    isDeleteMode: Boolean,
     onDeleteClick: (String) -> Unit,
-    onEnterDeleteMode: () -> Unit,
-    onExitDeleteMode: () -> Unit,
     onAddTag: (String) -> Unit,
     onTagValidationError: (Boolean) -> Unit = {},
 ) {
