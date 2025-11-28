@@ -614,35 +614,30 @@ private fun OnboardingPage5Moment() {
                         Modifier
                             .alpha(0.3f)
                             .fillMaxWidth()
-                            .weight(1f),
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(Dimen.StoryImageHeight)
-                                .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
-                                .background(
-                                    Brush.linearGradient(
-                                        colors =
-                                            listOf(
-                                                MaterialTheme.colorScheme.primaryContainer,
-                                                MaterialTheme.colorScheme.tertiaryContainer,
-                                            ),
-                                    ),
+                            .height(Dimen.StoryImageHeight)
+                            .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
+                            .background(
+                                Brush.linearGradient(
+                                    colors =
+                                        listOf(
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            MaterialTheme.colorScheme.tertiaryContainer,
+                                        ),
                                 ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Photo,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(64.dp),
-                        )
-                    }
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Photo,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(64.dp),
+                    )
                 }
 
-                // Tag card (highlighted) - no spacer between image and card
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+
+                // Tag card (highlighted)
                 MockStoryTagCard()
 
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
@@ -720,33 +715,28 @@ private fun OnboardingPage6MomentScroll() {
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .weight(1f),
-                    ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(Dimen.StoryImageHeight)
-                                    .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
-                                    .background(
-                                        Brush.linearGradient(
-                                            colors =
-                                                listOf(
-                                                    MaterialTheme.colorScheme.primaryContainer,
-                                                    MaterialTheme.colorScheme.tertiaryContainer,
-                                                ),
-                                        ),
+                                .height(Dimen.StoryImageHeight)
+                                .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
+                                .background(
+                                    Brush.linearGradient(
+                                        colors =
+                                            listOf(
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.tertiaryContainer,
+                                            ),
                                     ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Photo,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(64.dp),
-                            )
-                        }
+                                ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Photo,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(64.dp),
+                        )
                     }
+
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     MockStoryTagCard()
 
@@ -1068,20 +1058,19 @@ private fun MockStoryTagCard() {
             CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
             ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(
             modifier = Modifier.padding(Dimen.ComponentPadding),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = stringResource(R.string.story_remember_this),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                modifier = Modifier.padding(bottom = Dimen.ItemSpacingMedium),
             )
 
             Row(
+                modifier = Modifier.padding(bottom = Dimen.ItemSpacingLarge),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1104,6 +1093,26 @@ private fun MockStoryTagCard() {
                         )
                     }
                 }
+            }
+
+            // Done button
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(Dimen.ButtonHeightMedium)
+                        .clip(RoundedCornerShape(Dimen.SearchBarCornerRadius))
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(R.string.action_done),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
         }
     }
