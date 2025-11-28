@@ -156,13 +156,24 @@ class ImageDetailViewModel
                         val recommendResult = recommendRepository.recommendTagFromPhoto(photoId)
                         when (recommendResult) {
                             is RecommendRepository.RecommendResult.Success -> {
-                                val recommendedTags =
-                                    recommendResult.data
-                                        .map {
-                                            it.tagName
-                                        }.filter {
-                                            it !in existingTagNames
-                                        }.take(1)
+                                val allTags = recommendResult.data
+                                val recommendedTags = mutableListOf<String>()
+
+                                // Get first preset tag (if exists and not already tagged)
+                                val presetTag =
+                                    allTags
+                                        .firstOrNull { it.isPreset && it.tagName !in existingTagNames }
+                                if (presetTag != null) {
+                                    recommendedTags.add(presetTag.tagName)
+                                }
+
+                                // Get first user tag (if exists and not already tagged)
+                                val userTag =
+                                    allTags
+                                        .firstOrNull { !it.isPreset && it.tagName !in existingTagNames }
+                                if (userTag != null) {
+                                    recommendedTags.add(userTag.tagName)
+                                }
 
                                 val currentState = _imageDetailTagState.value
                                 if (currentState is ImageDetailTagState.Success) {

@@ -206,6 +206,16 @@ HYBRID_SEARCH_SETTINGS = {
     "SEARCH_MAX_LIMIT": 1000,  # threshold 기반 검색 시 Qdrant에서 가져올 최대 개수
 }
 
+TAG_RECOMMENDATION_SETTINGS = {
+    # --- Tag Recommendation Thresholds ---
+    "PRESET_TAG_SCORE_THRESHOLD": 0.0,  # Preset 태그 추천 최소 유사도 (0.0 ~ 1.0)
+    "USER_TAG_SCORE_THRESHOLD": 0.85,    # 사용자 태그 추천 최소 유사도 (0.0 ~ 1.0)
+
+    # --- Tag Recommendation Limits ---
+    "PRESET_TAG_LIMIT": 10,  # Preset 태그 검색 개수
+    "USER_TAG_LIMIT": 10,    # 사용자 태그 검색 개수
+}
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",

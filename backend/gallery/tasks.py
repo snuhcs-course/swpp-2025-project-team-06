@@ -139,7 +139,22 @@ def recommend_photo_from_photo(user: User, photos: list[uuid.UUID]):
 
 
 def tag_recommendation(user, photo_id):
-    LIMIT = 10
+    """
+    Recommend tags for a photo based on similarity search.
+
+    Returns a list of dictionaries with tag information:
+    - User tags: {'tag': name, 'tag_id': id, 'is_preset': False}
+    - Preset tags: {'tag': name, 'tag_id': '', 'is_preset': True}
+
+    Frontend will create preset tags when user selects them.
+    """
+    # Load settings from Django settings
+    tag_settings = settings.TAG_RECOMMENDATION_SETTINGS
+    PRESET_LIMIT = tag_settings.get("PRESET_TAG_LIMIT", 10)
+    USER_LIMIT = tag_settings.get("USER_TAG_LIMIT", 10)
+    PRESET_THRESHOLD = tag_settings.get("PRESET_TAG_SCORE_THRESHOLD", 0.35)
+    USER_THRESHOLD = tag_settings.get("USER_TAG_SCORE_THRESHOLD", 0.50)
+
     client = get_qdrant_client()
 
     retrieved_points = client.retrieve(
@@ -153,6 +168,16 @@ def tag_recommendation(user, photo_id):
 
     image_vector = retrieved_points[0].vector
 
+    # Search preset tags (no user filter - shared across all users)
+    preset_results = client.search(
+        collection_name=TAG_PRESET_COLLECTION_NAME,
+        query_vector=image_vector,
+        limit=PRESET_LIMIT,
+        with_payload=True,
+        score_threshold=PRESET_THRESHOLD,
+    )
+
+    # Search user's tags (with user filter)
     user_filter = models.Filter(
         must=[
             models.FieldCondition(
@@ -162,22 +187,47 @@ def tag_recommendation(user, photo_id):
         ]
     )
 
-    search_results = client.search(
+    user_results = client.search(
         collection_name=REPVEC_COLLECTION_NAME,
         query_vector=image_vector,
         query_filter=user_filter,
-        limit=LIMIT,
+        limit=USER_LIMIT,
         with_payload=True,
+        score_threshold=USER_THRESHOLD,
     )
 
-    tag_ids = list(dict.fromkeys(result.payload["tag_id"] for result in search_results))
-
+    # Combine all results (preset and user tags)
+    # Frontend will select top preset and top user tag separately using is_preset field
     recommendations = []
+    existing_tag_names = set()
 
-    for tag_id in tag_ids:
+    # Add preset tags (ordered by similarity within preset collection)
+    for result in preset_results:
+        tag_name = result.payload['name']
+        if tag_name in existing_tag_names:
+            continue
+        # Check if user has this tag in database
+        if Tag.objects.filter(tag=tag_name, user=user).exists():
+            continue
+        recommendations.append({
+            'tag': tag_name,
+            'tag_id': '',  # Empty for preset tags (will be created on selection)
+            'is_preset': True
+        })
+        existing_tag_names.add(tag_name)
+
+    # Add user tags (ordered by similarity within repvec collection)
+    for result in user_results:
         try:
-            tag = Tag.objects.get(tag_id=tag_id)
-            recommendations.append(tag)
+            tag = Tag.objects.get(tag_id=result.payload['tag_id'])
+            if tag.tag in existing_tag_names:
+                continue
+            recommendations.append({
+                'tag': tag.tag,
+                'tag_id': str(tag.tag_id),
+                'is_preset': False
+            })
+            existing_tag_names.add(tag.tag)
         except Tag.DoesNotExist:
             continue
 

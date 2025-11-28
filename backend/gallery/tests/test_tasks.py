@@ -185,19 +185,36 @@ class TagRecommendationTest(TestCase):
         mock_retrieved_point.vector = [0.1, 0.2, 0.3]
         mock_client.retrieve.return_value = [mock_retrieved_point]
 
-        # Mock search
+        # Mock search - two calls: preset search, then user search
+        # First call: preset search (returns empty)
+        mock_preset_result = MagicMock()
+        mock_preset_result.payload = {"name": "preset_tag"}
+        mock_preset_result.score = 0.8
+
+        # Second call: user tag search
         mock_search_result1 = MagicMock()
         mock_search_result1.payload = {"tag_id": str(self.tag1.tag_id)}
+        mock_search_result1.score = 0.9
         mock_search_result2 = MagicMock()
         mock_search_result2.payload = {"tag_id": str(self.tag2.tag_id)}
+        mock_search_result2.score = 0.7
 
-        mock_client.search.return_value = [mock_search_result1, mock_search_result2]
+        mock_client.search.side_effect = [
+            [],  # preset search returns empty
+            [mock_search_result1, mock_search_result2]  # user tag search
+        ]
 
         results = tag_recommendation(self.user, self.photo.photo_id)
 
+        # Results are now dicts, not Tag objects
         self.assertEqual(len(results), 2)
-        self.assertIn(self.tag1, results)
-        self.assertIn(self.tag2, results)
+        # Check order: tag1 (score 0.9) should come before tag2 (score 0.7)
+        self.assertEqual(results[0]['tag'], self.tag1.tag)
+        self.assertEqual(results[0]['tag_id'], str(self.tag1.tag_id))
+        self.assertEqual(results[0]['is_preset'], False)
+        self.assertEqual(results[1]['tag'], self.tag2.tag)
+        self.assertEqual(results[1]['tag_id'], str(self.tag2.tag_id))
+        self.assertEqual(results[1]['is_preset'], False)
 
     @patch("gallery.tasks.get_qdrant_client")
     def test_tag_recommendation_no_image_found(self, mock_get_client):
@@ -224,12 +241,93 @@ class TagRecommendationTest(TestCase):
         # 존재하지 않는 tag_id
         mock_search_result = MagicMock()
         mock_search_result.payload = {"tag_id": str(uuid.uuid4())}
-        mock_client.search.return_value = [mock_search_result]
+        mock_search_result.score = 0.8
+
+        mock_client.search.side_effect = [
+            [],  # preset search returns empty
+            [mock_search_result]  # user tag search with nonexistent tag
+        ]
 
         results = tag_recommendation(self.user, self.photo.photo_id)
 
         # 존재하지 않는 태그는 무시됨
         self.assertEqual(len(results), 0)
+
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_tag_recommendation_with_preset_tags(self, mock_get_client):
+        """preset 태그와 사용자 태그가 모두 있는 경우"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        mock_retrieved_point = MagicMock()
+        mock_retrieved_point.vector = [0.1, 0.2, 0.3]
+        mock_client.retrieve.return_value = [mock_retrieved_point]
+
+        # Mock preset search result
+        mock_preset_result = MagicMock()
+        mock_preset_result.payload = {"name": "여행"}
+        mock_preset_result.score = 0.95
+
+        # Mock user tag search result
+        mock_user_result = MagicMock()
+        mock_user_result.payload = {"tag_id": str(self.tag1.tag_id)}
+        mock_user_result.score = 0.85
+
+        mock_client.search.side_effect = [
+            [mock_preset_result],  # preset search
+            [mock_user_result]  # user tag search
+        ]
+
+        results = tag_recommendation(self.user, self.photo.photo_id)
+
+        # Should return 2 results sorted by score: preset (0.95) then user tag (0.85)
+        self.assertEqual(len(results), 2)
+        # Check preset tag (comes first with higher score)
+        self.assertEqual(results[0]['tag'], "여행")
+        self.assertEqual(results[0]['tag_id'], '')
+        self.assertEqual(results[0]['is_preset'], True)
+        # Check user tag
+        self.assertEqual(results[1]['tag'], self.tag1.tag)
+        self.assertEqual(results[1]['tag_id'], str(self.tag1.tag_id))
+        self.assertEqual(results[1]['is_preset'], False)
+
+    @patch("gallery.tasks.get_qdrant_client")
+    def test_tag_recommendation_preset_not_owned_by_user(self, mock_get_client):
+        """사용자가 소유하지 않은 preset 태그도 추천됨 (Option 2)"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        mock_retrieved_point = MagicMock()
+        mock_retrieved_point.vector = [0.1, 0.2, 0.3]
+        mock_client.retrieve.return_value = [mock_retrieved_point]
+
+        # Mock preset search - returns a tag user doesn't have yet
+        mock_preset_result = MagicMock()
+        mock_preset_result.payload = {"name": "추천태그"}
+        mock_preset_result.score = 0.95
+
+        # Mock user tag search
+        mock_user_result = MagicMock()
+        mock_user_result.payload = {"tag_id": str(self.tag1.tag_id)}
+        mock_user_result.score = 0.85
+
+        mock_client.search.side_effect = [
+            [mock_preset_result],  # preset search
+            [mock_user_result]  # user tag search
+        ]
+
+        results = tag_recommendation(self.user, self.photo.photo_id)
+
+        # Should include both preset tag (not yet owned) and user tag
+        self.assertEqual(len(results), 2)
+        # Preset tag should come first (higher score)
+        self.assertEqual(results[0]['tag'], "추천태그")
+        self.assertEqual(results[0]['tag_id'], '')
+        self.assertEqual(results[0]['is_preset'], True)
+        # User tag
+        self.assertEqual(results[1]['tag'], self.tag1.tag)
+        self.assertEqual(results[1]['tag_id'], str(self.tag1.tag_id))
+        self.assertEqual(results[1]['is_preset'], False)
 
 
 class TagRecommendationBatchTest(TestCase):

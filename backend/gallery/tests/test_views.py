@@ -529,12 +529,18 @@ class GetRecommendTagViewTest(TestCase):
     @patch("gallery.views.tag_recommendation")
     def test_get_recommend_tag_success(self, mock_tag_rec):
         """태그 추천 성공"""
-        mock_tag_rec.return_value = [self.tag1, self.tag2]
+        # tag_recommendation now returns list of dicts
+        mock_tag_rec.return_value = [
+            {'tag': self.tag1.tag, 'tag_id': str(self.tag1.tag_id), 'is_preset': False},
+            {'tag': self.tag2.tag, 'tag_id': str(self.tag2.tag_id), 'is_preset': False}
+        ]
 
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]['tag'], self.tag1.tag)
+        self.assertEqual(response.data[1]['tag'], self.tag2.tag)
 
     def test_get_recommend_tag_photo_not_found(self):
         """존재하지 않는 사진"""

@@ -581,8 +581,22 @@ class DeletePhotoTagsView(APIView):
         photo_tag = Photo_Tag.objects.get(
             photo__photo_id=photo_id, tag__tag_id=tag_id, user=request.user
         )
+        tag = photo_tag.tag
         photo_tag.delete()
-        compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+
+        # Check if tag still has any photos associated
+        has_remaining_photos = Photo_Tag.objects.filter(tag=tag, user=request.user).exists()
+
+        if not has_remaining_photos:
+            # No photos left for this tag - delete the tag itself
+            tag.delete()
+            # No need to compute repvec - tag is gone
+            # compute_and_store_rep_vectors will handle cleanup in Qdrant
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+        else:
+            # Tag still has photos - recompute representative vectors
+            compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -620,9 +634,9 @@ class GetRecommendTagView(APIView):
     @validate_uuid("photo_id")
     @require_ownership(Photo, "photo_id", "photo_id")
     def get(self, request, photo_id, *args, **kwargs):
-        tags = tag_recommendation(request.user, photo_id)
-        serializer = TagSerializer(tags, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        # Returns list of dicts: {'tag': name, 'tag_id': id_or_empty, 'is_preset': bool}
+        tag_recommendations = tag_recommendation(request.user, photo_id)
+        return Response(tag_recommendations, status=status.HTTP_200_OK)
 
 
 class PhotoRecommendationView(APIView):
