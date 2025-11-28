@@ -305,12 +305,18 @@ fun LocalGalleryScreen(
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                 Text(
                     text = stringResource(R.string.gallery_albums_title),
-                    style = MaterialTheme.typography.displayMedium,
+                    style = MaterialTheme.typography.headlineLarge,
                 )
                 HorizontalDivider(
-                    modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
+                    modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingXSmall),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 )
+                Text(
+                    text = stringResource(R.string.help_upload_albums),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier.weight(1f),

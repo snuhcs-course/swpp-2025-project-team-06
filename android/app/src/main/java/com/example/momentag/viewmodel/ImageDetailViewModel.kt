@@ -116,41 +116,25 @@ class ImageDetailViewModel
 
         /**
          * photoId를 기반으로 사진의 태그와 추천 태그를 로드 + 사진이 찍힌 주소도 로드
-         * @param photoId 사진 ID (로컬 사진의 경우 photo_path_id일 수 있음)
+         * @param photoId 사진 ID; empty string for local images, skip
          */
         fun loadPhotoTags(photoId: String) {
-            if (photoId.isEmpty()) {
-                _imageDetailTagState.value = ImageDetailTagState.Idle
+            if (photoId.isEmpty() || photoId.isBlank()) {
+                // Photo not uploaded to backend yet (local image)
+                _imageDetailTagState.value =
+                    ImageDetailTagState.Success(
+                        existingTags = emptyList(),
+                        recommendedTags = emptyList(),
+                        isExistingLoading = false,
+                        isRecommendedLoading = false,
+                    )
                 _photoAddress.value = null
                 return
             }
 
             viewModelScope.launch {
-                // If photoId is numeric (photo_path_id from local album), find the actual UUID
-                val actualPhotoId =
-                    if (photoId.toLongOrNull() != null) {
-                        // This is a photo_path_id, need to find the actual UUID
-                        findPhotoIdByPathId(photoId.toLong())
-                    } else {
-                        // Already a UUID
-                        photoId
-                    }
-
-                if (actualPhotoId == null) {
-                    // Photo not found in backend (not uploaded yet)
-                    _imageDetailTagState.value =
-                        ImageDetailTagState.Success(
-                            existingTags = emptyList(),
-                            recommendedTags = emptyList(),
-                            isExistingLoading = false,
-                            isRecommendedLoading = false,
-                        )
-                    _photoAddress.value = null
-                    return@launch
-                }
-
                 // Load existing tags from photo detail
-                val photoDetailResult = remoteRepository.getPhotoDetail(actualPhotoId)
+                val photoDetailResult = remoteRepository.getPhotoDetail(photoId)
 
                 when (photoDetailResult) {
                     is RemoteRepository.Result.Success -> {
@@ -169,7 +153,7 @@ class ImageDetailViewModel
                             )
 
                         // Load recommended tags
-                        val recommendResult = recommendRepository.recommendTagFromPhoto(actualPhotoId)
+                        val recommendResult = recommendRepository.recommendTagFromPhoto(photoId)
                         when (recommendResult) {
                             is RecommendRepository.RecommendResult.Success -> {
                                 val recommendedTags =
@@ -242,20 +226,13 @@ class ImageDetailViewModel
             viewModelScope.launch {
                 _tagDeleteState.value = TagDeleteState.Loading
 
-                // If photoId is numeric (photo_path_id from local album), find the actual UUID
-                val actualPhotoId =
-                    if (photoId.toLongOrNull() != null) {
-                        findPhotoIdByPathId(photoId.toLong())
-                    } else {
-                        photoId
-                    }
-
-                if (actualPhotoId == null) {
+                // Skip photos without valid backend UUID (local images not uploaded yet)
+                if (photoId.isBlank()) {
                     _tagDeleteState.value = TagDeleteState.Error(ImageDetailError.NotFound)
                     return@launch
                 }
 
-                when (val result = remoteRepository.removeTagFromPhoto(actualPhotoId, tagId)) {
+                when (val result = remoteRepository.removeTagFromPhoto(photoId, tagId)) {
                     is RemoteRepository.Result.Success -> {
                         _tagDeleteState.value = TagDeleteState.Success
                     }
@@ -295,14 +272,8 @@ class ImageDetailViewModel
             viewModelScope.launch {
                 _tagAddState.value = TagAddState.Loading
 
-                val actualPhotoId =
-                    if (photoId.toLongOrNull() != null) {
-                        findPhotoIdByPathId(photoId.toLong())
-                    } else {
-                        photoId
-                    }
-
-                if (actualPhotoId == null) {
+                // Skip photos without valid backend UUID (local images not uploaded yet)
+                if (photoId.isBlank()) {
                     _tagAddState.value = TagAddState.Error(ImageDetailError.NotFound)
                     return@launch
                 }
@@ -312,11 +283,11 @@ class ImageDetailViewModel
                     is RemoteRepository.Result.Success -> {
                         val tagId = postTagResult.data.id
                         // Step 2: Associate the new tag with the photo
-                        when (val postToPhotoResult = remoteRepository.postTagsToPhoto(actualPhotoId, tagId)) {
+                        when (val postToPhotoResult = remoteRepository.postTagsToPhoto(photoId, tagId)) {
                             is RemoteRepository.Result.Success -> {
                                 _tagAddState.value = TagAddState.Success
                                 // Reload tags to show the new tag
-                                loadPhotoTags(actualPhotoId)
+                                loadPhotoTags(photoId)
                             }
                             is RemoteRepository.Result.Error -> _tagAddState.value = TagAddState.Error(ImageDetailError.UnknownError)
                             is RemoteRepository.Result.BadRequest -> _tagAddState.value = TagAddState.Error(ImageDetailError.UnknownError)
@@ -341,26 +312,6 @@ class ImageDetailViewModel
         fun resetAddState() {
             _tagAddState.value = TagAddState.Idle
         }
-
-        /**
-         * photo_path_id로 실제 photo_id (UUID)를 찾는 함수
-         * @param photoPathId 로컬 미디어 ID
-         * @return 백엔드에 업로드된 photo_id (UUID), 없으면 null
-         */
-        private suspend fun findPhotoIdByPathId(photoPathId: Long): String? =
-            try {
-                val allPhotosResult = remoteRepository.getAllPhotos()
-                when (allPhotosResult) {
-                    is RemoteRepository.Result.Success -> {
-                        val photo = allPhotosResult.data.find { it.photoPathId == photoPathId }
-                        photo?.photoId
-                    }
-
-                    else -> null
-                }
-            } catch (e: Exception) {
-                null
-            }
 
         /**
          * 이미지 컨텍스트 초기화

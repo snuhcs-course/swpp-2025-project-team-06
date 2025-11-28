@@ -1,11 +1,13 @@
 package com.example.momentag.view
 
 import android.Manifest
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -35,7 +37,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Upload
@@ -83,6 +84,7 @@ import coil.compose.AsyncImage
 import com.example.momentag.R
 import com.example.momentag.Screen
 import com.example.momentag.model.Photo
+import com.example.momentag.ui.components.BackTopBar
 import com.example.momentag.ui.components.VerticalScrollbar
 import com.example.momentag.ui.components.WarningBanner
 import com.example.momentag.ui.theme.Animation
@@ -101,6 +103,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocalAlbumScreen(
@@ -118,7 +121,7 @@ fun LocalAlbumScreen(
 
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val photos by localViewModel.imagesInAlbum.collectAsState()
-    val selectedPhotos by localViewModel.selectedPhotosInAlbum.collectAsState()
+    val selectedPhotos: Map<Uri, Photo> by localViewModel.selectedPhotosInAlbum.collectAsState()
     val uploadState by photoViewModel.uiState.collectAsState()
     val scrollToIndex by localViewModel.scrollToIndex.collectAsState()
     val isLoadingMorePhotos by localViewModel.isLoadingMorePhotos.collectAsState()
@@ -244,24 +247,19 @@ fun LocalAlbumScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+            AnimatedContent(
+                targetState = isSelectionMode,
+                transitionSpec = {
+                    (Animation.DefaultFadeIn)
+                        .togetherWith(Animation.DefaultFadeOut)
+                        .using(SizeTransform(clip = false))
                 },
-                navigationIcon = {
-                    AnimatedContent(
-                        targetState = isSelectionMode,
-                        transitionSpec = {
-                            (Animation.DefaultFadeIn)
-                                .togetherWith(Animation.DefaultFadeOut)
-                                .using(SizeTransform(clip = false))
-                        },
-                        label = "TopAppBarNavIcon",
-                    ) { selectionMode ->
-                        if (selectionMode) {
+                label = "TopAppBarAnimation",
+            ) { selectionMode ->
+                if (selectionMode) {
+                    TopAppBar(
+                        title = { Text(stringResource(R.string.photos_selected_count, selectedPhotos.size)) },
+                        navigationIcon = {
                             IconButton(onClick = {
                                 isSelectionMode = false
                                 localViewModel.clearPhotoSelection()
@@ -272,22 +270,19 @@ fun LocalAlbumScreen(
                                     sizeRole = IconSizeRole.DefaultAction,
                                 )
                             }
-                        } else {
-                            IconButton(onClick = onNavigateBack) {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = stringResource(R.string.cd_navigate_back),
-                                    sizeRole = IconSizeRole.Navigation,
-                                )
-                            }
-                        }
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-            )
+                        },
+                        colors =
+                            TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                            ),
+                    )
+                } else {
+                    BackTopBar(
+                        title = stringResource(R.string.app_name),
+                        onBackClick = onNavigateBack,
+                    )
+                }
+            }
         },
         floatingActionButton = {
             AnimatedVisibility(
@@ -336,7 +331,7 @@ fun LocalAlbumScreen(
                     onClick = {
                         if (uploadState.isLoading) return@ExtendedFloatingActionButton
 
-                        photoViewModel.uploadSelectedPhotos(selectedPhotos, context)
+                        photoViewModel.uploadSelectedPhotos(selectedPhotos.values.toSet(), context)
                     },
                 )
             }
@@ -359,12 +354,18 @@ fun LocalAlbumScreen(
                     Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                     Text(
                         text = albumName,
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineLarge,
                     )
                     HorizontalDivider(
-                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.SectionSpacing),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingXSmall),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     )
+                    Text(
+                        text = stringResource(R.string.help_upload_pictures),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
                     AnimatedVisibility(
                         visible = isErrorBannerVisible && errorMessage != null,
@@ -397,14 +398,14 @@ fun LocalAlbumScreen(
                                     val autoScrollViewport = 80.dp.toPx()
                                     var autoScrollJob: Job? = null
                                     var dragAnchorIndex: Int? = null
-                                    val gestureSelectionIds = mutableSetOf<String>()
-                                    val lastRangePhotoIds = mutableSetOf<String>()
+                                    val gestureSelectionIds = mutableSetOf<Uri>()
+                                    val lastRangePhotoIds = mutableSetOf<Uri>()
 
                                     fun findNearestItemByRow(position: Offset): Int? {
                                         var best: Pair<Int, Float>? = null
                                         gridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
-                                            val key = itemInfo.key as? String ?: return@forEach
-                                            val photoIndex = allPhotosState.value.indexOfFirst { it.photoId == key }
+                                            val key = itemInfo.key as? Uri ?: return@forEach
+                                            val photoIndex = allPhotosState.value.indexOfFirst { it.contentUri == key }
                                             if (photoIndex >= 0) {
                                                 val top = itemInfo.offset.y.toFloat()
                                                 val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
@@ -417,7 +418,7 @@ fun LocalAlbumScreen(
                                                             position.x > right -> position.x - right
                                                             else -> 0f
                                                         }
-                                                    if (best == null || dist < best!!.second) {
+                                                    if (best == null || dist < best.second) {
                                                         best = photoIndex to dist
                                                     }
                                                 }
@@ -426,43 +427,45 @@ fun LocalAlbumScreen(
                                         return best?.first
                                     }
 
-                                    fun applyRangeSelection(newRangePhotoIds: Set<String>) {
-                                        val toSelect = newRangePhotoIds - gestureSelectionIds
-                                        val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
+                                    fun applyRangeSelection(newRangeContentUris: Set<Uri>) {
+                                        val toSelect = newRangeContentUris - gestureSelectionIds
+                                        val toDeselect = (lastRangePhotoIds - newRangeContentUris).intersect(gestureSelectionIds)
 
                                         toSelect.forEach { id ->
-                                            allPhotosState.value.find { it.photoId == id }?.let { photo ->
+                                            allPhotosState.value.find { it.contentUri == id }?.let { photo ->
                                                 localViewModel.togglePhotoSelection(photo)
                                                 gestureSelectionIds.add(id)
                                             }
                                         }
                                         toDeselect.forEach { id ->
-                                            allPhotosState.value.find { it.photoId == id }?.let { photo ->
+                                            allPhotosState.value.find { it.contentUri == id }?.let { photo ->
                                                 localViewModel.togglePhotoSelection(photo)
                                                 gestureSelectionIds.remove(id)
                                             }
                                         }
 
                                         lastRangePhotoIds.clear()
-                                        lastRangePhotoIds.addAll(newRangePhotoIds)
+                                        lastRangePhotoIds.addAll(newRangeContentUris)
                                     }
 
                                     detectDragAfterLongPressIgnoreConsumed(
                                         onDragStart = { offset ->
                                             autoScrollJob?.cancel()
                                             gestureSelectionIds.clear()
-                                            gestureSelectionIds.addAll(updatedSelectedPhotos.value.map { it.photoId })
+                                            gestureSelectionIds.addAll(updatedSelectedPhotos.value.keys)
                                             lastRangePhotoIds.clear()
                                             if (!updatedIsSelectionMode.value) {
                                                 isSelectionMode = true
                                             }
-                                            gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
+                                            gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (contentUri, photo) ->
                                                 dragAnchorIndex =
-                                                    allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                                if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.contains(photo)) {
+                                                    allPhotosState.value.indexOfFirst { it.contentUri == contentUri }.takeIf { it >= 0 }
+                                                if (gestureSelectionIds.add(contentUri) ||
+                                                    !updatedSelectedPhotos.value.containsKey(photo.contentUri)
+                                                ) {
                                                     localViewModel.togglePhotoSelection(photo)
                                                 }
-                                                lastRangePhotoIds.add(photoId)
+                                                lastRangePhotoIds.add(contentUri)
                                             }
                                         },
                                         onDragEnd = {
@@ -484,7 +487,7 @@ fun LocalAlbumScreen(
                                                 currentItem
                                                     ?.first
                                                     ?.let { id ->
-                                                        allPhotosState.value.indexOfFirst { it.photoId == id }
+                                                        allPhotosState.value.indexOfFirst { it.contentUri == id }
                                                     }?.takeIf { it >= 0 }
                                                     ?: findNearestItemByRow(change.position)
 
@@ -498,12 +501,12 @@ fun LocalAlbumScreen(
                                                         currentIndex..startIndex
                                                     }
 
-                                                val newRangePhotoIds =
+                                                val newRangeContentUris =
                                                     range
                                                         .mapNotNull { idx ->
-                                                            allPhotosState.value.getOrNull(idx)?.photoId
+                                                            allPhotosState.value.getOrNull(idx)?.contentUri
                                                         }.toSet()
-                                                applyRangeSelection(newRangePhotoIds)
+                                                applyRangeSelection(newRangeContentUris)
                                             }
 
                                             // --- Auto-Scroll Logic ---
@@ -545,10 +548,10 @@ fun LocalAlbumScreen(
                         ) {
                             items(
                                 count = photos.size,
-                                key = { index -> photos[index].photoId },
+                                key = { index -> photos[index].contentUri },
                             ) { index ->
                                 val photo = photos[index]
-                                val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
+                                val isSelected = selectedPhotos.containsKey(photo.contentUri)
 
                                 Box(modifier = Modifier.aspectRatio(1f)) {
                                     AsyncImage(
@@ -663,29 +666,25 @@ fun LocalAlbumScreen(
             }
         }
 
-        if (isSelectionMode) {
-            Box(modifier = bodyModifier) {
-                albumContent()
-            }
-        } else {
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    scope.launch {
-                        isRefreshing = true
-                        try {
-                            if (hasPermission) {
-                                localViewModel.getImagesForAlbum(albumId)
-                            }
-                        } finally {
-                            isRefreshing = false
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                if (isSelectionMode) return@PullToRefreshBox // Keep gesture coroutine alive when toggling selection
+
+                scope.launch {
+                    isRefreshing = true
+                    try {
+                        if (hasPermission) {
+                            localViewModel.loadAlbumPhotos(albumId, albumName)
                         }
+                    } finally {
+                        isRefreshing = false
                     }
-                },
-                modifier = bodyModifier,
-            ) {
-                albumContent()
-            }
+                }
+            },
+            modifier = bodyModifier,
+        ) {
+            albumContent()
         }
     }
 }
@@ -694,10 +693,10 @@ fun LocalAlbumScreen(
 private fun LazyGridState.findPhotoItemAtPosition(
     position: Offset,
     allPhotos: List<Photo>,
-): Pair<String, Photo>? {
+): Pair<Uri, Photo>? {
     for (itemInfo in layoutInfo.visibleItemsInfo) {
         val key = itemInfo.key
-        if (key is String) {
+        if (key is Uri) {
             val itemBounds =
                 Rect(
                     itemInfo.offset.x.toFloat(),
@@ -706,7 +705,7 @@ private fun LazyGridState.findPhotoItemAtPosition(
                     (itemInfo.offset.y + itemInfo.size.height).toFloat(),
                 )
             if (itemBounds.contains(position)) {
-                val photo = allPhotos.find { it.photoId == key }
+                val photo = allPhotos.find { it.contentUri == key }
                 if (photo != null) {
                     return key to photo
                 }

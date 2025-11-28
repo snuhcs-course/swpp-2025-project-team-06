@@ -61,7 +61,7 @@ class AddTagViewModel
 
         // 3. Public StateFlow (exposed state)
         val tagName: StateFlow<String> = photoSelectionRepository.tagName
-        val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+        val selectedPhotos: StateFlow<Map<String, Photo>> = photoSelectionRepository.selectedPhotos
         val existingTags = _existingTags.asStateFlow()
         val isTagNameDuplicate = _isTagNameDuplicate.asStateFlow()
         val saveState = _saveState.asStateFlow()
@@ -172,7 +172,7 @@ class AddTagViewModel
                 }
 
                 var isAllSucceeded = true
-                for (photo in selectedPhotos.value) {
+                for (photo in selectedPhotos.value.values) {
                     when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
                         is RemoteRepository.Result.Success -> {
                         }

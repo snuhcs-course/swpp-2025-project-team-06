@@ -139,7 +139,8 @@ fun AlbumScreen(
     val tagDeleteState by albumViewModel.tagDeleteState.collectAsState()
     val tagRenameState by albumViewModel.tagRenameState.collectAsState()
     val tagAddState by albumViewModel.tagAddState.collectAsState()
-    val selectedTagAlbumPhotos by albumViewModel.selectedTagAlbumPhotos.collectAsState()
+    val selectedTagAlbumPhotos: Map<String, Photo> by albumViewModel.selectedTagAlbumPhotos.collectAsState()
+    val selectedTagAlbumPhotoIds = selectedTagAlbumPhotos.keys
     var isDragSelecting by remember { mutableStateOf(false) }
     val scrollToIndex by albumViewModel.scrollToIndex.collectAsState()
 
@@ -352,7 +353,7 @@ fun AlbumScreen(
             confirmButtonText = stringResource(R.string.album_remove),
             onConfirm = {
                 albumViewModel.deleteTagFromPhotos(
-                    photos = selectedTagAlbumPhotos,
+                    photos = selectedTagAlbumPhotos.values.toList(),
                     tagId = tagId,
                 )
                 Toast
@@ -631,21 +632,19 @@ fun AlbumScreen(
                     .background(backgroundBrush)
                     .padding(paddingValues),
         ) {
-            if (isTagAlbumPhotoSelectionMode || isDragSelecting) {
+            // Keep the same gesture scope alive while toggling selection mode by always wrapping content
+            PullToRefreshBox(
+                isRefreshing = imageLoadState is AlbumViewModel.AlbumLoadingState.Loading,
+                onRefresh = {
+                    if (isTagAlbumPhotoSelectionMode || isDragSelecting) return@PullToRefreshBox
+
+                    scope.launch {
+                        if (hasPermission) albumViewModel.loadAlbum(tagId, tagName)
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) {
                 content()
-            } else {
-                // 당겨서 새로고침은 선택모드가 아닐 때만
-                PullToRefreshBox(
-                    isRefreshing = imageLoadState is AlbumViewModel.AlbumLoadingState.Loading,
-                    onRefresh = {
-                        scope.launch {
-                            if (hasPermission) albumViewModel.loadAlbum(tagId, tagName)
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    content()
-                }
             }
 
             // Scrollbar positioned outside Column to span padding boundary
@@ -695,7 +694,7 @@ fun AlbumScreen(
 private fun AlbumGridArea(
     albumLoadState: AlbumViewModel.AlbumLoadingState,
     recommendLoadState: AlbumViewModel.RecommendLoadingState,
-    selectedTagAlbumPhotos: List<Photo>,
+    selectedTagAlbumPhotos: Map<String, Photo>,
     navController: NavController,
     isTagAlbumPhotoSelectionMode: Boolean,
     onSetTagAlbumPhotoSelectionMode: (Boolean) -> Unit,
@@ -720,6 +719,7 @@ private fun AlbumGridArea(
             is AlbumViewModel.AlbumLoadingState.Success -> {
                 val photos = albumLoadState.photos
 
+                val selectedTagAlbumPhotoIds = selectedTagAlbumPhotos.keys
                 val updatedSelectedPhotos = rememberUpdatedState(selectedTagAlbumPhotos)
                 val updatedIsSelectionMode = rememberUpdatedState(isTagAlbumPhotoSelectionMode)
                 val allPhotosState = rememberUpdatedState(photos)
@@ -784,7 +784,7 @@ private fun AlbumGridArea(
                             detectDragAfterLongPressIgnoreConsumed(
                                 onDragStart = { offset ->
                                     autoScrollJob?.cancel()
-                                    gestureSelectionIds = updatedSelectedPhotos.value.map { it.photoId }.toMutableSet()
+                                    gestureSelectionIds = updatedSelectedPhotos.value.keys.toMutableSet()
                                     lastRangePhotoIds.clear()
                                     if (!updatedIsSelectionMode.value) {
                                         onSetTagAlbumPhotoSelectionMode(true)
@@ -793,7 +793,7 @@ private fun AlbumGridArea(
                                     gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
                                         dragAnchorIndex = allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
                                         if (gestureSelectionIds.add(photoId) ||
-                                            !updatedSelectedPhotos.value.any { it.photoId == photoId }
+                                            !updatedSelectedPhotos.value.containsKey(photoId)
                                         ) {
                                             onToggleTagAlbumPhoto(photo)
                                         }
@@ -908,7 +908,7 @@ private fun AlbumGridArea(
                                 photo = photo,
                                 navController = navController,
                                 isSelectionMode = isTagAlbumPhotoSelectionMode,
-                                isSelected = selectedTagAlbumPhotos.contains(photo),
+                                isSelected = selectedTagAlbumPhotoIds.contains(photo.photoId),
                                 onToggleSelection = { onToggleTagAlbumPhoto(photo) },
                                 // 롱프레스는 부모(pointerInput)에서 처리 (onLongPress는 사용하지 않음)
                                 onLongPress = {},
@@ -1039,7 +1039,7 @@ private fun RecommendChip(
 @Composable
 private fun RecommendExpandedPanel(
     recommendLoadState: AlbumViewModel.RecommendLoadingState,
-    selectedRecommendPhotos: List<Photo>,
+    selectedRecommendPhotos: Map<String, Photo>,
     navController: NavController,
     onToggleRecommendPhoto: (Photo) -> Unit,
     onResetRecommendSelection: () -> Unit,
@@ -1050,6 +1050,7 @@ private fun RecommendExpandedPanel(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
+    val selectedRecommendPhotoIds = selectedRecommendPhotos.keys
     // 터치이벤트 뒤로 전달 되지 않도록
     val interactionSource = remember { MutableInteractionSource() }
     Box(
@@ -1127,7 +1128,7 @@ private fun RecommendExpandedPanel(
                             }
                             Button(
                                 onClick = {
-                                    onAddPhotosToAlbum(selectedRecommendPhotos)
+                                    onAddPhotosToAlbum(selectedRecommendPhotos.values.toList())
                                     onResetRecommendSelection()
                                     onCollapse()
                                 },
@@ -1230,7 +1231,7 @@ private fun RecommendExpandedPanel(
                                         photo = recommendPhotos[idx],
                                         navController = navController,
                                         isSelectionMode = true,
-                                        isSelected = selectedRecommendPhotos.contains(recommendPhotos[idx]),
+                                        isSelected = selectedRecommendPhotoIds.contains(recommendPhotos[idx].photoId),
                                         onToggleSelection = { onToggleRecommendPhoto(recommendPhotos[idx]) },
                                         onLongPress = {},
                                     )

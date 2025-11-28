@@ -329,7 +329,7 @@ class LocalRepository
                             }
                         images.add(
                             Photo(
-                                photoId = id.toString(),
+                                photoId = "", // Local images don't have backend UUID yet
                                 contentUri = contentUri,
                                 createdAt = createdAt,
                             ),
@@ -401,7 +401,7 @@ class LocalRepository
                             }
                         images.add(
                             Photo(
-                                photoId = id.toString(),
+                                photoId = "", // Local images don't have backend UUID yet
                                 contentUri = contentUri,
                                 createdAt = createdAt,
                             ),

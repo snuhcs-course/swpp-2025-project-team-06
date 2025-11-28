@@ -139,7 +139,9 @@ fun AppNavigation(
             val encodedUriString = backStackEntry.arguments?.getString("imageUri")
             val decodedUri = encodedUriString?.let { Uri.decode(it).toUri() }
 
-            val imageId = backStackEntry.arguments?.getString("imageId") ?: ""
+            val rawImageId = backStackEntry.arguments?.getString("imageId") ?: ""
+            // Convert placeholder back to empty string for local photos
+            val imageId = if (rawImageId == Screen.Image.LOCAL_PHOTO_PLACEHOLDER) "" else rawImageId
 
             ImageDetailScreen(
                 imageUri = decodedUri,

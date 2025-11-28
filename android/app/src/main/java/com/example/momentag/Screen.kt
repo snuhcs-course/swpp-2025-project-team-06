@@ -23,12 +23,16 @@ sealed class Screen(
     }
 
     object Image : Screen("image_screen/{imageId}/{imageUri}") {
+        const val LOCAL_PHOTO_PLACEHOLDER = "LOCAL"
+
         fun createRoute(
             uri: Uri,
             imageId: String,
         ): String {
             val encodedUri = Uri.encode(uri.toString())
-            val encodedImageId = URLEncoder.encode(imageId, StandardCharsets.UTF_8.toString())
+            // Use placeholder for empty photoId to prevent navigation breaking with empty path segments
+            val safeImageId = imageId.ifBlank { LOCAL_PHOTO_PLACEHOLDER }
+            val encodedImageId = URLEncoder.encode(safeImageId, StandardCharsets.UTF_8.toString())
             return "image_screen/$encodedImageId/$encodedUri"
         }
     }

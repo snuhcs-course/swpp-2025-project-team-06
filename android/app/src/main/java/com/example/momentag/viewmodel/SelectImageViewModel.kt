@@ -86,7 +86,7 @@ class SelectImageViewModel
 
         // 4. Public StateFlow (exposed state)
         val tagName: StateFlow<String> = photoSelectionRepository.tagName
-        val selectedPhotos: StateFlow<List<Photo>> = photoSelectionRepository.selectedPhotos
+        val selectedPhotos: StateFlow<Map<String, Photo>> = photoSelectionRepository.selectedPhotos
         val existingTagId: StateFlow<String?> = photoSelectionRepository.existingTagId
         val allPhotos: StateFlow<List<Photo>> = _allPhotos.asStateFlow()
         val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -113,13 +113,13 @@ class SelectImageViewModel
 
                             // Place already selected photos at the front
                             val selected = selectedPhotos.value
-                            val selectedIds = selected.map { it.photoId }.toSet()
+                            val selectedIds = selected.keys
 
                             // Add only unselected photos from server
                             val unselected = serverPhotos.filter { it.photoId !in selectedIds }
 
                             // Selected photos + remaining photos from server
-                            _allPhotos.value = selected + unselected
+                            _allPhotos.value = selected.values.toList() + unselected
                             currentOffset = pageSize
                             hasMorePages = serverPhotos.size == pageSize
                         }
@@ -190,7 +190,7 @@ class SelectImageViewModel
                 when (
                     val result =
                         recommendRepository.recommendPhotosFromPhotos(
-                            selectedPhotos.value.map { it.photoId },
+                            selectedPhotos.value.keys.toList(),
                         )
                 ) {
                     is RecommendRepository.RecommendResult.Success -> {
@@ -220,7 +220,7 @@ class SelectImageViewModel
          * Update recommended photos, filtering out selected ones
          */
         private fun updateRecommendedPhotos(photos: List<Photo>) {
-            val selectedPhotoIds = selectedPhotos.value.map { it.photoId }.toSet()
+            val selectedPhotoIds = selectedPhotos.value.keys
             _recommendedPhotos.value = photos.filter { it.photoId !in selectedPhotoIds }
         }
 
@@ -296,7 +296,7 @@ class SelectImageViewModel
         /**
          * Check if a photo is selected
          */
-        fun isPhotoSelected(photo: Photo): Boolean = selectedPhotos.value.any { it.photoId == photo.photoId }
+        fun isPhotoSelected(photo: Photo): Boolean = selectedPhotos.value.containsKey(photo.photoId)
 
         /**
          * Set gallery browsing session for image navigation
@@ -335,7 +335,7 @@ class SelectImageViewModel
 
                 val photos = selectedPhotos.value
 
-                for (photo in photos) {
+                for (photo in photos.values) {
                     when (remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
                         is RemoteRepository.Result.Success -> {
                             // Success, continue to next photo

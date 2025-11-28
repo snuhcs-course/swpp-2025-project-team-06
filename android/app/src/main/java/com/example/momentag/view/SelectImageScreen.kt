@@ -180,7 +180,7 @@ fun SelectImageScreen(navController: NavController) {
     // 3. ViewModel에서 가져온 상태 (collectAsState)
     val allPhotos by selectImageViewModel.allPhotos.collectAsState()
     val tagName by selectImageViewModel.tagName.collectAsState()
-    val selectedPhotos by selectImageViewModel.selectedPhotos.collectAsState()
+    val selectedPhotos: Map<String, Photo> by selectImageViewModel.selectedPhotos.collectAsState()
     val isLoading by selectImageViewModel.isLoading.collectAsState()
     val isLoadingMore by selectImageViewModel.isLoadingMore.collectAsState()
     val recommendState by selectImageViewModel.recommendState.collectAsState()
@@ -467,7 +467,7 @@ fun SelectImageScreen(navController: NavController) {
                                             if (!updatedIsSelectionMode.value) {
                                                 selectImageViewModel.setSelectionMode(true)
                                             }
-                                            if (!updatedSelectedPhotos.value.any { it.photoId == photoId }) {
+                                            if (!updatedSelectedPhotos.value.containsKey(photoId)) {
                                                 selectImageViewModel.addPhoto(photo)
                                             }
                                             lastProcessedPhotoId = photoId
@@ -485,7 +485,7 @@ fun SelectImageScreen(navController: NavController) {
                                         // --- Item Selection Logic ---
                                         listState.findPhotoItemAtPosition(change.position, allPhotosState.value)?.let { (photoId, photo) ->
                                             if (photoId != lastProcessedPhotoIdRef.value) {
-                                                if (!updatedSelectedPhotos.value.any { it.photoId == photoId }) {
+                                                if (!updatedSelectedPhotos.value.containsKey(photoId)) {
                                                     selectImageViewModel.addPhoto(photo)
                                                 }
                                                 lastProcessedPhotoId = photoId
@@ -544,7 +544,7 @@ fun SelectImageScreen(navController: NavController) {
                             key = { index -> allPhotos[index].photoId },
                         ) { index ->
                             val photo = allPhotos[index]
-                            val isSelected = selectedPhotos.any { it.photoId == photo.photoId }
+                            val isSelected = selectedPhotos.containsKey(photo.photoId)
 
                             PhotoSelectableItem(
                                 photo = photo,

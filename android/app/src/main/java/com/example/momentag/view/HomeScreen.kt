@@ -142,6 +142,7 @@ import com.example.momentag.ui.components.ChipSearchBar
 import com.example.momentag.ui.components.CommonTopBar
 import com.example.momentag.ui.components.ConfirmDialog
 import com.example.momentag.ui.components.CreateTagButton
+import com.example.momentag.ui.components.SearchBarState
 import com.example.momentag.ui.components.SearchContentElement
 import com.example.momentag.ui.components.SearchHistoryItem
 import com.example.momentag.ui.components.SearchLoadingStateCustom
@@ -220,10 +221,8 @@ fun HomeScreen(
     val allPhotosInitialOffset by homeViewModel.allPhotosScrollOffset.collectAsState()
     val tagAlbumInitialIndex by homeViewModel.tagAlbumScrollIndex.collectAsState()
     val tagAlbumInitialOffset by homeViewModel.tagAlbumScrollOffset.collectAsState()
-    val shouldShowSearchHistoryDropdown by searchViewModel.shouldShowSearchHistoryDropdown.collectAsState()
-    val focusedElementId by searchViewModel.focusedElementId
-    val ignoreFocusLoss by searchViewModel.ignoreFocusLoss
     val scrollToIndex by homeViewModel.scrollToIndex.collectAsState()
+    val tags by searchViewModel.tags.collectAsState()
 
     // 4. Local state variables (remember, mutableStateOf)
     var hasPermission by remember { mutableStateOf(false) }
@@ -246,17 +245,22 @@ fun HomeScreen(
     // 5. Derived state and computed values
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
     val topSpacerHeight = Dimen.ItemSpacingSmall
-    val textStates = searchViewModel.textStates
-    val contentItems = searchViewModel.contentItems
-    val focusRequesters = searchViewModel.focusRequesters
-    val bringIntoViewRequesters = searchViewModel.bringIntoViewRequesters
-    val currentFocusedElementId = rememberUpdatedState(focusedElementId)
-    val currentFocusManager = rememberUpdatedState(focusManager)
 
     // 6. rememberCoroutineScope
     val scope = rememberCoroutineScope()
 
-    // 7. Remembered objects
+    // 7. SearchBarState instance
+    val searchBarState = remember { SearchBarState(scope) }
+    val textStates = searchBarState.textStates
+    val contentItems = searchBarState.contentItems
+    val focusRequesters = searchBarState.focusRequesters
+    val bringIntoViewRequesters = searchBarState.bringIntoViewRequesters
+    val focusedElementId = searchBarState.focusedElementId.value
+    val ignoreFocusLoss = searchBarState.ignoreFocusLoss.value
+    val currentFocusedElementId = rememberUpdatedState(focusedElementId)
+    val currentFocusManager = rememberUpdatedState(focusManager)
+
+    // 8. Remembered objects
     val listState = rememberLazyListState()
     val allPhotosGridState =
         rememberLazyGridState(
@@ -274,7 +278,7 @@ fun HomeScreen(
                 if (event == Lifecycle.Event.ON_RESUME) {
                     // When returning from SearchResultScreen, etc.
                     // Clear search bar content when HomeScreen becomes visible again.
-                    searchViewModel.clearSearchContent()
+                    searchBarState.clearSearchContent()
                     homeViewModel.restoreScrollPosition()
                     // Reload search history to reflect any searches made in SearchResultScreen
                     searchViewModel.loadSearchHistory()
@@ -301,6 +305,7 @@ fun HomeScreen(
                 allPhotosGridState.firstVisibleItemScrollOffset,
             )
         }.distinctUntilChanged()
+            .debounce(100)
             .collect { (index, offset) ->
                 homeViewModel.setAllPhotosScrollPosition(index, offset)
             }
@@ -313,13 +318,14 @@ fun HomeScreen(
                 tagAlbumGridState.firstVisibleItemScrollOffset,
             )
         }.distinctUntilChanged()
+            .debounce(100)
             .collect { (index, offset) ->
                 homeViewModel.setTagAlbumScrollPosition(index, offset)
             }
     }
 
-    LaunchedEffect(searchViewModel.requestFocus) {
-        searchViewModel.requestFocus.collect { id ->
+    LaunchedEffect(searchBarState.requestFocus) {
+        searchBarState.requestFocus.collect { id ->
             Log.d("home cursor", "true1")
             isCursorHidden = true
 
@@ -330,7 +336,7 @@ fun HomeScreen(
             } catch (e: Exception) {
                 Log.d("home cursor", "false1")
                 isCursorHidden = false
-                searchViewModel.resetIgnoreFocusLossFlag()
+                searchBarState.resetIgnoreFocusLossFlag()
                 return@collect
             }
 
@@ -359,12 +365,12 @@ fun HomeScreen(
 
             Log.d("home cursor", "false2")
             isCursorHidden = false
-            searchViewModel.resetIgnoreFocusLossFlag()
+            searchBarState.resetIgnoreFocusLossFlag()
         }
     }
 
-    LaunchedEffect(searchViewModel.bringIntoView) {
-        searchViewModel.bringIntoView.collect { id ->
+    LaunchedEffect(searchBarState.bringIntoView) {
+        searchBarState.bringIntoView.collect { id ->
             bringIntoViewRequesters[id]?.bringIntoView()
         }
     }
@@ -382,15 +388,73 @@ fun HomeScreen(
         previousImeBottom = imeBottom
     }
 
-    val tagSuggestions by searchViewModel.tagSuggestions.collectAsState()
+    // Read focused text value outside remember to trigger recomputation on text changes
+    val focusedTextValue = focusedElementId?.let { textStates[it] }
+    val focusedText = focusedTextValue?.text ?: ""
+    val focusedCursorPosition = focusedTextValue?.selection?.start ?: 0
+
+    // Compute tag suggestions locally
+    val tagSuggestions =
+        remember(focusedElementId, focusedText, focusedCursorPosition, tags) {
+            val id = focusedElementId
+            if (id == null) {
+                emptyList()
+            } else {
+                val cursorPosition = focusedCursorPosition
+                if (cursorPosition == 0) {
+                    emptyList()
+                } else {
+                    val textUpToCursor = focusedText.substring(0, cursorPosition)
+                    val lastHashIndex = textUpToCursor.lastIndexOf('#')
+
+                    if (lastHashIndex == -1 || " " in textUpToCursor.substring(lastHashIndex)) {
+                        emptyList()
+                    } else {
+                        val tagQuery = textUpToCursor.substring(lastHashIndex + 1)
+                        tags.filter { it.tagName.contains(tagQuery, ignoreCase = true) }
+                    }
+                }
+            }
+        }
 
     val performSearch = {
         focusManager.clearFocus()
-
-        searchViewModel.performSearch { route ->
-            navController.navigate(route)
+        val query = searchBarState.buildSearchQuery()
+        if (query.isNotEmpty()) {
+            searchViewModel.search(query)
+            navController.navigate(Screen.SearchResult.createRoute(query))
         }
     }
+
+    // Read first element text value outside remember
+    val firstElementText =
+        contentItems.firstOrNull()?.let { firstElement ->
+            if (firstElement is SearchContentElement.Text) {
+                textStates[firstElement.id]?.text ?: ""
+            } else {
+                null
+            }
+        }
+
+    // Compute shouldShowSearchHistoryDropdown locally
+    val shouldShowSearchHistoryDropdown =
+        remember(focusedElementId, contentItems.size, searchHistory, firstElementText) {
+            val isFocused = focusedElementId != null
+            val isOnlyOneElement = contentItems.size == 1
+            val firstElement = contentItems.firstOrNull()
+
+            if (isFocused && isOnlyOneElement && firstElement is SearchContentElement.Text) {
+                if (focusedElementId == firstElement.id) {
+                    val currentText = firstElementText ?: ""
+                    val hasHistory = searchHistory.isNotEmpty()
+                    (currentText.isEmpty() || currentText == "\u200B") && hasHistory
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
 
     LaunchedEffect(isSelectionMode) {
         delay(200L) // 0.2 seconds
@@ -489,7 +553,6 @@ fun HomeScreen(
     LaunchedEffect(hasPermission) {
         if (hasPermission && allPhotos.isEmpty()) {
             homeViewModel.loadServerTags()
-            searchViewModel.loadServerTags()
             homeViewModel.loadAllPhotos() // Fetch all photos from server
         }
     }
@@ -527,7 +590,6 @@ fun HomeScreen(
             is HomeViewModel.HomeDeleteState.Success -> {
                 Toast.makeText(context, context.getString(R.string.success_tag_deleted), Toast.LENGTH_SHORT).show()
                 homeViewModel.loadServerTags()
-                searchViewModel.loadServerTags()
                 isDeleteMode = false
                 homeViewModel.resetDeleteState()
                 isErrorBannerVisible = false
@@ -558,7 +620,6 @@ fun HomeScreen(
             if (shouldRefresh) {
                 if (hasPermission) {
                     homeViewModel.loadServerTags()
-                    searchViewModel.loadServerTags()
                     homeViewModel.loadAllPhotos()
                 }
                 navBackStackEntry.savedStateHandle.remove<Boolean>("shouldRefresh")
@@ -727,12 +788,14 @@ fun HomeScreen(
             isRefreshing = isRefreshing,
             onRefresh = {
                 if (hasPermission) {
-                    isRefreshing = true
-                    isDeleteMode = false
-                    homeViewModel.loadServerTags()
-                    searchViewModel.loadServerTags()
-                    homeViewModel.loadAllPhotos() // Refresh server photos too
-                    isRefreshing = false
+                    scope.launch {
+                        isRefreshing = true
+                        isDeleteMode = false
+                        homeViewModel.loadServerTags()
+                        homeViewModel.loadAllPhotos() // Refresh server photos too
+                        delay(500) // Ensure spinner shows for minimum time
+                        isRefreshing = false
+                    }
                 }
             },
             modifier =
@@ -792,11 +855,11 @@ fun HomeScreen(
                         focusRequesters = focusRequesters,
                         bringIntoViewRequesters = bringIntoViewRequesters,
                         onSearch = { performSearch() },
-                        onContainerClick = searchViewModel::onContainerClick,
-                        onChipClick = searchViewModel::onChipClick,
-                        onFocus = searchViewModel::onFocus,
-                        onTextChange = searchViewModel::onTextChange,
-                        onClear = { searchViewModel.clearSearchContent(keepFocus = true) },
+                        onContainerClick = searchBarState::onContainerClick,
+                        onChipClick = searchBarState::onChipClick,
+                        onFocus = searchBarState::onFocus,
+                        onTextChange = searchBarState::onTextChange,
+                        onClear = { searchBarState.clearSearchContent(keepFocus = true) },
                         hasContent = hasSearchContent,
                     )
 
@@ -817,7 +880,7 @@ fun HomeScreen(
                             items(tagSuggestions, key = { it.tagId }) { tag ->
                                 SuggestionChip(
                                     tag = tag,
-                                    onClick = { searchViewModel.addTagFromSuggestion(tag) },
+                                    onClick = { searchBarState.addTagFromSuggestion(tag) },
                                 )
                             }
                         }
@@ -894,11 +957,10 @@ fun HomeScreen(
                             onExitDeleteMode = { isDeleteMode = false },
                             isSelectionMode = isSelectionMode,
                             onEnterSelectionMode = { homeViewModel.setSelectionMode(true) },
-                            selectedItems = selectedPhotos.map { it.photoId }.toSet(),
+                            selectedItems = selectedPhotos.keys,
                             allPhotos = allPhotos, // Pass the allPhotos state here
-                            onItemSelectionToggle = { photoId ->
-                                val photo = allPhotos.find { it.photoId == photoId }
-                                photo?.let { homeViewModel.togglePhoto(it) }
+                            onItemSelectionToggle = { photo ->
+                                homeViewModel.togglePhoto(photo)
                             },
                             homeViewModel = homeViewModel,
                             allPhotosGridState = allPhotosGridState,
@@ -988,7 +1050,6 @@ fun HomeScreen(
                                     // 재시도 로직
                                     if (hasPermission) {
                                         homeViewModel.loadServerTags()
-                                        searchViewModel.loadServerTags()
                                         homeViewModel.loadAllPhotos()
                                     }
                                     isErrorBannerVisible = false
@@ -1049,9 +1110,9 @@ fun HomeScreen(
                                 SearchHistoryItem(
                                     query = query,
                                     allTags = allTags,
-                                    parser = searchViewModel::parseQueryToElements,
+                                    parser = searchBarState::parseQueryToElements,
                                     onHistoryClick = { clickedQuery ->
-                                        searchViewModel.selectHistoryItem(clickedQuery)
+                                        searchBarState.selectHistoryItem(clickedQuery, allTags)
                                         focusManager.clearFocus()
                                         performSearch()
                                     },
@@ -1180,7 +1241,7 @@ private fun MainContent(
     isSelectionMode: Boolean,
     onEnterSelectionMode: () -> Unit,
     selectedItems: Set<String>,
-    onItemSelectionToggle: (String) -> Unit,
+    onItemSelectionToggle: (Photo) -> Unit,
     allPhotos: List<Photo>, // New parameter for the flat list of all photos
     homeViewModel: HomeViewModel? = null,
     allPhotosGridState: LazyGridState,
@@ -1257,13 +1318,13 @@ private fun MainContent(
 
                                 toSelect.forEach { id ->
                                     allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnItemSelectionToggle.value(photo.photoId)
+                                        updatedOnItemSelectionToggle.value(photo)
                                         gestureSelectionIds.add(id)
                                     }
                                 }
                                 toDeselect.forEach { id ->
                                     allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnItemSelectionToggle.value(photo.photoId)
+                                        updatedOnItemSelectionToggle.value(photo)
                                         gestureSelectionIds.remove(id)
                                     }
                                 }
@@ -1284,7 +1345,7 @@ private fun MainContent(
                                     allPhotosGridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
                                         dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
                                         if (gestureSelectionIds.add(photoId) || !updatedSelectedItems.value.contains(photoId)) {
-                                            updatedOnItemSelectionToggle.value(photoId) // anchor select immediately
+                                            updatedOnItemSelectionToggle.value(photo) // anchor select immediately
                                         }
                                         lastRangePhotoIds.add(photoId)
                                     }
@@ -1403,7 +1464,7 @@ private fun MainContent(
                                             .clickable(
                                                 onClick = {
                                                     if (isSelectionMode) {
-                                                        onItemSelectionToggle(photo.photoId)
+                                                        onItemSelectionToggle(photo)
                                                     } else {
                                                         homeViewModel?.setGalleryBrowsingSession()
                                                         homeViewModel?.setShouldReturnToAllPhotos(true)

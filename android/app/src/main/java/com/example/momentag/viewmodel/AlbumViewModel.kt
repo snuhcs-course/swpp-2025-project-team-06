@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -106,8 +107,10 @@ class AlbumViewModel
         // 2. Private MutableStateFlow
         private val _albumLoadingState = MutableStateFlow<AlbumLoadingState>(AlbumLoadingState.Idle)
         private val _recommendLoadingState = MutableStateFlow<RecommendLoadingState>(RecommendLoadingState.Idle)
-        private val _selectedRecommendPhotos = MutableStateFlow<List<Photo>>(emptyList())
-        private val _selectedTagAlbumPhotos = MutableStateFlow<List<Photo>>(emptyList())
+
+        // Maps for O(1) photo selection lookups by photoId
+        private val _selectedRecommendPhotos = MutableStateFlow<Map<String, Photo>>(emptyMap())
+        private val _selectedTagAlbumPhotos = MutableStateFlow<Map<String, Photo>>(emptyMap())
         private val _tagDeleteState = MutableStateFlow<TagDeleteState>(TagDeleteState.Idle)
         private val _tagRenameState = MutableStateFlow<TagRenameState>(TagRenameState.Idle)
         private val _tagAddState = MutableStateFlow<TagAddState>(TagAddState.Idle)
@@ -116,8 +119,8 @@ class AlbumViewModel
         // 3. Public StateFlow (exposed state)
         val albumLoadingState = _albumLoadingState.asStateFlow()
         val recommendLoadingState = _recommendLoadingState.asStateFlow()
-        val selectedRecommendPhotos = _selectedRecommendPhotos.asStateFlow()
-        val selectedTagAlbumPhotos = _selectedTagAlbumPhotos.asStateFlow()
+        val selectedRecommendPhotos: StateFlow<Map<String, Photo>> = _selectedRecommendPhotos.asStateFlow()
+        val selectedTagAlbumPhotos: StateFlow<Map<String, Photo>> = _selectedTagAlbumPhotos.asStateFlow()
         val tagDeleteState = _tagDeleteState.asStateFlow()
         val tagRenameState = _tagRenameState.asStateFlow()
         val tagAddState = _tagAddState.asStateFlow()
@@ -187,31 +190,27 @@ class AlbumViewModel
         }
 
         fun toggleRecommendPhoto(photo: Photo) {
-            val currentSelection = _selectedRecommendPhotos.value.toMutableList()
-            if (currentSelection.contains(photo)) {
-                currentSelection.remove(photo)
+            if (_selectedRecommendPhotos.value.containsKey(photo.photoId)) {
+                _selectedRecommendPhotos.value = _selectedRecommendPhotos.value - photo.photoId
             } else {
-                currentSelection.add(photo)
+                _selectedRecommendPhotos.value = _selectedRecommendPhotos.value + (photo.photoId to photo)
             }
-            _selectedRecommendPhotos.value = currentSelection
         }
 
         fun resetRecommendSelection() {
-            _selectedRecommendPhotos.value = emptyList()
+            _selectedRecommendPhotos.value = emptyMap()
         }
 
         fun toggleTagAlbumPhoto(photo: Photo) {
-            val currentSelection = _selectedTagAlbumPhotos.value.toMutableList()
-            if (currentSelection.contains(photo)) {
-                currentSelection.remove(photo)
+            if (_selectedTagAlbumPhotos.value.containsKey(photo.photoId)) {
+                _selectedTagAlbumPhotos.value = _selectedTagAlbumPhotos.value - photo.photoId
             } else {
-                currentSelection.add(photo)
+                _selectedTagAlbumPhotos.value = _selectedTagAlbumPhotos.value + (photo.photoId to photo)
             }
-            _selectedTagAlbumPhotos.value = currentSelection
         }
 
         fun resetTagAlbumPhotoSelection() {
-            _selectedTagAlbumPhotos.value = emptyList()
+            _selectedTagAlbumPhotos.value = emptyMap()
         }
 
         // logic duplicated with ImageDetailViewModel
@@ -226,22 +225,14 @@ class AlbumViewModel
                 val removedPhotoIds = mutableListOf<String>()
 
                 for (photo in photos) {
-                    // If photoId is numeric (photo_path_id from local album), find the actual UUID
-                    val actualPhotoId =
-                        if (photo.photoId.toLongOrNull() != null) {
-                            findPhotoIdByPathId(photo.photoId.toLong())
-                        } else {
-                            photo.photoId
-                        }
-
-                    if (actualPhotoId == null) {
-                        _tagDeleteState.value = TagDeleteState.Error(AlbumError.NotFound)
-                        return@launch // exit for one or more error
+                    // Skip photos without valid backend UUID (local images not uploaded yet)
+                    if (photo.photoId.isBlank()) {
+                        continue
                     }
 
-                    when (val result = remoteRepository.removeTagFromPhoto(actualPhotoId, tagId)) {
+                    when (val result = remoteRepository.removeTagFromPhoto(photo.photoId, tagId)) {
                         is RemoteRepository.Result.Success -> {
-                            removedPhotoIds.add(actualPhotoId)
+                            removedPhotoIds.add(photo.photoId)
                         }
 
                         is RemoteRepository.Result.Error -> {
@@ -289,21 +280,6 @@ class AlbumViewModel
         fun resetDeleteState() {
             _tagDeleteState.value = TagDeleteState.Idle
         }
-
-        // also duplicated with ImageDetailViewModel
-        private suspend fun findPhotoIdByPathId(photoPathId: Long): String? =
-            try {
-                val allPhotosResult = remoteRepository.getAllPhotos()
-                when (allPhotosResult) {
-                    is RemoteRepository.Result.Success -> {
-                        val photo = allPhotosResult.data.find { it.photoPathId == photoPathId }
-                        photo?.photoId
-                    }
-                    else -> null
-                }
-            } catch (e: Exception) {
-                null
-            }
 
         fun renameTag(
             tagId: String,
@@ -362,19 +338,12 @@ class AlbumViewModel
                 val addedPhotos = mutableListOf<Photo>()
 
                 for (photo in photos) {
-                    val actualPhotoId =
-                        if (photo.photoId.toLongOrNull() != null) {
-                            findPhotoIdByPathId(photo.photoId.toLong())
-                        } else {
-                            photo.photoId
-                        }
-
-                    if (actualPhotoId == null) {
-                        _tagAddState.value = TagAddState.Error(AlbumError.UnknownError)
+                    // Skip photos without valid backend UUID (local images not uploaded yet)
+                    if (photo.photoId.isBlank()) {
                         continue
                     }
 
-                    when (val result = remoteRepository.postTagsToPhoto(actualPhotoId, tagId)) {
+                    when (val result = remoteRepository.postTagsToPhoto(photo.photoId, tagId)) {
                         is RemoteRepository.Result.Success -> {
                             addedPhotos.add(photo)
                             (_albumLoadingState.value as? AlbumLoadingState.Success)?.let {
@@ -421,7 +390,7 @@ class AlbumViewModel
          * Get photos ready for sharing
          * Returns list of content URIs to share via Android ShareSheet
          */
-        fun getPhotosToShare() = selectedTagAlbumPhotos.value
+        fun getPhotosToShare() = _selectedTagAlbumPhotos.value.values.toList()
 
         /**
          * Initialize photo selection for adding photos to existing tag
