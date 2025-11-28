@@ -99,14 +99,198 @@ class StoryViewModel
         // 4. Public functions
 
         /**
-         * Trigger story generation in the background (for pre-loading)
-         * This is called from HomeScreen to prepare stories before user navigates to StoryScreen
-         * @param size Number of stories to generate
+         * Load initial stories - fetches stories from backend
+         * Polls with 1-second interval if stories are not ready
+         * Backend automatically starts generation for the next batch
+         * @param size Number of stories to fetch
          */
-        fun preGenerateStories(size: Int) {
+        fun loadStories(size: Int) {
+            // Cancel any existing polling job
+            loadStoriesJob?.cancel()
+
+            loadStoriesJob =
+                viewModelScope.launch {
+                    _storyState.value = StoryState.Loading
+
+                    // Poll until stories are ready or error occurs
+                    while (true) {
+                        when (val result = recommendRepository.getStories(size)) {
+                            is RecommendRepository.StoryResult.Success -> {
+                                val wrapper = result.data
+                                if (wrapper.status == "PROCESSING") {
+                                    // Wait 1 second before retrying
+                                    delay(1000)
+                                    continue
+                                } else {
+                                    // Status is SUCCESS
+                                    processInitialStories(wrapper.stories, size)
+                                    return@launch
+                                }
+                            }
+
+                            is RecommendRepository.StoryResult.NetworkError -> {
+                                _storyState.value = StoryState.Error(StoryError.NetworkError)
+                                return@launch
+                            }
+
+                            is RecommendRepository.StoryResult.Unauthorized -> {
+                                _storyState.value = StoryState.Error(StoryError.Unauthorized)
+                                return@launch
+                            }
+
+                            is RecommendRepository.StoryResult.BadRequest -> {
+                                _storyState.value = StoryState.Error(StoryError.UnknownError)
+                                return@launch
+                            }
+
+                            is RecommendRepository.StoryResult.Error -> {
+                                _storyState.value = StoryState.Error(StoryError.UnknownError)
+                                return@launch
+                            }
+
+                            is RecommendRepository.StoryResult.NotReady -> {
+                                // This case should no longer occur with the new API
+                                _storyState.value = StoryState.Error(StoryError.UnknownError)
+                                return@launch
+                            }
+                        }
+                    }
+                }
+        }
+
+        /**
+         * Process additional story responses and append to current state
+         * @param storyResponses List of story responses from API
+         * @param currentState Current success state
+         * @param size Number of stories for next batch generation
+         * @return true if processing succeeded, false otherwise
+         */
+        private fun processAdditionalStories(
+            storyResponses: List<StoryResponse>,
+            currentState: StoryState.Success,
+            size: Int,
+        ): Boolean {
+            val photos =
+                localRepository.toPhotos(
+                    storyResponses.map { story ->
+                        com.example.momentag.model.PhotoResponse(
+                            photoId = story.photoId,
+                            photoPathId = story.photoPathId,
+                            createdAt = "",
+                        )
+                    },
+                )
+
+            if (photos.isEmpty()) {
+                _storyState.value =
+                    currentState.copy(
+                        hasMore = false,
+                    )
+                return true
+            }
+
+            // Convert photos to StoryModels with metadata
+            val newStories = buildStoryModels(storyResponses, photos)
+
+            currentStories.addAll(newStories)
+
+            _storyState.value =
+                currentState.copy(
+                    stories = currentStories.toList(),
+                    hasMore = true, // Always has more since we keep pre-generating
+                )
+
+            return true
+        }
+
+        /**
+         * Load more stories for pagination - fetches stories from backend
+         * Polls with 1-second interval if stories are not ready
+         * Does not transition to loading state since stories already exist
+         * Backend automatically starts generation for the next batch
+         * @param size Number of additional stories to fetch
+         */
+        fun loadMoreStories(size: Int) {
+            val currentState = _storyState.value
+            if (currentState !is StoryState.Success) return
+
+            // Cancel any existing pagination polling job
+            loadMoreStoriesJob?.cancel()
+
+            loadMoreStoriesJob =
+                viewModelScope.launch {
+                    // Poll until stories are ready or error occurs
+                    while (true) {
+                        when (val result = recommendRepository.getStories(size)) {
+                            is RecommendRepository.StoryResult.Success -> {
+                                val wrapper = result.data
+                                if (wrapper.status == "PROCESSING") {
+                                    // Wait 1 second before retrying
+                                    delay(1000)
+                                    continue
+                                } else {
+                                    // Status is SUCCESS
+                                    processAdditionalStories(wrapper.stories, currentState, size)
+                                    return@launch
+                                }
+                            }
+
+                            is RecommendRepository.StoryResult.NetworkError,
+                            is RecommendRepository.StoryResult.Unauthorized,
+                            is RecommendRepository.StoryResult.BadRequest,
+                            is RecommendRepository.StoryResult.Error,
+                            is RecommendRepository.StoryResult.NotReady,
+                            -> {
+                                // Silently fail for pagination - don't disrupt current state
+                                return@launch
+                            }
+                        }
+                    }
+                }
+        }
+
+        /**
+         * Load recommended tags for a story (lazy loading)
+         * @param storyId Story ID
+         * @param photoId Photo ID for the story
+         */
+        fun loadTagsForStory(
+            storyId: String,
+            photoId: String,
+        ) {
+            val currentState = _storyState.value
+            if (currentState !is StoryState.Success) return
+
+            // Check if story already has tags populated
+            val story = currentState.stories.find { it.id == storyId }
+            if (story != null && story.suggestedTags.isNotEmpty()) {
+                return
+            }
+
+            // Check cache first
+            if (tagCache.containsKey(storyId)) {
+                // Use cached tags to update the story
+                val cachedTags = tagCache[storyId] ?: emptyList()
+                updateStoryTags(storyId, cachedTags)
+                return
+            }
+
             viewModelScope.launch {
-                recommendRepository.generateStories(size)
-                android.util.Log.d("StoryViewModel", "Pre-generation of $size stories triggered")
+                when (val result = recommendRepository.recommendTagFromPhoto(photoId)) {
+                    is RecommendRepository.RecommendResult.Success -> {
+                        val tags = result.data.map { it.tagName }
+                        tagCache[storyId] = tags
+                        updateStoryTags(storyId, tags)
+                    }
+
+                    is RecommendRepository.RecommendResult.NetworkError,
+                    is RecommendRepository.RecommendResult.Unauthorized,
+                    is RecommendRepository.RecommendResult.BadRequest,
+                    is RecommendRepository.RecommendResult.Error,
+                    -> {
+                        // Silently fail - tag loading is not critical
+                    }
+                }
             }
         }
 
@@ -169,8 +353,6 @@ class StoryViewModel
 
             if (photos.isEmpty()) {
                 _storyState.value = StoryState.Success(emptyList(), 0, false)
-                // Still trigger next generation
-                preGenerateStories(size)
                 return true
             }
 
@@ -187,194 +369,7 @@ class StoryViewModel
                     hasMore = true, // Enable pagination
                 )
 
-            // Trigger next batch generation
-            preGenerateStories(size)
             return true
-        }
-
-        /**
-         * Load initial stories - fetches pre-generated stories and triggers next batch generation
-         * Polls with 1-second interval if stories are not ready
-         * @param size Number of stories to fetch
-         */
-        fun loadStories(size: Int) {
-            // Cancel any existing polling job
-            loadStoriesJob?.cancel()
-
-            loadStoriesJob =
-                viewModelScope.launch {
-                    _storyState.value = StoryState.Loading
-
-                    // Poll until stories are ready or error occurs
-                    while (true) {
-                        when (val result = recommendRepository.getStories()) {
-                            is RecommendRepository.StoryResult.Success -> {
-                                processInitialStories(result.data, size)
-                                return@launch
-                            }
-
-                            is RecommendRepository.StoryResult.NotReady -> {
-                                // Wait 1 second before retrying
-                                delay(1000)
-                                continue
-                            }
-
-                            is RecommendRepository.StoryResult.NetworkError -> {
-                                _storyState.value = StoryState.Error(StoryError.NetworkError)
-                                return@launch
-                            }
-
-                            is RecommendRepository.StoryResult.Unauthorized -> {
-                                _storyState.value = StoryState.Error(StoryError.Unauthorized)
-                                return@launch
-                            }
-
-                            is RecommendRepository.StoryResult.BadRequest -> {
-                                _storyState.value = StoryState.Error(StoryError.UnknownError)
-                                return@launch
-                            }
-
-                            is RecommendRepository.StoryResult.Error -> {
-                                _storyState.value = StoryState.Error(StoryError.UnknownError)
-                                return@launch
-                            }
-                        }
-                    }
-                }
-        }
-
-        /**
-         * Process additional story responses and append to current state
-         * @param storyResponses List of story responses from API
-         * @param currentState Current success state
-         * @param size Number of stories for next batch generation
-         * @return true if processing succeeded, false otherwise
-         */
-        private fun processAdditionalStories(
-            storyResponses: List<StoryResponse>,
-            currentState: StoryState.Success,
-            size: Int,
-        ): Boolean {
-            val photos =
-                localRepository.toPhotos(
-                    storyResponses.map { story ->
-                        com.example.momentag.model.PhotoResponse(
-                            photoId = story.photoId,
-                            photoPathId = story.photoPathId,
-                            createdAt = "",
-                        )
-                    },
-                )
-
-            if (photos.isEmpty()) {
-                _storyState.value =
-                    currentState.copy(
-                        hasMore = false,
-                    )
-                return true
-            }
-
-            // Convert photos to StoryModels with metadata
-            val newStories = buildStoryModels(storyResponses, photos)
-
-            currentStories.addAll(newStories)
-
-            _storyState.value =
-                currentState.copy(
-                    stories = currentStories.toList(),
-                    hasMore = true, // Always has more since we keep pre-generating
-                )
-
-            // Trigger next batch generation
-            preGenerateStories(size)
-            return true
-        }
-
-        /**
-         * Load more stories for pagination - fetches pre-generated stories and triggers next batch
-         * Polls with 1-second interval if stories are not ready
-         * Does not transition to loading state since stories already exist
-         * @param size Number of additional stories to fetch
-         */
-        fun loadMoreStories(size: Int) {
-            val currentState = _storyState.value
-            if (currentState !is StoryState.Success) return
-
-            // Cancel any existing pagination polling job
-            loadMoreStoriesJob?.cancel()
-
-            loadMoreStoriesJob =
-                viewModelScope.launch {
-                    // Poll until stories are ready or error occurs
-                    while (true) {
-                        when (val result = recommendRepository.getStories()) {
-                            is RecommendRepository.StoryResult.Success -> {
-                                processAdditionalStories(result.data, currentState, size)
-                                return@launch
-                            }
-
-                            is RecommendRepository.StoryResult.NotReady -> {
-                                // Wait 1 second before retrying
-                                delay(1000)
-                                continue
-                            }
-
-                            is RecommendRepository.StoryResult.NetworkError,
-                            is RecommendRepository.StoryResult.Unauthorized,
-                            is RecommendRepository.StoryResult.BadRequest,
-                            is RecommendRepository.StoryResult.Error,
-                            -> {
-                                // Silently fail for pagination - don't disrupt current state
-                                return@launch
-                            }
-                        }
-                    }
-                }
-        }
-
-        /**
-         * Load recommended tags for a story (lazy loading)
-         * @param storyId Story ID
-         * @param photoId Photo ID for the story
-         */
-        fun loadTagsForStory(
-            storyId: String,
-            photoId: String,
-        ) {
-            val currentState = _storyState.value
-            if (currentState !is StoryState.Success) return
-
-            // Check if story already has tags populated
-            val story = currentState.stories.find { it.id == storyId }
-            if (story != null && story.suggestedTags.isNotEmpty()) {
-                return
-            }
-
-            // Check cache first
-            if (tagCache.containsKey(storyId)) {
-                // Use cached tags to update the story
-                val cachedTags = tagCache[storyId] ?: emptyList()
-                updateStoryTags(storyId, cachedTags)
-                return
-            }
-
-            viewModelScope.launch {
-                when (val result = recommendRepository.recommendTagFromPhoto(photoId)) {
-                    is RecommendRepository.RecommendResult.Success -> {
-                        val tags = result.data.map { it.tagName }
-                        tagCache[storyId] = tags
-                        updateStoryTags(storyId, tags)
-                    }
-
-                    is RecommendRepository.RecommendResult.NetworkError,
-                    is RecommendRepository.RecommendResult.Unauthorized,
-                    is RecommendRepository.RecommendResult.BadRequest,
-                    is RecommendRepository.RecommendResult.Error,
-                    -> {
-                        // Silently fail - tag loading is not critical
-                    }
-                }
-            }
         }
 
         /**

@@ -1,5 +1,5 @@
 import requests
-from django.db.models import Exists, OuterRef, Count, Subquery, Q
+from django.db.models import OuterRef, Count, Subquery, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -8,14 +8,13 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.db import IntegrityError
 
-from .reponse_serializers import (
+from .response_serializers import (
     ResPhotoSerializer,
     ResPhotoTagListSerializer,
     ResTagIdSerializer,
     ResTagVectorSerializer,
-    NewResStorySerializer,
+    ResStoryStateSerializer,
     ResTagThumbnailSerializer,
-    ResStorySerializer,
 )
 from .request_serializers import (
     ReqPhotoDetailSerializer,
@@ -51,7 +50,7 @@ from .decorators import (
     validate_pagination,
     handle_exceptions,
     validate_uuid,
-    require_ownership
+    require_ownership,
 )
 
 logger = logging.getLogger(__name__)
@@ -209,15 +208,17 @@ class PhotoView(APIView):
         for i in range(0, len(all_metadata), BATCH_SIZE):
             batch_metadata = all_metadata[i : i + BATCH_SIZE]
             task = process_and_embed_photos_batch.delay(batch_metadata)
-            
+
             redis_key = f"user_tasks:{request.user.id}"
             r.lpush(redis_key, task.id)
             r.expire(redis_key, 60 * 60 * 24)
-            
-            tasks_info.append({
-                "task_id": str(task.id),
-                "photo_path_ids": [m["photo_path_id"] for m in batch_metadata]
-            })
+
+            tasks_info.append(
+                {
+                    "task_id": str(task.id),
+                    "photo_path_ids": [m["photo_path_id"] for m in batch_metadata],
+                }
+            )
 
             logger.info(
                 f"Dispatched batch task {task.id} for {len(batch_metadata)} new photos (batch {i // BATCH_SIZE + 1})"
@@ -308,8 +309,8 @@ class PhotoDetailView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('photo_id')
-    @require_ownership(Photo, 'photo_id', 'photo_id')
+    @validate_uuid("photo_id")
+    @require_ownership(Photo, "photo_id", "photo_id")
     def get(self, request, photo_id):
         photo = Photo.objects.get(photo_id=photo_id)
         photo_tags = Photo_Tag.objects.filter(photo=photo, user=request.user)
@@ -329,7 +330,7 @@ class PhotoDetailView(APIView):
         r = get_redis()
         address = ""
         key = f"cord:({lat},{lng})"
-        
+
         if r.get(key):
             address = r.get(key)
         else:
@@ -375,8 +376,8 @@ class PhotoDetailView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('photo_id')
-    @require_ownership(Photo, 'photo_id', 'photo_id')
+    @validate_uuid("photo_id")
+    @require_ownership(Photo, "photo_id", "photo_id")
     def delete(self, request, photo_id):
         client = get_qdrant_client()
 
@@ -483,8 +484,8 @@ class GetPhotosByTagView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('tag_id')
-    @require_ownership(Tag, 'tag_id', 'tag_id')
+    @validate_uuid("tag_id")
+    @require_ownership(Tag, "tag_id", "tag_id")
     def get(self, request, tag_id):
         tag = Tag.objects.get(tag_id=tag_id)
         photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user)
@@ -521,8 +522,8 @@ class PostPhotoTagsView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('photo_id')
-    @require_ownership(Photo, 'photo_id', 'photo_id')
+    @validate_uuid("photo_id")
+    @require_ownership(Photo, "photo_id", "photo_id")
     def post(self, request, photo_id):
         serializer = ReqTagIdSerializer(data=request.data, many=True)
         if not serializer.is_valid():
@@ -534,7 +535,9 @@ class PostPhotoTagsView(APIView):
         tags_to_recompute = set()
         for tag_id in tag_ids:
             tag = Tag.objects.get(tag_id=tag_id, user=request.user)
-            if not Photo_Tag.objects.filter(photo=photo, tag=tag, user=request.user).exists():
+            if not Photo_Tag.objects.filter(
+                photo=photo, tag=tag, user=request.user
+            ).exists():
                 Photo_Tag.objects.create(photo=photo, tag=tag, user=request.user)
                 tags_to_recompute.add(str(tag_id))
 
@@ -570,10 +573,10 @@ class DeletePhotoTagsView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('photo_id')
-    @validate_uuid('tag_id')
-    @require_ownership(Photo, 'photo_id', 'photo_id')
-    @require_ownership(Tag, 'tag_id', 'tag_id')
+    @validate_uuid("photo_id")
+    @validate_uuid("tag_id")
+    @require_ownership(Photo, "photo_id", "photo_id")
+    @require_ownership(Tag, "tag_id", "tag_id")
     def delete(self, request, photo_id, tag_id):
         photo_tag = Photo_Tag.objects.get(
             photo__photo_id=photo_id, tag__tag_id=tag_id, user=request.user
@@ -614,8 +617,8 @@ class GetRecommendTagView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('photo_id')
-    @require_ownership(Photo, 'photo_id', 'photo_id')
+    @validate_uuid("photo_id")
+    @require_ownership(Photo, "photo_id", "photo_id")
     def get(self, request, photo_id, *args, **kwargs):
         tags = tag_recommendation(request.user, photo_id)
         serializer = TagSerializer(tags, many=True)
@@ -654,8 +657,8 @@ class PhotoRecommendationView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('tag_id')
-    @require_ownership(Tag, 'tag_id', 'tag_id')
+    @validate_uuid("tag_id")
+    @require_ownership(Tag, "tag_id", "tag_id")
     def get(self, request, tag_id, *args, **kwargs):
         photos = recommend_photo_from_tag(request.user, tag_id)
         serializer = ResPhotoSerializer(photos, many=True)
@@ -787,9 +790,9 @@ class TagView(APIView):
             )
 
         tag, created = Tag.objects.get_or_create(tag=data["tag"], user=request.user)
-        
+
         status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        
+
         response_serializer = ResTagIdSerializer({"tag_id": tag.tag_id})
         return Response(response_serializer.data, status=status_code)
 
@@ -825,8 +828,8 @@ class TagDetailView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('tag_id')
-    @require_ownership(Tag, 'tag_id', 'tag_id')
+    @validate_uuid("tag_id")
+    @require_ownership(Tag, "tag_id", "tag_id")
     def delete(self, request, tag_id):
         tag = Tag.objects.get(tag_id=tag_id)
         compute_and_store_rep_vectors.delay(request.user.id, str(tag_id))
@@ -858,8 +861,8 @@ class TagDetailView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('tag_id')
-    @require_ownership(Tag, 'tag_id', 'tag_id')
+    @validate_uuid("tag_id")
+    @require_ownership(Tag, "tag_id", "tag_id")
     def put(self, request, tag_id):
         serializer = ReqTagNameSerializer(data=request.data)
         if not serializer.is_valid():
@@ -902,8 +905,8 @@ class TagDetailView(APIView):
     )
     @log_request
     @handle_exceptions
-    @validate_uuid('tag_id')
-    @require_ownership(Tag, 'tag_id', 'tag_id')
+    @validate_uuid("tag_id")
+    @require_ownership(Tag, "tag_id", "tag_id")
     def get(self, request, tag_id):
         tag = Tag.objects.get(tag_id=tag_id)
         response_serializer = ResTagVectorSerializer({"tag": tag.tag})
@@ -915,118 +918,18 @@ class StoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        operation_summary="Get Stories",
-        operation_description="Get stories generated from user's photos with pagination",
-        request_body=None,
-        responses={
-            200: openapi.Response(description="Success", schema=ResStorySerializer()),
-            401: openapi.Response(
-                description="Unauthorized - The refresh token is expired"
-            ),
-        },
-        manual_parameters=[
-            openapi.Parameter(
-                "Authorization",
-                openapi.IN_HEADER,
-                description="access token",
-                type=openapi.TYPE_STRING,
-            ),
-            openapi.Parameter(
-                "size",
-                openapi.IN_QUERY,
-                description="number of photos",
-                type=openapi.TYPE_INTEGER,
-            ),
-        ],
-    )
-    @log_request
-    @handle_exceptions
-    def get(self, request):
-        try:
-            size = int(request.GET.get("size", 20))
-            if size < 1:
-                return Response(
-                    {"error": "Size parameter must be positive"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            size = min(size, 200)
-        except ValueError:
-            return Response(
-                {"error": "Invalid size parameter"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        has_tags = Photo_Tag.objects.filter(photo=OuterRef("pk"), user=request.user)
-        photos_queryset = (
-            Photo.objects.filter(user=request.user)
-            .exclude(Exists(has_tags))
-            .order_by("?")[:size]
-        )
-
-        photos_data = [
-            {
-                "photo_id": str(photo.photo_id),
-                "photo_path_id": photo.photo_path_id,
-                "created_at": photo.created_at,
-            }
-            for photo in photos_queryset
-        ]
-
-        story_response = {"recs": photos_data}
-        serializer = ResStorySerializer(story_response)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class NewStoryView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    @swagger_auto_schema(
-        operation_summary="Get Stories from redis",
-        operation_description="Get stories from redis",
+        operation_summary="Get or generate stories",
+        operation_description=(
+            "Get stories if ready, or trigger generation if not started. "
+            "When stories are ready, returns status='SUCCESS' with stories and automatically triggers new generation for the next request. "
+            "Returns status='PROCESSING' with empty stories if still generating."
+        ),
         request_body=None,
         responses={
             200: openapi.Response(
-                description="Success", schema=NewResStorySerializer()
+                description="Success - Returns status and stories",
+                schema=ResStoryStateSerializer(),
             ),
-            401: openapi.Response(
-                description="Unauthorized - The refresh token is expired"
-            ),
-        },
-        manual_parameters=[
-            openapi.Parameter(
-                "Authorization",
-                openapi.IN_HEADER,
-                description="access token",
-                type=openapi.TYPE_STRING,
-            )
-        ],
-    )
-    @log_request
-    @handle_exceptions
-    def get(self, request):
-        r = get_redis()
-        exists = r.exists(request.user.id)
-        if not exists:
-            return Response(
-                {"error": "We're working on your stories! Please wait a moment."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        story_data_json = r.get(request.user.id)
-        story_data = json.loads(story_data_json)
-        serializer = NewResStorySerializer(story_data, many=True)
-
-        r.delete(request.user.id)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @swagger_auto_schema(
-        operation_summary="Generate and save stories into redis",
-        operation_description="Generate and save stories into redis",
-        request_body=None,
-        responses={
-            202: openapi.Response(description="Accepted - Story generation started"),
             400: openapi.Response(description="Bad Request - Invalid size parameter"),
             401: openapi.Response(
                 description="Unauthorized - The refresh token is expired"
@@ -1042,14 +945,23 @@ class NewStoryView(APIView):
             openapi.Parameter(
                 "size",
                 openapi.IN_QUERY,
-                description="number of photos",
+                description="number of photos (default: 20, max: 200)",
                 type=openapi.TYPE_INTEGER,
+                required=False,
             ),
         ],
     )
     @log_request
     @handle_exceptions
-    def post(self, request):
+    def get(self, request):
+        from celery.result import AsyncResult
+
+        r = get_redis()
+        user_id = request.user.id
+        story_key = str(user_id)
+        task_key = f"story_task:{user_id}"
+
+        # Parse size parameter early
         try:
             size = int(request.GET.get("size", 20))
             if size < 1:
@@ -1064,11 +976,42 @@ class NewStoryView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        generate_stories_task.delay(request.user.id, size)
+        # Check if stories are ready in Redis
+        if r.exists(story_key):
+            story_data_json = r.get(story_key)
+            story_data = json.loads(story_data_json)
+            r.delete(story_key)
 
-        return Response(
-            {"message": "Story generation started"}, status=status.HTTP_202_ACCEPTED
-        )
+            # Trigger new generation for next request
+            task = generate_stories_task.delay(user_id, size)
+            r.set(task_key, task.id, ex=3600)  # Store task ID for 1 hour
+
+            response_data = {"status": "SUCCESS", "stories": story_data}
+            serializer = ResStoryStateSerializer(response_data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Check if a task is currently running
+        task_id = r.get(task_key)
+        if task_id:
+            task_id = task_id.decode("utf-8") if isinstance(task_id, bytes) else task_id
+            task_result = AsyncResult(task_id)
+
+            # If task is still pending or running, return PROCESSING status
+            if task_result.state in ["PENDING", "STARTED", "RETRY"]:
+                response_data = {"status": "PROCESSING", "stories": []}
+                serializer = ResStoryStateSerializer(response_data)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            # If task failed or is in unknown state, clean up and start new task
+            r.delete(task_key)
+
+        # No task running and no results - start new task
+        task = generate_stories_task.delay(user_id, size)
+        r.set(task_key, task.id, ex=3600)  # Store task ID for 1 hour
+
+        response_data = {"status": "PROCESSING", "stories": []}
+        serializer = ResStoryStateSerializer(response_data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class TaskStatusView(APIView):
@@ -1117,13 +1060,19 @@ class TaskStatusView(APIView):
                         properties={
                             "task_id": openapi.Schema(type=openapi.TYPE_STRING),
                             "status": openapi.Schema(type=openapi.TYPE_STRING),
-                            "result": openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
-                            "date_done": openapi.Schema(type=openapi.TYPE_STRING, nullable=True),
+                            "result": openapi.Schema(
+                                type=openapi.TYPE_STRING, nullable=True
+                            ),
+                            "date_done": openapi.Schema(
+                                type=openapi.TYPE_STRING, nullable=True
+                            ),
                         },
                     ),
                 ),
             ),
-            401: openapi.Response(description="Unauthorized - The refresh token is expired"),
+            401: openapi.Response(
+                description="Unauthorized - The refresh token is expired"
+            ),
             500: openapi.Response(description="Internal Server Error"),
         },
     )
@@ -1131,27 +1080,29 @@ class TaskStatusView(APIView):
     @handle_exceptions
     def get(self, request):
         from celery.result import AsyncResult
-        
+
         task_ids_param = request.GET.get("task_ids")
         r = get_redis()
-        
+
         if task_ids_param:
             task_ids = [tid.strip() for tid in task_ids_param.split(",") if tid.strip()]
         else:
             limit = int(request.GET.get("limit", 100))
             offset = int(request.GET.get("offset", 0))
-            
+
             redis_key = f"user_tasks:{request.user.id}"
-            
+
             task_ids_bytes = r.lrange(redis_key, offset, offset + limit - 1)
-            task_ids = [t.decode('utf-8') for t in task_ids_bytes]
-        
+            task_ids = [t.decode("utf-8") for t in task_ids_bytes]
+
         results = []
         for task_id in task_ids:
             res = AsyncResult(task_id)
-            results.append({
-                "task_id": task_id,
-                "status": res.status,
-            })
-            
+            results.append(
+                {
+                    "task_id": task_id,
+                    "status": res.status,
+                }
+            )
+
         return Response(results, status=status.HTTP_200_OK)

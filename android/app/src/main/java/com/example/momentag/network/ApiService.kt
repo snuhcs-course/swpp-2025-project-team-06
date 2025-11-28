@@ -9,7 +9,7 @@ import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
-import com.example.momentag.model.StoryResponse
+import com.example.momentag.model.StoryStateResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagId
 import com.example.momentag.model.TagName
@@ -129,13 +129,10 @@ interface ApiService {
         @Path("tag_id") tagId: String,
     ): Response<List<PhotoResponse>>
 
-    @POST("api/new-stories/")
-    suspend fun generateStories(
-        @Query("size") size: Int,
-    ): Response<Unit>
-
-    @GET("api/new-stories/")
-    suspend fun getStories(): Response<List<StoryResponse>>
+    @GET("api/stories/")
+    suspend fun getStories(
+        @Query("size") size: Int? = null,
+    ): Response<StoryStateResponse>
 
     @POST("api/photos/recommendation/")
     suspend fun recommendPhotosFromPhotos(

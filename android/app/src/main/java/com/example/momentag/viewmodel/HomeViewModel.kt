@@ -324,7 +324,7 @@ class HomeViewModel
             }
 
             viewModelScope.launch {
-                recommendRepository.generateStories(20)
+                recommendRepository.getStories(20)
                 hasGeneratedStoriesThisSession = true
                 android.util.Log.d("HomeViewModel", "Story pre-generation triggered (once per session)")
             }
