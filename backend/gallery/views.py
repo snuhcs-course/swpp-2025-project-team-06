@@ -582,9 +582,9 @@ class DeletePhotoTagsView(APIView):
         photo_tag.delete()
 
         # Check if tag still has any photos associated
-        remaining_photo_tags = Photo_Tag.objects.filter(tag=tag, user=request.user).count()
+        has_remaining_photos = Photo_Tag.objects.filter(tag=tag, user=request.user).exists()
 
-        if remaining_photo_tags == 0:
+        if not has_remaining_photos:
             # No photos left for this tag - delete the tag itself
             tag.delete()
             # No need to compute repvec - tag is gone
