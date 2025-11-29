@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch, MagicMock
 from gallery.models import Tag, Photo_Tag, Photo
+import uuid
 
 
 class SemanticSearchViewTest(APITestCase):
@@ -15,9 +16,10 @@ class SemanticSearchViewTest(APITestCase):
         """Set up test client and test data"""
         self.client = APIClient()
 
-        # Create test user
+        # Create test user with unique username to avoid conflicts
+        unique_username = f"testuser_search_{uuid.uuid4().hex[:8]}"
         self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="testpass123"
+            username=unique_username, email="test@example.com", password="testpass123"
         )
 
         # Generate JWT token
@@ -66,24 +68,32 @@ class SemanticSearchViewTest(APITestCase):
         """Test search with tag only (no semantic query)"""
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         
-        # Search for {sunset}
-        response = self.client.get(self.search_url, {"query": "{sunset}"})
+        # Mock retrieve_all_rep_vectors_of_tag to return empty list
+        with patch("search.search_strategies.retrieve_all_rep_vectors_of_tag") as mock_retrieve:
+            mock_retrieve.return_value = []
+            
+            # Search for {sunset}
+            response = self.client.get(self.search_url, {"query": "{sunset}"})
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIsInstance(response.data, list)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["photo_path_id"], 1001)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertIsInstance(response.data, list)
+            self.assertEqual(len(response.data), 1)
+            self.assertEqual(response.data[0]["photo_path_id"], 1001)
 
     def test_search_with_multiple_tags(self):
         """Test search with multiple tags"""
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
         
-        # Search for {sunset} {beach}
-        response = self.client.get(self.search_url, {"query": "{sunset} {beach}"})
+        # Mock retrieve_all_rep_vectors_of_tag to return empty list
+        with patch("search.search_strategies.retrieve_all_rep_vectors_of_tag") as mock_retrieve:
+            mock_retrieve.return_value = []
+            
+            # Search for {sunset} {beach}
+            response = self.client.get(self.search_url, {"query": "{sunset} {beach}"})
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIsInstance(response.data, list)
-        self.assertEqual(len(response.data), 2)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertIsInstance(response.data, list)
+            self.assertEqual(len(response.data), 2)
 
     def test_search_with_invalid_tag(self):
         """Test search with non-existent tag"""
@@ -230,16 +240,21 @@ class SemanticSearchViewTest(APITestCase):
     def test_search_response_structure(self):
         """Test response structure for tag-only search"""
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        response = self.client.get(self.search_url, {"query": "{sunset}"})
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-        # Verify response structure
-        if len(response.data) > 0:
-            photo = response.data[0]
-            self.assertIn("photo_id", photo)
-            self.assertIn("photo_path_id", photo)
-            self.assertIn("created_at", photo)
+        # Mock retrieve_all_rep_vectors_of_tag to return empty list
+        with patch("search.search_strategies.retrieve_all_rep_vectors_of_tag") as mock_retrieve:
+            mock_retrieve.return_value = []
+            
+            response = self.client.get(self.search_url, {"query": "{sunset}"})
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            
+            # Verify response structure
+            if len(response.data) > 0:
+                photo = response.data[0]
+                self.assertIn("photo_id", photo)
+                self.assertIn("photo_path_id", photo)
+                self.assertIn("created_at", photo)
 
     @patch("search.search_strategies.get_qdrant_client")
     @patch("search.search_strategies.create_query_embedding")
