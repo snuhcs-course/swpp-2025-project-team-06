@@ -48,6 +48,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +57,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -179,29 +182,24 @@ fun OnboardingScreen(
 // ============================================
 // Page 0: HomeScreen - Upload Photos
 // ============================================
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun OnboardingPage0Upload() {
     val listState = rememberLazyListState()
 
     Scaffold(
         topBar = {
-            Box {
-                // Faded topbar with title
-                Box(modifier = Modifier.alpha(0.3f)) {
-                    CommonTopBar(
-                        title = stringResource(R.string.app_name),
-                        showLogout = false,
-                        onLogoutClick = {},
+            // CommonTopBar code copied inline with title faded
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.displayLarge,
+                        modifier = Modifier.alpha(0.3f),
                     )
-                }
-                // Highlighted upload button overlaid at exact actions position
-                Box(
-                    modifier =
-                        Modifier
-                            .matchParentSize()
-                            .padding(end = 4.dp),
-                    contentAlignment = Alignment.CenterEnd,
-                ) {
+                },
+                navigationIcon = {},
+                actions = {
                     IconButton(onClick = { }) {
                         StandardIcon.Icon(
                             imageVector = Icons.Default.CloudUpload,
@@ -209,8 +207,12 @@ private fun OnboardingPage0Upload() {
                             sizeRole = IconSizeRole.DefaultAction,
                         )
                     }
-                }
-            }
+                },
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+            )
         },
         bottomBar = {
             Box(modifier = Modifier.alpha(0.3f)) {
