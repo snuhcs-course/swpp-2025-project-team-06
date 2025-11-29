@@ -535,7 +535,7 @@ fun MyTagsScreen(navController: NavController) {
 
                 // Floating Create New Tag Button
                 AnimatedVisibility(
-                    visible = !isEditMode && uiState !is MyTagsViewModel.MyTagsUiState.Error,
+                    visible = !isEditMode && uiState is MyTagsViewModel.MyTagsUiState.Success,
                     modifier = Modifier.align(Alignment.BottomCenter),
                     enter = Animation.EnterFromBottom,
                     exit = Animation.ExitToBottom,
