@@ -77,6 +77,7 @@ object Dimen {
     val TagMaxTextWidth = 180.dp
     val CustomTagChipTextFieldWidth = 80.dp
     val StoryTagChipBadgeSize = 18.dp
+    val TagBorderWidth = 1.dp
 
     // --- Others ---
     val EmptyStateImageSize = 120.dp
@@ -168,6 +169,17 @@ object Dimen {
 
     // 앨범 추천 패널의 기본 높이
     val ExpandedPanelHeight = 300.dp
+
+    // 패널 스와이프 다운 축소 관련 상수
+
+    /** 패널 축소를 위한 오버드래그 threshold (SelectImageScreen) */
+    val PanelDismissThreshold = 30.dp
+
+    /** 오버드래그 시 패널 높이 최대 감소량 */
+    val PanelOverDragMaxHeightReduction = 40.dp
+
+    /** 오버드래그 프로그레스 기준값 (dismissProgress 계산용) */
+    val PanelOverDragProgressBase = 80.dp
 
     // --- StoryScreen --- 스토리 화면의 이미지 높이
     val StoryImageHeight = 480.dp

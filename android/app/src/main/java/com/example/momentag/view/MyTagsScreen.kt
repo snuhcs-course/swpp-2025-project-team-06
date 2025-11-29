@@ -31,12 +31,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -310,7 +310,7 @@ fun MyTagsScreen(navController: NavController) {
                                 StandardIcon.Icon(
                                     imageVector =
                                         when {
-                                            else -> Icons.AutoMirrored.Filled.LabelOff
+                                            else -> Icons.Default.Delete
                                         },
                                     contentDescription =
                                         when {
@@ -378,37 +378,6 @@ fun MyTagsScreen(navController: NavController) {
                         }
                     }
 
-                    // Create New Tag button
-                    Button(
-                        onClick = {
-                            navController.previousBackStackEntry?.savedStateHandle?.set(
-                                "selectionModeComplete",
-                                true,
-                            )
-                            navController.navigate(Screen.AddTag.route)
-                        },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = Dimen.ScreenHorizontalPadding)
-                                .padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingSmall)
-                                .height(Dimen.ButtonHeightLarge),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
-                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.tag_create_new),
-                            style =
-                                MaterialTheme.typography.bodyLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                ),
-                        )
-                    }
-
                     AnimatedVisibility(
                         visible = isErrorBannerVisible && errorMessage != null,
                         enter = Animation.EnterFromBottom,
@@ -426,6 +395,27 @@ fun MyTagsScreen(navController: NavController) {
                             showActionButton = false,
                             showDismissButton = true,
                             onDismiss = { isErrorBannerVisible = false },
+                        )
+                    }
+
+                    // Load Tags Error Banner
+                    AnimatedVisibility(
+                        visible = uiState is MyTagsViewModel.MyTagsUiState.Error,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
+                        val errorState = uiState as? MyTagsViewModel.MyTagsUiState.Error
+                        WarningBanner(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                    .padding(bottom = Dimen.ItemSpacingSmall),
+                            title = stringResource(R.string.error_title_load_tags_failed),
+                            message = errorState?.let { stringResource(it.error.toMessageResId()) } ?: "",
+                            onActionClick = { myTagsViewModel.refreshTags() },
+                            showActionButton = true,
+                            showDismissButton = false,
                         )
                     }
 
@@ -486,20 +476,20 @@ fun MyTagsScreen(navController: NavController) {
                     }
 
                     is MyTagsViewModel.MyTagsUiState.Error -> {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = Dimen.FormScreenHorizontalPadding),
-                            contentAlignment = Alignment.Center,
+                        // Error banner is shown in bottomBar, but we need PullToRefresh
+                        PullToRefreshBox(
+                            isRefreshing = false,
+                            onRefresh = { myTagsViewModel.refreshTags() },
+                            modifier = Modifier.fillMaxSize(),
                         ) {
-                            WarningBanner(
-                                title = stringResource(R.string.error_title_load_tags_failed),
-                                message = stringResource(state.error.toMessageResId()),
-                                onActionClick = { myTagsViewModel.refreshTags() },
-                                showActionButton = true,
-                                showDismissButton = false,
-                            )
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState()),
+                            ) {
+                                // Empty scrollable content to enable pull to refresh
+                            }
                         }
                     }
 
@@ -540,6 +530,49 @@ fun MyTagsScreen(navController: NavController) {
                             },
                             onIndividualEditTagChange = { newId -> individualEditTagId = newId },
                             myTagsViewModel = myTagsViewModel,
+                        )
+                    }
+                }
+
+                // Floating Create New Tag Button
+                AnimatedVisibility(
+                    visible = !isEditMode && uiState is MyTagsViewModel.MyTagsUiState.Success,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    Button(
+                        onClick = {
+                            navController.previousBackStackEntry?.savedStateHandle?.set(
+                                "selectionModeComplete",
+                                true,
+                            )
+                            navController.navigate(Screen.AddTag.route)
+                        },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                .padding(bottom = Dimen.ItemSpacingSmall)
+                                .height(Dimen.ButtonHeightLarge)
+                                .shadow(
+                                    elevation = Dimen.ButtonShadowElevation,
+                                    shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                                    clip = false,
+                                ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.tag_create_new),
+                            style =
+                                MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                ),
                         )
                     }
                 }
