@@ -434,7 +434,9 @@ def execute_hybrid_search(
     )
 
     if tag_ids:
-        # 각 태그별로 점수를 계산하고 합산
+        # 각 태그별 점수를 별도로 저장
+        tag_scores_per_photo = defaultdict(dict)  # {photo_id: {tag_id: score}}
+
         for tag_id in tag_ids:
             # 1.1: 이 태그에 직접 속한 사진 ID 조회
             tag_photo_uuids = set(
@@ -458,17 +460,24 @@ def execute_hybrid_search(
                         score_threshold=score_threshold,
                     )
 
-                    # 점수를 누적 합산
+                    # 이 태그에 대한 점수를 저장
                     for result in recommend_results:
-                        phase_1_scores[result.id] = phase_1_scores.get(result.id, 0.0) + result.score
+                        tag_scores_per_photo[result.id][str(tag_id)] = result.score
 
                 except Exception as e:
                     print(f"[HybridSearch Error] Qdrant recommend failed for tag {tag_id}: {e}")
                     pass
 
-            # 1.3: 이 태그에 "직접" 속한 사진에 1.0점 부여 (누적)
+            # 1.3: 이 태그에 "직접" 속한 사진에 1.0점 부여
             for photo_id_str in tag_photo_ids_str:
-                phase_1_scores[photo_id_str] = phase_1_scores.get(photo_id_str, 0.0) + 1.0
+                tag_scores_per_photo[photo_id_str][str(tag_id)] = 1.0
+
+        # 1.4: 모든 태그에 대해 점수가 있는 사진만 선택하고 점수를 곱함
+        for photo_id, scores_dict in tag_scores_per_photo.items():
+            if len(scores_dict) == len(tag_ids):  # 모든 태그에 대해 점수가 있는 경우만
+                phase_1_scores[photo_id] = 1.0
+                for score in scores_dict.values():
+                    phase_1_scores[photo_id] *= score
 
     if query_string:
         # 2.1: 자연어 쿼리를 임베딩 벡터로 변환
