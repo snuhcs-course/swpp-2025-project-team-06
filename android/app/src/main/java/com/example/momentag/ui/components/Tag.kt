@@ -271,8 +271,15 @@ fun TagChipWithCount(
         if (!isEditMode) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(modifier = Modifier.width(Dimen.TagChipWithCountSpacer))
-                // showCheckbox가 true면 체크박스, 아니면 카운트
+                // 카운트는 항상 표시
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                )
+                // showCheckbox가 true면 카운트 옆에 체크박스도 표시
                 if (showCheckbox) {
+                    Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
                     Box(
                         modifier =
                             Modifier
@@ -296,12 +303,6 @@ fun TagChipWithCount(
                             )
                         }
                     }
-                } else {
-                    Text(
-                        text = count.toString(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                    )
                 }
             }
         }
