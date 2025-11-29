@@ -18,6 +18,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var sessionExpirationManager: SessionExpirationManager
 
+    @Inject
+    lateinit var onboardingPreferences: com.example.momentag.data.OnboardingPreferences
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -26,6 +29,7 @@ class MainActivity : ComponentActivity() {
                 AppNavigation(
                     tokenRepository = tokenRepository,
                     sessionExpirationManager = sessionExpirationManager,
+                    onboardingPreferences = onboardingPreferences,
                 )
             }
         }
