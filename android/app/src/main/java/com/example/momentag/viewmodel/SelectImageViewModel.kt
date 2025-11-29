@@ -219,6 +219,14 @@ class SelectImageViewModel
         }
 
         /**
+         * Reset recommendation state to Idle
+         */
+        fun resetRecommendState() {
+            _recommendState.value = RecommendState.Idle
+            _recommendedPhotos.value = emptyList()
+        }
+
+        /**
          * Update recommended photos, filtering out selected ones
          */
         private fun updateRecommendedPhotos(photos: List<Photo>) {

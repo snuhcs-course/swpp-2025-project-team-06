@@ -257,14 +257,22 @@ fun SelectImageScreen(navController: NavController) {
         isSelectionModeDelay = isSelectionMode
     }
 
-    // Load recommendation when panel is expanded (like AlbumScreen)
+    // Request recommendations when user expands the panel
     LaunchedEffect(isRecommendationExpanded) {
-        if (isRecommendationExpanded) {
+        if (isRecommendationExpanded && selectedPhotos.isNotEmpty()) {
             selectImageViewModel.recommendPhoto()
             // 패널이 열리면 선택 모드로 전환
             if (!isSelectionMode) {
                 selectImageViewModel.setSelectionMode(true)
             }
+        }
+    }
+
+    // Reset recommendation state when selection becomes empty
+    LaunchedEffect(selectedPhotos.isEmpty()) {
+        if (selectedPhotos.isEmpty()) {
+            selectImageViewModel.resetRecommendState()
+            isRecommendationExpanded = false
         }
     }
 
@@ -584,8 +592,9 @@ fun SelectImageScreen(navController: NavController) {
             }
 
             // AI Recommendation Section - 축소/확장 가능
+            // Only show when user has selected photos
             AnimatedVisibility(
-                visible = !isRecommendationExpanded,
+                visible = !isRecommendationExpanded && selectedPhotos.isNotEmpty(),
                 enter = Animation.DefaultFadeIn + expandVertically(animationSpec = Animation.mediumTween()),
                 exit = Animation.DefaultFadeOut + shrinkVertically(animationSpec = Animation.mediumTween()),
                 modifier =
@@ -811,7 +820,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.album_ai_recommending),
+                    text = stringResource(R.string.photos_finding_suggestions),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -825,7 +834,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.album_ai_recommend),
+                    text = stringResource(R.string.photos_suggested_for_you),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -838,8 +847,14 @@ private fun RecommendChip(
                     intent = IconIntent.Error,
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
+                val errorMessage =
+                    when (recommendState.error) {
+                        SelectImageViewModel.SelectImageError.NetworkError -> stringResource(R.string.error_message_network)
+                        SelectImageViewModel.SelectImageError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
+                        SelectImageViewModel.SelectImageError.UnknownError -> stringResource(R.string.error_message_unknown)
+                    }
                 Text(
-                    text = stringResource(R.string.album_recommendation_failed),
+                    text = errorMessage,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -847,13 +862,13 @@ private fun RecommendChip(
             else -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = stringResource(R.string.cd_ai),
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Primary,
+                    contentDescription = stringResource(R.string.cd_ai),
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.album_ai_recommend),
+                    text = stringResource(R.string.photos_suggested_for_you),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -962,6 +977,7 @@ private fun RecommendExpandedPanel(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
+                    // 왼쪽: AI Recommend 텍스트
                     if (recommendState is SelectImageViewModel.RecommendState.Success &&
                         recommendedPhotos.isNotEmpty() &&
                         selectedRecommendPhotos.isNotEmpty()
@@ -1006,6 +1022,14 @@ private fun RecommendExpandedPanel(
                                         strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
                                     )
                                 }
+                                is SelectImageViewModel.RecommendState.Success -> {
+                                    StandardIcon.Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        sizeRole = IconSizeRole.Navigation,
+                                        intent = IconIntent.Primary,
+                                        contentDescription = stringResource(R.string.cd_ai),
+                                    )
+                                }
                                 else -> {
                                     StandardIcon.Icon(
                                         imageVector = Icons.Default.AutoAwesome,
@@ -1017,7 +1041,12 @@ private fun RecommendExpandedPanel(
                             }
                             Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                             Text(
-                                text = stringResource(R.string.photos_suggested_for_you),
+                                text =
+                                    when (recommendState) {
+                                        is SelectImageViewModel.RecommendState.Loading ->
+                                            stringResource(R.string.photos_finding_suggestions)
+                                        else -> stringResource(R.string.photos_suggested_for_you)
+                                    },
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )

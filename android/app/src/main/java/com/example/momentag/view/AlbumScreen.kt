@@ -360,6 +360,13 @@ fun AlbumScreen(
         }
     }
 
+    // Request recommendations when user expands the panel
+    LaunchedEffect(isRecommendationExpanded) {
+        if (isRecommendationExpanded) {
+            albumViewModel.loadRecommendations(tagId)
+        }
+    }
+
     BackHandler(enabled = isRecommendationExpanded || isTagAlbumPhotoSelectionMode) {
         if (isRecommendationExpanded) {
             isRecommendationExpanded = false
@@ -1059,12 +1066,14 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.album_ai_recommending),
+                    text = stringResource(R.string.photos_finding_suggestions),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            is AlbumViewModel.RecommendLoadingState.Success -> {
+            is AlbumViewModel.RecommendLoadingState.Idle,
+            is AlbumViewModel.RecommendLoadingState.Success,
+            -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = stringResource(R.string.cd_ai),
@@ -1073,7 +1082,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.album_ai_recommend),
+                    text = stringResource(R.string.photos_suggested_for_you),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1088,19 +1097,6 @@ private fun RecommendChip(
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = stringResource(R.string.album_recommendation_failed),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            is AlbumViewModel.RecommendLoadingState.Idle -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
-                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
-                Text(
-                    text = stringResource(R.string.album_preparing),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1226,7 +1222,7 @@ private fun RecommendExpandedPanel(
                                 },
                                 colors =
                                     ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.error,
+                                        containerColor = MaterialTheme.colorScheme.primary,
                                     ),
                                 shape = RoundedCornerShape(Dimen.Radius20),
                                 contentPadding =
@@ -1242,6 +1238,7 @@ private fun RecommendExpandedPanel(
                                             selectedRecommendPhotos.size,
                                             if (selectedRecommendPhotos.size > 1) "s" else "",
                                         ),
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                     style = MaterialTheme.typography.labelLarge,
                                 )
                             }
@@ -1256,7 +1253,7 @@ private fun RecommendExpandedPanel(
                             )
                             Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                             Text(
-                                text = stringResource(R.string.album_ai_recommend),
+                                text = stringResource(R.string.photos_suggested_for_you),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -1276,8 +1273,8 @@ private fun RecommendExpandedPanel(
             Column(modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding)) {
                 // Grid / states
                 when (recommendLoadState) {
-                    is AlbumViewModel.RecommendLoadingState.Loading,
                     is AlbumViewModel.RecommendLoadingState.Idle,
+                    is AlbumViewModel.RecommendLoadingState.Loading,
                     -> {
                         Box(
                             modifier =
@@ -1303,7 +1300,7 @@ private fun RecommendExpandedPanel(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    stringResource(R.string.album_no_recommendations),
+                                    stringResource(R.string.select_image_no_suggestions),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -1348,11 +1345,6 @@ private fun RecommendExpandedPanel(
                                 showActionButton = false,
                                 showDismissButton = false,
                             )
-                        }
-                    }
-                    is AlbumViewModel.RecommendLoadingState.Idle -> {
-                        Box(modifier = Modifier.fillMaxWidth().height(Dimen.ExpandedPanelHeight), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
                         }
                     }
                 }
