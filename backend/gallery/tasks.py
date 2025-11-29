@@ -473,11 +473,17 @@ def execute_hybrid_search(
                 tag_scores_per_photo[photo_id_str][str(tag_id)] = 1.0
 
         # 1.4: 모든 태그에 대해 점수가 있는 사진만 선택하고 점수를 곱함
+        n = len(tag_ids)
+        scale_base = SEARCH_SETTINGS.get("TAG_PRODUCT_SCALE_BASE", 2)
+        scale_factor = scale_base ** (n - 1)
+
         for photo_id, scores_dict in tag_scores_per_photo.items():
             if len(scores_dict) == len(tag_ids):  # 모든 태그에 대해 점수가 있는 경우만
-                phase_1_scores[photo_id] = 1.0
+                product_score = 1.0
                 for score in scores_dict.values():
-                    phase_1_scores[photo_id] *= score
+                    product_score *= score
+                # base^(n-1)을 곱해서 스케일링
+                phase_1_scores[photo_id] = product_score * scale_factor
 
     if query_string:
         # 2.1: 자연어 쿼리를 임베딩 벡터로 변환

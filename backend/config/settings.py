@@ -204,6 +204,9 @@ HYBRID_SEARCH_SETTINGS = {
     # --- (C) 유사도 설정 ---
     "SEARCH_SCORE_THRESHOLD": 0.2,  # 최소 유사도 threshold (0.0 ~ 1.0)
     "SEARCH_MAX_LIMIT": 1000,  # threshold 기반 검색 시 Qdrant에서 가져올 최대 개수
+
+    # --- (D) 다중 태그 곱셈 스케일링 설정 ---
+    "TAG_PRODUCT_SCALE_BASE": 2,  # 태그 n개 곱셈 시 base^(n-1)을 곱함 (기본: 2)
 }
 
 TAG_RECOMMENDATION_SETTINGS = {
