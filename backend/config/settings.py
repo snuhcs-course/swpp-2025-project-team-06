@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 import environ
 from pathlib import Path
 from datetime import timedelta
@@ -88,21 +89,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': env('DB_NAME'),
-        'USER': env('DB_USER'),
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST'),
-        'PORT': env('DB_PORT', default='3306'),
-        'CONN_HEALTH_CHECKS': True, # MySQL 안정성 옵션 (강력 권장)
+# Use SQLite for testing (faster and no external dependencies)
+if 'test' in sys.argv or 'test_coverage' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': env('DB_NAME'),
+            'USER': env('DB_USER'),
+            'PASSWORD': env('DB_PASSWORD'),
+            'HOST': env('DB_HOST'),
+            'PORT': env('DB_PORT', default='3306'),
+            'CONN_HEALTH_CHECKS': True, # MySQL 안정성 옵션 (강력 권장)
+        }
+    }
 
 
 # Password validation
@@ -168,8 +174,16 @@ SWAGGER_SETTINGS = {
 }
 
 # Celery Settings
-CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+if 'test' in sys.argv or 'test_coverage' in sys.argv:
+    # Use eager mode for testing (synchronous execution, no broker needed)
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
+else:
+    CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+    CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -236,7 +250,7 @@ MINIO_REGION = env('MINIO_REGION', default='us-east-1')  # S3 compatibility
 
 # Redis settings for story generation and store
 REDIS_HOST = env('REDIS_HOST', default='127.0.0.1')
-REDIS_PORT = 6379      
-REDIS_PASSWORD = None  
+REDIS_PORT = 6379
+REDIS_PASSWORD = None
 
-KM_REST_API_KEY= env('KM_REST_API_KEY')
+KM_REST_API_KEY = env('KM_REST_API_KEY', default='')
