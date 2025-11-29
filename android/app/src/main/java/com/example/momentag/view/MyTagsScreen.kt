@@ -514,40 +514,46 @@ fun MyTagsScreen(navController: NavController) {
                 }
 
                 // Floating Create New Tag Button
-                Button(
-                    onClick = {
-                        navController.previousBackStackEntry?.savedStateHandle?.set(
-                            "selectionModeComplete",
-                            true,
-                        )
-                        navController.navigate(Screen.AddTag.route)
-                    },
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(horizontal = Dimen.ScreenHorizontalPadding)
-                            .padding(bottom = Dimen.ItemSpacingSmall)
-                            .height(Dimen.ButtonHeightLarge)
-                            .shadow(
-                                elevation = Dimen.ButtonShadowElevation,
-                                shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
-                                clip = false,
-                            ),
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                AnimatedVisibility(
+                    visible = !isEditMode,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
                 ) {
-                    Text(
-                        text = stringResource(R.string.tag_create_new),
-                        style =
-                            MaterialTheme.typography.bodyLarge.copy(
-                                fontWeight = FontWeight.Bold,
+                    Button(
+                        onClick = {
+                            navController.previousBackStackEntry?.savedStateHandle?.set(
+                                "selectionModeComplete",
+                                true,
+                            )
+                            navController.navigate(Screen.AddTag.route)
+                        },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                .padding(bottom = Dimen.ItemSpacingSmall)
+                                .height(Dimen.ButtonHeightLarge)
+                                .shadow(
+                                    elevation = Dimen.ButtonShadowElevation,
+                                    shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                                    clip = false,
+                                ),
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
-                    )
+                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.tag_create_new),
+                            style =
+                                MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                ),
+                        )
+                    }
                 }
             }
         }
