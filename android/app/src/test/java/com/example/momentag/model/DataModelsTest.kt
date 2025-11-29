@@ -383,38 +383,19 @@ class DataModelsTest {
     @Test
     fun `RegisterRequest should be created with all fields`() {
         // Given
-        val email = "test@example.com"
         val username = "testuser"
         val password = "password123"
 
         // When
         val request =
             RegisterRequest(
-                email = email,
                 username = username,
                 password = password,
             )
 
         // Then
-        assertEquals(email, request.email)
         assertEquals(username, request.username)
         assertEquals(password, request.password)
-    }
-
-    @Test
-    fun `RegisterRequest email validation format`() {
-        // Given
-        val email = "valid.email@domain.com"
-        val request =
-            RegisterRequest(
-                email = email,
-                username = "user",
-                password = "pass",
-            )
-
-        // Then
-        assertTrue(request.email.contains("@"))
-        assertTrue(request.email.contains("."))
     }
 
     // ========== RegisterResponse Tests ==========
@@ -536,7 +517,7 @@ class DataModelsTest {
     fun `PhotoMeta should be created with all fields`() {
         // Given
         val filename = "IMG_001.jpg"
-        val photoPathId = 100
+        val photoPathId = 100L
         val createdAt = "2025-11-02T10:30:00"
         val lat = 37.5665
         val lng = 126.9780
