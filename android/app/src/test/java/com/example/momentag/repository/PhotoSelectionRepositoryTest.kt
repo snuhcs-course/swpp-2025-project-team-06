@@ -20,7 +20,7 @@ class PhotoSelectionRepositoryTest {
     }
 
     // Helper function
-    private fun createPhoto(id: String = "photo1") = Photo(photoId = id, contentUri = mockk(), createdAt = "2024-01-01T00:00:00Z")
+    private fun createPhoto(id: String = "photo1"): Photo = Photo(photoId = id, contentUri = mockk(), createdAt = "2024-01-01T00:00:00Z")
 
     // ========== Initial State Tests ==========
 
@@ -33,7 +33,7 @@ class PhotoSelectionRepositoryTest {
     @Test
     fun `initial selectedPhotos is empty`() {
         // Then
-        assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+        assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
     }
 
     @Test
@@ -56,7 +56,7 @@ class PhotoSelectionRepositoryTest {
 
             // Then
             assertEquals(tagName, repository.tagName.value)
-            assertEquals(photos, repository.selectedPhotos.value)
+            assertEquals(photos.associateBy { it.photoId }, repository.selectedPhotos.value)
         }
 
     @Test
@@ -70,7 +70,7 @@ class PhotoSelectionRepositoryTest {
 
             // Then
             assertEquals("", repository.tagName.value)
-            assertEquals(photos, repository.selectedPhotos.value)
+            assertEquals(photos.associateBy { it.photoId }, repository.selectedPhotos.value)
         }
 
     @Test
@@ -84,7 +84,7 @@ class PhotoSelectionRepositoryTest {
 
             // Then
             assertEquals(tagName, repository.tagName.value)
-            assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+            assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
         }
 
     @Test
@@ -101,7 +101,7 @@ class PhotoSelectionRepositoryTest {
 
             // Then
             assertEquals(newTagName, repository.tagName.value)
-            assertEquals(newPhotos, repository.selectedPhotos.value)
+            assertEquals(newPhotos.associateBy { it.photoId }, repository.selectedPhotos.value)
         }
 
     // ========== UpdateTagName Tests ==========
@@ -154,7 +154,7 @@ class PhotoSelectionRepositoryTest {
         repository.addPhoto(photo)
 
         // Then
-        assertEquals(listOf(photo), repository.selectedPhotos.value)
+        assertEquals(mapOf(photo.photoId to photo), repository.selectedPhotos.value)
     }
 
     @Test
@@ -169,8 +169,8 @@ class PhotoSelectionRepositoryTest {
 
         // Then
         assertEquals(2, repository.selectedPhotos.value.size)
-        assertTrue(repository.selectedPhotos.value.contains(photo1))
-        assertTrue(repository.selectedPhotos.value.contains(photo2))
+        assertTrue(repository.selectedPhotos.value.containsKey(photo1.photoId))
+        assertTrue(repository.selectedPhotos.value.containsKey(photo2.photoId))
     }
 
     @Test
@@ -184,7 +184,7 @@ class PhotoSelectionRepositoryTest {
 
         // Then - still only one photo
         assertEquals(1, repository.selectedPhotos.value.size)
-        assertEquals(listOf(photo), repository.selectedPhotos.value)
+        assertEquals(mapOf(photo.photoId to photo), repository.selectedPhotos.value)
     }
 
     @Test
@@ -213,7 +213,7 @@ class PhotoSelectionRepositoryTest {
         repository.removePhoto(photo)
 
         // Then
-        assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+        assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
     }
 
     @Test
@@ -231,9 +231,9 @@ class PhotoSelectionRepositoryTest {
 
         // Then
         assertEquals(2, repository.selectedPhotos.value.size)
-        assertTrue(repository.selectedPhotos.value.contains(photo1))
-        assertFalse(repository.selectedPhotos.value.contains(photo2))
-        assertTrue(repository.selectedPhotos.value.contains(photo3))
+        assertTrue(repository.selectedPhotos.value.containsKey(photo1.photoId))
+        assertFalse(repository.selectedPhotos.value.containsKey(photo2.photoId))
+        assertTrue(repository.selectedPhotos.value.containsKey(photo3.photoId))
     }
 
     @Test
@@ -247,7 +247,7 @@ class PhotoSelectionRepositoryTest {
         repository.removePhoto(photo2)
 
         // Then
-        assertEquals(listOf(photo1), repository.selectedPhotos.value)
+        assertEquals(mapOf(photo1.photoId to photo1), repository.selectedPhotos.value)
     }
 
     @Test
@@ -261,7 +261,7 @@ class PhotoSelectionRepositoryTest {
         repository.removePhoto(photo2)
 
         // Then
-        assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+        assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
     }
 
     // ========== TogglePhoto Tests ==========
@@ -275,7 +275,7 @@ class PhotoSelectionRepositoryTest {
         repository.togglePhoto(photo)
 
         // Then
-        assertEquals(listOf(photo), repository.selectedPhotos.value)
+        assertEquals(mapOf(photo.photoId to photo), repository.selectedPhotos.value)
     }
 
     @Test
@@ -288,7 +288,7 @@ class PhotoSelectionRepositoryTest {
         repository.togglePhoto(photo)
 
         // Then
-        assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+        assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
     }
 
     @Test
@@ -301,7 +301,7 @@ class PhotoSelectionRepositoryTest {
         repository.togglePhoto(photo)
 
         // Then
-        assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+        assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
     }
 
     @Test
@@ -317,7 +317,11 @@ class PhotoSelectionRepositoryTest {
 
         // Then
         assertEquals(1, repository.selectedPhotos.value.size)
-        assertEquals(photo2, repository.selectedPhotos.value[0])
+        assertEquals(
+            photo2,
+            repository.selectedPhotos.value.values
+                .first(),
+        )
     }
 
     // ========== Clear Tests ==========
@@ -344,7 +348,7 @@ class PhotoSelectionRepositoryTest {
         repository.clear()
 
         // Then
-        assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+        assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
     }
 
     @Test
@@ -358,7 +362,7 @@ class PhotoSelectionRepositoryTest {
 
         // Then
         assertEquals("", repository.tagName.value)
-        assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+        assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
     }
 
     @Test
@@ -374,7 +378,7 @@ class PhotoSelectionRepositoryTest {
 
         // Then
         assertEquals("", repository.tagName.value)
-        assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+        assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
     }
 
     @Test
@@ -384,7 +388,7 @@ class PhotoSelectionRepositoryTest {
 
         // Then
         assertEquals("", repository.tagName.value)
-        assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+        assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
     }
 
     // ========== HasChanges Tests ==========
@@ -471,7 +475,7 @@ class PhotoSelectionRepositoryTest {
             // When - clear
             repository.clear()
             assertEquals("", repository.tagName.value)
-            assertEquals(emptyList<Photo>(), repository.selectedPhotos.value)
+            assertEquals(emptyMap<String, Photo>(), repository.selectedPhotos.value)
             assertFalse(repository.hasChanges())
         }
 
@@ -508,7 +512,7 @@ class PhotoSelectionRepositoryTest {
 
         // Then - flows reflect current state
         assertEquals("TestTag", repository.tagName.value)
-        assertEquals(listOf(photo), repository.selectedPhotos.value)
+        assertEquals(mapOf(photo.photoId to photo), repository.selectedPhotos.value)
         assertTrue(repository.hasChanges())
     }
 }
