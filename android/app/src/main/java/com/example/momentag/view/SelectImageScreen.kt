@@ -788,7 +788,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.photos_finding_suggestions),
+                    text = stringResource(R.string.album_ai_recommending),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -796,33 +796,27 @@ private fun RecommendChip(
             is SelectImageViewModel.RecommendState.Success -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = stringResource(R.string.cd_ai),
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Primary,
-                    contentDescription = stringResource(R.string.cd_ai),
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.photos_suggested_for_you),
+                    text = stringResource(R.string.album_ai_recommend),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
             is SelectImageViewModel.RecommendState.Error -> {
                 StandardIcon.Icon(
-                    imageVector = Icons.Default.AutoAwesome,
+                    imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.error_title),
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Error,
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
-                val errorMessage =
-                    when (recommendState.error) {
-                        SelectImageViewModel.SelectImageError.NetworkError -> stringResource(R.string.error_message_network)
-                        SelectImageViewModel.SelectImageError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
-                        SelectImageViewModel.SelectImageError.UnknownError -> stringResource(R.string.error_message_unknown)
-                    }
                 Text(
-                    text = errorMessage,
+                    text = stringResource(R.string.album_recommendation_failed),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -836,7 +830,7 @@ private fun RecommendChip(
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.photos_suggested_for_you),
+                    text = stringResource(R.string.album_ai_recommend),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
