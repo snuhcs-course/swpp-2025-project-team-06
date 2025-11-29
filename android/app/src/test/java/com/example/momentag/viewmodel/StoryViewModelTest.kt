@@ -3,24 +3,22 @@ package com.example.momentag.viewmodel
 import android.net.Uri
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoDetailResponse
-import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.StoryResponse
+import com.example.momentag.model.StoryStateResponse
 import com.example.momentag.model.Tag
+import com.example.momentag.model.TagId
 import com.example.momentag.repository.ImageBrowserRepository
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RecommendRepository
 import com.example.momentag.repository.RemoteRepository
-import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -42,10 +40,9 @@ class StoryViewModelTest {
 
     @Before
     fun setUp() {
-        mockkStatic(Uri::class)
-        recommendRepository = mockk()
-        localRepository = mockk()
-        remoteRepository = mockk()
+        recommendRepository = mockk(relaxed = true)
+        localRepository = mockk(relaxed = true)
+        remoteRepository = mockk(relaxed = true)
         imageBrowserRepository = mockk(relaxed = true)
 
         viewModel =
@@ -57,1442 +54,1307 @@ class StoryViewModelTest {
             )
     }
 
-    @After
-    fun tearDown() {
-        clearAllMocks()
-        unmockkStatic(Uri::class)
-    }
-
-    private fun createMockUri(path: String): Uri {
-        val uri = mockk<Uri>(relaxed = true)
-        every { uri.toString() } returns path
-        every { uri.lastPathSegment } returns path.substringAfterLast("/")
-        return uri
-    }
-
-    private fun createStoryResponse(
-        photoId: String = "photo1",
-        photoPathId: Long = 1L,
-        tags: List<String> = listOf("tag1", "tag2"),
-    ) = StoryResponse(
-        photoId = photoId,
-        photoPathId = photoPathId,
-        tags = tags,
-    )
-
-    private fun createPhoto(id: String = "photo1"): Photo {
-        val uri = createMockUri("content://media/external/images/media/$id")
-        every { Uri.parse("content://media/external/images/media/$id") } returns uri
-        return Photo(
+    private fun createMockPhoto(
+        id: String,
+        contentUri: Uri = mockk(relaxed = true),
+    ): Photo =
+        Photo(
             photoId = id,
-            contentUri = uri,
-            createdAt = "2025-01-01",
+            contentUri = contentUri,
+            createdAt = "2023-01-01",
+        )
+
+    private fun createMockStoryResponse(
+        photoId: String,
+        photoPathId: Long = 1L,
+        tags: List<String> = emptyList(),
+    ): StoryResponse =
+        StoryResponse(
+            photoId = photoId,
+            photoPathId = photoPathId,
+            tags = tags,
+        )
+
+    private fun createMockStoryStateResponse(
+        status: String = "SUCCESS",
+        stories: List<StoryResponse>,
+    ): StoryStateResponse =
+        StoryStateResponse(
+            status = status,
+            stories = stories,
+        )
+
+    // --- loadStories Tests ---
+
+    @Test
+    fun `loadStories success loads stories immediately`() =
+        runTest {
+            val storyResponses =
+                listOf(
+                    createMockStoryResponse("1", tags = listOf("tag1", "tag2")),
+                    createMockStoryResponse("2", tags = listOf("tag3")),
+                )
+            val photos = listOf(createMockPhoto("1"), createMockPhoto("2"))
+            val storyStateResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyStateResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns "Seoul, Korea"
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Success)
+            val successState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            assertEquals(2, successState.stories.size)
+            assertEquals(0, successState.currentIndex)
+            assertTrue(successState.hasMore)
+        }
+
+    @Test
+    fun `loadStories polls when status is PROCESSING`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val processingResponse = createMockStoryStateResponse("PROCESSING", emptyList())
+            val successResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            // First call returns PROCESSING, second call returns SUCCESS
+            coEvery { recommendRepository.getStories(5) } returnsMany
+                listOf(
+                    RecommendRepository.StoryResult.Success(processingResponse),
+                    RecommendRepository.StoryResult.Success(successResponse),
+                )
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceTimeBy(1100) // Advance past the 1 second delay
+            advanceUntilIdle()
+
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Success)
+            coVerify(atLeast = 2) { recommendRepository.getStories(5) }
+        }
+
+    @Test
+    fun `loadStories network error sets error state`() =
+        runTest {
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.NetworkError("Network error")
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Error)
+            val errorState = viewModel.storyState.value as StoryViewModel.StoryState.Error
+            assertEquals(StoryViewModel.StoryError.NetworkError, errorState.error)
+        }
+
+    @Test
+    fun `loadStories unauthorized sets error state`() =
+        runTest {
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Unauthorized("Unauthorized")
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Error)
+            val errorState = viewModel.storyState.value as StoryViewModel.StoryState.Error
+            assertEquals(StoryViewModel.StoryError.Unauthorized, errorState.error)
+        }
+
+    @Test
+    fun `loadStories bad request sets error state`() =
+        runTest {
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.BadRequest("Bad request")
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Error)
+            val errorState = viewModel.storyState.value as StoryViewModel.StoryState.Error
+            assertEquals(StoryViewModel.StoryError.UnknownError, errorState.error)
+        }
+
+    @Test
+    fun `loadStories generic error sets error state`() =
+        runTest {
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Error("Server error")
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Error)
+            val errorState = viewModel.storyState.value as StoryViewModel.StoryState.Error
+            assertEquals(StoryViewModel.StoryError.UnknownError, errorState.error)
+        }
+
+    @Test
+    fun `loadStories with empty stories creates empty success state`() =
+        runTest {
+            val storyStateResponse = createMockStoryStateResponse("SUCCESS", emptyList())
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyStateResponse)
+            coEvery { localRepository.toPhotos(any()) } returns emptyList()
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Success)
+            val successState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            assertTrue(successState.stories.isEmpty())
+            assertFalse(successState.hasMore)
+        }
+
+    @Test
+    fun `loadStories cancels previous polling job`() =
+        runTest {
+            val processingResponse = createMockStoryStateResponse("PROCESSING", emptyList())
+            val successResponse = createMockStoryStateResponse("SUCCESS", emptyList())
+
+            // First loadStories call gets PROCESSING, second loadStories call gets SUCCESS
+            coEvery { recommendRepository.getStories(any()) } returnsMany
+                listOf(
+                    RecommendRepository.StoryResult.Success(processingResponse),
+                    RecommendRepository.StoryResult.Success(successResponse),
+                )
+            coEvery { localRepository.toPhotos(any()) } returns emptyList()
+
+            viewModel.loadStories(5)
+            advanceTimeBy(500) // Advance partway through first polling
+
+            // Start a new load - should cancel previous
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            // Verify at least 2 calls were made (first job and second job)
+            coVerify(atLeast = 2) { recommendRepository.getStories(5) }
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Success)
+        }
+
+    // --- loadMoreStories Tests ---
+
+    @Test
+    fun `loadMoreStories appends stories to existing list`() =
+        runTest {
+            // Setup initial stories
+            val initialStories = listOf(createMockStoryResponse("1"))
+            val initialPhotos = listOf(createMockPhoto("1"))
+            val initialResponse = createMockStoryStateResponse("SUCCESS", initialStories)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(initialResponse)
+            coEvery { localRepository.toPhotos(any()) } returns initialPhotos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            // Load more stories
+            val moreStories = listOf(createMockStoryResponse("2"))
+            val morePhotos = listOf(createMockPhoto("2"))
+            val moreResponse = createMockStoryStateResponse("SUCCESS", moreStories)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(moreResponse)
+            coEvery { localRepository.toPhotos(any()) } returns morePhotos
+
+            viewModel.loadMoreStories(5)
+            advanceUntilIdle()
+
+            val successState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            assertEquals(2, successState.stories.size)
+        }
+
+    @Test
+    fun `loadMoreStories does nothing when state is not Success`() =
+        runTest {
+            assertEquals(StoryViewModel.StoryState.Idle, viewModel.storyState.value)
+
+            viewModel.loadMoreStories(5)
+            advanceUntilIdle()
+
+            assertEquals(StoryViewModel.StoryState.Idle, viewModel.storyState.value)
+        }
+
+    @Test
+    fun `loadMoreStories silently fails on error`() =
+        runTest {
+            // Setup initial stories
+            val initialStories = listOf(createMockStoryResponse("1"))
+            val initialPhotos = listOf(createMockPhoto("1"))
+            val initialResponse = createMockStoryStateResponse("SUCCESS", initialStories)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(initialResponse)
+            coEvery { localRepository.toPhotos(any()) } returns initialPhotos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            // Load more fails
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.NetworkError("Network error")
+
+            viewModel.loadMoreStories(5)
+            advanceUntilIdle()
+
+            // State should remain Success with initial stories
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Success)
+            val successState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            assertEquals(1, successState.stories.size)
+        }
+
+    // --- loadTagsForStory Tests ---
+
+    @Test
+    fun `loadTagsForStory loads tags and updates story`() =
+        runTest {
+            // Setup initial story
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            // Load tags for story
+            val tags =
+                listOf(
+                    Tag(tagName = "NewTag1", tagId = "newtag1"),
+                    Tag(tagName = "NewTag2", tagId = "newtag2"),
+                )
+            coEvery { recommendRepository.recommendTagFromPhoto("1") } returns
+                RecommendRepository.RecommendResult.Success(tags)
+
+            viewModel.loadTagsForStory(storyId, "1")
+            advanceUntilIdle()
+
+            val updatedState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            val updatedStory = updatedState.stories[0]
+            assertTrue(updatedStory.suggestedTags.contains("NewTag1"))
+            assertTrue(updatedStory.suggestedTags.contains("NewTag2"))
+        }
+
+    @Test
+    fun `loadTagsForStory does nothing when story already has tags`() =
+        runTest {
+            // Setup story with pre-populated tags
+            val storyResponses = listOf(createMockStoryResponse("1", tags = listOf("ExistingTag")))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            viewModel.loadTagsForStory(storyId, "1")
+            advanceUntilIdle()
+
+            // Should not call recommendTagFromPhoto since story already has tags
+            coVerify(exactly = 0) { recommendRepository.recommendTagFromPhoto(any()) }
+        }
+
+    @Test
+    fun `loadTagsForStory uses cache if available`() =
+        runTest {
+            // Setup initial story
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            // First load - fetches from repository
+            val tags = listOf(Tag(tagName = "CachedTag", tagId = "cachedtag"))
+            coEvery { recommendRepository.recommendTagFromPhoto("1") } returns
+                RecommendRepository.RecommendResult.Success(tags)
+
+            viewModel.loadTagsForStory(storyId, "1")
+            advanceUntilIdle()
+
+            // Second load - should use cache
+            viewModel.loadTagsForStory(storyId, "1")
+            advanceUntilIdle()
+
+            // Should only be called once (first time)
+            coVerify(exactly = 1) { recommendRepository.recommendTagFromPhoto("1") }
+        }
+
+    @Test
+    fun `loadTagsForStory silently fails on network error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            coEvery { recommendRepository.recommendTagFromPhoto("1") } returns
+                RecommendRepository.RecommendResult.NetworkError("Network error")
+
+            viewModel.loadTagsForStory(storyId, "1")
+            advanceUntilIdle()
+
+            // Should silently fail - tags remain empty
+            val updatedState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            val updatedStory = updatedState.stories[0]
+            assertTrue(updatedStory.suggestedTags.isEmpty())
+        }
+
+    @Test
+    fun `loadTagsForStory silently fails on unauthorized error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            coEvery { recommendRepository.recommendTagFromPhoto("1") } returns
+                RecommendRepository.RecommendResult.Unauthorized("Unauthorized")
+
+            viewModel.loadTagsForStory(storyId, "1")
+            advanceUntilIdle()
+
+            val updatedState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            val updatedStory = updatedState.stories[0]
+            assertTrue(updatedStory.suggestedTags.isEmpty())
+        }
+
+    @Test
+    fun `loadTagsForStory silently fails on bad request error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            coEvery { recommendRepository.recommendTagFromPhoto("1") } returns
+                RecommendRepository.RecommendResult.BadRequest("Bad request")
+
+            viewModel.loadTagsForStory(storyId, "1")
+            advanceUntilIdle()
+
+            val updatedState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            val updatedStory = updatedState.stories[0]
+            assertTrue(updatedStory.suggestedTags.isEmpty())
+        }
+
+    @Test
+    fun `loadTagsForStory silently fails on generic error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            coEvery { recommendRepository.recommendTagFromPhoto("1") } returns
+                RecommendRepository.RecommendResult.Error("Server error")
+
+            viewModel.loadTagsForStory(storyId, "1")
+            advanceUntilIdle()
+
+            val updatedState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            val updatedStory = updatedState.stories[0]
+            assertTrue(updatedStory.suggestedTags.isEmpty())
+        }
+
+    // --- addCustomTagToStory Tests ---
+
+    @Test
+    fun `addCustomTagToStory adds tag to story and toggles selection`() =
+        runTest {
+            // Setup story
+            val storyResponses = listOf(createMockStoryResponse("1", tags = listOf("Tag1")))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            viewModel.addCustomTagToStory(storyId, "CustomTag")
+
+            val updatedState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            val updatedStory = updatedState.stories[0]
+            assertTrue(updatedStory.suggestedTags.contains("CustomTag"))
+            assertTrue(viewModel.getSelectedTags(storyId).contains("CustomTag"))
+        }
+
+    // --- toggleTag Tests ---
+
+    @Test
+    fun `toggleTag adds tag when not selected`() {
+        val storyId = "story1"
+
+        viewModel.toggleTag(storyId, "Tag1")
+
+        assertTrue(viewModel.getSelectedTags(storyId).contains("Tag1"))
+    }
+
+    @Test
+    fun `toggleTag removes tag when already selected`() {
+        val storyId = "story1"
+
+        viewModel.toggleTag(storyId, "Tag1")
+        assertTrue(viewModel.getSelectedTags(storyId).contains("Tag1"))
+
+        viewModel.toggleTag(storyId, "Tag1")
+        assertFalse(viewModel.getSelectedTags(storyId).contains("Tag1"))
+    }
+
+    @Test
+    fun `toggleTag handles multiple tags`() {
+        val storyId = "story1"
+
+        viewModel.toggleTag(storyId, "Tag1")
+        viewModel.toggleTag(storyId, "Tag2")
+        viewModel.toggleTag(storyId, "Tag3")
+
+        val selected = viewModel.getSelectedTags(storyId)
+        assertEquals(3, selected.size)
+        assertTrue(selected.contains("Tag1"))
+        assertTrue(selected.contains("Tag2"))
+        assertTrue(selected.contains("Tag3"))
+    }
+
+    // --- submitTagsForStory Tests ---
+
+    @Test
+    fun `submitTagsForStory creates new tags successfully`() =
+        runTest {
+            // Setup story
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            viewModel.toggleTag(storyId, "NewTag")
+
+            coEvery { remoteRepository.postTags("NewTag") } returns
+                RemoteRepository.Result.Success(TagId("tagId1"))
+            coEvery { remoteRepository.postTagsToPhoto("1", "tagId1") } returns
+                RemoteRepository.Result.Success(Unit)
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            assertEquals(
+                StoryViewModel.StoryTagSubmissionState.Success,
+                viewModel.storyTagSubmissionStates.value[storyId],
+            )
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag creation error`() =
+        runTest {
+            // Setup story
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            viewModel.toggleTag(storyId, "NewTag")
+
+            coEvery { remoteRepository.postTags("NewTag") } returns
+                RemoteRepository.Result.Error(500, "Server error")
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            assertTrue(
+                viewModel.storyTagSubmissionStates.value[storyId] is StoryViewModel.StoryTagSubmissionState.Error,
+            )
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag creation unauthorized error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+            viewModel.toggleTag(storyId, "NewTag")
+
+            coEvery { remoteRepository.postTags("NewTag") } returns
+                RemoteRepository.Result.Unauthorized("Unauthorized")
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            val errorState =
+                viewModel.storyTagSubmissionStates.value[storyId] as StoryViewModel.StoryTagSubmissionState.Error
+            assertEquals(StoryViewModel.StoryError.Unauthorized, errorState.error)
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag creation network error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+            viewModel.toggleTag(storyId, "NewTag")
+
+            coEvery { remoteRepository.postTags("NewTag") } returns
+                RemoteRepository.Result.NetworkError("Network error")
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            val errorState =
+                viewModel.storyTagSubmissionStates.value[storyId] as StoryViewModel.StoryTagSubmissionState.Error
+            assertEquals(StoryViewModel.StoryError.NetworkError, errorState.error)
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag creation exception error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+            viewModel.toggleTag(storyId, "NewTag")
+
+            coEvery { remoteRepository.postTags("NewTag") } returns
+                RemoteRepository.Result.Exception(RuntimeException("Exception"))
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            assertTrue(
+                viewModel.storyTagSubmissionStates.value[storyId] is StoryViewModel.StoryTagSubmissionState.Error,
+            )
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag association error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+            viewModel.toggleTag(storyId, "NewTag")
+
+            coEvery { remoteRepository.postTags("NewTag") } returns
+                RemoteRepository.Result.Success(TagId("tagId1"))
+            coEvery { remoteRepository.postTagsToPhoto("1", "tagId1") } returns
+                RemoteRepository.Result.Error(500, "Server error")
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            assertTrue(
+                viewModel.storyTagSubmissionStates.value[storyId] is StoryViewModel.StoryTagSubmissionState.Error,
+            )
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag association unauthorized error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+            viewModel.toggleTag(storyId, "NewTag")
+
+            coEvery { remoteRepository.postTags("NewTag") } returns
+                RemoteRepository.Result.Success(TagId("tagId1"))
+            coEvery { remoteRepository.postTagsToPhoto("1", "tagId1") } returns
+                RemoteRepository.Result.Unauthorized("Unauthorized")
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            val errorState =
+                viewModel.storyTagSubmissionStates.value[storyId] as StoryViewModel.StoryTagSubmissionState.Error
+            assertEquals(StoryViewModel.StoryError.Unauthorized, errorState.error)
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag association network error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+            viewModel.toggleTag(storyId, "NewTag")
+
+            coEvery { remoteRepository.postTags("NewTag") } returns
+                RemoteRepository.Result.Success(TagId("tagId1"))
+            coEvery { remoteRepository.postTagsToPhoto("1", "tagId1") } returns
+                RemoteRepository.Result.NetworkError("Network error")
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            val errorState =
+                viewModel.storyTagSubmissionStates.value[storyId] as StoryViewModel.StoryTagSubmissionState.Error
+            assertEquals(StoryViewModel.StoryError.NetworkError, errorState.error)
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag association exception error`() =
+        runTest {
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+            viewModel.toggleTag(storyId, "NewTag")
+
+            coEvery { remoteRepository.postTags("NewTag") } returns
+                RemoteRepository.Result.Success(TagId("tagId1"))
+            coEvery { remoteRepository.postTagsToPhoto("1", "tagId1") } returns
+                RemoteRepository.Result.Exception(RuntimeException("Exception"))
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            assertTrue(
+                viewModel.storyTagSubmissionStates.value[storyId] is StoryViewModel.StoryTagSubmissionState.Error,
+            )
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag removal error`() =
+        runTest {
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    address = null,
+                    tags = listOf(Tag(tagName = "ExistingTag", tagId = "tag1")),
+                )
+
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.Success(photoDetail)
+
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            viewModel.enterEditMode(storyId, "1")
+            advanceUntilIdle()
+
+            // Remove the existing tag
+            viewModel.toggleTag(storyId, "ExistingTag")
+
+            coEvery { remoteRepository.removeTagFromPhoto("1", "tag1") } returns
+                RemoteRepository.Result.Error(500, "Server error")
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            assertTrue(
+                viewModel.storyTagSubmissionStates.value[storyId] is StoryViewModel.StoryTagSubmissionState.Error,
+            )
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag removal unauthorized error`() =
+        runTest {
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    address = null,
+                    tags = listOf(Tag(tagName = "ExistingTag", tagId = "tag1")),
+                )
+
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.Success(photoDetail)
+
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            viewModel.enterEditMode(storyId, "1")
+            advanceUntilIdle()
+
+            viewModel.toggleTag(storyId, "ExistingTag")
+
+            coEvery { remoteRepository.removeTagFromPhoto("1", "tag1") } returns
+                RemoteRepository.Result.Unauthorized("Unauthorized")
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            val errorState =
+                viewModel.storyTagSubmissionStates.value[storyId] as StoryViewModel.StoryTagSubmissionState.Error
+            assertEquals(StoryViewModel.StoryError.Unauthorized, errorState.error)
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag removal network error`() =
+        runTest {
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    address = null,
+                    tags = listOf(Tag(tagName = "ExistingTag", tagId = "tag1")),
+                )
+
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.Success(photoDetail)
+
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            viewModel.enterEditMode(storyId, "1")
+            advanceUntilIdle()
+
+            viewModel.toggleTag(storyId, "ExistingTag")
+
+            coEvery { remoteRepository.removeTagFromPhoto("1", "tag1") } returns
+                RemoteRepository.Result.NetworkError("Network error")
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            val errorState =
+                viewModel.storyTagSubmissionStates.value[storyId] as StoryViewModel.StoryTagSubmissionState.Error
+            assertEquals(StoryViewModel.StoryError.NetworkError, errorState.error)
+        }
+
+    @Test
+    fun `submitTagsForStory handles tag removal exception error`() =
+        runTest {
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    address = null,
+                    tags = listOf(Tag(tagName = "ExistingTag", tagId = "tag1")),
+                )
+
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.Success(photoDetail)
+
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+
+            viewModel.enterEditMode(storyId, "1")
+            advanceUntilIdle()
+
+            viewModel.toggleTag(storyId, "ExistingTag")
+
+            coEvery { remoteRepository.removeTagFromPhoto("1", "tag1") } returns
+                RemoteRepository.Result.Exception(RuntimeException("Exception"))
+
+            viewModel.submitTagsForStory(storyId)
+            advanceUntilIdle()
+
+            assertTrue(
+                viewModel.storyTagSubmissionStates.value[storyId] is StoryViewModel.StoryTagSubmissionState.Error,
+            )
+        }
+
+    // --- setCurrentIndex Tests ---
+
+    @Test
+    fun `setCurrentIndex updates index`() =
+        runTest {
+            // Setup story
+            val storyResponses = listOf(createMockStoryResponse("1"), createMockStoryResponse("2"))
+            val photos = listOf(createMockPhoto("1"), createMockPhoto("2"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            viewModel.setCurrentIndex(1)
+
+            val successState = viewModel.storyState.value as StoryViewModel.StoryState.Success
+            assertEquals(1, successState.currentIndex)
+        }
+
+    // --- resetSubmissionState Tests ---
+
+    @Test
+    fun `resetSubmissionState resets to Idle`() {
+        val storyId = "story1"
+
+        viewModel.resetSubmissionState(storyId)
+
+        assertEquals(
+            StoryViewModel.StoryTagSubmissionState.Idle,
+            viewModel.storyTagSubmissionStates.value[storyId],
         )
     }
 
-    // Pre-generate stories test
-    @Test
-    fun `preGenerateStories triggers story generation`() =
-        runTest {
-            // Given
-            val size = 10
-            coEvery { recommendRepository.generateStories(size) } returns RecommendRepository.StoryResult.Success(Unit)
+    // --- markStoryAsViewed Tests ---
 
-            // When
-            viewModel.preGenerateStories(size)
-            advanceUntilIdle()
-
-            // Then
-            coVerify { recommendRepository.generateStories(size) }
-        }
-
-    // Load stories tests
-    @Test
-    fun `loadStories success updates state with stories`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-
-            // When
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-            assertEquals(1, (state as StoryViewModel.StoryState.Success).stories.size)
-        }
-
-    @Test
-    fun `loadStories with NetworkError updates state to Error`() =
-        runTest {
-            // Given
-            val errorMessage = "Network error"
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.NetworkError(errorMessage)
-
-            // When
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Error)
-            assertEquals(StoryViewModel.StoryError.NetworkError, (state as StoryViewModel.StoryState.Error).error)
-        }
-
-    // Toggle tag tests
-    @Test
-    fun `toggleTag adds and removes tag from selection`() {
-        // Given
-        val storyId = "story1"
-        val tag = "tag1"
-
-        // When - add tag
-        viewModel.toggleTag(storyId, tag)
-
-        // Then
-        assertTrue(viewModel.getSelectedTags(storyId).contains(tag))
-
-        // When - remove tag
-        viewModel.toggleTag(storyId, tag)
-
-        // Then
-        assertFalse(viewModel.getSelectedTags(storyId).contains(tag))
-    }
-
-    // Set current index test
-    @Test
-    fun `setCurrentIndex updates current index in success state`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse(), createStoryResponse("photo2", 2L))
-            val photo1 = createPhoto("photo1")
-            val photo2 = createPhoto("photo2")
-            val photos = listOf(photo1, photo2)
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery {
-                localRepository.toPhotos(
-                    match<List<PhotoResponse>> {
-                        it.size == 2 && it[0].photoId == "photo1" && it[1].photoId == "photo2"
-                    },
-                )
-            } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // When
-            viewModel.setCurrentIndex(1)
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-            assertEquals(1, (state as StoryViewModel.StoryState.Success).currentIndex)
-        }
-
-    // Mark story as viewed test
     @Test
     fun `markStoryAsViewed adds story to viewed set`() {
-        // Given
-        val storyId = "story1"
+        assertTrue(viewModel.viewedStories.value.isEmpty())
 
-        // When
-        viewModel.markStoryAsViewed(storyId)
+        viewModel.markStoryAsViewed("story1")
+        assertTrue(viewModel.viewedStories.value.contains("story1"))
 
-        // Then
-        assertTrue(viewModel.viewedStories.value.contains(storyId))
+        viewModel.markStoryAsViewed("story2")
+        assertTrue(viewModel.viewedStories.value.contains("story2"))
+        assertEquals(2, viewModel.viewedStories.value.size)
     }
 
-    // Edit mode tests
+    // --- enterEditMode Tests ---
+
     @Test
     fun `enterEditMode loads existing tags and enters edit mode`() =
         runTest {
-            // Given
-            val storyId = "story1"
-            val photoId = "photo1"
-            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    address = null,
+                    tags =
+                        listOf(
+                            Tag(tagName = "ExistingTag1", tagId = "tag1"),
+                            Tag(tagName = "ExistingTag2", tagId = "tag2"),
+                        ),
+                )
+
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
                 RemoteRepository.Result.Success(photoDetail)
 
-            // When
-            viewModel.enterEditMode(storyId, photoId)
+            viewModel.enterEditMode("story1", "1")
             advanceUntilIdle()
 
-            // Then
-            assertEquals(storyId, viewModel.editModeStory.value)
-            assertTrue(viewModel.getSelectedTags(storyId).contains("Tag 1"))
+            assertEquals("story1", viewModel.editModeStory.value)
+            assertTrue(viewModel.getSelectedTags("story1").contains("ExistingTag1"))
+            assertTrue(viewModel.getSelectedTags("story1").contains("ExistingTag2"))
+            assertEquals(2, viewModel.originalTags.value["story1"]?.size)
         }
 
     @Test
-    fun `exitEditMode exits edit mode and restores original selection`() =
+    fun `enterEditMode exits previous edit mode`() =
         runTest {
-            // Given
-            val storyId = "story1"
-            val photoId = "photo1"
-            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            viewModel.enterEditMode(storyId, photoId)
+            val photoDetail1 =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    address = null,
+                    tags = listOf(Tag(tagName = "Tag1", tagId = "tag1")),
+                )
+            val photoDetail2 =
+                PhotoDetailResponse(
+                    photoPathId = 2L,
+                    address = null,
+                    tags = listOf(Tag(tagName = "Tag2", tagId = "tag2")),
+                )
+
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.Success(photoDetail1)
+            coEvery { remoteRepository.getPhotoDetail("2") } returns
+                RemoteRepository.Result.Success(photoDetail2)
+
+            viewModel.enterEditMode("story1", "1")
             advanceUntilIdle()
 
-            // Modify selection
-            viewModel.toggleTag(storyId, "Tag 2")
+            assertEquals("story1", viewModel.editModeStory.value)
 
-            // When
-            viewModel.exitEditMode(storyId)
+            viewModel.enterEditMode("story2", "2")
+            advanceUntilIdle()
 
-            // Then
-            assertNull(viewModel.editModeStory.value)
-            // Selection should be restored to original
-            assertTrue(viewModel.getSelectedTags(storyId).contains("Tag 1"))
-            assertFalse(viewModel.getSelectedTags(storyId).contains("Tag 2"))
+            assertEquals("story2", viewModel.editModeStory.value)
         }
+
+    @Test
+    fun `enterEditMode handles error when fetching photo details`() =
+        runTest {
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.Error(500, "Server error")
+
+            viewModel.enterEditMode("story1", "1")
+            advanceUntilIdle()
+
+            // Edit mode should not be entered on error
+            assertNull(viewModel.editModeStory.value)
+        }
+
+    @Test
+    fun `enterEditMode handles unauthorized error`() =
+        runTest {
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.Unauthorized("Unauthorized")
+
+            viewModel.enterEditMode("story1", "1")
+            advanceUntilIdle()
+
+            assertNull(viewModel.editModeStory.value)
+        }
+
+    @Test
+    fun `enterEditMode handles network error`() =
+        runTest {
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.NetworkError("Network error")
+
+            viewModel.enterEditMode("story1", "1")
+            advanceUntilIdle()
+
+            assertNull(viewModel.editModeStory.value)
+        }
+
+    @Test
+    fun `enterEditMode handles exception error`() =
+        runTest {
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.Exception(RuntimeException("Exception"))
+
+            viewModel.enterEditMode("story1", "1")
+            advanceUntilIdle()
+
+            assertNull(viewModel.editModeStory.value)
+        }
+
+    // --- exitEditMode Tests ---
+
+    @Test
+    fun `exitEditMode restores original tags`() =
+        runTest {
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    address = null,
+                    tags = listOf(Tag(tagName = "OriginalTag", tagId = "tag1")),
+                )
+
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
+                RemoteRepository.Result.Success(photoDetail)
+
+            viewModel.enterEditMode("story1", "1")
+            advanceUntilIdle()
+
+            // Modify tags
+            viewModel.toggleTag("story1", "NewTag")
+            assertTrue(viewModel.getSelectedTags("story1").contains("NewTag"))
+
+            viewModel.exitEditMode("story1")
+
+            assertNull(viewModel.editModeStory.value)
+            // Should restore to original tags
+            assertTrue(viewModel.getSelectedTags("story1").contains("OriginalTag"))
+            assertFalse(viewModel.getSelectedTags("story1").contains("NewTag"))
+        }
+
+    // --- clearEditMode Tests ---
 
     @Test
     fun `clearEditMode clears edit mode without restoring`() =
         runTest {
-            // Given
-            val storyId = "story1"
-            val photoId = "photo1"
-            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
+            val photoDetail =
+                PhotoDetailResponse(
+                    photoPathId = 1L,
+                    address = null,
+                    tags = listOf(Tag(tagName = "OriginalTag", tagId = "tag1")),
+                )
+
+            coEvery { remoteRepository.getPhotoDetail("1") } returns
                 RemoteRepository.Result.Success(photoDetail)
-            viewModel.enterEditMode(storyId, photoId)
+
+            viewModel.enterEditMode("story1", "1")
             advanceUntilIdle()
 
-            // When
+            viewModel.toggleTag("story1", "NewTag")
+
             viewModel.clearEditMode()
 
-            // Then
             assertNull(viewModel.editModeStory.value)
+            // Tags should NOT be restored
+            assertTrue(viewModel.getSelectedTags("story1").contains("NewTag"))
         }
 
-    // Reset state test
+    // --- setStoryBrowsingSession Tests ---
+
+    @Test
+    fun `setStoryBrowsingSession sets story in repository`() {
+        val photo = createMockPhoto("1")
+
+        viewModel.setStoryBrowsingSession(photo)
+
+        verify { imageBrowserRepository.setStory(photo) }
+    }
+
+    // --- stopPolling Tests ---
+
+    @Test
+    fun `stopPolling cancels active jobs`() =
+        runTest {
+            val processingResponse = createMockStoryStateResponse("PROCESSING", emptyList())
+
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(processingResponse)
+
+            viewModel.loadStories(5)
+            advanceTimeBy(500) // Start polling
+
+            viewModel.stopPolling()
+            advanceUntilIdle()
+
+            // State should be Loading since polling was cancelled
+            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Loading)
+        }
+
+    // --- resetState Tests ---
+
     @Test
     fun `resetState clears all state`() =
         runTest {
-            // Given
-            viewModel.toggleTag("story1", "tag1")
-            viewModel.markStoryAsViewed("story1")
+            // Setup some state
+            val storyResponses = listOf(createMockStoryResponse("1"))
+            val photos = listOf(createMockPhoto("1"))
+            val storyResponse = createMockStoryStateResponse("SUCCESS", storyResponses)
 
-            // When
+            coEvery { recommendRepository.getStories(5) } returns
+                RecommendRepository.StoryResult.Success(storyResponse)
+            coEvery { localRepository.toPhotos(any()) } returns photos
+            coEvery { localRepository.getPhotoDate(any()) } returns "2023-01-01"
+            coEvery { localRepository.getPhotoLocation(any()) } returns ""
+
+            viewModel.loadStories(5)
+            advanceUntilIdle()
+
+            val storyId = (viewModel.storyState.value as StoryViewModel.StoryState.Success).stories[0].id
+            viewModel.toggleTag(storyId, "Tag1")
+            viewModel.markStoryAsViewed(storyId)
+
+            // Reset
             viewModel.resetState()
 
-            // Then
-            assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Idle)
+            assertEquals(StoryViewModel.StoryState.Idle, viewModel.storyState.value)
             assertTrue(viewModel.selectedTags.value.isEmpty())
+            assertTrue(viewModel.storyTagSubmissionStates.value.isEmpty())
             assertTrue(viewModel.viewedStories.value.isEmpty())
             assertNull(viewModel.editModeStory.value)
+            assertTrue(viewModel.originalTags.value.isEmpty())
         }
 
-    // Stop polling test
-    @Test
-    fun `stopPolling cancels active jobs`() {
-        // When
-        viewModel.stopPolling()
+    // --- Initial State Tests ---
 
-        // Then - no exception should be thrown
-        // (Job cancellation is tested implicitly)
-        assertTrue(true)
+    @Test
+    fun `initial state is Idle`() {
+        assertEquals(StoryViewModel.StoryState.Idle, viewModel.storyState.value)
+        assertTrue(viewModel.selectedTags.value.isEmpty())
+        assertTrue(viewModel.storyTagSubmissionStates.value.isEmpty())
+        assertTrue(viewModel.viewedStories.value.isEmpty())
+        assertNull(viewModel.editModeStory.value)
+        assertTrue(viewModel.originalTags.value.isEmpty())
     }
-
-    // Additional loadStories tests for polling and error scenarios
-    @Test
-    fun `loadStories with NotReady polls until Success`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            var callCount = 0
-            coEvery { recommendRepository.getStories() } answers {
-                callCount++
-                if (callCount < 3) {
-                    RecommendRepository.StoryResult.NotReady<List<StoryResponse>>("Stories not ready")
-                } else {
-                    RecommendRepository.StoryResult.Success(storyResponses)
-                }
-            }
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-
-            // When
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-            assertTrue(callCount >= 3)
-        }
-
-    @Test
-    fun `loadStories with Unauthorized updates state to Error`() =
-        runTest {
-            // Given
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Unauthorized("Unauthorized")
-
-            // When
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Error)
-            assertEquals(StoryViewModel.StoryError.Unauthorized, (state as StoryViewModel.StoryState.Error).error)
-        }
-
-    @Test
-    fun `loadStories with BadRequest updates state to Error`() =
-        runTest {
-            // Given
-            val errorMessage = "Bad request"
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.BadRequest(errorMessage)
-
-            // When
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Error)
-            assertEquals(StoryViewModel.StoryError.UnknownError, (state as StoryViewModel.StoryState.Error).error)
-        }
-
-    @Test
-    fun `loadStories with Error updates state to Error`() =
-        runTest {
-            // Given
-            val errorMessage = "Generic error"
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Error(errorMessage)
-
-            // When
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Error)
-            assertEquals(StoryViewModel.StoryError.UnknownError, (state as StoryViewModel.StoryState.Error).error)
-        }
-
-    @Test
-    fun `loadStories with empty photos returns empty success state`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns emptyList()
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-
-            // When
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-            assertEquals(0, (state as StoryViewModel.StoryState.Success).stories.size)
-        }
-
-    @Test
-    fun `loadStories cancels previous job before starting new one`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.NotReady<List<StoryResponse>>("Stories not ready") andThen
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-
-            // When - call loadStories twice
-            viewModel.loadStories(10)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // Then - no error should occur
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-        }
-
-    // loadMoreStories tests
-    @Test
-    fun `loadMoreStories appends stories to current state`() =
-        runTest {
-            // Given - initial state with one story
-            val initialStoryResponses = listOf(createStoryResponse("photo1", 1L))
-            val initialPhotos = listOf(createPhoto("photo1"))
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(initialStoryResponses)
-            coEvery {
-                localRepository.toPhotos(
-                    match<List<PhotoResponse>> {
-                        it.size == 1 && it[0].photoId == "photo1"
-                    },
-                )
-            } returns initialPhotos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // When - load more stories
-            val moreStoryResponses = listOf(createStoryResponse("photo2", 2L))
-            val morePhotos = listOf(createPhoto("photo2"))
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(moreStoryResponses)
-            coEvery {
-                localRepository.toPhotos(
-                    match<List<PhotoResponse>> {
-                        it.size == 1 && it[0].photoId == "photo2"
-                    },
-                )
-            } returns morePhotos
-            viewModel.loadMoreStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-            assertEquals(2, (state as StoryViewModel.StoryState.Success).stories.size)
-            assertEquals("photo1", state.stories[0].photoId)
-            assertEquals("photo2", state.stories[1].photoId)
-        }
-
-    @Test
-    fun `loadMoreStories with NotReady polls until Success`() =
-        runTest {
-            // Given - initial state
-            val initialStoryResponses = listOf(createStoryResponse())
-            val initialPhotos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(initialStoryResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns initialPhotos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // When - load more with polling
-            val moreStoryResponses = listOf(createStoryResponse("photo2", 2L))
-            val morePhotos = listOf(createPhoto("photo2"))
-            var callCount = 0
-            coEvery { recommendRepository.getStories() } answers {
-                callCount++
-                if (callCount < 3) {
-                    RecommendRepository.StoryResult.NotReady<List<StoryResponse>>("Stories not ready")
-                } else {
-                    RecommendRepository.StoryResult.Success(moreStoryResponses)
-                }
-            }
-            coEvery {
-                localRepository.toPhotos(
-                    match<List<PhotoResponse>> {
-                        it.size == 1 && it[0].photoId == "photo2"
-                    },
-                )
-            } returns morePhotos
-            viewModel.loadMoreStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-            assertTrue(callCount >= 3)
-        }
-
-    @Test
-    fun `loadMoreStories with NetworkError fails silently`() =
-        runTest {
-            // Given - initial state
-            val initialStoryResponses = listOf(createStoryResponse())
-            val initialPhotos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(initialStoryResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns initialPhotos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // When - load more with error
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.NetworkError("Network error")
-            viewModel.loadMoreStories(10)
-            advanceUntilIdle()
-
-            // Then - state should remain Success with original stories
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-            assertEquals(1, (state as StoryViewModel.StoryState.Success).stories.size)
-        }
-
-    @Test
-    fun `loadMoreStories with empty photos sets hasMore to false`() =
-        runTest {
-            // Given - initial state
-            val initialStoryResponses = listOf(createStoryResponse())
-            val initialPhotos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(initialStoryResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns initialPhotos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // When - load more with empty results
-            val moreStoryResponses = listOf(createStoryResponse("photo2", 2L))
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(moreStoryResponses)
-            coEvery {
-                localRepository.toPhotos(
-                    match<List<PhotoResponse>> {
-                        it.size == 1 && it[0].photoId == "photo2"
-                    },
-                )
-            } returns emptyList()
-            viewModel.loadMoreStories(10)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-            assertEquals(1, (state as StoryViewModel.StoryState.Success).stories.size)
-            assertFalse(state.hasMore)
-        }
-
-    @Test
-    fun `loadMoreStories when state is not Success does nothing`() =
-        runTest {
-            // Given - state is Idle
-            // When
-            viewModel.loadMoreStories(10)
-            advanceUntilIdle()
-
-            // Then - no API calls should be made
-            coVerify(exactly = 0) { recommendRepository.getStories() }
-        }
-
-    @Test
-    fun `loadMoreStories cancels previous job before starting new one`() =
-        runTest {
-            // Given - initial state
-            val initialStoryResponses = listOf(createStoryResponse())
-            val initialPhotos = listOf(createPhoto())
-            val moreStoryResponses = listOf(createStoryResponse("photo2", 2L))
-            val morePhotos = listOf(createPhoto("photo2"))
-
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(initialStoryResponses)
-            coEvery {
-                localRepository.toPhotos(
-                    match<List<PhotoResponse>> {
-                        it.size == 1 && it[0].photoId == "photo1"
-                    },
-                )
-            } returns initialPhotos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // When - call loadMoreStories twice, second call should cancel first
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(moreStoryResponses)
-            coEvery {
-                localRepository.toPhotos(
-                    match<List<PhotoResponse>> {
-                        it.size == 1 && it[0].photoId == "photo2"
-                    },
-                )
-            } returns morePhotos
-            viewModel.loadMoreStories(10)
-            viewModel.loadMoreStories(10)
-            advanceUntilIdle()
-
-            // Then - no error should occur and state should have both stories
-            val state = viewModel.storyState.value
-            assertTrue(state is StoryViewModel.StoryState.Success)
-        }
-
-    // loadTagsForStory tests
-    @Test
-    fun `loadTagsForStory loads tags from API when not cached`() =
-        runTest {
-            // Given - state with story that has no tags
-            val storyResponses = listOf(createStoryResponse(tags = emptyList()))
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-
-            // When
-            val recommendedTags =
-                listOf(
-                    Tag(tagName = "newTag1", tagId = "id1"),
-                    Tag(tagName = "newTag2", tagId = "id2"),
-                )
-            coEvery { recommendRepository.recommendTagFromPhoto(any()) } returns
-                RecommendRepository.RecommendResult.Success(recommendedTags)
-            viewModel.loadTagsForStory(storyId, "photo1")
-            advanceUntilIdle()
-
-            // Then
-            coVerify { recommendRepository.recommendTagFromPhoto("photo1") }
-        }
-
-    @Test
-    fun `loadTagsForStory uses cached tags when available`() =
-        runTest {
-            // Given - state with story that has no tags
-            val storyResponses = listOf(createStoryResponse(tags = emptyList()))
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-
-            // Load tags once
-            val recommendedTags =
-                listOf(
-                    Tag(tagName = "cachedTag1", tagId = "id1"),
-                )
-            coEvery { recommendRepository.recommendTagFromPhoto(any()) } returns
-                RecommendRepository.RecommendResult.Success(recommendedTags)
-            viewModel.loadTagsForStory(storyId, "photo1")
-            advanceUntilIdle()
-
-            // When - load tags again
-            viewModel.loadTagsForStory(storyId, "photo1")
-            advanceUntilIdle()
-
-            // Then - should only call API once (cached)
-            coVerify(exactly = 1) { recommendRepository.recommendTagFromPhoto("photo1") }
-        }
-
-    @Test
-    fun `loadTagsForStory returns early when story has tags already`() =
-        runTest {
-            // Given - state with story that already has tags
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val story = state.stories[0]
-
-            // When - story already has tags from StoryResponse
-            viewModel.loadTagsForStory(story.id, story.photoId)
-            advanceUntilIdle()
-
-            // Then - should not call API
-            coVerify(exactly = 0) { recommendRepository.recommendTagFromPhoto(any()) }
-        }
-
-    @Test
-    fun `loadTagsForStory fails silently on NetworkError`() =
-        runTest {
-            // Given - state with story
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-
-            // When
-            coEvery { recommendRepository.recommendTagFromPhoto(any()) } returns
-                RecommendRepository.RecommendResult.NetworkError("Network error")
-            viewModel.loadTagsForStory(storyId, "photo1")
-            advanceUntilIdle()
-
-            // Then - no exception should be thrown
-            assertTrue(true)
-        }
-
-    @Test
-    fun `loadTagsForStory does nothing when state is not Success`() =
-        runTest {
-            // Given - state is Idle
-            // When
-            viewModel.loadTagsForStory("story1", "photo1")
-            advanceUntilIdle()
-
-            // Then
-            coVerify(exactly = 0) { recommendRepository.recommendTagFromPhoto(any()) }
-        }
-
-    // addCustomTagToStory tests
-    @Test
-    fun `addCustomTagToStory adds tag to story and selects it`() =
-        runTest {
-            // Given - state with story
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-            val customTag = "customTag"
-
-            // When
-            viewModel.addCustomTagToStory(storyId, customTag)
-
-            // Then
-            val updatedState = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val updatedStory = updatedState.stories[0]
-            assertTrue(updatedStory.suggestedTags.contains(customTag))
-            assertTrue(viewModel.getSelectedTags(storyId).contains(customTag))
-        }
-
-    @Test
-    fun `addCustomTagToStory does nothing when state is not Success`() {
-        // Given - state is Idle
-        // When
-        viewModel.addCustomTagToStory("story1", "customTag")
-
-        // Then - state should remain Idle
-        assertTrue(viewModel.storyState.value is StoryViewModel.StoryState.Idle)
-    }
-
-    // resetSubmissionState test
-    @Test
-    fun `resetSubmissionState resets state for story`() =
-        runTest {
-            // Given
-            val storyId = "story1"
-            val photoId = "photo1"
-            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail =
-                PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            coEvery { remoteRepository.postTags(any()) } returns
-                RemoteRepository.Result.Success(
-                    com.example.momentag.model
-                        .TagId(id = "tag2"),
-                )
-            coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns
-                RemoteRepository.Result.Success(Unit)
-            viewModel.enterEditMode(storyId, photoId)
-            advanceUntilIdle()
-
-            viewModel.toggleTag(storyId, "Tag 2")
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // When
-            viewModel.resetSubmissionState(storyId)
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertEquals(StoryViewModel.StoryTagSubmissionState.Idle, submissionState)
-        }
-
-    // setStoryBrowsingSession test
-    @Test
-    fun `setStoryBrowsingSession sets photo in imageBrowserRepository`() {
-        // Given
-        val photo = createPhoto()
-
-        // When
-        viewModel.setStoryBrowsingSession(photo)
-
-        // Then
-        coVerify { imageBrowserRepository.setStory(photo) }
-    }
-
-    // enterEditMode with different story tests
-    @Test
-    fun `enterEditMode exits previous edit mode when entering new one`() =
-        runTest {
-            // Given
-            val storyId1 = "story1"
-            val photoId1 = "photo1"
-            val storyId2 = "story2"
-            val photoId2 = "photo2"
-            val tags1 = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val tags2 = listOf(Tag(tagName = "Tag 2", tagId = "tag2"))
-            val photoDetail1 = PhotoDetailResponse(photoPathId = 1L, tags = tags1, address = null)
-            val photoDetail2 = PhotoDetailResponse(photoPathId = 2L, tags = tags2, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId1) } returns
-                RemoteRepository.Result.Success(photoDetail1)
-            coEvery { remoteRepository.getPhotoDetail(photoId2) } returns
-                RemoteRepository.Result.Success(photoDetail2)
-
-            // When - enter edit mode for story1
-            viewModel.enterEditMode(storyId1, photoId1)
-            advanceUntilIdle()
-            assertEquals(storyId1, viewModel.editModeStory.value)
-
-            // When - enter edit mode for story2
-            viewModel.enterEditMode(storyId2, photoId2)
-            advanceUntilIdle()
-
-            // Then - edit mode should be story2
-            assertEquals(storyId2, viewModel.editModeStory.value)
-        }
-
-    @Test
-    fun `enterEditMode handles API error gracefully`() =
-        runTest {
-            // Given
-            val storyId = "story1"
-            val photoId = "photo1"
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
-                RemoteRepository.Result.Error(500, "API error")
-
-            // When
-            viewModel.enterEditMode(storyId, photoId)
-            advanceUntilIdle()
-
-            // Then - edit mode should not be set
-            assertNull(viewModel.editModeStory.value)
-        }
-
-    // submitTagsForStory tests
-    @Test
-    fun `submitTagsForStory successfully adds new tags`() =
-        runTest {
-            // Given - story in Success state
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-
-            // Select some tags
-            viewModel.toggleTag(storyId, "newTag1")
-            viewModel.toggleTag(storyId, "newTag2")
-
-            // Mock API responses
-            coEvery { remoteRepository.postTags("newTag1") } returns
-                RemoteRepository.Result.Success(
-                    com.example.momentag.model
-                        .TagId(id = "tag1"),
-                )
-            coEvery { remoteRepository.postTags("newTag2") } returns
-                RemoteRepository.Result.Success(
-                    com.example.momentag.model
-                        .TagId(id = "tag2"),
-                )
-            coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns
-                RemoteRepository.Result.Success(Unit)
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertEquals(StoryViewModel.StoryTagSubmissionState.Success, submissionState)
-        }
-
-    @Test
-    fun `submitTagsForStory successfully removes tags`() =
-        runTest {
-            // Given - load story state first
-            val photoId = "photo1"
-            val storyResponses = listOf(createStoryResponse(photoId, 1L))
-            val photos = listOf(createPhoto(photoId))
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-
-            // Enter edit mode with existing tags
-            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"), Tag(tagName = "Tag 2", tagId = "tag2"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            viewModel.enterEditMode(storyId, photoId)
-            advanceUntilIdle()
-
-            // Remove one tag
-            viewModel.toggleTag(storyId, "Tag 1")
-
-            // Mock API responses
-            coEvery { remoteRepository.removeTagFromPhoto(photoId, "tag1") } returns
-                RemoteRepository.Result.Success(Unit)
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertEquals(StoryViewModel.StoryTagSubmissionState.Success, submissionState)
-            coVerify { remoteRepository.removeTagFromPhoto(photoId, "tag1") }
-        }
-
-    @Test
-    fun `submitTagsForStory handles removeTagFromPhoto Error`() =
-        runTest {
-            // Given - load story state first
-            val photoId = "photo1"
-            val storyResponses = listOf(createStoryResponse(photoId, 1L))
-            val photos = listOf(createPhoto(photoId))
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-
-            // Enter edit mode with existing tags
-            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            viewModel.enterEditMode(storyId, photoId)
-            advanceUntilIdle()
-
-            // Remove tag
-            viewModel.toggleTag(storyId, "Tag 1")
-
-            // Mock error
-            coEvery { remoteRepository.removeTagFromPhoto(photoId, "tag1") } returns
-                RemoteRepository.Result.Error(500, "Failed to remove tag")
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-        }
-
-    fun `submitTagsForStory handles removeTagFromPhoto Unauthorized`() =
-        runTest {
-            // Given - load story state first
-            val photoId = "photo1"
-            val storyResponses = listOf(createStoryResponse(photoId, 1L))
-            val photos = listOf(createPhoto(photoId))
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-
-            // Enter edit mode with existing tags
-            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            viewModel.enterEditMode(storyId, photoId)
-            advanceUntilIdle()
-
-            // Remove tag
-            viewModel.toggleTag(storyId, "Tag 1")
-
-            // Mock unauthorized
-            coEvery { remoteRepository.removeTagFromPhoto(photoId, "tag1") } returns
-                RemoteRepository.Result.Unauthorized("Unauthorized")
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(StoryViewModel.StoryError.Unauthorized, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles removeTagFromPhoto NetworkError`() =
-        runTest {
-            // Given - load story state first
-            val photoId = "photo1"
-            val storyResponses = listOf(createStoryResponse(photoId, 1L))
-            val photos = listOf(createPhoto(photoId))
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-
-            // Enter edit mode with existing tags
-            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            viewModel.enterEditMode(storyId, photoId)
-            advanceUntilIdle()
-
-            // Remove tag
-            viewModel.toggleTag(storyId, "Tag 1")
-
-            // Mock network error
-            coEvery { remoteRepository.removeTagFromPhoto(photoId, "tag1") } returns
-                RemoteRepository.Result.NetworkError("Network error")
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(StoryViewModel.StoryError.NetworkError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles removeTagFromPhoto Exception`() =
-        runTest {
-            // Given - load story state first
-            val photoId = "photo1"
-            val storyResponses = listOf(createStoryResponse(photoId, 1L))
-            val photos = listOf(createPhoto(photoId))
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-
-            // Enter edit mode with existing tags
-            val tags = listOf(Tag(tagName = "Tag 1", tagId = "tag1"))
-            val photoDetail = PhotoDetailResponse(photoPathId = 1L, tags = tags, address = null)
-            coEvery { remoteRepository.getPhotoDetail(photoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            viewModel.enterEditMode(storyId, photoId)
-            advanceUntilIdle()
-
-            // Remove tag
-            viewModel.toggleTag(storyId, "Tag 1")
-
-            // Mock exception
-            coEvery { remoteRepository.removeTagFromPhoto(photoId, "tag1") } returns
-                RemoteRepository.Result.Exception(Exception("Test exception"))
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(StoryViewModel.StoryError.UnknownError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles postTags Error`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-            viewModel.toggleTag(storyId, "newTag1")
-
-            // Mock error
-            coEvery { remoteRepository.postTags("newTag1") } returns
-                RemoteRepository.Result.Error(500, "Failed to create tag")
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles postTags Unauthorized`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-            viewModel.toggleTag(storyId, "newTag1")
-
-            // Mock unauthorized
-            coEvery { remoteRepository.postTags("newTag1") } returns
-                RemoteRepository.Result.Unauthorized("Unauthorized")
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(StoryViewModel.StoryError.Unauthorized, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles postTags NetworkError`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-            viewModel.toggleTag(storyId, "newTag1")
-
-            // Mock network error
-            coEvery { remoteRepository.postTags("newTag1") } returns
-                RemoteRepository.Result.NetworkError("Network error")
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(StoryViewModel.StoryError.NetworkError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles postTags Exception`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-            viewModel.toggleTag(storyId, "newTag1")
-
-            // Mock exception
-            coEvery { remoteRepository.postTags("newTag1") } returns
-                RemoteRepository.Result.Exception(Exception("Test exception"))
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(StoryViewModel.StoryError.UnknownError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles postTagsToPhoto Error`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-            viewModel.toggleTag(storyId, "newTag1")
-
-            // Mock responses
-            coEvery { remoteRepository.postTags("newTag1") } returns
-                RemoteRepository.Result.Success(
-                    com.example.momentag.model
-                        .TagId(id = "tag1"),
-                )
-            coEvery { remoteRepository.postTagsToPhoto(any(), "tag1") } returns
-                RemoteRepository.Result.Error(500, "Failed to associate tag")
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles postTagsToPhoto Unauthorized`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-            viewModel.toggleTag(storyId, "newTag1")
-
-            // Mock responses
-            coEvery { remoteRepository.postTags("newTag1") } returns
-                RemoteRepository.Result.Success(
-                    com.example.momentag.model
-                        .TagId(id = "tag1"),
-                )
-            coEvery { remoteRepository.postTagsToPhoto(any(), "tag1") } returns
-                RemoteRepository.Result.Unauthorized("Unauthorized")
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(StoryViewModel.StoryError.Unauthorized, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles postTagsToPhoto NetworkError`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-            viewModel.toggleTag(storyId, "newTag1")
-
-            // Mock responses
-            coEvery { remoteRepository.postTags("newTag1") } returns
-                RemoteRepository.Result.Success(
-                    com.example.momentag.model
-                        .TagId(id = "tag1"),
-                )
-            coEvery { remoteRepository.postTagsToPhoto(any(), "tag1") } returns
-                RemoteRepository.Result.NetworkError("Network error")
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(StoryViewModel.StoryError.NetworkError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
-        }
-
-    @Test
-    fun `submitTagsForStory handles postTagsToPhoto Exception`() =
-        runTest {
-            // Given
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            val state = viewModel.storyState.value as StoryViewModel.StoryState.Success
-            val storyId = state.stories[0].id
-            viewModel.toggleTag(storyId, "newTag1")
-
-            // Mock responses
-            coEvery { remoteRepository.postTags("newTag1") } returns
-                RemoteRepository.Result.Success(
-                    com.example.momentag.model
-                        .TagId(id = "tag1"),
-                )
-            coEvery { remoteRepository.postTagsToPhoto(any(), "tag1") } returns
-                RemoteRepository.Result.Exception(Exception("Test exception"))
-
-            // When
-            viewModel.submitTagsForStory(storyId)
-            advanceUntilIdle()
-
-            // Then
-            val submissionState = viewModel.storyTagSubmissionStates.value[storyId]
-            assertTrue(submissionState is StoryViewModel.StoryTagSubmissionState.Error)
-            assertEquals(StoryViewModel.StoryError.UnknownError, (submissionState as StoryViewModel.StoryTagSubmissionState.Error).error)
-        }
-
-    @Test
-    fun `submitTagsForStory does nothing when state is not Success`() =
-        runTest {
-            // Given - state is Idle
-            // When
-            viewModel.submitTagsForStory("story1")
-            advanceUntilIdle()
-
-            // Then - no API calls should be made
-            coVerify(exactly = 0) { remoteRepository.postTags(any()) }
-        }
-
-    @Test
-    fun `submitTagsForStory does nothing when story not found`() =
-        runTest {
-            // Given - state with story
-            val storyResponses = listOf(createStoryResponse())
-            val photos = listOf(createPhoto())
-            coEvery { recommendRepository.getStories() } returns
-                RecommendRepository.StoryResult.Success(storyResponses)
-            coEvery { localRepository.toPhotos(any<List<PhotoResponse>>()) } returns photos
-            every { localRepository.getPhotoDate(any()) } returns "2025-01-01"
-            every { localRepository.getPhotoLocation(any()) } returns "Test Location"
-            coEvery { recommendRepository.generateStories(any()) } returns RecommendRepository.StoryResult.Success(Unit)
-            viewModel.loadStories(10)
-            advanceUntilIdle()
-
-            // When - submit for non-existent story
-            viewModel.submitTagsForStory("nonexistent")
-            advanceUntilIdle()
-
-            // Then - no API calls should be made
-            coVerify(exactly = 0) { remoteRepository.postTags(any()) }
-        }
 }

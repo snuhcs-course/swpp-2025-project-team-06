@@ -1,16 +1,26 @@
 package com.example.momentag.viewmodel
 
+import android.content.ContentResolver
 import android.content.Context
+import android.database.Cursor
 import android.net.Uri
+import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
-import androidx.work.WorkRequest
 import com.example.momentag.model.Photo
+import com.example.momentag.model.UploadJobState
+import com.example.momentag.model.UploadStatus
+import com.example.momentag.model.UploadType
 import com.example.momentag.repository.LocalRepository
 import com.example.momentag.repository.RemoteRepository
-import io.mockk.clearAllMocks
+import com.example.momentag.repository.UploadStateRepository
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import io.mockk.runs
+import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,277 +44,585 @@ class PhotoViewModelTest {
     private lateinit var viewModel: PhotoViewModel
     private lateinit var remoteRepository: RemoteRepository
     private lateinit var localRepository: LocalRepository
+    private lateinit var uploadStateRepository: UploadStateRepository
     private lateinit var albumUploadJobCount: MutableStateFlow<Int>
-    private lateinit var context: Context
+    private lateinit var mockContext: Context
+    private lateinit var mockWorkManager: WorkManager
+    private lateinit var mockContentResolver: ContentResolver
 
     @Before
     fun setUp() {
-        mockkStatic(Uri::class)
-        mockkStatic(WorkManager::class)
-        remoteRepository = mockk()
-        localRepository = mockk()
+        remoteRepository = mockk(relaxed = true)
+        localRepository = mockk(relaxed = true)
+        uploadStateRepository = mockk(relaxed = true)
         albumUploadJobCount = MutableStateFlow(0)
-        context = mockk(relaxed = true)
+        mockContext = mockk(relaxed = true)
+        mockWorkManager = mockk(relaxed = true)
+        mockContentResolver = mockk(relaxed = true)
 
-        // Mock WorkManager
-        val workManager = mockk<WorkManager>(relaxed = true)
-        every { WorkManager.getInstance(any()) } returns workManager
+        // Mock WorkManager.getInstance
+        mockkStatic(WorkManager::class)
+        every { WorkManager.getInstance(any()) } returns mockWorkManager
+        every { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) } returns mockk(relaxed = true)
 
-        viewModel = PhotoViewModel(remoteRepository, localRepository, albumUploadJobCount)
+        // Mock Context.contentResolver
+        every { mockContext.contentResolver } returns mockContentResolver
+
+        // Default mock for getAllActiveStates
+        coEvery { uploadStateRepository.getAllActiveStates() } returns emptyList()
+
+        viewModel =
+            PhotoViewModel(
+                remoteRepository,
+                localRepository,
+                uploadStateRepository,
+                albumUploadJobCount,
+            )
     }
 
     @After
     fun tearDown() {
-        clearAllMocks()
-        unmockkStatic(Uri::class)
         unmockkStatic(WorkManager::class)
     }
 
-    private fun createMockUri(path: String): Uri {
-        val uri = mockk<Uri>(relaxed = true)
-        every { uri.toString() } returns path
-        every { uri.lastPathSegment } returns path.substringAfterLast("/")
-        return uri
-    }
-
-    private fun createPhoto(id: String = "123"): Photo {
-        val uri = createMockUri("content://media/external/images/media/$id")
-        every { Uri.parse("content://media/external/images/media/$id") } returns uri
+    private fun createMockPhoto(
+        id: String,
+        contentUri: Uri = mockk(relaxed = true),
+    ): Photo {
+        every { contentUri.lastPathSegment } returns id
         return Photo(
             photoId = id,
-            contentUri = uri,
-            createdAt = "2025-01-01",
+            contentUri = contentUri,
+            createdAt = "2023-01-01",
         )
     }
 
-    // Upload job count observation tests
+    private fun createMockUploadJobState(
+        jobId: String = "job1",
+        type: UploadType = UploadType.ALBUM,
+        albumId: Long? = 1L,
+        status: UploadStatus = UploadStatus.RUNNING,
+        totalPhotoIds: List<Long> = listOf(1L, 2L, 3L),
+    ): UploadJobState =
+        UploadJobState(
+            jobId = jobId,
+            type = type,
+            albumId = albumId,
+            status = status,
+            totalPhotoIds = totalPhotoIds,
+            failedPhotoIds = emptyList(),
+            currentChunkIndex = 0,
+            createdAt = System.currentTimeMillis(),
+        )
+
+    private fun mockCursorForPhotoIds(photoIds: List<Long>): Cursor {
+        val cursor = mockk<Cursor>(relaxed = true)
+        var currentIndex = -1
+
+        every { cursor.getColumnIndexOrThrow(any()) } returns 0
+        every { cursor.moveToNext() } answers {
+            currentIndex++
+            currentIndex < photoIds.size
+        }
+        every { cursor.getLong(0) } answers {
+            photoIds[currentIndex]
+        }
+        every { cursor.close() } just runs
+
+        return cursor
+    }
+
+    // --- Initialization Tests ---
+
     @Test
-    fun `uiState isLoading tracks albumUploadJobCount`() =
+    fun `init subscribes to albumUploadJobCount and updates loading state`() =
         runTest {
-            // Initial state
+            // ViewModel is already created in setUp with initial count of 0
             assertFalse(viewModel.uiState.value.isLoading)
 
-            // When job count increases
+            // Update count to 1
             albumUploadJobCount.value = 1
             advanceUntilIdle()
 
-            // Then
             assertTrue(viewModel.uiState.value.isLoading)
 
-            // When job count goes back to 0
+            // Update count back to 0
             albumUploadJobCount.value = 0
             advanceUntilIdle()
 
-            // Then
             assertFalse(viewModel.uiState.value.isLoading)
         }
 
-    // uploadPhotosForAlbums tests
     @Test
-    fun `uploadPhotosForAlbums with empty set does nothing`() =
+    fun `init subscribes to albumUploadJobCount with multiple jobs`() =
         runTest {
-            // Given
-            val emptySet = emptySet<Long>()
-
-            // When
-            viewModel.uploadPhotosForAlbums(emptySet, context)
+            albumUploadJobCount.value = 3
             advanceUntilIdle()
 
-            // Then
-            verify(exactly = 0) { WorkManager.getInstance(any<Context>()).enqueue(any<WorkRequest>()) }
-            assertNull(viewModel.uiState.value.userMessage)
+            assertTrue(viewModel.uiState.value.isLoading)
+        }
+
+    // --- uploadPhotosForAlbums Tests ---
+
+    @Test
+    fun `uploadPhotosForAlbums does nothing when albumIds is empty`() =
+        runTest {
+            viewModel.uploadPhotosForAlbums(emptySet(), mockContext)
+            advanceUntilIdle()
+
+            verify(exactly = 0) { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
+            coVerify(exactly = 0) { uploadStateRepository.saveState(any()) }
         }
 
     @Test
-    fun `uploadPhotosForAlbums with single album enqueues work and sets message`() =
+    fun `uploadPhotosForAlbums starts new upload for album without existing paused job`() =
         runTest {
-            // Given
-            val albumIds = setOf(1L)
-            val workManager = mockk<WorkManager>(relaxed = true)
-            every { WorkManager.getInstance(context) } returns workManager
+            val albumId = 1L
+            val photoIds = listOf(1L, 2L, 3L)
+            val cursor = mockCursorForPhotoIds(photoIds)
 
-            // When
-            viewModel.uploadPhotosForAlbums(albumIds, context)
+            every {
+                mockContentResolver.query(any(), any(), any(), any(), any())
+            } returns cursor
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns emptyList()
+
+            viewModel.uploadPhotosForAlbums(setOf(albumId), mockContext)
             advanceUntilIdle()
 
-            // Then
-            verify(exactly = 1) { workManager.enqueue(any<WorkRequest>()) }
+            // Verify state was saved
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
+
+            val savedState = stateSlot.captured
+            assertEquals(UploadType.ALBUM, savedState.type)
+            assertEquals(albumId, savedState.albumId)
+            assertEquals(UploadStatus.RUNNING, savedState.status)
+            assertEquals(photoIds, savedState.totalPhotoIds)
+            assertTrue(savedState.failedPhotoIds.isEmpty())
+            assertEquals(0, savedState.currentChunkIndex)
+
+            // Verify WorkManager was called
+            verify { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
+
+            // Verify user message
+            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
+
+            // Verify cursor was closed
+            verify { cursor.close() }
+        }
+
+    @Test
+    fun `uploadPhotosForAlbums resumes existing paused upload`() =
+        runTest {
+            val albumId = 1L
+            val existingJobId = "existing-job-123"
+            val pausedJob =
+                createMockUploadJobState(
+                    jobId = existingJobId,
+                    albumId = albumId,
+                    status = UploadStatus.PAUSED,
+                )
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns listOf(pausedJob)
+
+            viewModel.uploadPhotosForAlbums(setOf(albumId), mockContext)
+            advanceUntilIdle()
+
+            // Verify state was updated to RUNNING
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
+
+            val savedState = stateSlot.captured
+            assertEquals(existingJobId, savedState.jobId)
+            assertEquals(UploadStatus.RUNNING, savedState.status)
+
+            // Verify WorkManager was called
+            verify { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
+
+            // Verify user message
+            assertEquals("Resuming upload...", viewModel.uiState.value.userMessage)
+        }
+
+    @Test
+    fun `uploadPhotosForAlbums handles multiple albums`() =
+        runTest {
+            val albumId1 = 1L
+            val albumId2 = 2L
+            val photoIds = listOf(1L, 2L, 3L)
+            val cursor = mockCursorForPhotoIds(photoIds)
+
+            every {
+                mockContentResolver.query(any(), any(), any(), any(), any())
+            } returns cursor
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns emptyList()
+
+            viewModel.uploadPhotosForAlbums(setOf(albumId1, albumId2), mockContext)
+            advanceUntilIdle()
+
+            // Verify state was saved for each album
+            coVerify(exactly = 2) { uploadStateRepository.saveState(any()) }
+
+            // Verify WorkManager was called twice
+            verify(exactly = 2) { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
+        }
+
+    @Test
+    fun `uploadPhotosForAlbums handles empty album`() =
+        runTest {
+            val albumId = 1L
+            val cursor = mockCursorForPhotoIds(emptyList())
+
+            every {
+                mockContentResolver.query(any(), any(), any(), any(), any())
+            } returns cursor
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns emptyList()
+
+            viewModel.uploadPhotosForAlbums(setOf(albumId), mockContext)
+            advanceUntilIdle()
+
+            // Should still save state even with empty album
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
+
+            val savedState = stateSlot.captured
+            assertTrue(savedState.totalPhotoIds.isEmpty())
+
+            verify { cursor.close() }
+        }
+
+    @Test
+    fun `uploadPhotosForAlbums handles null cursor`() =
+        runTest {
+            val albumId = 1L
+
+            every {
+                mockContentResolver.query(any(), any(), any(), any(), any())
+            } returns null
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns emptyList()
+
+            viewModel.uploadPhotosForAlbums(setOf(albumId), mockContext)
+            advanceUntilIdle()
+
+            // Should still save state with empty photo list
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
+
+            val savedState = stateSlot.captured
+            assertTrue(savedState.totalPhotoIds.isEmpty())
+        }
+
+    // --- uploadSelectedPhotos Tests ---
+
+    @Test
+    fun `uploadSelectedPhotos does nothing when photos set is empty`() =
+        runTest {
+            viewModel.uploadSelectedPhotos(emptySet(), mockContext)
+            advanceUntilIdle()
+
+            verify(exactly = 0) { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
+            coVerify(exactly = 0) { uploadStateRepository.saveState(any()) }
+        }
+
+    @Test
+    fun `uploadSelectedPhotos sets error when photo IDs cannot be extracted`() =
+        runTest {
+            val photo1 = createMockPhoto("photo1")
+            // Mock lastPathSegment to return null
+            every { photo1.contentUri.lastPathSegment } returns null
+
+            viewModel.uploadSelectedPhotos(setOf(photo1), mockContext)
+            advanceUntilIdle()
+
+            assertEquals(
+                PhotoViewModel.PhotoError.NoPhotosSelected,
+                viewModel.uiState.value.error,
+            )
+
+            verify(exactly = 0) { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
+            coVerify(exactly = 0) { uploadStateRepository.saveState(any()) }
+        }
+
+    @Test
+    fun `uploadSelectedPhotos sets error when photo IDs are invalid`() =
+        runTest {
+            val photo1 = createMockPhoto("photo1")
+            // Mock lastPathSegment to return non-numeric value
+            every { photo1.contentUri.lastPathSegment } returns "invalid"
+
+            viewModel.uploadSelectedPhotos(setOf(photo1), mockContext)
+            advanceUntilIdle()
+
+            assertEquals(
+                PhotoViewModel.PhotoError.NoPhotosSelected,
+                viewModel.uiState.value.error,
+            )
+
+            verify(exactly = 0) { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
+            coVerify(exactly = 0) { uploadStateRepository.saveState(any()) }
+        }
+
+    @Test
+    fun `uploadSelectedPhotos starts new upload for selected photos`() =
+        runTest {
+            val photo1 = createMockPhoto("1")
+            val photo2 = createMockPhoto("2")
+            val photo3 = createMockPhoto("3")
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns emptyList()
+
+            viewModel.uploadSelectedPhotos(setOf(photo1, photo2, photo3), mockContext)
+            advanceUntilIdle()
+
+            // Verify state was saved
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
+
+            val savedState = stateSlot.captured
+            assertEquals(UploadType.SELECTED_PHOTOS, savedState.type)
+            assertNull(savedState.albumId)
+            assertEquals(UploadStatus.RUNNING, savedState.status)
+            assertEquals(listOf(1L, 2L, 3L), savedState.totalPhotoIds)
+            assertTrue(savedState.failedPhotoIds.isEmpty())
+            assertEquals(0, savedState.currentChunkIndex)
+
+            // Verify WorkManager was called
+            verify { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
+
+            // Verify user message
             assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
         }
 
     @Test
-    fun `uploadPhotosForAlbums with multiple albums enqueues multiple works`() =
+    fun `uploadSelectedPhotos resumes existing paused upload with matching photo IDs`() =
         runTest {
-            // Given
-            val albumIds = setOf(1L, 2L, 3L)
-            val workManager = mockk<WorkManager>(relaxed = true)
-            every { WorkManager.getInstance(context) } returns workManager
+            val photo1 = createMockPhoto("1")
+            val photo2 = createMockPhoto("2")
 
-            // When
-            viewModel.uploadPhotosForAlbums(albumIds, context)
+            val existingJobId = "existing-job-456"
+            val pausedJob =
+                createMockUploadJobState(
+                    jobId = existingJobId,
+                    type = UploadType.SELECTED_PHOTOS,
+                    albumId = null,
+                    status = UploadStatus.PAUSED,
+                    totalPhotoIds = listOf(1L, 2L),
+                )
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns listOf(pausedJob)
+
+            viewModel.uploadSelectedPhotos(setOf(photo1, photo2), mockContext)
             advanceUntilIdle()
 
-            // Then
-            verify(exactly = 3) { workManager.enqueue(any<WorkRequest>()) }
+            // Verify state was updated to RUNNING
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
+
+            val savedState = stateSlot.captured
+            assertEquals(existingJobId, savedState.jobId)
+            assertEquals(UploadStatus.RUNNING, savedState.status)
+
+            // Verify WorkManager was called
+            verify { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
+
+            // Verify user message
+            assertEquals("Resuming upload...", viewModel.uiState.value.userMessage)
+        }
+
+    @Test
+    fun `uploadSelectedPhotos does not resume paused upload with different photo IDs`() =
+        runTest {
+            val photo1 = createMockPhoto("1")
+            val photo2 = createMockPhoto("2")
+
+            val existingJobId = "existing-job-456"
+            val pausedJob =
+                createMockUploadJobState(
+                    jobId = existingJobId,
+                    type = UploadType.SELECTED_PHOTOS,
+                    albumId = null,
+                    status = UploadStatus.PAUSED,
+                    totalPhotoIds = listOf(3L, 4L), // Different photo IDs
+                )
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns listOf(pausedJob)
+
+            viewModel.uploadSelectedPhotos(setOf(photo1, photo2), mockContext)
+            advanceUntilIdle()
+
+            // Verify a new state was saved (not resuming the existing one)
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
+
+            val savedState = stateSlot.captured
+            // Should have a different job ID
+            assertTrue(savedState.jobId != existingJobId)
+            assertEquals(UploadStatus.RUNNING, savedState.status)
+
+            // Verify user message indicates new upload
             assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
         }
 
-    // uploadSelectedPhotos tests
     @Test
-    fun `uploadSelectedPhotos with empty set does nothing`() =
+    fun `uploadSelectedPhotos does not resume album upload`() =
         runTest {
-            // Given
-            val emptySet = emptySet<Photo>()
+            val photo1 = createMockPhoto("1")
+            val photo2 = createMockPhoto("2")
 
-            // When
-            viewModel.uploadSelectedPhotos(emptySet, context)
+            val pausedJob =
+                createMockUploadJobState(
+                    type = UploadType.ALBUM,
+                    status = UploadStatus.PAUSED,
+                    totalPhotoIds = listOf(1L, 2L),
+                )
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns listOf(pausedJob)
+
+            viewModel.uploadSelectedPhotos(setOf(photo1, photo2), mockContext)
             advanceUntilIdle()
 
-            // Then
-            verify(exactly = 0) { WorkManager.getInstance(any<Context>()).enqueue(any<WorkRequest>()) }
-            assertNull(viewModel.uiState.value.userMessage)
-        }
+            // Verify new state was saved (not resuming album upload)
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
 
-    @Test
-    fun `uploadSelectedPhotos with invalid photo IDs sets error`() =
-        runTest {
-            // Given
-            val photos = setOf(createPhoto("invalid-id"), createPhoto("another-invalid"))
+            val savedState = stateSlot.captured
+            assertEquals(UploadType.SELECTED_PHOTOS, savedState.type)
 
-            // When
-            viewModel.uploadSelectedPhotos(photos, context)
-            advanceUntilIdle()
-
-            // Then
-            verify(exactly = 0) { WorkManager.getInstance(any<Context>()).enqueue(any<WorkRequest>()) }
-            assertEquals(PhotoViewModel.PhotoError.NoPhotosSelected, viewModel.uiState.value.error)
-        }
-
-    @Test
-    fun `uploadSelectedPhotos with valid photo IDs enqueues work and sets message`() =
-        runTest {
-            // Given
-            val photos = setOf(createPhoto("123"), createPhoto("456"))
-            val workManager = mockk<WorkManager>(relaxed = true)
-            every { WorkManager.getInstance(context) } returns workManager
-
-            // When
-            viewModel.uploadSelectedPhotos(photos, context)
-            advanceUntilIdle()
-
-            // Then
-            verify(exactly = 1) { workManager.enqueue(any<WorkRequest>()) }
+            // Verify user message indicates new upload
             assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
         }
 
     @Test
-    fun `uploadSelectedPhotos with mixed valid and invalid IDs uploads only valid ones`() =
+    fun `uploadSelectedPhotos handles single photo`() =
         runTest {
-            // Given
-            val photos = setOf(createPhoto("123"), createPhoto("invalid"), createPhoto("456"))
-            val workManager = mockk<WorkManager>(relaxed = true)
-            every { WorkManager.getInstance(context) } returns workManager
+            val photo1 = createMockPhoto("123")
 
-            // When
-            viewModel.uploadSelectedPhotos(photos, context)
+            coEvery { uploadStateRepository.getAllActiveStates() } returns emptyList()
+
+            viewModel.uploadSelectedPhotos(setOf(photo1), mockContext)
             advanceUntilIdle()
 
-            // Then
-            verify(exactly = 1) { workManager.enqueue(any<WorkRequest>()) }
-            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
+            // Verify state was saved
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
+
+            val savedState = stateSlot.captured
+            assertEquals(listOf(123L), savedState.totalPhotoIds)
+
+            verify { mockWorkManager.enqueue(any<OneTimeWorkRequest>()) }
         }
 
-    // Message clearing tests
+    @Test
+    fun `uploadSelectedPhotos filters out photos with invalid IDs`() =
+        runTest {
+            val validPhoto = createMockPhoto("1")
+            val invalidPhoto1 = createMockPhoto("invalid")
+            every { invalidPhoto1.contentUri.lastPathSegment } returns "invalid"
+            val invalidPhoto2 = createMockPhoto("null")
+            every { invalidPhoto2.contentUri.lastPathSegment } returns null
+
+            coEvery { uploadStateRepository.getAllActiveStates() } returns emptyList()
+
+            viewModel.uploadSelectedPhotos(setOf(validPhoto, invalidPhoto1, invalidPhoto2), mockContext)
+            advanceUntilIdle()
+
+            // Verify state was saved with only valid photo
+            val stateSlot = slot<UploadJobState>()
+            coVerify { uploadStateRepository.saveState(capture(stateSlot)) }
+
+            val savedState = stateSlot.captured
+            assertEquals(listOf(1L), savedState.totalPhotoIds)
+        }
+
+    // --- Message Handling Tests ---
+
     @Test
     fun `infoMessageShown clears user message`() =
         runTest {
-            // Given - set a user message first
-            val albumIds = setOf(1L)
-            val workManager = mockk<WorkManager>(relaxed = true)
-            every { WorkManager.getInstance(context) } returns workManager
-            viewModel.uploadPhotosForAlbums(albumIds, context)
+            // Set up initial state with a message
+            val photo1 = createMockPhoto("1")
+            coEvery { uploadStateRepository.getAllActiveStates() } returns emptyList()
+
+            viewModel.uploadSelectedPhotos(setOf(photo1), mockContext)
             advanceUntilIdle()
+
             assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
 
-            // When
+            // Clear the message
             viewModel.infoMessageShown()
-            advanceUntilIdle()
 
-            // Then
             assertNull(viewModel.uiState.value.userMessage)
         }
 
     @Test
     fun `errorMessageShown clears error`() =
         runTest {
-            // Given - set an error message first
-            val photos = setOf(createPhoto("invalid"))
-            viewModel.uploadSelectedPhotos(photos, context)
-            advanceUntilIdle()
-            assertEquals(PhotoViewModel.PhotoError.NoPhotosSelected, viewModel.uiState.value.error)
+            // Set up initial state with an error
+            val photo1 = createMockPhoto("invalid")
+            every { photo1.contentUri.lastPathSegment } returns null
 
-            // When
+            viewModel.uploadSelectedPhotos(setOf(photo1), mockContext)
+            advanceUntilIdle()
+
+            assertEquals(
+                PhotoViewModel.PhotoError.NoPhotosSelected,
+                viewModel.uiState.value.error,
+            )
+
+            // Clear the error
             viewModel.errorMessageShown()
-            advanceUntilIdle()
 
-            // Then
             assertNull(viewModel.uiState.value.error)
         }
 
     @Test
-    fun `multiple album uploads update message correctly`() =
-        runTest {
-            // Given
-            val workManager = mockk<WorkManager>(relaxed = true)
-            every { WorkManager.getInstance(context) } returns workManager
+    fun `infoMessageShown when no message present does not cause error`() {
+        assertNull(viewModel.uiState.value.userMessage)
 
-            // When - first upload
-            viewModel.uploadPhotosForAlbums(setOf(1L), context)
-            advanceUntilIdle()
+        viewModel.infoMessageShown()
 
-            // Then
-            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
-
-            // When - clear message
-            viewModel.infoMessageShown()
-            advanceUntilIdle()
-
-            // Then
-            assertNull(viewModel.uiState.value.userMessage)
-
-            // When - second upload
-            viewModel.uploadPhotosForAlbums(setOf(2L), context)
-            advanceUntilIdle()
-
-            // Then
-            assertEquals("Background upload started.", viewModel.uiState.value.userMessage)
-        }
+        assertNull(viewModel.uiState.value.userMessage)
+    }
 
     @Test
-    fun `loading state updates with multiple job count changes`() =
+    fun `errorMessageShown when no error present does not cause error`() {
+        assertNull(viewModel.uiState.value.error)
+
+        viewModel.errorMessageShown()
+
+        assertNull(viewModel.uiState.value.error)
+    }
+
+    // --- UI State Tests ---
+
+    @Test
+    fun `initial UI state is correct`() {
+        val initialState = viewModel.uiState.value
+
+        assertFalse(initialState.isLoading)
+        assertNull(initialState.userMessage)
+        assertNull(initialState.error)
+        assertFalse(initialState.isUploadSuccess)
+    }
+
+    @Test
+    fun `UI state loading updates correctly with job count changes`() =
         runTest {
-            // Initial state
             assertFalse(viewModel.uiState.value.isLoading)
 
-            // When multiple jobs start
-            albumUploadJobCount.value = 3
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.uiState.value.isLoading)
-
-            // When some jobs complete but not all
             albumUploadJobCount.value = 1
             advanceUntilIdle()
-
-            // Then - still loading
             assertTrue(viewModel.uiState.value.isLoading)
 
-            // When all jobs complete
+            albumUploadJobCount.value = 2
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isLoading)
+
             albumUploadJobCount.value = 0
             advanceUntilIdle()
-
-            // Then - not loading
             assertFalse(viewModel.uiState.value.isLoading)
         }
 }

@@ -6,6 +6,7 @@ import com.example.momentag.model.PhotoUploadData
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagId
 import com.example.momentag.model.TagResponse
+import com.example.momentag.model.TaskInfo
 import com.example.momentag.network.ApiService
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
@@ -15,6 +16,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,7 +41,8 @@ class RemoteRepositoryTest {
         clearAllMocks()
     }
 
-    // Helper functions
+    // ========== Helper Functions ==========
+
     private fun createTag(
         id: String = "tag1",
         name: String = "TestTag",
@@ -78,6 +81,14 @@ class RemoteRepositoryTest {
             tags = listOf(createTag()),
         )
 
+    private fun createTaskInfo(
+        taskId: String = "task1",
+        photoPathIds: List<Long> = listOf(1L, 2L),
+    ) = TaskInfo(
+        taskId = taskId,
+        photoPathIds = photoPathIds,
+    )
+
     // ========== getAllTags Tests ==========
 
     @Test
@@ -114,7 +125,7 @@ class RemoteRepositoryTest {
     fun `getAllTags returns Unauthorized on 401`() =
         runTest {
             // Given
-            coEvery { apiService.getAllTags() } returns Response.error(401, mockk(relaxed = true))
+            coEvery { apiService.getAllTags() } returns Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.getAllTags()
@@ -128,7 +139,7 @@ class RemoteRepositoryTest {
     fun `getAllTags returns BadRequest on 400`() =
         runTest {
             // Given
-            coEvery { apiService.getAllTags() } returns Response.error(400, mockk(relaxed = true))
+            coEvery { apiService.getAllTags() } returns Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.getAllTags()
@@ -142,7 +153,7 @@ class RemoteRepositoryTest {
     fun `getAllTags returns Error on other error codes`() =
         runTest {
             // Given
-            coEvery { apiService.getAllTags() } returns Response.error(500, mockk(relaxed = true))
+            coEvery { apiService.getAllTags() } returns Response.error(500, "".toResponseBody())
 
             // When
             val result = repository.getAllTags()
@@ -186,7 +197,7 @@ class RemoteRepositoryTest {
         runTest {
             // Given
             val photos = listOf(createPhotoResponse("photo1"), createPhotoResponse("photo2"))
-            coEvery { apiService.getAllPhotos() } returns Response.success(photos)
+            coEvery { apiService.getAllPhotos(null, null) } returns Response.success(photos)
 
             // When
             val result = repository.getAllPhotos()
@@ -197,10 +208,28 @@ class RemoteRepositoryTest {
         }
 
     @Test
+    fun `getAllPhotos with pagination returns Success`() =
+        runTest {
+            // Given
+            val photos = listOf(createPhotoResponse("photo1"))
+            val limit = 10
+            val offset = 5
+            coEvery { apiService.getAllPhotos(limit, offset) } returns Response.success(photos)
+
+            // When
+            val result = repository.getAllPhotos(limit, offset)
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Success)
+            assertEquals(photos, (result as RemoteRepository.Result.Success).data)
+            coVerify { apiService.getAllPhotos(limit, offset) }
+        }
+
+    @Test
     fun `getAllPhotos returns Error when body is null`() =
         runTest {
             // Given
-            coEvery { apiService.getAllPhotos() } returns Response.success(null)
+            coEvery { apiService.getAllPhotos(null, null) } returns Response.success(null)
 
             // When
             val result = repository.getAllPhotos()
@@ -214,7 +243,7 @@ class RemoteRepositoryTest {
     fun `getAllPhotos returns Unauthorized on 401`() =
         runTest {
             // Given
-            coEvery { apiService.getAllPhotos() } returns Response.error(401, mockk(relaxed = true))
+            coEvery { apiService.getAllPhotos(null, null) } returns Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.getAllPhotos()
@@ -227,7 +256,7 @@ class RemoteRepositoryTest {
     fun `getAllPhotos returns BadRequest on 400`() =
         runTest {
             // Given
-            coEvery { apiService.getAllPhotos() } returns Response.error(400, mockk(relaxed = true))
+            coEvery { apiService.getAllPhotos(null, null) } returns Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.getAllPhotos()
@@ -240,7 +269,7 @@ class RemoteRepositoryTest {
     fun `getAllPhotos returns Exception on IOException`() =
         runTest {
             // Given
-            coEvery { apiService.getAllPhotos() } throws IOException("Network error")
+            coEvery { apiService.getAllPhotos(null, null) } throws IOException("Network error")
 
             // When
             val result = repository.getAllPhotos()
@@ -270,7 +299,7 @@ class RemoteRepositoryTest {
     fun `getPhotoDetail returns Unauthorized on 401`() =
         runTest {
             // Given
-            coEvery { apiService.getPhotoDetail("photo1") } returns Response.error(401, mockk(relaxed = true))
+            coEvery { apiService.getPhotoDetail("photo1") } returns Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.getPhotoDetail("photo1")
@@ -283,7 +312,7 @@ class RemoteRepositoryTest {
     fun `getPhotoDetail returns BadRequest on 400`() =
         runTest {
             // Given
-            coEvery { apiService.getPhotoDetail("photo1") } returns Response.error(400, mockk(relaxed = true))
+            coEvery { apiService.getPhotoDetail("photo1") } returns Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.getPhotoDetail("photo1")
@@ -353,7 +382,7 @@ class RemoteRepositoryTest {
     fun `getPhotosByTag returns Unauthorized on 401`() =
         runTest {
             // Given
-            coEvery { apiService.getPhotosByTag("tag1") } returns Response.error(401, mockk(relaxed = true))
+            coEvery { apiService.getPhotosByTag("tag1") } returns Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.getPhotosByTag("tag1")
@@ -410,7 +439,7 @@ class RemoteRepositoryTest {
     fun `postTags returns Unauthorized on 401`() =
         runTest {
             // Given
-            coEvery { apiService.postTags(any()) } returns Response.error(401, mockk(relaxed = true))
+            coEvery { apiService.postTags(any()) } returns Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.postTags("NewTag")
@@ -423,7 +452,7 @@ class RemoteRepositoryTest {
     fun `postTags returns BadRequest on 400`() =
         runTest {
             // Given
-            coEvery { apiService.postTags(any()) } returns Response.error(400, mockk(relaxed = true))
+            coEvery { apiService.postTags(any()) } returns Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.postTags("NewTag")
@@ -448,7 +477,7 @@ class RemoteRepositoryTest {
     // ========== uploadPhotos Tests ==========
 
     @Test
-    fun `uploadPhotos returns Success with code 202`() =
+    fun `uploadPhotos returns Success with task info`() =
         runTest {
             // Given
             val photoUploadData =
@@ -456,20 +485,21 @@ class RemoteRepositoryTest {
                     photo = listOf(mockk<MultipartBody.Part>()),
                     metadata = mockk<RequestBody>(),
                 )
+            val taskInfos = listOf(createTaskInfo("task1"), createTaskInfo("task2"))
             coEvery {
                 apiService.uploadPhotos(any(), any())
-            } returns Response.success(202, Unit)
+            } returns Response.success(taskInfos)
 
             // When
             val result = repository.uploadPhotos(photoUploadData)
 
             // Then
             assertTrue(result is RemoteRepository.Result.Success)
-            assertEquals(202, (result as RemoteRepository.Result.Success).data)
+            assertEquals(taskInfos, (result as RemoteRepository.Result.Success).data)
         }
 
     @Test
-    fun `uploadPhotos returns Success with code 200`() =
+    fun `uploadPhotos returns Error when body is null`() =
         runTest {
             // Given
             val photoUploadData =
@@ -479,14 +509,14 @@ class RemoteRepositoryTest {
                 )
             coEvery {
                 apiService.uploadPhotos(any(), any())
-            } returns Response.success(200, Unit)
+            } returns Response.success(null)
 
             // When
             val result = repository.uploadPhotos(photoUploadData)
 
             // Then
-            assertTrue(result is RemoteRepository.Result.Success)
-            assertEquals(200, (result as RemoteRepository.Result.Success).data)
+            assertTrue(result is RemoteRepository.Result.Error)
+            assertEquals("Response body is null", (result as RemoteRepository.Result.Error).message)
         }
 
     @Test
@@ -500,7 +530,7 @@ class RemoteRepositoryTest {
                 )
             coEvery {
                 apiService.uploadPhotos(any(), any())
-            } returns Response.error(401, mockk(relaxed = true))
+            } returns Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.uploadPhotos(photoUploadData)
@@ -520,7 +550,7 @@ class RemoteRepositoryTest {
                 )
             coEvery {
                 apiService.uploadPhotos(any(), any())
-            } returns Response.error(400, mockk(relaxed = true))
+            } returns Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.uploadPhotos(photoUploadData)
@@ -591,7 +621,7 @@ class RemoteRepositoryTest {
         runTest {
             // Given
             coEvery { apiService.removeTagFromPhoto("photo1", "tag1") } returns
-                Response.error(401, mockk(relaxed = true))
+                Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.removeTagFromPhoto("photo1", "tag1")
@@ -605,7 +635,7 @@ class RemoteRepositoryTest {
         runTest {
             // Given
             coEvery { apiService.removeTagFromPhoto("photo1", "tag1") } returns
-                Response.error(400, mockk(relaxed = true))
+                Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.removeTagFromPhoto("photo1", "tag1")
@@ -619,7 +649,7 @@ class RemoteRepositoryTest {
         runTest {
             // Given
             coEvery { apiService.removeTagFromPhoto("photo1", "tag1") } returns
-                Response.error(404, mockk(relaxed = true))
+                Response.error(404, "".toResponseBody())
 
             // When
             val result = repository.removeTagFromPhoto("photo1", "tag1")
@@ -671,7 +701,7 @@ class RemoteRepositoryTest {
         runTest {
             // Given
             coEvery { apiService.postTagsToPhoto("photo1", any()) } returns
-                Response.error(401, mockk(relaxed = true))
+                Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.postTagsToPhoto("photo1", "tag1")
@@ -685,7 +715,7 @@ class RemoteRepositoryTest {
         runTest {
             // Given
             coEvery { apiService.postTagsToPhoto("photo1", any()) } returns
-                Response.error(400, mockk(relaxed = true))
+                Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.postTagsToPhoto("photo1", "tag1")
@@ -699,7 +729,7 @@ class RemoteRepositoryTest {
         runTest {
             // Given
             coEvery { apiService.postTagsToPhoto("photo1", any()) } returns
-                Response.error(404, mockk(relaxed = true))
+                Response.error(404, "".toResponseBody())
 
             // When
             val result = repository.postTagsToPhoto("photo1", "tag1")
@@ -742,7 +772,7 @@ class RemoteRepositoryTest {
     fun `removeTag returns Unauthorized on 401`() =
         runTest {
             // Given
-            coEvery { apiService.removeTag("tag1") } returns Response.error(401, mockk(relaxed = true))
+            coEvery { apiService.removeTag("tag1") } returns Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.removeTag("tag1")
@@ -755,7 +785,7 @@ class RemoteRepositoryTest {
     fun `removeTag returns BadRequest on 400`() =
         runTest {
             // Given
-            coEvery { apiService.removeTag("tag1") } returns Response.error(400, mockk(relaxed = true))
+            coEvery { apiService.removeTag("tag1") } returns Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.removeTag("tag1")
@@ -768,7 +798,7 @@ class RemoteRepositoryTest {
     fun `removeTag returns Error on 404`() =
         runTest {
             // Given
-            coEvery { apiService.removeTag("tag1") } returns Response.error(404, mockk(relaxed = true))
+            coEvery { apiService.removeTag("tag1") } returns Response.error(404, "".toResponseBody())
 
             // When
             val result = repository.removeTag("tag1")
@@ -827,7 +857,7 @@ class RemoteRepositoryTest {
     fun `renameTag returns Unauthorized on 401`() =
         runTest {
             // Given
-            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(401, mockk(relaxed = true))
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.renameTag("tag1", "NewName")
@@ -840,7 +870,7 @@ class RemoteRepositoryTest {
     fun `renameTag returns BadRequest on 400`() =
         runTest {
             // Given
-            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(400, mockk(relaxed = true))
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.renameTag("tag1", "NewName")
@@ -853,7 +883,7 @@ class RemoteRepositoryTest {
     fun `renameTag returns Error on 403 (forbidden)`() =
         runTest {
             // Given
-            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(403, mockk(relaxed = true))
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(403, "".toResponseBody())
 
             // When
             val result = repository.renameTag("tag1", "NewName")
@@ -868,7 +898,7 @@ class RemoteRepositoryTest {
     fun `renameTag returns Error on 404 (not found)`() =
         runTest {
             // Given
-            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(404, mockk(relaxed = true))
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(404, "".toResponseBody())
 
             // When
             val result = repository.renameTag("tag1", "NewName")
@@ -883,7 +913,7 @@ class RemoteRepositoryTest {
     fun `renameTag returns Error on 500`() =
         runTest {
             // Given
-            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(500, mockk(relaxed = true))
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.error(500, "".toResponseBody())
 
             // When
             val result = repository.renameTag("tag1", "NewName")
@@ -948,7 +978,7 @@ class RemoteRepositoryTest {
         runTest {
             // Given - get all photos
             val photos = listOf(createPhotoResponse("photo1"))
-            coEvery { apiService.getAllPhotos() } returns Response.success(photos)
+            coEvery { apiService.getAllPhotos(null, null) } returns Response.success(photos)
 
             // When - get all photos
             val photosResult = repository.getAllPhotos()
@@ -971,7 +1001,7 @@ class RemoteRepositoryTest {
         runTest {
             // Setup - success, error, exception
             coEvery { apiService.getAllTags() } returns Response.success(listOf(createTagResponse()))
-            coEvery { apiService.getAllPhotos() } returns Response.error(401, mockk(relaxed = true))
+            coEvery { apiService.getAllPhotos(null, null) } returns Response.error(401, "".toResponseBody())
             coEvery { apiService.getPhotoDetail(any()) } throws IOException("Network error")
 
             // When
@@ -983,5 +1013,50 @@ class RemoteRepositoryTest {
             assertTrue(tagsResult is RemoteRepository.Result.Success)
             assertTrue(photosResult is RemoteRepository.Result.Unauthorized)
             assertTrue(detailResult is RemoteRepository.Result.NetworkError)
+        }
+
+    @Test
+    fun `workflow - upload photos and get task info`() =
+        runTest {
+            // Given
+            val photoUploadData =
+                PhotoUploadData(
+                    photo = listOf(mockk<MultipartBody.Part>()),
+                    metadata = mockk<RequestBody>(),
+                )
+            val taskInfos = listOf(createTaskInfo("task1", listOf(1L, 2L)))
+            coEvery { apiService.uploadPhotos(any(), any()) } returns Response.success(taskInfos)
+
+            // When
+            val result = repository.uploadPhotos(photoUploadData)
+
+            // Then
+            assertTrue(result is RemoteRepository.Result.Success)
+            val uploadResult = result as RemoteRepository.Result.Success
+            assertEquals(1, uploadResult.data.size)
+            assertEquals("task1", uploadResult.data[0].taskId)
+            assertEquals(listOf(1L, 2L), uploadResult.data[0].photoPathIds)
+        }
+
+    @Test
+    fun `workflow - rename tag handling all error scenarios`() =
+        runTest {
+            // Success case
+            val newTagId = TagId(id = "renamedTag")
+            coEvery { apiService.renameTag("tag1", any()) } returns Response.success(newTagId)
+            val successResult = repository.renameTag("tag1", "NewName")
+            assertTrue(successResult is RemoteRepository.Result.Success)
+
+            // Forbidden case (preset tag)
+            coEvery { apiService.renameTag("presetTag", any()) } returns Response.error(403, "".toResponseBody())
+            val forbiddenResult = repository.renameTag("presetTag", "NewName")
+            assertTrue(forbiddenResult is RemoteRepository.Result.Error)
+            assertEquals(403, (forbiddenResult as RemoteRepository.Result.Error).code)
+
+            // Not found case
+            coEvery { apiService.renameTag("nonExistent", any()) } returns Response.error(404, "".toResponseBody())
+            val notFoundResult = repository.renameTag("nonExistent", "NewName")
+            assertTrue(notFoundResult is RemoteRepository.Result.Error)
+            assertEquals(404, (notFoundResult as RemoteRepository.Result.Error).code)
         }
 }

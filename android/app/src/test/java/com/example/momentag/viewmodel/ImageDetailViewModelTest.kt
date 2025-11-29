@@ -3,7 +3,6 @@ package com.example.momentag.viewmodel
 import android.net.Uri
 import com.example.momentag.model.ImageContext
 import com.example.momentag.model.PhotoDetailResponse
-import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagId
 import com.example.momentag.repository.ImageBrowserRepository
@@ -100,14 +99,19 @@ class ImageDetailViewModelTest {
 
     // Load photo tags tests
     @Test
-    fun `loadPhotoTags with empty photoId updates state to Idle`() =
+    fun `loadPhotoTags with empty photoId updates state to Success with empty lists`() =
         runTest {
             // When
             viewModel.loadPhotoTags("")
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.imageDetailTagState.value is ImageDetailViewModel.ImageDetailTagState.Idle)
+            val state = viewModel.imageDetailTagState.value
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(emptyList<Tag>(), (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
+            assertEquals(emptyList<String>(), state.recommendedTags)
+            assertFalse(state.isExistingLoading)
+            assertFalse(state.isRecommendedLoading)
             assertNull(viewModel.photoAddress.value)
         }
 
@@ -365,52 +369,6 @@ class ImageDetailViewModelTest {
         }
 
     @Test
-    fun `loadPhotoTags with numeric photoId converts to UUID`() =
-        runTest {
-            // Given
-            val photoPathId = "123"
-            val actualPhotoId = "uuid-123"
-            val photoResponse = PhotoResponse(photoId = actualPhotoId, photoPathId = 123L, createdAt = "2025-01-01")
-            val photoDetail = PhotoDetailResponse(photoPathId = 123L, tags = emptyList(), address = null)
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(listOf(photoResponse))
-            coEvery { remoteRepository.getPhotoDetail(actualPhotoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            coEvery { recommendRepository.recommendTagFromPhoto(actualPhotoId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList())
-
-            // When
-            viewModel.loadPhotoTags(photoPathId)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
-        }
-
-    @Test
-    fun `loadPhotoTags with numeric photoId not found returns empty tags`() =
-        runTest {
-            // Given
-            val photoPathId = "999"
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(emptyList())
-
-            // When
-            viewModel.loadPhotoTags(photoPathId)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
-            assertEquals(emptyList<Tag>(), (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
-            assertEquals(emptyList<String>(), state.recommendedTags)
-            assertNull(viewModel.photoAddress.value)
-        }
-
-    @Test
     fun `loadPhotoTags loads recommended tags and filters existing ones`() =
         runTest {
             // Given
@@ -534,49 +492,6 @@ class ImageDetailViewModelTest {
             assertFalse(state.isRecommendedLoading)
         }
 
-    // Additional deleteTagFromPhoto tests
-    @Test
-    fun `deleteTagFromPhoto with numeric photoId converts to UUID`() =
-        runTest {
-            // Given
-            val photoPathId = "456"
-            val actualPhotoId = "uuid-456"
-            val tagId = "tag1"
-            val photoResponse = PhotoResponse(photoId = actualPhotoId, photoPathId = 456L, createdAt = "2025-01-01")
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(listOf(photoResponse))
-            coEvery { remoteRepository.removeTagFromPhoto(actualPhotoId, tagId) } returns
-                RemoteRepository.Result.Success(Unit)
-
-            // When
-            viewModel.deleteTagFromPhoto(photoPathId, tagId)
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.tagDeleteState.value is ImageDetailViewModel.TagDeleteState.Success)
-        }
-
-    @Test
-    fun `deleteTagFromPhoto with numeric photoId not found returns error`() =
-        runTest {
-            // Given
-            val photoPathId = "999"
-            val tagId = "tag1"
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(emptyList())
-
-            // When
-            viewModel.deleteTagFromPhoto(photoPathId, tagId)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.tagDeleteState.value
-            assertTrue(state is ImageDetailViewModel.TagDeleteState.Error)
-            assertEquals(ImageDetailViewModel.ImageDetailError.NotFound, (state as ImageDetailViewModel.TagDeleteState.Error).error)
-        }
-
     @Test
     fun `deleteTagFromPhoto unauthorized updates state to Error`() =
         runTest {
@@ -655,57 +570,6 @@ class ImageDetailViewModelTest {
             val state = viewModel.tagDeleteState.value
             assertTrue(state is ImageDetailViewModel.TagDeleteState.Error)
             assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagDeleteState.Error).error)
-        }
-
-    // Additional addTagToPhoto tests
-    @Test
-    fun `addTagToPhoto with numeric photoId converts to UUID`() =
-        runTest {
-            // Given
-            val photoPathId = "789"
-            val actualPhotoId = "uuid-789"
-            val tagName = "New Tag"
-            val tagId = "new-tag-id"
-            val photoResponse = PhotoResponse(photoId = actualPhotoId, photoPathId = 789L, createdAt = "2025-01-01")
-            val photoDetail = PhotoDetailResponse(photoPathId = 789L, tags = emptyList(), address = null)
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(listOf(photoResponse))
-            coEvery { remoteRepository.postTags(tagName) } returns
-                RemoteRepository.Result.Success(TagId(tagId))
-            coEvery { remoteRepository.postTagsToPhoto(actualPhotoId, tagId) } returns
-                RemoteRepository.Result.Success(Unit)
-            coEvery { remoteRepository.getPhotoDetail(actualPhotoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            coEvery { recommendRepository.recommendTagFromPhoto(actualPhotoId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList())
-
-            // When
-            viewModel.addTagToPhoto(photoPathId, tagName)
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.tagAddState.value is ImageDetailViewModel.TagAddState.Success)
-        }
-
-    @Test
-    fun `addTagToPhoto with numeric photoId not found returns error`() =
-        runTest {
-            // Given
-            val photoPathId = "999"
-            val tagName = "New Tag"
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(emptyList())
-
-            // When
-            viewModel.addTagToPhoto(photoPathId, tagName)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.tagAddState.value
-            assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals(ImageDetailViewModel.ImageDetailError.NotFound, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
