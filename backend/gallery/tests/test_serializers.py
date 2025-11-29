@@ -15,7 +15,7 @@ from ..request_serializers import (
     ReqTagIdSerializer,
     ReqPhotoBulkDeleteSerializer,
 )
-from ..reponse_serializers import (
+from ..response_serializers import (
     ResPhotoSerializer,
     ResPhotoTagListSerializer,
     ResPhotoIdSerializer,
@@ -489,86 +489,79 @@ class ResStorySerializerTest(TestCase):
 
     def test_res_story_serializer_with_photos(self):
         """사진이 있는 스토리 직렬화 테스트"""
-        photos_data = [
-            {"photo_id": uuid.uuid4(), "photo_path_id": 123},
-            {"photo_id": uuid.uuid4(), "photo_path_id": 456},
-            {"photo_id": uuid.uuid4(), "photo_path_id": 789},
-        ]
-        data = {"recs": photos_data}
+        data = {
+            "photo_id": uuid.uuid4(),
+            "photo_path_id": 123,
+            "tags": ["sunset", "beach"],
+        }
 
         serializer = ResStorySerializer(data)
         serialized_data = serializer.data
 
-        self.assertIn("recs", serialized_data)
-        self.assertEqual(len(serialized_data["recs"]), 3)
-
-        # 각 사진 데이터 구조 확인
-        for photo in serialized_data["recs"]:
-            self.assertIn("photo_id", photo)
-            self.assertIn("photo_path_id", photo)
-            self.assertIsInstance(photo["photo_id"], str)  # UUID는 문자열로 직렬화
-            self.assertIsInstance(photo["photo_path_id"], int)  # int로 변경됨
+        self.assertIn("photo_id", serialized_data)
+        self.assertIn("photo_path_id", serialized_data)
+        self.assertIn("tags", serialized_data)
+        self.assertEqual(serialized_data["photo_path_id"], 123)
+        self.assertEqual(len(serialized_data["tags"]), 2)
+        self.assertIsInstance(serialized_data["photo_id"], str)
 
     def test_res_story_serializer_empty_photos(self):
-        """빈 사진 리스트 직렬화 테스트"""
-        data = {"recs": []}
+        """빈 태그 리스트 직렬화 테스트"""
+        data = {"photo_id": uuid.uuid4(), "photo_path_id": 456, "tags": []}
 
         serializer = ResStorySerializer(data)
         serialized_data = serializer.data
 
-        self.assertIn("recs", serialized_data)
-        self.assertEqual(len(serialized_data["recs"]), 0)
+        self.assertIn("tags", serialized_data)
+        self.assertEqual(len(serialized_data["tags"]), 0)
 
     def test_res_story_serializer_pagination_scenario(self):
-        """페이지네이션 시나리오 테스트"""
-        # 첫 번째 페이지 (50개)
-        first_page_photos = [
-            {"photo_id": uuid.uuid4(), "photo_path_id": i} for i in range(1, 51)
+        """여러 스토리 직렬화 테스트"""
+        # 여러 스토리 데이터
+        stories_data = [
+            {
+                "photo_id": uuid.uuid4(),
+                "photo_path_id": i,
+                "tags": [f"tag{i}", f"tag{i+1}"],
+            }
+            for i in range(1, 51)
         ]
-        first_page_data = {"recs": first_page_photos}
 
-        serializer = ResStorySerializer(first_page_data)
-        self.assertEqual(len(serializer.data["recs"]), 50)
+        serializer = ResStorySerializer(stories_data, many=True)
+        self.assertEqual(len(serializer.data), 50)
 
-        # 마지막 페이지 (부분적 - 23개)
-        last_page_photos = [
-            {"photo_id": uuid.uuid4(), "photo_path_id": i} for i in range(1, 24)
-        ]
-        last_page_data = {"recs": last_page_photos}
-
-        serializer = ResStorySerializer(last_page_data)
-        self.assertEqual(len(serializer.data["recs"]), 23)
+        # 각 스토리 확인
+        for i, story in enumerate(serializer.data):
+            self.assertIn("photo_id", story)
+            self.assertIn("photo_path_id", story)
+            self.assertIn("tags", story)
 
     def test_res_story_serializer_single_photo(self):
         """단일 사진 스토리 테스트"""
-        data = {"recs": [{"photo_id": uuid.uuid4(), "photo_path_id": 999}]}
+        data = {
+            "photo_id": uuid.uuid4(),
+            "photo_path_id": 999,
+            "tags": ["mountain", "snow"],
+        }
 
         serializer = ResStorySerializer(data)
         serialized_data = serializer.data
 
-        self.assertEqual(len(serialized_data["recs"]), 1)
-        self.assertEqual(serialized_data["recs"][0]["photo_path_id"], 999)
+        self.assertEqual(serialized_data["photo_path_id"], 999)
+        self.assertEqual(len(serialized_data["tags"]), 2)
 
     def test_res_story_serializer_data_consistency(self):
         """데이터 일관성 테스트"""
-        original_photos = [
-            {"photo_id": uuid.uuid4(), "photo_path_id": 100},
-            {"photo_id": uuid.uuid4(), "photo_path_id": 200},
-        ]
-        data = {"recs": original_photos}
+        original_id = uuid.uuid4()
+        data = {"photo_id": original_id, "photo_path_id": 100, "tags": ["sky", "cloud"]}
 
         serializer = ResStorySerializer(data)
         serialized_data = serializer.data
 
         # 원본 데이터와 직렬화된 데이터의 일관성 확인
-        for i, original_photo in enumerate(original_photos):
-            serialized_photo = serialized_data["recs"][i]
-            self.assertEqual(
-                str(original_photo["photo_id"]), serialized_photo["photo_id"]
-            )
-            self.assertEqual(
-                original_photo["photo_path_id"], serialized_photo["photo_path_id"]
-            )
+        self.assertEqual(str(original_id), serialized_data["photo_id"])
+        self.assertEqual(100, serialized_data["photo_path_id"])
+        self.assertEqual(["sky", "cloud"], serialized_data["tags"])
 
 
 class ResTagAlbumSerializerTest(TestCase):
