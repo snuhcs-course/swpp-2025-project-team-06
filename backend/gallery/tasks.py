@@ -434,39 +434,41 @@ def execute_hybrid_search(
     )
 
     if tag_ids:
-        # 1.1: DB에서 태그에 직접 속한 사진 ID 조회
-        tag_photo_uuids = set(
-            Photo_Tag.objects.filter(user=user, tag__tag_id__in=tag_ids).values_list(
-                "photo__photo_id", flat=True
-            )
-        )
-
-        tag_photo_ids_str = {str(pid) for pid in tag_photo_uuids}
-
-        # 1.2: Qdrant `recommend` API 호출
-        if tag_photo_ids_str:
-            try:
-                # Qdrant `recommend` API with threshold
-                recommend_results = client.recommend(
-                    collection_name=IMAGE_COLLECTION_NAME,
-                    positive=list(tag_photo_ids_str),
-                    query_filter=user_filter,
-                    limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
-                    with_vectors=False,
-                    with_payload=False,
-                    score_threshold=score_threshold,
+        # 각 태그별로 점수를 계산하고 합산
+        for tag_id in tag_ids:
+            # 1.1: 이 태그에 직접 속한 사진 ID 조회
+            tag_photo_uuids = set(
+                Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
+                    "photo__photo_id", flat=True
                 )
+            )
 
-                for result in recommend_results:
-                    phase_1_scores[result.id] = result.score
+            tag_photo_ids_str = {str(pid) for pid in tag_photo_uuids}
 
-            except Exception as e:
-                print(f"[HybridSearch Error] Qdrant recommend failed: {e}")
-                pass
+            # 1.2: 이 태그에 대해 Qdrant `recommend` API 호출
+            if tag_photo_ids_str:
+                try:
+                    recommend_results = client.recommend(
+                        collection_name=IMAGE_COLLECTION_NAME,
+                        positive=list(tag_photo_ids_str),
+                        query_filter=user_filter,
+                        limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
+                        with_vectors=False,
+                        with_payload=False,
+                        score_threshold=score_threshold,
+                    )
 
-        # 1.3: 태그에 "직접" 속한 사진(TagPhotoSet)에 1.0점 부여
-        for photo_id_str in tag_photo_ids_str:
-            phase_1_scores[photo_id_str] = 1.0
+                    # 점수를 누적 합산
+                    for result in recommend_results:
+                        phase_1_scores[result.id] = phase_1_scores.get(result.id, 0.0) + result.score
+
+                except Exception as e:
+                    print(f"[HybridSearch Error] Qdrant recommend failed for tag {tag_id}: {e}")
+                    pass
+
+            # 1.3: 이 태그에 "직접" 속한 사진에 1.0점 부여 (누적)
+            for photo_id_str in tag_photo_ids_str:
+                phase_1_scores[photo_id_str] = phase_1_scores.get(photo_id_str, 0.0) + 1.0
 
     if query_string:
         # 2.1: 자연어 쿼리를 임베딩 벡터로 변환
