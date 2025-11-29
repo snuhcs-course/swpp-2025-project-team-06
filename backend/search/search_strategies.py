@@ -5,7 +5,7 @@ from search.embedding_service import create_query_embedding
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from qdrant_client.http import models
 import uuid
-from gallery.tasks import execute_hybrid_search, retrieve_all_rep_vectors_of_tag
+from gallery.tasks import execute_hybrid_search
 from .exceptions import SearchExecutionError
 from config import settings
 
@@ -35,15 +35,9 @@ class TagOnlySearchStrategy(SearchStrategy):
 
         tagged_photo_ids_str = [str(pid) for pid in tagged_photo_ids]
 
-        # Get representative vectors for the tags
-        all_rep_vectors = []
-        for tag_id in tag_ids:
-            rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
-            all_rep_vectors.extend(rep_vectors)
-
-        # Recommend similar photos using representative vectors
+        # Recommend similar photos using all photos in the tags as positive examples
         similar_photo_ids = []
-        if all_rep_vectors:
+        if tagged_photo_ids_str:
             try:
                 user_filter = models.Filter(
                     must=[
@@ -56,7 +50,7 @@ class TagOnlySearchStrategy(SearchStrategy):
 
                 recommend_results = client.recommend(
                     collection_name=IMAGE_COLLECTION_NAME,
-                    positive=all_rep_vectors,
+                    positive=tagged_photo_ids_str,
                     query_filter=user_filter,
                     limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
                     with_payload=False,

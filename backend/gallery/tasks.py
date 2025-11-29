@@ -37,9 +37,17 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     LIMIT = 40
     client = get_qdrant_client()
 
-    rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
+    # Get all photos tagged with this tag
+    tagged_photo_ids = set(
+        map(
+            str,
+            Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
+                "photo__photo_id", flat=True
+            ),
+        )
+    )
 
-    if not rep_vectors:
+    if not tagged_photo_ids:
         return []
 
     user_filter = models.Filter(
@@ -51,9 +59,10 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         ]
     )
 
+    # Use all photos in the tag as positive examples instead of rep vectors
     points = client.recommend(
         collection_name=IMAGE_COLLECTION_NAME,
-        positive=rep_vectors,
+        positive=list(tagged_photo_ids),
         query_filter=user_filter,
         limit=2 * LIMIT,
         with_payload=False,
@@ -66,15 +75,6 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         str(p.photo_id): {"photo_path_id": p.photo_path_id, "created_at": p.created_at}
         for p in photos
     }
-
-    tagged_photo_ids = set(
-        map(
-            str,
-            Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
-                "photo__photo_id", flat=True
-            ),
-        )
-    )
 
     # Maintain order from sorted scores
     return [
