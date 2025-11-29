@@ -154,6 +154,7 @@ fun SearchResultScreen(
     var isCursorHidden by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) }
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
+    var previousQuery by remember { mutableStateOf<String?>(null) }
 
     // 5. Derived 상태 및 계산된 값
     val allTags = tags
@@ -197,6 +198,19 @@ fun SearchResultScreen(
         scrollToIndex?.let { index ->
             gridState.animateScrollToItem(index)
             searchViewModel.clearScrollToIndex()
+        }
+    }
+
+    // Reset scroll position when new search results arrive (but not for pagination)
+    LaunchedEffect(semanticSearchState) {
+        if (semanticSearchState is SearchViewModel.SemanticSearchState.Success) {
+            val currentQuery = (semanticSearchState as SearchViewModel.SemanticSearchState.Success).query
+            // Scroll to top only when the query changes (new search)
+            // Don't scroll when query is the same (pagination)
+            if (previousQuery != null && previousQuery != currentQuery) {
+                gridState.scrollToItem(0)
+            }
+            previousQuery = currentQuery
         }
     }
 
