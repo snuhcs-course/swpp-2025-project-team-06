@@ -77,6 +77,7 @@ class SelectImageViewModel
         private val _recommendState = MutableStateFlow<RecommendState>(RecommendState.Idle)
         private val _isSelectionMode = MutableStateFlow(true)
         private val _recommendedPhotos = MutableStateFlow<List<Photo>>(emptyList())
+        private val _selectedRecommendPhotos = MutableStateFlow<Map<String, Photo>>(emptyMap())
         private val _addPhotosState = MutableStateFlow<AddPhotosState>(AddPhotosState.Idle)
 
         // 3. Private 변수
@@ -94,6 +95,7 @@ class SelectImageViewModel
         val recommendState: StateFlow<RecommendState> = _recommendState.asStateFlow()
         val isSelectionMode = _isSelectionMode.asStateFlow()
         val recommendedPhotos: StateFlow<List<Photo>> = _recommendedPhotos.asStateFlow()
+        val selectedRecommendPhotos: StateFlow<Map<String, Photo>> = _selectedRecommendPhotos.asStateFlow()
         val addPhotosState: StateFlow<AddPhotosState> = _addPhotosState.asStateFlow()
         val lazyGridState = LazyGridState()
 
@@ -236,6 +238,36 @@ class SelectImageViewModel
             val currentPhotos = _allPhotos.value.toMutableList()
             currentPhotos.removeAll { it.photoId == photo.photoId }
             _allPhotos.value = listOf(photo) + currentPhotos
+        }
+
+        /**
+         * Toggle selection of a recommended photo
+         */
+        fun toggleRecommendPhoto(photo: Photo) {
+            val current = _selectedRecommendPhotos.value.toMutableMap()
+            if (current.containsKey(photo.photoId)) {
+                current.remove(photo.photoId)
+            } else {
+                current[photo.photoId] = photo
+            }
+            _selectedRecommendPhotos.value = current
+        }
+
+        /**
+         * Reset recommend photo selection
+         */
+        fun resetRecommendSelection() {
+            _selectedRecommendPhotos.value = emptyMap()
+        }
+
+        /**
+         * Add all selected recommended photos to the main selection
+         */
+        fun addRecommendedPhotosToSelection(photos: List<Photo>) {
+            for (photo in photos) {
+                addPhotoFromRecommendation(photo)
+            }
+            resetRecommendSelection()
         }
 
         /**

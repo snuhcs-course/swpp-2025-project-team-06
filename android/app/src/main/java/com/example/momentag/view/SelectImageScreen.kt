@@ -60,6 +60,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -185,6 +186,7 @@ fun SelectImageScreen(navController: NavController) {
     val isLoadingMore by selectImageViewModel.isLoadingMore.collectAsState()
     val recommendState by selectImageViewModel.recommendState.collectAsState()
     val recommendedPhotos by selectImageViewModel.recommendedPhotos.collectAsState()
+    val selectedRecommendPhotos by selectImageViewModel.selectedRecommendPhotos.collectAsState()
     val isSelectionMode by selectImageViewModel.isSelectionMode.collectAsState()
     val addPhotosState by selectImageViewModel.addPhotosState.collectAsState()
     // 4. 로컬 상태 변수
@@ -238,7 +240,7 @@ fun SelectImageScreen(navController: NavController) {
     }
 
     val onRecommendedPhotoClick: (Photo) -> Unit = { photo ->
-        selectImageViewModel.addPhotoFromRecommendation(photo)
+        selectImageViewModel.toggleRecommendPhoto(photo)
     }
 
     // 8. LaunchedEffect
@@ -253,18 +255,14 @@ fun SelectImageScreen(navController: NavController) {
         isSelectionModeDelay = isSelectionMode
     }
 
-    // Delay AI recommendation to improve initial screen load performance
-    LaunchedEffect(Unit) {
-        // Wait for initial photos to load first
-        delay(500L) // 0.5초 지연으로 화면 로딩 우선
-        selectImageViewModel.recommendPhoto()
-    }
-
-    // Re-recommend when AI recommendation is collapsed after adding photos
-    // Only re-recommend if recommendation was successful before
+    // Load recommendation when panel is expanded (like AlbumScreen)
     LaunchedEffect(isRecommendationExpanded) {
-        if (!isRecommendationExpanded && selectedPhotos.isNotEmpty()) {
+        if (isRecommendationExpanded) {
             selectImageViewModel.recommendPhoto()
+            // 패널이 열리면 선택 모드로 전환
+            if (!isSelectionMode) {
+                selectImageViewModel.setSelectionMode(true)
+            }
         }
     }
 
@@ -610,13 +608,21 @@ fun SelectImageScreen(navController: NavController) {
                 RecommendExpandedPanel(
                     recommendState = recommendState,
                     recommendedPhotos = recommendedPhotos,
-                    onPhotoClick = onRecommendedPhotoClick,
+                    selectedRecommendPhotos = selectedRecommendPhotos,
+                    onToggleRecommendPhoto = onRecommendedPhotoClick,
+                    onResetRecommendSelection = { selectImageViewModel.resetRecommendSelection() },
+                    onAddPhotosToSelection = { photos ->
+                        selectImageViewModel.addRecommendedPhotosToSelection(photos)
+                    },
                     onRetry = { selectImageViewModel.recommendPhoto() },
                     panelHeight = panelHeight,
                     onHeightChange = { delta ->
                         panelHeight = (panelHeight - delta).coerceIn(minHeight, maxHeight)
                     },
-                    onCollapse = { isRecommendationExpanded = false },
+                    onCollapse = {
+                        selectImageViewModel.resetRecommendSelection()
+                        isRecommendationExpanded = false
+                    },
                 )
             }
 
@@ -822,14 +828,15 @@ private fun RecommendChip(
                 )
             }
             else -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
-                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                StandardIcon.Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = stringResource(R.string.cd_ai),
+                    sizeRole = IconSizeRole.StatusIndicator,
+                    intent = IconIntent.Primary,
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
-                    text = stringResource(R.string.photos_getting_ready),
+                    text = stringResource(R.string.photos_suggested_for_you),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -849,13 +856,17 @@ private fun RecommendChip(
 private fun RecommendExpandedPanel(
     recommendState: SelectImageViewModel.RecommendState,
     recommendedPhotos: List<Photo>,
-    onPhotoClick: (Photo) -> Unit,
+    selectedRecommendPhotos: Map<String, Photo>,
+    onToggleRecommendPhoto: (Photo) -> Unit,
+    onResetRecommendSelection: () -> Unit,
+    onAddPhotosToSelection: (List<Photo>) -> Unit,
     onRetry: () -> Unit,
     panelHeight: Dp,
     onHeightChange: (Dp) -> Unit,
     onCollapse: () -> Unit,
 ) {
     val density = LocalDensity.current
+    val selectedRecommendPhotoIds = selectedRecommendPhotos.keys
 
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -922,38 +933,66 @@ private fun RecommendExpandedPanel(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    // 왼쪽: AI Recommend 텍스트
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        when (recommendState) {
-                            is SelectImageViewModel.RecommendState.Loading -> {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
-                                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                                )
+                    if (recommendState is SelectImageViewModel.RecommendState.Success &&
+                        recommendedPhotos.isNotEmpty() &&
+                        selectedRecommendPhotos.isNotEmpty()
+                    ) {
+                        // 사진 선택 시: Add와 Cancel 버튼
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(onClick = onResetRecommendSelection) {
+                                Text(stringResource(R.string.action_cancel))
                             }
-                            is SelectImageViewModel.RecommendState.Success -> {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    sizeRole = IconSizeRole.Navigation,
-                                    intent = IconIntent.Primary,
-                                    contentDescription = stringResource(R.string.cd_ai),
-                                )
-                            }
-                            else -> {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    sizeRole = IconSizeRole.Navigation,
-                                    intent = IconIntent.Primary,
-                                    contentDescription = stringResource(R.string.cd_ai),
+                            Button(
+                                onClick = {
+                                    onAddPhotosToSelection(selectedRecommendPhotos.values.toList())
+                                    onCollapse()
+                                },
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                    ),
+                                shape = RoundedCornerShape(Dimen.Radius20),
+                                contentPadding =
+                                    PaddingValues(
+                                        horizontal = Dimen.ButtonPaddingLargeHorizontal,
+                                        vertical = Dimen.ButtonPaddingVertical,
+                                    ),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.add_tag_with_count, selectedRecommendPhotos.size),
+                                    style = MaterialTheme.typography.labelLarge,
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
-                        Text(
-                            text = stringResource(R.string.photos_suggested_for_you),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+                    } else {
+                        // 기본 상태: AI Recommend 텍스트
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            when (recommendState) {
+                                is SelectImageViewModel.RecommendState.Loading -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
+                                        strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                                    )
+                                }
+                                else -> {
+                                    StandardIcon.Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        sizeRole = IconSizeRole.Navigation,
+                                        intent = IconIntent.Primary,
+                                        contentDescription = stringResource(R.string.cd_ai),
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
+                            Text(
+                                text = stringResource(R.string.photos_suggested_for_you),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
 
                     // Right side: Close button
@@ -1015,12 +1054,13 @@ private fun RecommendExpandedPanel(
                                     key = { index -> recommendedPhotos[index].photoId },
                                 ) { index ->
                                     val photo = recommendedPhotos[index]
+                                    val isSelected = selectedRecommendPhotoIds.contains(photo.photoId)
                                     PhotoSelectableItem(
                                         photo = photo,
-                                        isSelected = false,
-                                        isSelectionMode = false,
-                                        onClick = { onPhotoClick(photo) },
-                                        onLongClick = {},
+                                        isSelected = isSelected,
+                                        isSelectionMode = true,
+                                        onClick = { onToggleRecommendPhoto(photo) },
+                                        onLongClick = { onToggleRecommendPhoto(photo) },
                                         modifier = Modifier.aspectRatio(1f),
                                     )
                                 }
