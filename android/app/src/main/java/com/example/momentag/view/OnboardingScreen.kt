@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -93,6 +94,7 @@ fun OnboardingScreen(
 ) {
     val pagerState = rememberPagerState(pageCount = { 7 })
     val backgroundBrush = rememberAppBackgroundBrush()
+    val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Box(
         modifier =
@@ -115,12 +117,12 @@ fun OnboardingScreen(
             }
         }
 
-        // Page indicators
+        // Page indicators (above bottom bar + system navigation bar)
         Row(
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 200.dp),
+                    .padding(bottom = 90.dp + navigationBarPadding),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             repeat(7) { index ->
@@ -155,7 +157,7 @@ fun OnboardingScreen(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .padding(horizontal = Dimen.ScreenHorizontalPadding)
-                        .padding(bottom = 80.dp)
+                        .padding(bottom = 20.dp + navigationBarPadding)
                         .height(56.dp),
                 shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                 colors =
@@ -183,12 +185,23 @@ private fun OnboardingPage0Upload() {
 
     Scaffold(
         topBar = {
-            CommonTopBar(
-                title = stringResource(R.string.app_name),
-                showLogout = false,
-                onLogoutClick = {},
-                actions = {
-                    // Upload button (highlighted)
+            Box {
+                // Faded topbar with title
+                Box(modifier = Modifier.alpha(0.3f)) {
+                    CommonTopBar(
+                        title = stringResource(R.string.app_name),
+                        showLogout = false,
+                        onLogoutClick = {},
+                    )
+                }
+                // Highlighted upload button overlaid at exact actions position
+                Box(
+                    modifier =
+                        Modifier
+                            .matchParentSize()
+                            .padding(end = 4.dp),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
                     IconButton(onClick = { }) {
                         StandardIcon.Icon(
                             imageVector = Icons.Default.CloudUpload,
@@ -196,8 +209,8 @@ private fun OnboardingPage0Upload() {
                             sizeRole = IconSizeRole.DefaultAction,
                         )
                     }
-                },
-            )
+                }
+            }
         },
         bottomBar = {
             Box(modifier = Modifier.alpha(0.3f)) {
@@ -272,7 +285,7 @@ private fun OnboardingPage0Upload() {
             }
 
             OnboardingExplanation(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 170.dp),
                 title = stringResource(R.string.onboarding_page0_title),
                 description = stringResource(R.string.onboarding_page0_description),
             )
@@ -379,7 +392,7 @@ private fun OnboardingPage1TagAlbums() {
 
             // Explanation (bottom fixed position)
             OnboardingExplanation(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 170.dp),
                 title = stringResource(R.string.onboarding_page1_title),
                 description = stringResource(R.string.onboarding_page1_description),
             )
@@ -486,7 +499,7 @@ private fun OnboardingPage2SearchWithTags() {
             }
 
             OnboardingExplanation(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 170.dp),
                 title = stringResource(R.string.onboarding_page2_title),
                 description = stringResource(R.string.onboarding_page2_description),
             )
@@ -563,7 +576,7 @@ private fun OnboardingPage3SearchResults() {
             }
 
             OnboardingExplanation(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 170.dp),
                 title = stringResource(R.string.onboarding_page3_title),
                 description = stringResource(R.string.onboarding_page3_description),
             )
@@ -669,7 +682,7 @@ private fun OnboardingPage4SearchResultsSelection() {
             }
 
             OnboardingExplanation(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 170.dp),
                 title = stringResource(R.string.onboarding_page4_title),
                 description = stringResource(R.string.onboarding_page4_description),
             )
@@ -718,62 +731,74 @@ private fun OnboardingPage5Moment() {
                     .padding(paddingValues),
         ) {
             Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = Dimen.ScreenHorizontalPadding),
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
-
-                // Date (faded)
-                Box(modifier = Modifier.alpha(0.3f)) {
-                    Text(
-                        text = "Dec 15, 2024",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
-
-                // Image (faded)
+                // Story content area (takes remaining space)
                 Box(
                     modifier =
                         Modifier
-                            .alpha(0.3f)
-                            .fillMaxWidth()
-                            .height(Dimen.StoryImageHeight)
-                            .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
-                            .background(
-                                Brush.linearGradient(
-                                    colors =
-                                        listOf(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            MaterialTheme.colorScheme.tertiaryContainer,
-                                        ),
-                                ),
-                            ),
-                    contentAlignment = Alignment.Center,
+                            .weight(1f)
+                            .fillMaxWidth(),
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Photo,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(64.dp),
-                    )
+                    Column(
+                        modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding),
+                    ) {
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
+
+                        // Date (faded)
+                        Box(modifier = Modifier.alpha(0.3f)) {
+                            Text(
+                                text = "2023.11.13",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
+
+                        // Image (faded)
+                        Box(
+                            modifier =
+                                Modifier
+                                    .alpha(0.3f)
+                                    .fillMaxWidth()
+                                    .height(Dimen.StoryImageHeight)
+                                    .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors =
+                                                listOf(
+                                                    MaterialTheme.colorScheme.primaryContainer,
+                                                    MaterialTheme.colorScheme.tertiaryContainer,
+                                                ),
+                                        ),
+                                    ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Photo,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(64.dp),
+                            )
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
-
-                // Tag card (highlighted)
-                MockStoryTagCard()
+                // Tag card (highlighted, fixed at bottom)
+                MockStoryTagCard(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
+                )
 
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
             }
 
             OnboardingExplanation(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 170.dp),
                 title = stringResource(R.string.onboarding_page5_title),
                 description = stringResource(R.string.onboarding_page5_description),
             )
@@ -821,80 +846,95 @@ private fun OnboardingPage6MomentScroll() {
                     .background(rememberAppBackgroundBrush())
                     .padding(paddingValues),
         ) {
-            // One single story (faded)
-            Box(modifier = Modifier.alpha(0.3f)) {
-                Column(
+            Column(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                // Story content area (takes remaining space)
+                Box(
                     modifier =
                         Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
+                            .weight(1f)
+                            .fillMaxWidth(),
                 ) {
-                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
+                    // One single story (faded)
+                    Box(modifier = Modifier.alpha(0.3f)) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding),
+                        ) {
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
-                    Text(
-                        text = "Dec 15, 2024",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                            Text(
+                                text = "2023.11.13",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
 
-                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
+                            Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
 
-                    Box(
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(Dimen.StoryImageHeight)
+                                        .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
+                                        .background(
+                                            Brush.linearGradient(
+                                                colors =
+                                                    listOf(
+                                                        MaterialTheme.colorScheme.primaryContainer,
+                                                        MaterialTheme.colorScheme.tertiaryContainer,
+                                                    ),
+                                            ),
+                                        ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Photo,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(64.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    // Scroll hint (highlighted, center)
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowUp,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(48.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.onboarding_swipe_vertical),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+
+                // Tag card (faded, fixed at bottom)
+                Box(modifier = Modifier.alpha(0.3f)) {
+                    MockStoryTagCard(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .height(Dimen.StoryImageHeight)
-                                .clip(RoundedCornerShape(Dimen.ComponentCornerRadius))
-                                .background(
-                                    Brush.linearGradient(
-                                        colors =
-                                            listOf(
-                                                MaterialTheme.colorScheme.primaryContainer,
-                                                MaterialTheme.colorScheme.tertiaryContainer,
-                                            ),
-                                    ),
-                                ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Photo,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(64.dp),
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
-
-                    MockStoryTagCard()
-
-                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
+                                .padding(horizontal = Dimen.ScreenHorizontalPadding),
+                    )
                 }
-            }
 
-            // Scroll hint (highlighted, center)
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp),
-                )
-                Text(
-                    text = stringResource(R.string.onboarding_swipe_vertical),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                )
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
             }
 
             OnboardingExplanation(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 230.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 170.dp),
                 title = stringResource(R.string.onboarding_page6_title),
                 description = stringResource(R.string.onboarding_page6_description),
             )
@@ -1227,9 +1267,9 @@ private fun MockPhotoItemWithSelection(isSelected: Boolean) {
 }
 
 @Composable
-private fun MockStoryTagCard() {
+private fun MockStoryTagCard(modifier: Modifier = Modifier) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(Dimen.ComponentCornerRadius),
         colors =
             CardDefaults.cardColors(
@@ -1297,21 +1337,57 @@ private fun MockStoryTagCard() {
 
 @Composable
 private fun MockStoryTagChip(tagName: String) {
-    Surface(
-        shape = RoundedCornerShape(Dimen.TagCornerRadius),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+    val isSelected = tagName == "Ocean"
+    val backgroundColor =
+        if (isSelected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.secondaryContainer
+        }
+    val textColor =
+        if (isSelected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        }
+
+    Box(contentAlignment = Alignment.CenterStart) {
+        Surface(
+            shape = RoundedCornerShape(Dimen.TagCornerRadius),
+            color = backgroundColor,
         ) {
-            Text(
-                text = "#$tagName",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                fontWeight = FontWeight.Medium,
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "#$tagName",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = textColor,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+
+        if (isSelected) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = Dimen.TagItemSpacer, y = -Dimen.TagItemSpacer)
+                        .size(Dimen.StoryTagChipBadgeSize)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4CAF50)),
+                contentAlignment = Alignment.Center,
+            ) {
+                StandardIcon.Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected",
+                    sizeRole = IconSizeRole.ChipAction,
+                    tintOverride = Color.White,
+                )
+            }
         }
     }
 }
