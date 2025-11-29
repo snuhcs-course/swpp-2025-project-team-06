@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Search
@@ -48,6 +49,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -89,7 +91,7 @@ fun OnboardingScreen(
     navController: NavHostController,
     onComplete: () -> Unit,
 ) {
-    val pagerState = rememberPagerState(pageCount = { 6 })
+    val pagerState = rememberPagerState(pageCount = { 7 })
     val backgroundBrush = rememberAppBackgroundBrush()
 
     Box(
@@ -103,12 +105,13 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxSize(),
         ) { page ->
             when (page) {
-                0 -> OnboardingPage1TagAlbums()
-                1 -> OnboardingPage2SearchWithTags()
-                2 -> OnboardingPage3SearchResults()
-                3 -> OnboardingPage4SearchResultsSelection()
-                4 -> OnboardingPage5Moment()
-                5 -> OnboardingPage6MomentScroll()
+                0 -> OnboardingPage0Upload()
+                1 -> OnboardingPage1TagAlbums()
+                2 -> OnboardingPage2SearchWithTags()
+                3 -> OnboardingPage3SearchResults()
+                4 -> OnboardingPage4SearchResultsSelection()
+                5 -> OnboardingPage5Moment()
+                6 -> OnboardingPage6MomentScroll()
             }
         }
 
@@ -120,7 +123,7 @@ fun OnboardingScreen(
                     .padding(bottom = 200.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            repeat(6) { index ->
+            repeat(7) { index ->
                 Box(
                     modifier =
                         Modifier
@@ -139,7 +142,7 @@ fun OnboardingScreen(
 
 
         // Start button (below indicators)
-        if (pagerState.currentPage == 5) {
+        if (pagerState.currentPage == 6) {
             Button(
                 onClick = {
                     onComplete()
@@ -152,7 +155,7 @@ fun OnboardingScreen(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .padding(horizontal = Dimen.ScreenHorizontalPadding)
-                        .padding(bottom = 120.dp)
+                        .padding(bottom = 80.dp)
                         .height(56.dp),
                 shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                 colors =
@@ -172,6 +175,112 @@ fun OnboardingScreen(
 }
 
 // ============================================
+// Page 0: HomeScreen - Upload Photos
+// ============================================
+@Composable
+private fun OnboardingPage0Upload() {
+    val listState = rememberLazyListState()
+
+    Scaffold(
+        topBar = {
+            CommonTopBar(
+                title = stringResource(R.string.app_name),
+                showLogout = false,
+                onLogoutClick = {},
+                actions = {
+                    // Upload button (highlighted)
+                    IconButton(onClick = { }) {
+                        StandardIcon.Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = null,
+                            sizeRole = IconSizeRole.DefaultAction,
+                        )
+                    }
+                },
+            )
+        },
+        bottomBar = {
+            Box(modifier = Modifier.alpha(0.3f)) {
+                BottomNavBar(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                WindowInsets.navigationBars
+                                    .only(WindowInsetsSides.Bottom)
+                                    .asPaddingValues(),
+                            ),
+                    currentTab = BottomTab.HomeScreen,
+                    onTabSelected = {},
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) { paddingValues ->
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(rememberAppBackgroundBrush())
+                    .padding(paddingValues),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = Dimen.ScreenHorizontalPadding),
+            ) {
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+
+                // Search Bar (faded)
+                Box(modifier = Modifier.alpha(0.3f)) {
+                    MockChipSearchBar(
+                        listState = listState,
+                        placeholder = stringResource(R.string.search_placeholder_with_tag),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(Dimen.ItemSpacingMedium))
+
+                // Tag Albums Grid (faded)
+                Box(modifier = Modifier.alpha(0.3f)) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(9) { index ->
+                            MockTagAlbumItem(
+                                tagName =
+                                    listOf(
+                                        "Travel",
+                                        "Family",
+                                        "Friends",
+                                        "Food",
+                                        "Nature",
+                                        "Daily",
+                                        "Work",
+                                        "Pets",
+                                        "Hobby",
+                                    )[index],
+                            )
+                        }
+                    }
+                }
+            }
+
+            OnboardingExplanation(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
+                title = stringResource(R.string.onboarding_page0_title),
+                description = stringResource(R.string.onboarding_page0_description),
+            )
+        }
+    }
+}
+
+// ============================================
 // Page 1: HomeScreen - Tag Albums
 // ============================================
 @Composable
@@ -182,9 +291,19 @@ private fun OnboardingPage1TagAlbums() {
         topBar = {
             Box(modifier = Modifier.alpha(0.3f)) {
                 CommonTopBar(
-                    title = stringResource(R.string.app_title_with_hash),
+                    title = stringResource(R.string.app_name),
                     showLogout = false,
                     onLogoutClick = {},
+                    actions = {
+                        // Upload button (faded)
+                        IconButton(onClick = { }) {
+                            StandardIcon.Icon(
+                                imageVector = Icons.Default.CloudUpload,
+                                contentDescription = null,
+                                sizeRole = IconSizeRole.DefaultAction,
+                            )
+                        }
+                    },
                 )
             }
         },
@@ -279,9 +398,19 @@ private fun OnboardingPage2SearchWithTags() {
         topBar = {
             Box(modifier = Modifier.alpha(0.3f)) {
                 CommonTopBar(
-                    title = stringResource(R.string.app_title_with_hash),
+                    title = stringResource(R.string.app_name),
                     showLogout = false,
                     onLogoutClick = {},
+                    actions = {
+                        // Upload button (faded)
+                        IconButton(onClick = { }) {
+                            StandardIcon.Icon(
+                                imageVector = Icons.Default.CloudUpload,
+                                contentDescription = null,
+                                sizeRole = IconSizeRole.DefaultAction,
+                            )
+                        }
+                    },
                 )
             }
         },
@@ -765,7 +894,7 @@ private fun OnboardingPage6MomentScroll() {
             }
 
             OnboardingExplanation(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 230.dp),
                 title = stringResource(R.string.onboarding_page6_title),
                 description = stringResource(R.string.onboarding_page6_description),
             )
@@ -776,6 +905,54 @@ private fun OnboardingPage6MomentScroll() {
 // ============================================
 // Mock Components
 // ============================================
+
+@Composable
+private fun MockAlbumItem() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(Dimen.ImageCornerRadius))
+                    .background(
+                        Brush.linearGradient(
+                            colors =
+                                listOf(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    MaterialTheme.colorScheme.tertiaryContainer,
+                                ),
+                        ),
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Photo,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(48.dp),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(Dimen.GridItemSpacing))
+
+        Text(
+            text = "Album",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+        )
+
+        Text(
+            text = "12 photos",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
 
 @Composable
 private fun MockChipSearchBar(

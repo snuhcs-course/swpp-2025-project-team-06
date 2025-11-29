@@ -437,6 +437,8 @@
     <!-- ============================================ -->
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_start">Get Started</string>
+    <string name="onboarding_page0_title">Upload Your Photos</string>
+    <string name="onboarding_page0_description">Tap the upload button to add albums or individual photos to MomenTag</string>
     <string name="onboarding_page1_title">Organize with Tag Albums</string>
     <string name="onboarding_page1_description">Group your photos by events, places, or any keyword you like</string>
     <string name="onboarding_page2_title">Smart Search with Tags</string>
