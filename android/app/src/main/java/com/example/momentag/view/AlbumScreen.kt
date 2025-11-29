@@ -343,6 +343,13 @@ fun AlbumScreen(
         }
     }
 
+    // Request recommendations when user expands the panel
+    LaunchedEffect(isRecommendationExpanded) {
+        if (isRecommendationExpanded) {
+            albumViewModel.loadRecommendations(tagId)
+        }
+    }
+
     BackHandler(enabled = isRecommendationExpanded || isTagAlbumPhotoSelectionMode) {
         if (isRecommendationExpanded) {
             isRecommendationExpanded = false
@@ -1007,7 +1014,9 @@ private fun RecommendChip(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            is AlbumViewModel.RecommendLoadingState.Success -> {
+            is AlbumViewModel.RecommendLoadingState.Idle,
+            is AlbumViewModel.RecommendLoadingState.Success,
+            -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = stringResource(R.string.cd_ai),
@@ -1031,19 +1040,6 @@ private fun RecommendChip(
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
                     text = stringResource(R.string.album_recommendation_failed),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            is AlbumViewModel.RecommendLoadingState.Idle -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(Dimen.CircularProgressSizeXSmall),
-                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
-                Text(
-                    text = stringResource(R.string.album_preparing),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1207,8 +1203,8 @@ private fun RecommendExpandedPanel(
             Column(modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding)) {
                 // Grid / states
                 when (recommendLoadState) {
-                    is AlbumViewModel.RecommendLoadingState.Loading,
                     is AlbumViewModel.RecommendLoadingState.Idle,
+                    is AlbumViewModel.RecommendLoadingState.Loading,
                     -> {
                         Box(
                             modifier =

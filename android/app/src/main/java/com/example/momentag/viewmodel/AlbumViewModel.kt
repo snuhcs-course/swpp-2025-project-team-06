@@ -141,9 +141,6 @@ class AlbumViewModel
                                 photos,
                             )
                         imageBrowserRepository.setTagAlbum(photos, tagName)
-
-                        // Auto-load recommendations after album loads
-                        loadRecommendations(tagId)
                     }
                     is RemoteRepository.Result.Error -> {
                         _albumLoadingState.value = AlbumLoadingState.Error(AlbumError.UnknownError)
