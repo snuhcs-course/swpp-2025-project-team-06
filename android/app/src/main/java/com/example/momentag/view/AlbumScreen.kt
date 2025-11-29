@@ -33,6 +33,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -732,11 +734,12 @@ fun AlbumScreen(
                             title = errorBannerTitle,
                             message = errorBannerMessage,
                             onActionClick = {
-                                // 재시도 로직
+                                // 재시도 로직 - 배너를 숨기고 다시 로드
+                                // 에러 발생 시 LaunchedEffect에서 다시 표시됨
+                                isErrorBannerVisible = false
                                 if (hasPermission) {
                                     albumViewModel.loadAlbum(tagId, tagName)
                                 }
-                                isErrorBannerVisible = false
                             },
                             showActionButton = true,
                             showDismissButton = true,
@@ -980,7 +983,12 @@ private fun AlbumGridArea(
             }
             is AlbumViewModel.AlbumLoadingState.Error -> {
                 // 에러 배너는 AlbumScreen의 하단에 통일된 위치로 표시됨
-                Box(modifier = Modifier.fillMaxSize())
+                // verticalScroll을 추가하여 Pull to Refresh가 작동하도록 함
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                )
             }
             is AlbumViewModel.AlbumLoadingState.Idle -> {}
         }

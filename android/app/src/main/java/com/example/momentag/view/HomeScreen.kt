@@ -485,7 +485,10 @@ fun HomeScreen(
     val isTagsLoaded =
         homeLoadingState is HomeViewModel.HomeLoadingState.Success || homeLoadingState is HomeViewModel.HomeLoadingState.Error
     val arePhotosLoaded = !isLoadingPhotos
-    val isDataReady = isTagsLoaded && arePhotosLoaded
+    // 초기 로딩이 완료되었는지 확인 (Idle 상태는 아직 로딩 시작 전)
+    val hasInitiallyLoaded = homeLoadingState !is HomeViewModel.HomeLoadingState.Idle && allPhotos.isNotEmpty() || 
+        (isTagsLoaded && arePhotosLoaded && homeLoadingState !is HomeViewModel.HomeLoadingState.Idle)
+    val isDataReady = isTagsLoaded && arePhotosLoaded && hasInitiallyLoaded
     val areTagsEmpty = tagItems.isEmpty()
     val arePhotosEmpty = groupedPhotos.isEmpty()
 
@@ -1047,12 +1050,13 @@ fun HomeScreen(
                                 title = errorBannerTitle,
                                 message = errorBannerMessage!!,
                                 onActionClick = {
-                                    // 재시도 로직
+                                    // 재시도 로직 - 배너를 숨기고 다시 로드
+                                    // 에러 발생 시 LaunchedEffect(homeLoadingState)에서 다시 표시됨
+                                    isErrorBannerVisible = false
                                     if (hasPermission) {
                                         homeViewModel.loadServerTags()
                                         homeViewModel.loadAllPhotos()
                                     }
-                                    isErrorBannerVisible = false
                                 },
                                 onDismiss = { isErrorBannerVisible = false },
                                 showActionButton = true,
@@ -1261,6 +1265,16 @@ private fun MainContent(
                     homeViewModel?.loadAllPhotos()
                 },
                 text = stringResource(R.string.loading_tag_albums),
+            )
+        }
+
+        // 에러 상태일 때는 빈 화면 표시 (에러 배너는 하단에 별도로 표시됨)
+        // verticalScroll을 추가하여 Pull to Refresh가 작동하도록 함
+        homeLoadingState is HomeViewModel.HomeLoadingState.Error -> {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
             )
         }
 

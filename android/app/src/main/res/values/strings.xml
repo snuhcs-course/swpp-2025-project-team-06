@@ -60,8 +60,8 @@
     <!-- ERROR MESSAGES - User-friendly with guidance -->
     <!-- Pattern: [What happened] + [What to do next] -->
     <!-- ============================================ -->
-    <string name="error_message_generic">Something went wrong. Please try again.</string>
-    <string name="error_message_unknown">Something went wrong. Please try again.</string>
+    <string name="error_message_generic">Something went wrong.\nPlease check your network connection and try again.</string>
+    <string name="error_message_unknown">Something went wrong.\nPlease check your network connection and try again.</string>
     <string name="error_message_login_bad_request">We couldn\'t process your login. Please check the form and try again.</string>
     <string name="error_message_login_invalid_credentials">Wrong username or password. Please try again.</string>
     <string name="error_message_logout">We couldn\'t log you out. Please check your connection and try again.</string>
