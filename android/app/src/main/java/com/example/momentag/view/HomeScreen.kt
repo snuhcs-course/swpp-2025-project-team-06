@@ -488,9 +488,10 @@ fun HomeScreen(
     // 초기 로딩이 완료되었는지 확인:
     // - Idle 상태이거나 Loading 상태이면 아직 로딩 중
     // - 태그 로딩과 사진 로딩이 모두 완료되어야 함
-    val isInitialLoading = homeLoadingState is HomeViewModel.HomeLoadingState.Idle || 
-        homeLoadingState is HomeViewModel.HomeLoadingState.Loading ||
-        isLoadingPhotos
+    val isInitialLoading =
+        homeLoadingState is HomeViewModel.HomeLoadingState.Idle ||
+            homeLoadingState is HomeViewModel.HomeLoadingState.Loading ||
+            isLoadingPhotos
     val isDataReady = isTagsLoaded && arePhotosLoaded && !isInitialLoading
     val areTagsEmpty = tagItems.isEmpty()
     val arePhotosEmpty = groupedPhotos.isEmpty()
@@ -1275,9 +1276,10 @@ private fun MainContent(
         // verticalScroll을 추가하여 Pull to Refresh가 작동하도록 함
         homeLoadingState is HomeViewModel.HomeLoadingState.Error -> {
             Box(
-                modifier = modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                modifier =
+                    modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
             )
         }
 
