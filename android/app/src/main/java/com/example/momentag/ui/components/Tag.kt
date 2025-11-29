@@ -23,9 +23,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -105,15 +106,28 @@ fun TagChip(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
-    // 5. Derived 상태 및 계산된 값
-    val alpha = if (variant is TagVariant.Recommended) 0.5f else 1f
+    // 추천 태그는 별도 스타일 적용
+    val isRecommended = variant is TagVariant.Recommended
+    val backgroundColor = if (isRecommended) MaterialTheme.colorScheme.surfaceVariant else color
+    val textColor = if (isRecommended) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
 
     // 13. UI (TagContainer)
-    TagContainer(modifier = modifier.alpha(alpha), color = color) {
+    TagContainer(modifier = modifier, color = backgroundColor) {
+        // 추천 태그는 + 아이콘을 텍스트 앞에 표시
+        if (isRecommended) {
+            StandardIcon.Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Add recommended tag",
+                sizeRole = IconSizeRole.ChipAction,
+                tintOverride = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
+        }
+
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onPrimary,
+            color = textColor,
         )
         Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
 

@@ -77,6 +77,7 @@ object Dimen {
     val TagMaxTextWidth = 180.dp
     val CustomTagChipTextFieldWidth = 80.dp
     val StoryTagChipBadgeSize = 18.dp
+    val TagBorderWidth = 1.dp
 
     // --- Others ---
     val EmptyStateImageSize = 120.dp
