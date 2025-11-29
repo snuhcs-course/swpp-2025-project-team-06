@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 import environ
 from pathlib import Path
 from datetime import timedelta
@@ -87,12 +88,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-import sys
 
 # Use SQLite for testing (faster and no external dependencies)
 if 'test' in sys.argv or 'test_coverage' in sys.argv:
