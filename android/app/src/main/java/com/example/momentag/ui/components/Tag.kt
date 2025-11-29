@@ -23,7 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.LabelOff
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -113,7 +113,7 @@ fun TagChip(
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MaterialTheme.colorScheme.onPrimary,
         )
         Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
 
@@ -126,9 +126,10 @@ fun TagChip(
                     modifier = Modifier.size(Dimen.ItemSpacingLarge),
                 ) {
                     StandardIcon.Icon(
-                        imageVector = Icons.AutoMirrored.Filled.LabelOff,
-                        contentDescription = "UnTag",
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
                         sizeRole = IconSizeRole.InlineAction,
+                        intent = IconIntent.Inverse,
                     )
                 }
             }
@@ -139,9 +140,10 @@ fun TagChip(
                         modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
                     ) {
                         StandardIcon.Icon(
-                            imageVector = Icons.AutoMirrored.Filled.LabelOff,
-                            contentDescription = "UnTag",
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
                             sizeRole = IconSizeRole.InlineAction,
+                            intent = IconIntent.Inverse,
                         )
                     }
                 }
@@ -316,8 +318,8 @@ fun TagChipWithCount(
                     modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
                 ) {
                     StandardIcon.Icon(
-                        imageVector = Icons.AutoMirrored.Filled.LabelOff,
-                        contentDescription = "UnTag",
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
                         sizeRole = IconSizeRole.InlineAction,
                         intent = IconIntent.Inverse,
                     )

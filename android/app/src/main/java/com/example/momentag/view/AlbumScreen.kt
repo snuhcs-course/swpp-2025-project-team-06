@@ -44,7 +44,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.LabelOff
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
@@ -448,17 +448,17 @@ fun AlbumScreen(
                             IconButton(
                                 onClick = { isDeleteConfirmationDialogVisible = true },
                                 enabled = isEnabled,
-                                colors =
-                                    IconButtonDefaults.iconButtonColors(
-                                        contentColor = Color(0xFFD32F2F),
-                                        disabledContentColor = Color(0xFFD32F2F).copy(alpha = 0.38f),
-                                    ),
                             ) {
+                                val deleteIntent =
+                                    when {
+                                        isEnabled -> IconIntent.Error
+                                        else -> IconIntent.Disabled
+                                    }
                                 StandardIcon.Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.LabelOff,
+                                    imageVector = Icons.Default.Delete,
                                     contentDescription = stringResource(R.string.cd_untag),
                                     sizeRole = IconSizeRole.DefaultAction,
-                                    intent = if (isEnabled) IconIntent.Error else IconIntent.Disabled,
+                                    intent = deleteIntent,
                                 )
                             }
                         }
