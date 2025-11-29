@@ -284,6 +284,20 @@ fun AlbumScreen(
         }
     }
 
+    LaunchedEffect(imageLoadState) {
+        when (val state = imageLoadState) {
+            is AlbumViewModel.AlbumLoadingState.Error -> {
+                errorBannerTitle = context.getString(R.string.album_failed_to_load)
+                errorBannerMessage = context.getString(R.string.error_message_load_album_check_network)
+                isErrorBannerVisible = true
+            }
+            is AlbumViewModel.AlbumLoadingState.Success -> {
+                isErrorBannerVisible = false
+            }
+            else -> Unit
+        }
+    }
+
     LaunchedEffect(hasPermission, tagId) {
         if (hasPermission && imageLoadState is AlbumViewModel.AlbumLoadingState.Idle) {
             albumViewModel.loadAlbum(tagId, tagName)
@@ -569,54 +583,6 @@ fun AlbumScreen(
                     )
                 }
 
-                AnimatedVisibility(
-                    visible = isSelectPhotosBannerShareVisible,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                        title = stringResource(R.string.album_no_photos_selected_title),
-                        message = stringResource(R.string.album_select_photos_to_share),
-                        onActionClick = { isSelectPhotosBannerShareVisible = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { isSelectPhotosBannerShareVisible = false },
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = isSelectPhotosBannerUntagVisible,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                        title = stringResource(R.string.album_no_photos_selected_title),
-                        message = stringResource(R.string.album_select_photos_to_untag),
-                        onActionClick = { isSelectPhotosBannerUntagVisible = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { isSelectPhotosBannerUntagVisible = false },
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = isErrorBannerVisible,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                        title = errorBannerTitle,
-                        message = errorBannerMessage,
-                        onActionClick = { isErrorBannerVisible = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { isErrorBannerVisible = false },
-                    )
-                }
-
                 if (!hasPermission) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(stringResource(R.string.album_permission_required))
@@ -706,6 +672,79 @@ fun AlbumScreen(
                     },
                     onCollapse = { isRecommendationExpanded = false },
                 )
+            }
+
+            // === 에러 배너들 (하단에 통일된 위치로 표시) ===
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
+            ) {
+                AnimatedVisibility(
+                    visible = isSelectPhotosBannerShareVisible,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth(),
+                            title = stringResource(R.string.album_no_photos_selected_title),
+                            message = stringResource(R.string.album_select_photos_to_share),
+                            onActionClick = { isSelectPhotosBannerShareVisible = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { isSelectPhotosBannerShareVisible = false },
+                        )
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = isSelectPhotosBannerUntagVisible,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth(),
+                            title = stringResource(R.string.album_no_photos_selected_title),
+                            message = stringResource(R.string.album_select_photos_to_untag),
+                            onActionClick = { isSelectPhotosBannerUntagVisible = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { isSelectPhotosBannerUntagVisible = false },
+                        )
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = isErrorBannerVisible,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth(),
+                            title = errorBannerTitle,
+                            message = errorBannerMessage,
+                            onActionClick = {
+                                // 재시도 로직
+                                if (hasPermission) {
+                                    albumViewModel.loadAlbum(tagId, tagName)
+                                }
+                                isErrorBannerVisible = false
+                            },
+                            showActionButton = true,
+                            showDismissButton = true,
+                            onDismiss = { isErrorBannerVisible = false },
+                        )
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                    }
+                }
             }
         }
     }
@@ -940,21 +979,8 @@ private fun AlbumGridArea(
                 }
             }
             is AlbumViewModel.AlbumLoadingState.Error -> {
-                val errorMessage =
-                    when (albumLoadState.error) {
-                        AlbumViewModel.AlbumError.NetworkError -> stringResource(R.string.error_message_network)
-                        AlbumViewModel.AlbumError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
-                        AlbumViewModel.AlbumError.NotFound -> stringResource(R.string.error_message_photo_not_found)
-                        AlbumViewModel.AlbumError.UnknownError -> stringResource(R.string.error_message_unknown)
-                    }
-                WarningBanner(
-                    modifier = Modifier.fillMaxWidth(),
-                    title = stringResource(R.string.album_failed_to_load),
-                    message = errorMessage,
-                    onActionClick = { /* PullToRefresh handles this */ },
-                    showActionButton = false,
-                    showDismissButton = false,
-                )
+                // 에러 배너는 AlbumScreen의 하단에 통일된 위치로 표시됨
+                Box(modifier = Modifier.fillMaxSize())
             }
             is AlbumViewModel.AlbumLoadingState.Idle -> {}
         }

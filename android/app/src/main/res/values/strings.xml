@@ -76,6 +76,7 @@
     <string name="error_message_rename_tag">We couldn\'t rename this tag. Please try again.</string>
     <string name="error_message_add_photos">We couldn\'t add photos. Please try again.</string>
     <string name="error_message_load_album">We couldn\'t load this album. Pull down to refresh.</string>
+    <string name="error_message_load_album_check_network">Please check your network connection and try again.</string>
     <string name="error_message_recommendation">We couldn\'t get recommendations. Please try again.</string>
     <string name="error_message_load_suggestions">We couldn\'t load suggestions. Please check your connection.</string>
     <string name="error_message_connection_lost">Connection lost. Please check your internet connection.</string>
