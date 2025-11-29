@@ -38,15 +38,17 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Share
@@ -79,7 +81,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -165,6 +166,8 @@ fun AlbumScreen(
     val minPanelHeight = Dimen.ExpandedPanelMinHeight
     val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
     var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
+    // 탄성 효과를 위한 오버드래그 상태 (최소 높이 이하로 드래그할 때)
+    var overDragAmount by remember { mutableStateOf(0.dp) }
     val gridState = rememberLazyGridState()
     val backgroundBrush = rememberAppBackgroundBrush()
 
@@ -279,6 +282,20 @@ fun AlbumScreen(
                     }
                 isErrorBannerVisible = true // Failure: Banner
                 albumViewModel.resetAddState()
+            }
+            else -> Unit
+        }
+    }
+
+    LaunchedEffect(imageLoadState) {
+        when (val state = imageLoadState) {
+            is AlbumViewModel.AlbumLoadingState.Error -> {
+                errorBannerTitle = context.getString(R.string.album_failed_to_load)
+                errorBannerMessage = context.getString(R.string.error_message_load_album_check_network)
+                isErrorBannerVisible = true
+            }
+            is AlbumViewModel.AlbumLoadingState.Success -> {
+                isErrorBannerVisible = false
             }
             else -> Unit
         }
@@ -455,17 +472,17 @@ fun AlbumScreen(
                             IconButton(
                                 onClick = { isDeleteConfirmationDialogVisible = true },
                                 enabled = isEnabled,
-                                colors =
-                                    IconButtonDefaults.iconButtonColors(
-                                        contentColor = Color(0xFFD32F2F),
-                                        disabledContentColor = Color(0xFFD32F2F).copy(alpha = 0.38f),
-                                    ),
                             ) {
+                                val deleteIntent =
+                                    when {
+                                        isEnabled -> IconIntent.Error
+                                        else -> IconIntent.Disabled
+                                    }
                                 StandardIcon.Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.LabelOff,
+                                    imageVector = Icons.Default.Delete,
                                     contentDescription = stringResource(R.string.cd_untag),
                                     sizeRole = IconSizeRole.DefaultAction,
-                                    intent = if (isEnabled) IconIntent.Error else IconIntent.Disabled,
+                                    intent = deleteIntent,
                                 )
                             }
                         }
@@ -576,54 +593,6 @@ fun AlbumScreen(
                     )
                 }
 
-                AnimatedVisibility(
-                    visible = isSelectPhotosBannerShareVisible,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                        title = stringResource(R.string.album_no_photos_selected_title),
-                        message = stringResource(R.string.album_select_photos_to_share),
-                        onActionClick = { isSelectPhotosBannerShareVisible = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { isSelectPhotosBannerShareVisible = false },
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = isSelectPhotosBannerUntagVisible,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                        title = stringResource(R.string.album_no_photos_selected_title),
-                        message = stringResource(R.string.album_select_photos_to_untag),
-                        onActionClick = { isSelectPhotosBannerUntagVisible = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { isSelectPhotosBannerUntagVisible = false },
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = isErrorBannerVisible,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Dimen.ItemSpacingSmall),
-                        title = errorBannerTitle,
-                        message = errorBannerMessage,
-                        onActionClick = { isErrorBannerVisible = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = { isErrorBannerVisible = false },
-                    )
-                }
-
                 if (!hasPermission) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(stringResource(R.string.album_permission_required))
@@ -708,11 +677,106 @@ fun AlbumScreen(
                         albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId, tagName)
                     },
                     panelHeight = panelHeight,
+                    overDragAmount = overDragAmount,
+                    minPanelHeight = minPanelHeight,
+                    maxPanelHeight = maxPanelHeight,
                     onHeightChange = { delta ->
-                        panelHeight = (panelHeight - delta).coerceIn(minPanelHeight, maxPanelHeight)
+                        val newHeight = panelHeight - delta
+                        if (newHeight < minPanelHeight) {
+                            // 최소 높이 이하: 탄성 저항 효과 (드래그 양의 30%만 적용)
+                            val overDrag = minPanelHeight - newHeight
+                            overDragAmount = (overDragAmount + delta * 0.3f).coerceAtLeast(0.dp)
+                            panelHeight = minPanelHeight
+                        } else {
+                            panelHeight = newHeight.coerceIn(minPanelHeight, maxPanelHeight)
+                            overDragAmount = 0.dp
+                        }
+                    },
+                    onDragEnd = {
+                        // 드래그 종료 시: threshold(30dp) 이상 오버드래그했으면 축소
+                        if (overDragAmount > Dimen.PanelDismissThreshold) {
+                            isRecommendationExpanded = false
+                        }
+                        // 패널 높이와 오버드래그 초기화
+                        overDragAmount = 0.dp
                     },
                     onCollapse = { isRecommendationExpanded = false },
                 )
+            }
+
+            // === 에러 배너들 (하단에 통일된 위치로 표시) ===
+            Column(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = Dimen.ScreenHorizontalPadding),
+            ) {
+                AnimatedVisibility(
+                    visible = isSelectPhotosBannerShareVisible,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth(),
+                            title = stringResource(R.string.album_no_photos_selected_title),
+                            message = stringResource(R.string.album_select_photos_to_share),
+                            onActionClick = { isSelectPhotosBannerShareVisible = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { isSelectPhotosBannerShareVisible = false },
+                        )
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = isSelectPhotosBannerUntagVisible,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth(),
+                            title = stringResource(R.string.album_no_photos_selected_title),
+                            message = stringResource(R.string.album_select_photos_to_untag),
+                            onActionClick = { isSelectPhotosBannerUntagVisible = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = { isSelectPhotosBannerUntagVisible = false },
+                        )
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = isErrorBannerVisible,
+                    enter = Animation.EnterFromBottom,
+                    exit = Animation.ExitToBottom,
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth(),
+                            title = errorBannerTitle,
+                            message = errorBannerMessage,
+                            onActionClick = {
+                                // 재시도 로직 - 배너를 숨기고 다시 로드
+                                // 에러 발생 시 LaunchedEffect에서 다시 표시됨
+                                isErrorBannerVisible = false
+                                if (hasPermission) {
+                                    albumViewModel.loadAlbum(tagId, tagName)
+                                }
+                            },
+                            showActionButton = true,
+                            showDismissButton = true,
+                            onDismiss = { isErrorBannerVisible = false },
+                        )
+                        Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                    }
+                }
             }
         }
     }
@@ -947,20 +1011,13 @@ private fun AlbumGridArea(
                 }
             }
             is AlbumViewModel.AlbumLoadingState.Error -> {
-                val errorMessage =
-                    when (albumLoadState.error) {
-                        AlbumViewModel.AlbumError.NetworkError -> stringResource(R.string.error_message_network)
-                        AlbumViewModel.AlbumError.Unauthorized -> stringResource(R.string.error_message_authentication_required)
-                        AlbumViewModel.AlbumError.NotFound -> stringResource(R.string.error_message_photo_not_found)
-                        AlbumViewModel.AlbumError.UnknownError -> stringResource(R.string.error_message_unknown)
-                    }
-                WarningBanner(
-                    modifier = Modifier.fillMaxWidth(),
-                    title = stringResource(R.string.album_failed_to_load),
-                    message = errorMessage,
-                    onActionClick = { /* PullToRefresh handles this */ },
-                    showActionButton = false,
-                    showDismissButton = false,
+                // 에러 배너는 AlbumScreen의 하단에 통일된 위치로 표시됨
+                // verticalScroll을 추가하여 Pull to Refresh가 작동하도록 함
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
                 )
             }
             is AlbumViewModel.AlbumLoadingState.Idle -> {}
@@ -1063,7 +1120,11 @@ private fun RecommendExpandedPanel(
     onResetRecommendSelection: () -> Unit,
     onAddPhotosToAlbum: (List<Photo>) -> Unit,
     panelHeight: Dp,
+    overDragAmount: Dp = 0.dp,
+    minPanelHeight: Dp = Dimen.ExpandedPanelMinHeight,
+    maxPanelHeight: Dp = 400.dp,
     onHeightChange: (Dp) -> Unit,
+    onDragEnd: () -> Unit = {},
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1071,16 +1132,22 @@ private fun RecommendExpandedPanel(
     val selectedRecommendPhotoIds = selectedRecommendPhotos.keys
     // 터치이벤트 뒤로 전달 되지 않도록
     val interactionSource = remember { MutableInteractionSource() }
+
+    // 오버드래그 시 시각적 피드백: 패널 높이를 줄이고 투명도 조절
+    val dismissProgress = (overDragAmount / Dimen.PanelOverDragProgressBase).coerceIn(0f, 1f)
+    val visualHeight = panelHeight - (overDragAmount * 0.5f).coerceAtMost(Dimen.PanelOverDragMaxHeightReduction)
+    val surfaceAlpha = (0.95f - dismissProgress * 0.3f).coerceIn(0.65f, 0.95f)
+
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(panelHeight)
+                .height(visualHeight)
                 .shadow(
-                    elevation = Dimen.BottomNavShadowElevation,
+                    elevation = Dimen.BottomNavShadowElevation * (1f - dismissProgress * 0.5f),
                     shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
                 ).background(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = surfaceAlpha),
                     shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
                 ).clip(RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius)),
     ) {
@@ -1091,7 +1158,10 @@ private fun RecommendExpandedPanel(
                     Modifier
                         .fillMaxWidth()
                         .pointerInput(Unit) {
-                            detectVerticalDragGestures { change, dragAmount ->
+                            detectVerticalDragGestures(
+                                onDragEnd = { onDragEnd() },
+                                onDragCancel = { onDragEnd() },
+                            ) { change, dragAmount ->
                                 change.consume()
                                 with(density) {
                                     onHeightChange(dragAmount.toDp())

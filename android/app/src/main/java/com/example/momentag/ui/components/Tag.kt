@@ -23,9 +23,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.LabelOff
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -105,15 +106,28 @@ fun TagChip(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
-    // 5. Derived 상태 및 계산된 값
-    val alpha = if (variant is TagVariant.Recommended) 0.5f else 1f
+    // 추천 태그는 별도 스타일 적용
+    val isRecommended = variant is TagVariant.Recommended
+    val backgroundColor = if (isRecommended) MaterialTheme.colorScheme.surfaceVariant else color
+    val textColor = if (isRecommended) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
 
     // 13. UI (TagContainer)
-    TagContainer(modifier = modifier.alpha(alpha), color = color) {
+    TagContainer(modifier = modifier, color = backgroundColor) {
+        // 추천 태그는 + 아이콘을 텍스트 앞에 표시
+        if (isRecommended) {
+            StandardIcon.Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Add recommended tag",
+                sizeRole = IconSizeRole.ChipAction,
+                tintOverride = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
+        }
+
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = textColor,
         )
         Spacer(modifier = Modifier.width(Dimen.GridItemSpacing))
 
@@ -126,9 +140,10 @@ fun TagChip(
                     modifier = Modifier.size(Dimen.ItemSpacingLarge),
                 ) {
                     StandardIcon.Icon(
-                        imageVector = Icons.AutoMirrored.Filled.LabelOff,
-                        contentDescription = "UnTag",
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
                         sizeRole = IconSizeRole.InlineAction,
+                        intent = IconIntent.Inverse,
                     )
                 }
             }
@@ -139,9 +154,10 @@ fun TagChip(
                         modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
                     ) {
                         StandardIcon.Icon(
-                            imageVector = Icons.AutoMirrored.Filled.LabelOff,
-                            contentDescription = "UnTag",
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
                             sizeRole = IconSizeRole.InlineAction,
+                            intent = IconIntent.Inverse,
                         )
                     }
                 }
@@ -271,8 +287,15 @@ fun TagChipWithCount(
         if (!isEditMode) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(modifier = Modifier.width(Dimen.TagChipWithCountSpacer))
-                // showCheckbox가 true면 체크박스, 아니면 카운트
+                // 카운트는 항상 표시
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                )
+                // showCheckbox가 true면 카운트 옆에 체크박스도 표시
                 if (showCheckbox) {
+                    Spacer(modifier = Modifier.width(Dimen.TagItemSpacer))
                     Box(
                         modifier =
                             Modifier
@@ -296,12 +319,6 @@ fun TagChipWithCount(
                             )
                         }
                     }
-                } else {
-                    Text(
-                        text = count.toString(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                    )
                 }
             }
         }
@@ -315,8 +332,8 @@ fun TagChipWithCount(
                     modifier = Modifier.size(Dimen.IconButtonsSizeXSmall),
                 ) {
                     StandardIcon.Icon(
-                        imageVector = Icons.AutoMirrored.Filled.LabelOff,
-                        contentDescription = "UnTag",
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
                         sizeRole = IconSizeRole.InlineAction,
                         intent = IconIntent.Inverse,
                     )

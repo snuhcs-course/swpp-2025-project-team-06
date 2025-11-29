@@ -60,6 +60,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -185,6 +186,7 @@ fun SelectImageScreen(navController: NavController) {
     val isLoadingMore by selectImageViewModel.isLoadingMore.collectAsState()
     val recommendState by selectImageViewModel.recommendState.collectAsState()
     val recommendedPhotos by selectImageViewModel.recommendedPhotos.collectAsState()
+    val selectedRecommendPhotos by selectImageViewModel.selectedRecommendPhotos.collectAsState()
     val isSelectionMode by selectImageViewModel.isSelectionMode.collectAsState()
     val addPhotosState by selectImageViewModel.addPhotosState.collectAsState()
     // 4. 로컬 상태 변수
@@ -209,6 +211,8 @@ fun SelectImageScreen(navController: NavController) {
     val minHeight = Dimen.ExpandedPanelMinHeight
     val maxHeight = (configuration.screenHeightDp * 0.6f).dp
     var panelHeight by remember { mutableStateOf((configuration.screenHeightDp / 3).dp) }
+    // 탄성 효과를 위한 오버드래그 상태 (최소 높이 이하로 드래그할 때)
+    var overDragAmount by remember { mutableStateOf(0.dp) }
 
     // 6. ActivityResultLauncher
     val permissionLauncher =
@@ -238,7 +242,7 @@ fun SelectImageScreen(navController: NavController) {
     }
 
     val onRecommendedPhotoClick: (Photo) -> Unit = { photo ->
-        selectImageViewModel.addPhotoFromRecommendation(photo)
+        selectImageViewModel.toggleRecommendPhoto(photo)
     }
 
     // 8. LaunchedEffect
@@ -257,6 +261,10 @@ fun SelectImageScreen(navController: NavController) {
     LaunchedEffect(isRecommendationExpanded) {
         if (isRecommendationExpanded && selectedPhotos.isNotEmpty()) {
             selectImageViewModel.recommendPhoto()
+            // 패널이 열리면 선택 모드로 전환
+            if (!isSelectionMode) {
+                selectImageViewModel.setSelectionMode(true)
+            }
         }
     }
 
@@ -611,13 +619,42 @@ fun SelectImageScreen(navController: NavController) {
                 RecommendExpandedPanel(
                     recommendState = recommendState,
                     recommendedPhotos = recommendedPhotos,
-                    onPhotoClick = onRecommendedPhotoClick,
+                    selectedRecommendPhotos = selectedRecommendPhotos,
+                    onToggleRecommendPhoto = onRecommendedPhotoClick,
+                    onResetRecommendSelection = { selectImageViewModel.resetRecommendSelection() },
+                    onAddPhotosToSelection = { photos ->
+                        selectImageViewModel.addRecommendedPhotosToSelection(photos)
+                    },
                     onRetry = { selectImageViewModel.recommendPhoto() },
                     panelHeight = panelHeight,
+                    overDragAmount = overDragAmount,
+                    minPanelHeight = minHeight,
+                    maxPanelHeight = maxHeight,
                     onHeightChange = { delta ->
-                        panelHeight = (panelHeight - delta).coerceIn(minHeight, maxHeight)
+                        val newHeight = panelHeight - delta
+                        if (newHeight < minHeight) {
+                            // 최소 높이 이하: 탄성 저항 효과 (드래그 양의 30%만 적용)
+                            val overDrag = minHeight - newHeight
+                            overDragAmount = (overDragAmount + delta * 0.3f).coerceAtLeast(0.dp)
+                            panelHeight = minHeight
+                        } else {
+                            panelHeight = newHeight.coerceIn(minHeight, maxHeight)
+                            overDragAmount = 0.dp
+                        }
                     },
-                    onCollapse = { isRecommendationExpanded = false },
+                    onDragEnd = {
+                        // 드래그 종료 시: threshold 이상 오버드래그했으면 축소
+                        if (overDragAmount > Dimen.PanelDismissThreshold) {
+                            selectImageViewModel.resetRecommendSelection()
+                            isRecommendationExpanded = false
+                        }
+                        // 오버드래그 초기화
+                        overDragAmount = 0.dp
+                    },
+                    onCollapse = {
+                        selectImageViewModel.resetRecommendSelection()
+                        isRecommendationExpanded = false
+                    },
                 )
             }
 
@@ -791,9 +828,9 @@ private fun RecommendChip(
             is SelectImageViewModel.RecommendState.Success -> {
                 StandardIcon.Icon(
                     imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = stringResource(R.string.cd_ai),
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Primary,
-                    contentDescription = stringResource(R.string.cd_ai),
                 )
                 Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
                 Text(
@@ -804,7 +841,7 @@ private fun RecommendChip(
             }
             is SelectImageViewModel.RecommendState.Error -> {
                 StandardIcon.Icon(
-                    imageVector = Icons.Default.AutoAwesome,
+                    imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.error_title),
                     sizeRole = IconSizeRole.StatusIndicator,
                     intent = IconIntent.Error,
@@ -851,26 +888,39 @@ private fun RecommendChip(
 private fun RecommendExpandedPanel(
     recommendState: SelectImageViewModel.RecommendState,
     recommendedPhotos: List<Photo>,
-    onPhotoClick: (Photo) -> Unit,
+    selectedRecommendPhotos: Map<String, Photo>,
+    onToggleRecommendPhoto: (Photo) -> Unit,
+    onResetRecommendSelection: () -> Unit,
+    onAddPhotosToSelection: (List<Photo>) -> Unit,
     onRetry: () -> Unit,
     panelHeight: Dp,
+    overDragAmount: Dp = 0.dp,
+    minPanelHeight: Dp = Dimen.ExpandedPanelMinHeight,
+    maxPanelHeight: Dp = 400.dp,
     onHeightChange: (Dp) -> Unit,
+    onDragEnd: () -> Unit = {},
     onCollapse: () -> Unit,
 ) {
     val density = LocalDensity.current
+    val selectedRecommendPhotoIds = selectedRecommendPhotos.keys
 
     val interactionSource = remember { MutableInteractionSource() }
+
+    // 오버드래그 시 시각적 피드백: 패널 높이를 줄이고 투명도 조절
+    val dismissProgress = (overDragAmount / Dimen.PanelOverDragProgressBase).coerceIn(0f, 1f)
+    val visualHeight = panelHeight - (overDragAmount * 0.5f).coerceAtMost(Dimen.PanelOverDragMaxHeightReduction)
+    val surfaceAlpha = (0.95f - dismissProgress * 0.3f).coerceIn(0.65f, 0.95f)
 
     Box(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(panelHeight)
+                .height(visualHeight)
                 .shadow(
-                    elevation = Dimen.BottomNavShadowElevation,
+                    elevation = Dimen.BottomNavShadowElevation * (1f - dismissProgress * 0.5f),
                     shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
                 ).background(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = surfaceAlpha),
                     shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
                 ).clip(RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius)),
     ) {
@@ -883,7 +933,10 @@ private fun RecommendExpandedPanel(
                     Modifier
                         .fillMaxWidth()
                         .pointerInput(Unit) {
-                            detectVerticalDragGestures { change, dragAmount ->
+                            detectVerticalDragGestures(
+                                onDragEnd = { onDragEnd() },
+                                onDragCancel = { onDragEnd() },
+                            ) { change, dragAmount ->
                                 change.consume()
                                 with(density) {
                                     onHeightChange(dragAmount.toDp())
@@ -925,42 +978,79 @@ private fun RecommendExpandedPanel(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     // 왼쪽: AI Recommend 텍스트
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        when (recommendState) {
-                            is SelectImageViewModel.RecommendState.Loading -> {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
-                                    strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
-                                )
+                    if (recommendState is SelectImageViewModel.RecommendState.Success &&
+                        recommendedPhotos.isNotEmpty() &&
+                        selectedRecommendPhotos.isNotEmpty()
+                    ) {
+                        // 사진 선택 시: Add와 Cancel 버튼
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(onClick = onResetRecommendSelection) {
+                                Text(stringResource(R.string.action_cancel))
                             }
-                            is SelectImageViewModel.RecommendState.Success -> {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    sizeRole = IconSizeRole.Navigation,
-                                    intent = IconIntent.Primary,
-                                    contentDescription = stringResource(R.string.cd_ai),
-                                )
-                            }
-                            else -> {
-                                StandardIcon.Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    sizeRole = IconSizeRole.Navigation,
-                                    intent = IconIntent.Primary,
-                                    contentDescription = stringResource(R.string.cd_ai),
+                            Button(
+                                onClick = {
+                                    onAddPhotosToSelection(selectedRecommendPhotos.values.toList())
+                                    onCollapse()
+                                },
+                                colors =
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                    ),
+                                shape = RoundedCornerShape(Dimen.Radius20),
+                                contentPadding =
+                                    PaddingValues(
+                                        horizontal = Dimen.ButtonPaddingLargeHorizontal,
+                                        vertical = Dimen.ButtonPaddingVertical,
+                                    ),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.add_tag_with_count, selectedRecommendPhotos.size),
+                                    style = MaterialTheme.typography.labelLarge,
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
-                        Text(
-                            text =
-                                when (recommendState) {
-                                    is SelectImageViewModel.RecommendState.Loading ->
-                                        stringResource(R.string.photos_finding_suggestions)
-                                    else -> stringResource(R.string.photos_suggested_for_you)
-                                },
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+                    } else {
+                        // 기본 상태: AI Recommend 텍스트
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            when (recommendState) {
+                                is SelectImageViewModel.RecommendState.Loading -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
+                                        strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                                    )
+                                }
+                                is SelectImageViewModel.RecommendState.Success -> {
+                                    StandardIcon.Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        sizeRole = IconSizeRole.Navigation,
+                                        intent = IconIntent.Primary,
+                                        contentDescription = stringResource(R.string.cd_ai),
+                                    )
+                                }
+                                else -> {
+                                    StandardIcon.Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        sizeRole = IconSizeRole.Navigation,
+                                        intent = IconIntent.Primary,
+                                        contentDescription = stringResource(R.string.cd_ai),
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
+                            Text(
+                                text =
+                                    when (recommendState) {
+                                        is SelectImageViewModel.RecommendState.Loading ->
+                                            stringResource(R.string.photos_finding_suggestions)
+                                        else -> stringResource(R.string.photos_suggested_for_you)
+                                    },
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
 
                     // Right side: Close button
@@ -1022,12 +1112,13 @@ private fun RecommendExpandedPanel(
                                     key = { index -> recommendedPhotos[index].photoId },
                                 ) { index ->
                                     val photo = recommendedPhotos[index]
+                                    val isSelected = selectedRecommendPhotoIds.contains(photo.photoId)
                                     PhotoSelectableItem(
                                         photo = photo,
-                                        isSelected = false,
-                                        isSelectionMode = false,
-                                        onClick = { onPhotoClick(photo) },
-                                        onLongClick = {},
+                                        isSelected = isSelected,
+                                        isSelectionMode = true,
+                                        onClick = { onToggleRecommendPhoto(photo) },
+                                        onLongClick = { onToggleRecommendPhoto(photo) },
                                         modifier = Modifier.aspectRatio(1f),
                                     )
                                 }
