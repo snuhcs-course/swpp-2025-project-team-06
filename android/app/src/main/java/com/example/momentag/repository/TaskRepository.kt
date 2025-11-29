@@ -52,6 +52,12 @@ class TaskRepository
             }
         }
 
+        suspend fun clearAllTasks() {
+            dataStore.edit { prefs ->
+                prefs.clear()
+            }
+        }
+
         suspend fun checkTaskStatus(taskIds: List<String>): Result<List<TaskStatus>> {
             return try {
                 if (taskIds.isEmpty()) {
