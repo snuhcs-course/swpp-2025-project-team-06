@@ -398,6 +398,27 @@ fun MyTagsScreen(navController: NavController) {
                         )
                     }
 
+                    // Load Tags Error Banner
+                    AnimatedVisibility(
+                        visible = uiState is MyTagsViewModel.MyTagsUiState.Error,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
+                        val errorState = uiState as? MyTagsViewModel.MyTagsUiState.Error
+                        WarningBanner(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = Dimen.ScreenHorizontalPadding)
+                                    .padding(bottom = Dimen.ItemSpacingSmall),
+                            title = stringResource(R.string.error_title_load_tags_failed),
+                            message = errorState?.let { stringResource(it.error.toMessageResId()) } ?: "",
+                            onActionClick = { myTagsViewModel.refreshTags() },
+                            showActionButton = true,
+                            showDismissButton = false,
+                        )
+                    }
+
                     BottomNavBar(
                         modifier =
                             Modifier
@@ -455,20 +476,19 @@ fun MyTagsScreen(navController: NavController) {
                     }
 
                     is MyTagsViewModel.MyTagsUiState.Error -> {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = Dimen.FormScreenHorizontalPadding),
-                            contentAlignment = Alignment.Center,
+                        // Error banner is shown in bottomBar, but we need PullToRefresh
+                        PullToRefreshBox(
+                            isRefreshing = false,
+                            onRefresh = { myTagsViewModel.refreshTags() },
+                            modifier = Modifier.fillMaxSize(),
                         ) {
-                            WarningBanner(
-                                title = stringResource(R.string.error_title_load_tags_failed),
-                                message = stringResource(state.error.toMessageResId()),
-                                onActionClick = { myTagsViewModel.refreshTags() },
-                                showActionButton = true,
-                                showDismissButton = false,
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                            ) {
+                                // Empty scrollable content to enable pull to refresh
+                            }
                         }
                     }
 
@@ -515,7 +535,7 @@ fun MyTagsScreen(navController: NavController) {
 
                 // Floating Create New Tag Button
                 AnimatedVisibility(
-                    visible = !isEditMode,
+                    visible = !isEditMode && uiState !is MyTagsViewModel.MyTagsUiState.Error,
                     modifier = Modifier.align(Alignment.BottomCenter),
                     enter = Animation.EnterFromBottom,
                     exit = Animation.ExitToBottom,
