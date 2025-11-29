@@ -166,6 +166,8 @@ fun AlbumScreen(
     val minPanelHeight = Dimen.ExpandedPanelMinHeight
     val maxPanelHeight = (config.screenHeightDp * 0.6f).dp
     var panelHeight by remember(config) { mutableStateOf((config.screenHeightDp / 3).dp) }
+    // 탄성 효과를 위한 오버드래그 상태 (최소 높이 이하로 드래그할 때)
+    var overDragAmount by remember { mutableStateOf(0.dp) }
     val gridState = rememberLazyGridState()
     val backgroundBrush = rememberAppBackgroundBrush()
 
@@ -668,8 +670,28 @@ fun AlbumScreen(
                         albumViewModel.addRecommendedPhotosToTagAlbum(photos, tagId, tagName)
                     },
                     panelHeight = panelHeight,
+                    overDragAmount = overDragAmount,
+                    minPanelHeight = minPanelHeight,
+                    maxPanelHeight = maxPanelHeight,
                     onHeightChange = { delta ->
-                        panelHeight = (panelHeight - delta).coerceIn(minPanelHeight, maxPanelHeight)
+                        val newHeight = panelHeight - delta
+                        if (newHeight < minPanelHeight) {
+                            // 최소 높이 이하: 탄성 저항 효과 (드래그 양의 30%만 적용)
+                            val overDrag = minPanelHeight - newHeight
+                            overDragAmount = (overDragAmount + delta * 0.3f).coerceAtLeast(0.dp)
+                            panelHeight = minPanelHeight
+                        } else {
+                            panelHeight = newHeight.coerceIn(minPanelHeight, maxPanelHeight)
+                            overDragAmount = 0.dp
+                        }
+                    },
+                    onDragEnd = {
+                        // 드래그 종료 시: threshold(30dp) 이상 오버드래그했으면 축소
+                        if (overDragAmount > Dimen.PanelDismissThreshold) {
+                            isRecommendationExpanded = false
+                        }
+                        // 패널 높이와 오버드래그 초기화
+                        overDragAmount = 0.dp
                     },
                     onCollapse = { isRecommendationExpanded = false },
                 )
@@ -1102,7 +1124,11 @@ private fun RecommendExpandedPanel(
     onResetRecommendSelection: () -> Unit,
     onAddPhotosToAlbum: (List<Photo>) -> Unit,
     panelHeight: Dp,
+    overDragAmount: Dp = 0.dp,
+    minPanelHeight: Dp = Dimen.ExpandedPanelMinHeight,
+    maxPanelHeight: Dp = 400.dp,
     onHeightChange: (Dp) -> Unit,
+    onDragEnd: () -> Unit = {},
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1110,16 +1136,22 @@ private fun RecommendExpandedPanel(
     val selectedRecommendPhotoIds = selectedRecommendPhotos.keys
     // 터치이벤트 뒤로 전달 되지 않도록
     val interactionSource = remember { MutableInteractionSource() }
+
+    // 오버드래그 시 시각적 피드백: 패널 높이를 줄이고 투명도 조절
+    val dismissProgress = (overDragAmount / Dimen.PanelOverDragProgressBase).coerceIn(0f, 1f)
+    val visualHeight = panelHeight - (overDragAmount * 0.5f).coerceAtMost(Dimen.PanelOverDragMaxHeightReduction)
+    val surfaceAlpha = (0.95f - dismissProgress * 0.3f).coerceIn(0.65f, 0.95f)
+
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(panelHeight)
+                .height(visualHeight)
                 .shadow(
-                    elevation = Dimen.BottomNavShadowElevation,
+                    elevation = Dimen.BottomNavShadowElevation * (1f - dismissProgress * 0.5f),
                     shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
                 ).background(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = surfaceAlpha),
                     shape = RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius),
                 ).clip(RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius)),
     ) {
@@ -1130,7 +1162,10 @@ private fun RecommendExpandedPanel(
                     Modifier
                         .fillMaxWidth()
                         .pointerInput(Unit) {
-                            detectVerticalDragGestures { change, dragAmount ->
+                            detectVerticalDragGestures(
+                                onDragEnd = { onDragEnd() },
+                                onDragCancel = { onDragEnd() },
+                            ) { change, dragAmount ->
                                 change.consume()
                                 with(density) {
                                     onHeightChange(dragAmount.toDp())
