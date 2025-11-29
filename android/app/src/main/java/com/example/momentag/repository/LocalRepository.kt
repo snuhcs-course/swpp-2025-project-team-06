@@ -18,13 +18,9 @@ import com.example.momentag.model.Album
 import com.example.momentag.model.Photo
 import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoResponse
-import com.example.momentag.model.PhotoUploadData
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -529,112 +525,6 @@ class LocalRepository
             } catch (e: Exception) {
                 context.getString(R.string.localrepo_unknown_location)
             }
-
-        fun getAlbumPhotoInfo(albumId: Long): List<PhotoInfoForUpload> {
-            val photoInfoList = mutableListOf<PhotoInfoForUpload>()
-            val projection =
-                arrayOf(
-                    MediaStore.Images.Media._ID,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.DATE_TAKEN,
-                    MediaStore.Images.Media.DATE_ADDED, // <<< [수정] DATE_ADDED 추가
-                )
-            val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
-            val selectionArgs = arrayOf(albumId.toString())
-            val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
-
-            context.contentResolver
-                .query(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    projection,
-                    selection,
-                    selectionArgs,
-                    sortOrder,
-                )?.use { cursor ->
-                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                    val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
-                    val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED) // <<< [수정] 인덱스 가져오기
-
-                    while (cursor.moveToNext()) {
-                        val id = cursor.getLong(idColumn)
-                        val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                        val filename = cursor.getString(nameColumn) ?: "unknown.jpg"
-
-                        // --- [수정] DATE_TAKEN이 없으면 DATE_ADDED 사용 ---
-                        var dateValue = cursor.getLong(dateTakenColumn)
-                        if (dateValue == 0L) { // DATE_TAKEN이 0이거나 없는 경우
-                            val dateAddedSeconds = cursor.getLong(dateAddedColumn)
-                            if (dateAddedSeconds > 0L) {
-                                dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
-                            }
-                        }
-                        // --- [수정] 끝 ---
-
-                        val createdAt =
-                            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                                .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
-                                .format(Date(dateValue))
-
-                        var finalLat = 0.0
-                        var finalLng = 0.0
-                        try {
-                            context.contentResolver.openInputStream(contentUri)?.use { inputStream ->
-                                val exif = ExifInterface(inputStream)
-                                val latOutput = FloatArray(2)
-                                if (exif.getLatLong(latOutput)) {
-                                    finalLat = latOutput[0].toDouble()
-                                    finalLng = latOutput[1].toDouble()
-                                }
-                            }
-                        } catch (e: Exception) {
-                            // 0.0 유지
-                        }
-
-                        val meta =
-                            PhotoMeta(
-                                filename = filename,
-                                photo_path_id = id,
-                                created_at = createdAt,
-                                lat = finalLat,
-                                lng = finalLng,
-                            )
-                        photoInfoList.add(PhotoInfoForUpload(contentUri, meta))
-                    }
-                }
-            return photoInfoList
-        }
-
-        fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
-            val photoParts = mutableListOf<MultipartBody.Part>()
-            val metadataList = mutableListOf<PhotoMeta>()
-
-            chunk.forEach { photoInfo ->
-                // (기존 getPhotoUploadRequest의 리사이즈/변환 로직 재사용)
-                val resizedBytes = resizeImage(photoInfo.uri, maxWidth = 224, maxHeight = 224, quality = 85)
-                val (bytes, mime) =
-                    if (resizedBytes != null) {
-                        resizedBytes to "image/jpeg"
-                    } else {
-                        val raw = context.contentResolver.openInputStream(photoInfo.uri)?.use { it.readBytes() }
-                        val type = context.contentResolver.getType(photoInfo.uri) ?: "application/octet-stream"
-                        raw to type
-                    }
-
-                bytes?.let { b ->
-                    val requestBody = b.toRequestBody(mime.toMediaTypeOrNull())
-                    val part = MultipartBody.Part.createFormData("photo", photoInfo.meta.filename, requestBody)
-                    photoParts.add(part)
-                }
-                metadataList.add(photoInfo.meta)
-            }
-
-            val gson = Gson()
-            val metadataJson = gson.toJson(metadataList)
-            val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
-
-            return PhotoUploadData(photoParts, metadataBody)
-        }
 
         fun getSearchHistory(): List<String> {
             val json = searchPrefs.getString(KEY_SEARCH_HISTORY, null)
