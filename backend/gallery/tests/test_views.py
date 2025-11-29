@@ -763,38 +763,127 @@ class StoryViewTest(TestCase):
             username="testuser", email="test@example.com", password="testpass123"
         )
         self.client.force_authenticate(user=self.user)
-
         self.url = reverse('gallery:stories')
 
-    @patch("gallery.tasks.tag_recommendation_batch")
-    def test_get_stories_success(self, mock_tag_batch):
-        """스토리 조회 성공"""
-        # Create photos without tags
-        photo1 = Photo.objects.create(
-            photo_id=uuid.uuid4(),
-            user=self.user,
-            photo_path_id=101,
-            created_at=timezone.now(),
-        )
-        photo2 = Photo.objects.create(
-            photo_id=uuid.uuid4(),
-            user=self.user,
-            photo_path_id=102,
-            created_at=timezone.now(),
-        )
+    @patch("gallery.views.get_redis")
+    @patch("gallery.views.generate_stories_task")
+    def test_get_stories_no_existing_stories(self, mock_generate_task, mock_get_redis):
+        """스토리가 없을 때 생성 시작"""
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+        
+        # Redis에 스토리 없음
+        mock_redis.exists.return_value = False
+        mock_redis.get.return_value = None
+        
+        # Task ID 모킹
+        mock_task = MagicMock()
+        mock_task.id = "test-task-id"
+        mock_generate_task.delay.return_value = mock_task
 
-        mock_tag_batch.return_value = {
-            str(photo1.photo_id): ["태그1", "태그2"],
-            str(photo2.photo_id): ["태그3"],
-        }
+        response = self.client.get(self.url)
 
-        response = self.client.get(f"{self.url}?size=5")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "PROCESSING")
+        self.assertEqual(response.data["stories"], [])
+        
+        # Task 생성 확인
+        mock_generate_task.delay.assert_called_once_with(self.user.id, 20)
+        mock_redis.set.assert_called_once()
+
+    @patch("gallery.views.get_redis")
+    @patch("gallery.views.generate_stories_task")
+    def test_get_stories_ready(self, mock_generate_task, mock_get_redis):
+        """준비된 스토리 조회 성공"""
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+        
+        # Redis에 스토리 있음
+        story_data = [
+            {
+                "photo_id": str(uuid.uuid4()),
+                "photo_path_id": 123,
+                "tags": ["sunset", "beach"]
+            }
+        ]
+        mock_redis.exists.return_value = True
+        mock_redis.get.return_value = json.dumps(story_data)
+        
+        # Task ID 모킹
+        mock_task = MagicMock()
+        mock_task.id = "new-task-id"
+        mock_generate_task.delay.return_value = mock_task
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "SUCCESS")
+        self.assertEqual(len(response.data["stories"]), 1)
+        
+        # 스토리 삭제 확인
+        mock_redis.delete.assert_called_once()
+        # 새로운 생성 시작 확인
+        mock_generate_task.delay.assert_called_once_with(self.user.id, 20)
+
+    @patch("gallery.views.get_redis")
+    @patch("celery.result.AsyncResult")
+    def test_get_stories_processing(self, mock_async_result, mock_get_redis):
+        """스토리 생성 중"""
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+        
+        # Redis에 스토리 없음
+        mock_redis.exists.return_value = False
+        # Task 실행 중
+        mock_redis.get.return_value = "existing-task-id"
+        
+        # Task 상태 모킹
+        mock_task_result = MagicMock()
+        mock_task_result.state = "STARTED"
+        mock_async_result.return_value = mock_task_result
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "PROCESSING")
+        self.assertEqual(response.data["stories"], [])
+
+    @patch("gallery.views.get_redis")
+    def test_get_stories_custom_size(self, mock_get_redis):
+        """커스텀 크기로 스토리 요청"""
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+        
+        mock_redis.exists.return_value = False
+        mock_redis.get.return_value = None
+
+        response = self.client.get(f"{self.url}?size=50")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    @patch("gallery.views.get_redis")
+    def test_get_stories_invalid_size(self, mock_get_redis):
+        """잘못된 size 파라미터"""
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
 
-class NewStoryViewTest(TestCase):
-    """NewStoryView 테스트 (GET, POST)"""
+        response = self.client.get(f"{self.url}?size=invalid")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("gallery.views.get_redis")
+    def test_get_stories_negative_size(self, mock_get_redis):
+        """음수 size 파라미터"""
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+
+        response = self.client.get(f"{self.url}?size=-10")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class TaskStatusViewTest(TestCase):
+    """TaskStatusView 테스트"""
 
     def setUp(self):
         self.client = APIClient()
@@ -802,47 +891,86 @@ class NewStoryViewTest(TestCase):
             username="testuser", email="test@example.com", password="testpass123"
         )
         self.client.force_authenticate(user=self.user)
-
-        self.url = reverse('gallery:new_stories')
+        self.url = reverse('gallery:task_status')
 
     @patch("gallery.views.get_redis")
-    def test_get_new_stories_success(self, mock_get_redis):
-        """Redis에서 스토리 조회 성공"""
+    @patch("celery.result.AsyncResult")
+    def test_get_task_status_with_task_ids(self, mock_async_result, mock_get_redis):
+        """특정 Task ID들의 상태 조회"""
         mock_redis = MagicMock()
-        mock_redis.exists.return_value = 1  # Key exists
-        mock_redis.get.return_value = json.dumps([
-            {"photo_id": str(uuid.uuid4()), "photo_path_id": 101, "tags": ["태그1"]},
-            {"photo_id": str(uuid.uuid4()), "photo_path_id": 102, "tags": ["태그2"]},
-        ])
         mock_get_redis.return_value = mock_redis
+        
+        # Task 상태 모킹
+        mock_task1 = MagicMock()
+        mock_task1.status = "SUCCESS"
+        mock_task2 = MagicMock()
+        mock_task2.status = "PENDING"
+        
+        mock_async_result.side_effect = [mock_task1, mock_task2]
+
+        response = self.client.get(f"{self.url}?task_ids=task-id-1,task-id-2")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]["task_id"], "task-id-1")
+        self.assertEqual(response.data[0]["status"], "SUCCESS")
+        self.assertEqual(response.data[1]["task_id"], "task-id-2")
+        self.assertEqual(response.data[1]["status"], "PENDING")
+
+    @patch("gallery.views.get_redis")
+    @patch("celery.result.AsyncResult")
+    def test_get_task_status_recent_tasks(self, mock_async_result, mock_get_redis):
+        """최근 Task 목록 조회"""
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+        
+        # Redis에서 Task ID 목록 반환
+        mock_redis.lrange.return_value = [b"task-1", b"task-2", b"task-3"]
+        
+        # Task 상태 모킹
+        mock_task = MagicMock()
+        mock_task.status = "SUCCESS"
+        mock_async_result.return_value = mock_task
+
+        response = self.client.get(f"{self.url}?limit=10&offset=0")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        
+        # Redis lrange 호출 확인
+        mock_redis.lrange.assert_called_once_with(
+            f"user_tasks:{self.user.id}", 0, 9
+        )
+
+    @patch("gallery.views.get_redis")
+    @patch("celery.result.AsyncResult")
+    def test_get_task_status_default_limit(self, mock_async_result, mock_get_redis):
+        """기본 limit으로 Task 조회"""
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+        
+        mock_redis.lrange.return_value = []
+        
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # 기본 limit=100, offset=0 확인
+        mock_redis.lrange.assert_called_once_with(
+            f"user_tasks:{self.user.id}", 0, 99
+        )
+
+    @patch("gallery.views.get_redis")
+    def test_get_task_status_empty_result(self, mock_get_redis):
+        """Task가 없을 때"""
+        mock_redis = MagicMock()
+        mock_get_redis.return_value = mock_redis
+        
+        mock_redis.lrange.return_value = []
 
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
 
-    @patch("gallery.views.get_redis")
-    def test_get_new_stories_empty(self, mock_get_redis):
-        """Redis에 스토리가 없는 경우"""
-        mock_redis = MagicMock()
-        mock_redis.exists.return_value = 0  # Key does not exist
-        mock_redis.get.return_value = None
-        mock_get_redis.return_value = mock_redis
 
-        response = self.client.get(self.url)
-
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn("error", response.data)
-
-    @patch("gallery.views.generate_stories_task.delay")
-    def test_post_new_stories_success(self, mock_generate):
-        """스토리 생성 요청 성공"""
-        response = self.client.post(f"{self.url}?size=10")
-
-        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
-        mock_generate.assert_called_once_with(self.user.id, 10)
-
-    def test_post_new_stories_invalid_size(self):
-        """잘못된 size 파라미터"""
-        response = self.client.post(f"{self.url}?size=invalid")
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
