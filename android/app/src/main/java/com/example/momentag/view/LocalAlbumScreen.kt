@@ -185,6 +185,8 @@ fun LocalAlbumScreen(
     LaunchedEffect(selectedPhotos) {
         if (selectedPhotos.isEmpty()) {
             isSelectionMode = false
+        } else if (!isSelectionMode) {
+            isSelectionMode = true
         }
     }
 
