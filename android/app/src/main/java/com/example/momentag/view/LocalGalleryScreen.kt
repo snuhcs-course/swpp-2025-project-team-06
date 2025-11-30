@@ -208,7 +208,7 @@ fun LocalGalleryScreen(
 
     // 13. UI (Scaffold)
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = Color.Transparent, // Let content handle background
         topBar = {
             AnimatedContent(
                 targetState = isSelectionMode,
@@ -435,9 +435,11 @@ private fun PermissionDeniedContent(
     modifier: Modifier = Modifier,
     onRequestPermission: () -> Unit
 ) {
+    val backgroundBrush = rememberAppBackgroundBrush()
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(backgroundBrush)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
