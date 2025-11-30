@@ -123,3 +123,5 @@ uv run celery -A config worker -Q interactive -l info --pool=threads -c4
 Build and install the android application, then run MomenTag to test features.
 
 ## Demo Video
+
+https://drive.google.com/file/d/1iEFSSpjw1jEGeSKzshcRyRcf0nCqDglV/view?usp=sharing 
