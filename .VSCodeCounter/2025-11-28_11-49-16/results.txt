@@ -1,0 +1,50 @@
+Date : 2025-11-28 11:49:16
+Directory : c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android
+Total : 12 files,  1149 codes, 140 comments, 80 blanks, all 1369 lines
+
+Languages
++-----------------+------------+------------+------------+------------+------------+
+| language        | files      | code       | comment    | blank      | total      |
++-----------------+------------+------------+------------+------------+------------+
+| XML             |          8 |        602 |        110 |         41 |        753 |
+| Markdown        |          2 |        503 |          0 |         16 |        519 |
+| Batch           |          1 |         39 |         29 |         22 |         90 |
+| Java Properties |          1 |          5 |          1 |          1 |          7 |
++-----------------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                                               | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                                                  |         12 |      1,149 |        140 |         80 |      1,369 |
+| . (Files)                                                                                                                          |          3 |        542 |         29 |         38 |        609 |
+| app                                                                                                                                |          8 |        602 |        110 |         41 |        753 |
+| app\src                                                                                                                            |          8 |        602 |        110 |         41 |        753 |
+| app\src\main                                                                                                                       |          8 |        602 |        110 |         41 |        753 |
+| app\src\main (Files)                                                                                                               |          1 |         62 |          1 |          6 |         69 |
+| app\src\main\res                                                                                                                   |          7 |        540 |        109 |         35 |        684 |
+| app\src\main\res\drawable                                                                                                          |          2 |        200 |          0 |          1 |        201 |
+| app\src\main\res\values                                                                                                            |          3 |        322 |         95 |         34 |        451 |
+| app\src\main\res\xml                                                                                                               |          2 |         18 |         14 |          0 |         32 |
+| gradle                                                                                                                             |          1 |          5 |          1 |          1 |          7 |
+| gradle\wrapper                                                                                                                     |          1 |          5 |          1 |          1 |          7 |
++------------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+
+| filename                                                                                                                           | language        | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\app\src\main\AndroidManifest.xml                     | XML             |         62 |          1 |          6 |         69 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\app\src\main\res\drawable\ic_launcher_background.xml | XML             |        170 |          0 |          1 |        171 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\app\src\main\res\drawable\ic_launcher_foreground.xml | XML             |         30 |          0 |          0 |         30 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\app\src\main\res\values\colors.xml                   | XML             |         10 |          0 |          0 |         10 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\app\src\main\res\values\strings.xml                  | XML             |        308 |         95 |         33 |        436 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\app\src\main\res\values\themes.xml                   | XML             |          4 |          0 |          1 |          5 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\app\src\main\res\xml\backup_rules.xml                | XML             |          9 |          4 |          0 |         13 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\app\src\main\res\xml\data_extraction_rules.xml       | XML             |          9 |         10 |          0 |         19 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\frontendClassDiagram.md                              | Markdown        |        443 |          0 |          0 |        443 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\gradle\wrapper\gradle-wrapper.properties             | Java Properties |          5 |          1 |          1 |          7 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\gradlew.bat                                          | Batch           |         39 |         29 |         22 |         90 |
+| c:\DATA\JunseopByun\3_SNU\CSE\SWPP\MomenTag\swpp-2025-project-team-06\android\typography-usage.md                                  | Markdown        |         60 |          0 |         16 |         76 |
+| Total                                                                                                                              |                 |      1,149 |        140 |         80 |      1,369 |
++------------------------------------------------------------------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+

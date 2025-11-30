@@ -345,7 +345,7 @@ def get_image_captions_batch(image_data_list: list[BytesIO]) -> list[dict[str, i
 # ============================================================================
 
 
-@shared_task
+@shared_task(queue='gpu')
 def process_and_embed_photo(
     storage_key, user_id, filename, photo_path_id, created_at, lat, lng
 ):
@@ -354,6 +354,8 @@ def process_and_embed_photo(
 
     This task downloads the photo from storage, generates CLIP embeddings and BLIP captions,
     then uploads the results to Qdrant and Django DB.
+
+    Queue: gpu (long-running GPU task)
 
     Args:
         storage_key: Unique identifier for the photo in storage
@@ -430,13 +432,15 @@ def process_and_embed_photo(
         delete_photo(storage_key)
 
 
-@shared_task
+@shared_task(queue='gpu')
 def process_and_embed_photos_batch(photos_metadata: list[dict]):
     """
     GPU Task: Batch process multiple photos and generate embeddings/captions.
 
     This task downloads multiple photos from storage, generates CLIP embeddings and BLIP captions
     in batches for better GPU efficiency, then uploads the results to Qdrant and Django DB.
+
+    Queue: gpu (long-running GPU task)
 
     Args:
         photos_metadata: List of photo metadata dictionaries, each containing:

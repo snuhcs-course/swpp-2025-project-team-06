@@ -10,7 +10,6 @@ class UserSerializerTest(TestCase):
     def setUp(self):
         self.valid_data = {
             'username': 'testuser',
-            'email': 'test@example.com',
             'password': 'testpassword123'
         }
 
@@ -18,31 +17,20 @@ class UserSerializerTest(TestCase):
         """유효한 데이터로 사용자 시리얼라이저 테스트"""
         serializer = UserSerializer(data=self.valid_data)
         self.assertTrue(serializer.is_valid())
-        
+
         user = serializer.save()
         user.set_password(self.valid_data['password'])
         user.save()
         self.assertEqual(user.username, 'testuser')
-        self.assertEqual(user.email, 'test@example.com')
         # 패스워드는 해시된 형태로 저장되므로 직접 비교하지 않음
         self.assertTrue(user.check_password('testpassword123'))
-
-    def test_user_serializer_invalid_email(self):
-        """잘못된 이메일 형식 테스트"""
-        invalid_data = self.valid_data.copy()
-        invalid_data['email'] = 'invalid-email'
-        
-        serializer = UserSerializer(data=invalid_data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn('email', serializer.errors)
 
     def test_user_serializer_missing_fields(self):
         """필수 필드 누락 테스트"""
         incomplete_data = {
-            'email': 'test@example.com'
             # username과 password 누락
         }
-        
+
         serializer = UserSerializer(data=incomplete_data)
         self.assertFalse(serializer.is_valid())
         self.assertIn('username', serializer.errors)
@@ -52,10 +40,9 @@ class UserSerializerTest(TestCase):
         """빈 필드 테스트"""
         empty_data = {
             'username': '',
-            'email': '',
             'password': ''
         }
-        
+
         serializer = UserSerializer(data=empty_data)
         self.assertFalse(serializer.is_valid())
         self.assertIn('username', serializer.errors)
@@ -65,35 +52,30 @@ class UserSerializerTest(TestCase):
         """사용자 업데이트 테스트"""
         user = User.objects.create_user(
             username='testuser',
-            email='test@example.com',
             password='password123'
         )
-        
+
         update_data = {
-            'username': 'updateduser',
-            'email': 'updated@example.com'
+            'username': 'updateduser'
         }
-        
+
         serializer = UserSerializer(instance=user, data=update_data, partial=True)
         self.assertTrue(serializer.is_valid())
-        
+
         updated_user = serializer.save()
         self.assertEqual(updated_user.username, 'updateduser')
-        self.assertEqual(updated_user.email, 'updated@example.com')
 
     def test_user_serializer_serialization(self):
         """사용자 직렬화 테스트"""
         user = User.objects.create_user(
             username='testuser',
-            email='test@example.com',
             password='password123'
         )
-        
+
         serializer = UserSerializer(instance=user)
         data = serializer.data
-        
+
         self.assertEqual(data['username'], 'testuser')
-        self.assertEqual(data['email'], 'test@example.com')
         self.assertEqual(data['id'], user.id)
         # 패스워드는 직렬화에서 제외되어야 함 (보안상)
         self.assertIn('password', data)  # 현재는 포함되어 있음 (주의!)
@@ -104,52 +86,35 @@ class SignUpRequestTest(TestCase):
         """회원가입 요청 유효한 데이터 테스트"""
         data = {
             'username': 'testuser',
-            'email': 'test@example.com',
             'password': 'testpassword123'
         }
-        
+
         serializer = SignUpRequest(data=data)
         self.assertTrue(serializer.is_valid())
         self.assertEqual(serializer.validated_data['username'], 'testuser')
-        self.assertEqual(serializer.validated_data['email'], 'test@example.com')
         self.assertEqual(serializer.validated_data['password'], 'testpassword123')
-
-    def test_signup_request_invalid_email(self):
-        """회원가입 요청 잘못된 이메일 테스트"""
-        data = {
-            'username': 'testuser',
-            'email': 'invalid-email',
-            'password': 'testpassword123'
-        }
-        
-        serializer = SignUpRequest(data=data)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn('email', serializer.errors)
 
     def test_signup_request_missing_fields(self):
         """회원가입 요청 필드 누락 테스트"""
         data = {
             'username': 'testuser'
-            # email과 password 누락
+            # password 누락
         }
-        
+
         serializer = SignUpRequest(data=data)
         self.assertFalse(serializer.is_valid())
-        self.assertIn('email', serializer.errors)
         self.assertIn('password', serializer.errors)
 
     def test_signup_request_empty_fields(self):
         """회원가입 요청 빈 필드 테스트"""
         data = {
             'username': '',
-            'email': '',
             'password': ''
         }
-        
+
         serializer = SignUpRequest(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn('username', serializer.errors)
-        self.assertIn('email', serializer.errors)
         self.assertIn('password', serializer.errors)
 
 
@@ -351,23 +316,22 @@ class SerializerIntegrationTest(TestCase):
         # 1. 회원가입 요청 데이터 검증
         signup_data = {
             'username': 'testuser',
-            'email': 'test@example.com',
             'password': 'testpassword123'
         }
-        
+
         request_serializer = SignUpRequest(data=signup_data)
         self.assertTrue(request_serializer.is_valid())
-        
+
         # 2. 사용자 생성
         user_serializer = UserSerializer(data=signup_data)
         self.assertTrue(user_serializer.is_valid())
         user = user_serializer.save()
-        
+
         # 3. 회원가입 응답 데이터 생성
         response_data = {'id': user.id}
         response_serializer = SignUpResponse(data=response_data)
         self.assertTrue(response_serializer.is_valid())
-        
+
         # 4. 전체 플로우 검증
         self.assertEqual(response_serializer.validated_data['id'], user.id)
 

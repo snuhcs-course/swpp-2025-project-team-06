@@ -12,29 +12,42 @@ import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
+import androidx.work.ListenableWorker.Result
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.example.momentag.R
+import com.example.momentag.di.AlbumUploadJobCountQualifier
+import com.example.momentag.di.AlbumUploadSuccessEventQualifier
+import com.example.momentag.di.UploadCancelRequestQualifier
+import com.example.momentag.di.UploadPauseRequestQualifier
 import com.example.momentag.model.PhotoMeta
 import com.example.momentag.model.PhotoUploadData
+import com.example.momentag.model.UploadJobState
+import com.example.momentag.model.UploadStatus
+import com.example.momentag.model.UploadType
 import com.example.momentag.repository.LocalRepository
-import com.example.momentag.repository.PhotoInfoForUpload // [추가] 3단계에서 만든 클래스 재사용
+import com.example.momentag.repository.PhotoInfoForUpload
 import com.example.momentag.repository.RemoteRepository
-import com.example.momentag.viewmodel.ViewModelFactory
+import com.example.momentag.repository.TaskRepository
+import com.example.momentag.repository.UploadStateRepository
 import com.google.gson.Gson
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.lang.Exception
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.UUID
 
 private data class PhotoMetadataHolder(
     val filename: String,
@@ -43,272 +56,568 @@ private data class PhotoMetadataHolder(
     val lng: Double,
 )
 
-class SelectedPhotoUploadWorker(
-    appContext: Context,
-    params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
-    private val localRepository: LocalRepository
-    private val remoteRepository: RemoteRepository
-    private val albumUploadJobCount: MutableStateFlow<Int>
-    private val albumUploadSuccessEvent: MutableSharedFlow<Long>
-    private val gson = Gson()
+@HiltWorker
+class SelectedPhotoUploadWorker
+    @AssistedInject
+    constructor(
+        @Assisted appContext: Context,
+        @Assisted params: WorkerParameters,
+        private val localRepository: LocalRepository,
+        private val remoteRepository: RemoteRepository,
+        private val taskRepository: TaskRepository, // Injected
+        private val uploadStateRepository: UploadStateRepository,
+        private val gson: Gson,
+        @AlbumUploadJobCountQualifier private val albumUploadJobCount: MutableStateFlow<Int>,
+        @AlbumUploadSuccessEventQualifier private val albumUploadSuccessEvent: MutableSharedFlow<Long>,
+        @UploadPauseRequestQualifier private val uploadPauseRequestFlow: MutableSharedFlow<String>,
+        @UploadCancelRequestQualifier private val uploadCancelRequestFlow: MutableSharedFlow<String>,
+    ) : CoroutineWorker(appContext, params) {
+        private val notificationManager =
+            appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-    init {
-        val factory = ViewModelFactory.getInstance(applicationContext)
-        localRepository = factory.localRepository
-        remoteRepository = factory.remoteRepository
-        albumUploadJobCount = factory.albumUploadJobCount
-        albumUploadSuccessEvent = factory.albumUploadSuccessEvent
-    }
+        companion object {
+            const val KEY_PHOTO_IDS = "PHOTO_IDS"
+            const val KEY_JOB_ID = "JOB_ID"
+            const val KEY_PROGRESS = "PROGRESS"
 
-    private val notificationManager =
-        appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            private const val NOTIFICATION_ID = 12345
+            private const val CHANNEL_ID = "AlbumUploadChannel"
 
-    companion object {
-        const val KEY_PHOTO_IDS = "PHOTO_IDS"
-        const val KEY_PROGRESS = "PROGRESS"
-
-        private const val NOTIFICATION_ID = 12345
-        private const val CHANNEL_ID = "AlbumUploadChannel"
-
-        private const val RESULT_NOTIFICATION_ID = 12346
-    }
-
-    private fun createForegroundInfo(progress: String): ForegroundInfo {
-        createNotificationChannel()
-
-        val notification = createNotification(progress, true)
-
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-            )
-        } else {
-            ForegroundInfo(NOTIFICATION_ID, notification)
-        }
-    }
-
-    private fun createNotification(
-        text: String,
-        ongoing: Boolean,
-    ): Notification =
-        NotificationCompat
-            .Builder(applicationContext, CHANNEL_ID)
-            .setContentTitle("MomenTag Album Upload")
-            .setContentText(text)
-            .setSmallIcon(R.mipmap.ic_launcher_foreground)
-            .setOngoing(ongoing)
-            .setAutoCancel(!ongoing)
-            .build()
-
-    private fun updateNotification(
-        title: String,
-        text: String,
-        id: Int,
-        ongoing: Boolean,
-    ) {
-        val notification =
-            NotificationCompat
-                .Builder(applicationContext, CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSmallIcon(R.mipmap.ic_launcher_foreground)
-                .setOngoing(ongoing)
-                .setAutoCancel(!ongoing)
-                .build()
-        notificationManager.notify(id, notification)
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel =
-                NotificationChannel(
-                    CHANNEL_ID,
-                    "MomenTag Uploads",
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = "Shows album photo upload progress"
-                }
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
-    override suspend fun doWork(): Result {
-        val photoIds = inputData.getLongArray(KEY_PHOTO_IDS)
-        if (photoIds == null || photoIds.isEmpty()) {
-            return Result.failure()
+            private const val RESULT_NOTIFICATION_ID = 12346
         }
 
-        val initialProgress = "Preparing upload..."
-        setForeground(createForegroundInfo(initialProgress))
+        @Volatile
+        private var shouldPause = false
 
-        albumUploadJobCount.update { it + 1 }
+        @Volatile
+        private var shouldCancel = false
 
-        try {
-            val success = processPhotosInChunks(photoIds, 8)
+        private fun createForegroundInfo(
+            progress: String,
+            jobId: String? = null,
+        ): ForegroundInfo {
+            createNotificationChannel()
 
-            if (success) {
-                albumUploadSuccessEvent.emit(0L)
-                updateNotification("Upload Complete", "Album upload completed successfully.", RESULT_NOTIFICATION_ID, false)
-                return Result.success()
+            val notification = createNotification(progress, true, jobId)
+
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ForegroundInfo(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                )
             } else {
-                updateNotification("Upload Failed", "Failed to upload some files.", RESULT_NOTIFICATION_ID, false)
+                ForegroundInfo(NOTIFICATION_ID, notification)
+            }
+        }
+
+        private fun createNotification(
+            text: String,
+            ongoing: Boolean,
+            jobId: String? = null,
+        ): Notification {
+            val builder =
+                NotificationCompat
+                    .Builder(applicationContext, CHANNEL_ID)
+                    .setContentTitle(applicationContext.getString(R.string.notification_upload_title))
+                    .setContentText(text)
+                    .setSmallIcon(R.mipmap.ic_launcher_foreground)
+                    .setOngoing(ongoing)
+                    .setAutoCancel(!ongoing)
+
+            // Add pause and cancel action buttons if jobId is provided
+            if (jobId != null) {
+                // Pause button
+                val pauseIntent =
+                    android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                        action = com.example.momentag.receiver.UploadControlReceiver.ACTION_PAUSE
+                        putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_JOB_ID, jobId)
+                    }
+                val pausePendingIntent =
+                    android.app.PendingIntent.getBroadcast(
+                        applicationContext,
+                        jobId.hashCode(),
+                        pauseIntent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+                    )
+
+                // Cancel button
+                val cancelIntent =
+                    android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                        action = com.example.momentag.receiver.UploadControlReceiver.ACTION_CANCEL
+                        putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_JOB_ID, jobId)
+                    }
+                val cancelPendingIntent =
+                    android.app.PendingIntent.getBroadcast(
+                        applicationContext,
+                        jobId.hashCode() + 1,
+                        cancelIntent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+                    )
+
+                builder
+                    .addAction(android.R.drawable.ic_media_pause, "Pause", pausePendingIntent)
+                    .addAction(android.R.drawable.ic_delete, "Cancel", cancelPendingIntent)
+            }
+
+            return builder.build()
+        }
+
+        private fun updateNotification(
+            title: String,
+            text: String,
+            id: Int,
+            ongoing: Boolean,
+            retryPendingIntent: android.app.PendingIntent? = null,
+            jobId: String? = null,
+        ) {
+            val builder =
+                NotificationCompat
+                    .Builder(applicationContext, CHANNEL_ID)
+                    .setContentTitle(title)
+                    .setContentText(text)
+                    .setSmallIcon(R.mipmap.ic_launcher_foreground)
+                    .setOngoing(ongoing)
+                    .setAutoCancel(!ongoing)
+
+            if (retryPendingIntent != null) {
+                builder.addAction(
+                    android.R.drawable.ic_menu_rotate,
+                    applicationContext.getString(R.string.notification_action_retry),
+                    retryPendingIntent,
+                )
+            }
+
+            // Add pause and cancel action buttons if jobId is provided
+            if (jobId != null && ongoing) {
+                val pauseIntent =
+                    android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                        action = com.example.momentag.receiver.UploadControlReceiver.ACTION_PAUSE
+                        putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_JOB_ID, jobId)
+                    }
+                val pausePendingIntent =
+                    android.app.PendingIntent.getBroadcast(
+                        applicationContext,
+                        jobId.hashCode(),
+                        pauseIntent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+                    )
+
+                val cancelIntent =
+                    android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                        action = com.example.momentag.receiver.UploadControlReceiver.ACTION_CANCEL
+                        putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_JOB_ID, jobId)
+                    }
+                val cancelPendingIntent =
+                    android.app.PendingIntent.getBroadcast(
+                        applicationContext,
+                        jobId.hashCode() + 1,
+                        cancelIntent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+                    )
+
+                builder
+                    .addAction(android.R.drawable.ic_media_pause, "Pause", pausePendingIntent)
+                    .addAction(android.R.drawable.ic_delete, "Cancel", cancelPendingIntent)
+            }
+
+            notificationManager.notify(id, builder.build())
+        }
+
+        private fun createNotificationChannel() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel =
+                    NotificationChannel(
+                        CHANNEL_ID,
+                        applicationContext.getString(R.string.notification_channel_name),
+                        NotificationManager.IMPORTANCE_LOW,
+                    ).apply {
+                        description = applicationContext.getString(R.string.notification_channel_description)
+                    }
+                notificationManager.createNotificationChannel(channel)
+            }
+        }
+
+        override suspend fun doWork(): Result {
+            val photoIds = inputData.getLongArray(KEY_PHOTO_IDS)
+            if (photoIds == null || photoIds.isEmpty()) {
                 return Result.failure()
             }
-        } catch (e: Exception) {
-            updateNotification("Upload Error", "An unknown error occurred.", RESULT_NOTIFICATION_ID, false)
-            return Result.failure()
-        } finally {
-            albumUploadJobCount.update { it - 1 }
-        }
-    }
 
-    private suspend fun processPhotosInChunks(
-        photoIds: LongArray,
-        chunkSize: Int,
-    ): Boolean {
-        val totalPhotos = photoIds.size
-        if (totalPhotos == 0) return true
+            // Get or create job ID
+            val jobId = inputData.getString(KEY_JOB_ID) ?: UUID.randomUUID().toString()
 
-        val totalChunks = (totalPhotos + chunkSize - 1) / chunkSize
-        var chunkCount = 0
-
-        photoIds.asSequence().chunked(chunkSize).forEach { chunkIds ->
-            val currentChunk = mutableListOf<PhotoInfoForUpload>()
-
-            chunkIds.forEach { id ->
-                val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-
-                val (filename, createdAt, lat, lng) = getMetadataForPhoto(id, contentUri)
-
-                val meta =
-                    PhotoMeta(
-                        filename = filename,
-                        photo_path_id = id.toInt(),
-                        created_at = createdAt,
-                        lat = lat,
-                        lng = lng,
-                    )
-                currentChunk.add(PhotoInfoForUpload(contentUri, meta))
-            }
-
-            chunkCount++
-            val progressText = "Uploading chunk ($chunkCount / $totalChunks)..."
-            setProgress(workDataOf(KEY_PROGRESS to progressText))
-            updateNotification("Uploading Photos", progressText, NOTIFICATION_ID, true)
-
-            val uploadData = createUploadDataFromChunk(currentChunk)
-            val response = remoteRepository.uploadPhotos(uploadData)
-
-            if (response !is RemoteRepository.Result.Success) {
-                return false
-            }
-            currentChunk.clear()
-        }
-
-        return true
-    }
-
-    private fun getMetadataForPhoto(
-        id: Long,
-        contentUri: Uri,
-    ): PhotoMetadataHolder {
-        var filename = "unknown.jpg"
-        var finalLat = 0.0
-        var finalLng = 0.0
-
-        // 1. dateValue를 0L (Epoch)로 기본값 설정
-        var dateValue = 0L
-
-        val projection =
-            arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
-
-        try {
-            // 쿼리 실패에 대비해 try-catch 추가
-            applicationContext.contentResolver.query(contentUri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    filename = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)) ?: "unknown.jpg"
-
-                    // 2. dateValue를 여기서 덮어씀
-                    dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
-                    if (dateValue == 0L) {
-                        val dateAddedSeconds = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
-                        if (dateAddedSeconds > 0L) {
-                            dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+            // Listen for pause/cancel requests
+            val pauseJob =
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                    uploadPauseRequestFlow.collect { requestedJobId ->
+                        if (requestedJobId == jobId) {
+                            shouldPause = true
                         }
                     }
                 }
-            }
-        } catch (e: Exception) {
-            Log.e("SelectedPhotoUploadWorker", "Failed to query ContentResolver for $id. Using default date (Epoch).", e)
-        }
 
-        // 3. createdAt 포맷을 *항상* 실행 (cursor.use 밖에서)
-        val createdAt =
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
-                .format(Date(dateValue))
-
-        try {
-            applicationContext.contentResolver.openInputStream(contentUri)?.use { inputStream ->
-                val exif = ExifInterface(inputStream)
-                val latOutput = FloatArray(2)
-                if (exif.getLatLong(latOutput)) {
-                    finalLat = latOutput[0].toDouble()
-                    finalLng = latOutput[1].toDouble()
+            val cancelJob =
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                    uploadCancelRequestFlow.collect { requestedJobId ->
+                        if (requestedJobId == jobId) {
+                            shouldCancel = true
+                        }
+                    }
                 }
-            }
-        } catch (e: Exception) {
-        }
 
-        return PhotoMetadataHolder(filename, createdAt, finalLat, finalLng)
-    }
+            val initialProgress = applicationContext.getString(R.string.foreground_preparing_upload)
+            setForeground(createForegroundInfo(initialProgress, jobId))
 
-    private fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
-        val photoParts = mutableListOf<MultipartBody.Part>()
-        val metadataList = mutableListOf<PhotoMeta>()
-
-        chunk.forEach { photoInfo ->
+            albumUploadJobCount.update { it + 1 }
 
             try {
-                val resizedBytes =
-                    localRepository.resizeImage(
-                        photoInfo.uri,
-                        maxWidth = 224,
-                        maxHeight = 224,
-                        quality = 85,
+                // Get or create upload state
+                val existingState = uploadStateRepository.getState(jobId)
+                val startChunkIndex = existingState?.currentChunkIndex ?: 0
+
+                // Use saved photo IDs or input data on first run
+                val photoIdsToUpload = existingState?.totalPhotoIds ?: photoIds.toList()
+
+                // Initialize state if new
+                if (existingState == null) {
+                    uploadStateRepository.saveState(
+                        UploadJobState(
+                            jobId = jobId,
+                            type = UploadType.SELECTED_PHOTOS,
+                            albumId = null,
+                            status = UploadStatus.RUNNING,
+                            totalPhotoIds = photoIdsToUpload,
+                            failedPhotoIds = emptyList(),
+                            currentChunkIndex = 0,
+                            createdAt = System.currentTimeMillis(),
+                        ),
                     )
-
-                // 3. 리사이즈 성공 시에만 처리 (실패 시 원본 전송 안 함)
-                if (resizedBytes != null && resizedBytes.isNotEmpty()) {
-                    val mime = "image/jpeg"
-                    val requestBody = resizedBytes.toRequestBody(mime.toMediaTypeOrNull())
-                    val filenameWithoutExtension = photoInfo.meta.filename.substringBeforeLast(".", photoInfo.meta.filename)
-                    val newFilename = "$filenameWithoutExtension.jpg"
-                    val part = MultipartBody.Part.createFormData("photo", newFilename, requestBody)
-
-                    photoParts.add(part)
-                    metadataList.add(photoInfo.meta)
                 } else {
-                    Log.w(
-                        "AlbumUploadWorker",
-                        "Resize failed for ${photoInfo.meta.filename} (unsupported format? corrupted?). SKIPPING file.",
+                    // Update to RUNNING status
+                    uploadStateRepository.saveState(existingState.copy(status = UploadStatus.RUNNING))
+                }
+
+                val (successCount, failCount, taskIds, failedIds, wasPaused) =
+                    processPhotosInChunks(photoIdsToUpload, 8, jobId, startChunkIndex)
+
+                // Handle pause
+                if (wasPaused || shouldPause) {
+                    val currentState = uploadStateRepository.getState(jobId)
+                    if (currentState != null) {
+                        uploadStateRepository.saveState(currentState.copy(status = UploadStatus.PAUSED))
+                    }
+                    // Note: Task IDs already saved incrementally during processPhotosInChunks
+                    return Result.failure()
+                }
+
+                // Handle cancel
+                if (shouldCancel) {
+                    val currentState = uploadStateRepository.getState(jobId)
+                    if (currentState != null) {
+                        uploadStateRepository.saveState(currentState.copy(status = UploadStatus.CANCELLED))
+                    }
+                    notificationManager.cancel(NOTIFICATION_ID)
+                    // Note: Task IDs already saved incrementally during processPhotosInChunks
+                    return Result.failure()
+                }
+
+                // Save successful task IDs (only when completed, not paused/cancelled)
+                // This is redundant safety since task IDs are already saved incrementally,
+                // but ensures we have all task IDs even if incremental saves failed
+                if (taskIds.isNotEmpty()) {
+                    taskRepository.saveTaskIds(taskIds)
+                }
+
+                // Update final state
+                val currentState = uploadStateRepository.getState(jobId)
+                if (currentState != null) {
+                    val finalStatus = if (failCount > 0 && successCount == 0) UploadStatus.FAILED else UploadStatus.COMPLETED
+                    uploadStateRepository.saveState(
+                        currentState.copy(
+                            status = finalStatus,
+                            failedPhotoIds = failedIds,
+                        ),
                     )
                 }
-            } catch (t: Throwable) {
-                Log.e(
-                    "AlbumUploadWorker",
-                    "CRITICAL: Failed to process photo. SKIPPING file: ${photoInfo.meta.filename}",
-                    t,
+
+                if (successCount > 0) {
+                    albumUploadSuccessEvent.emit(0L)
+                    val message =
+                        if (failCount > 0) {
+                            applicationContext.getString(R.string.notification_partial_success_photos, successCount, failCount)
+                        } else {
+                            applicationContext.getString(R.string.notification_upload_complete_message)
+                        }
+
+                    val retryIntent =
+                        if (failCount > 0) {
+                            createRetryPendingIntent(failedIds.toLongArray())
+                        } else {
+                            null
+                        }
+
+                    updateNotification(
+                        applicationContext.getString(R.string.notification_upload_complete),
+                        message,
+                        RESULT_NOTIFICATION_ID,
+                        false,
+                        retryIntent,
+                    )
+                    return Result.success()
+                } else {
+                    val retryIntent = createRetryPendingIntent(photoIds)
+                    updateNotification(
+                        applicationContext.getString(R.string.notification_upload_failed),
+                        applicationContext.getString(R.string.error_message_upload_failed),
+                        RESULT_NOTIFICATION_ID,
+                        false,
+                        retryIntent,
+                    )
+                    return Result.failure()
+                }
+            } catch (e: Exception) {
+                val currentState = uploadStateRepository.getState(jobId)
+                if (currentState != null) {
+                    uploadStateRepository.saveState(currentState.copy(status = UploadStatus.FAILED))
+                }
+                updateNotification(
+                    applicationContext.getString(R.string.notification_upload_error),
+                    applicationContext.getString(R.string.error_message_generic),
+                    RESULT_NOTIFICATION_ID,
+                    false,
                 )
+                return Result.failure()
+            } finally {
+                albumUploadJobCount.update { it - 1 }
+                pauseJob.cancel()
+                cancelJob.cancel()
             }
         }
 
-        val metadataJson = gson.toJson(metadataList)
-        val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
+        private fun createRetryPendingIntent(failedIds: LongArray): android.app.PendingIntent {
+            val intent =
+                android.content.Intent(applicationContext, com.example.momentag.receiver.UploadControlReceiver::class.java).apply {
+                    action = com.example.momentag.receiver.UploadControlReceiver.ACTION_RETRY
+                    putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_FAILED_PHOTO_IDS, failedIds)
+                    putExtra(com.example.momentag.receiver.UploadControlReceiver.EXTRA_NOTIFICATION_ID, RESULT_NOTIFICATION_ID)
+                }
+            return android.app.PendingIntent.getBroadcast(
+                applicationContext,
+                0,
+                intent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
 
-        return PhotoUploadData(photoParts, metadataBody)
+        private data class UploadResult(
+            val successCount: Int,
+            val failCount: Int,
+            val taskIds: List<String>,
+            val failedIds: List<Long>,
+            val wasPaused: Boolean,
+        )
+
+        private suspend fun processPhotosInChunks(
+            photoIds: List<Long>,
+            chunkSize: Int,
+            jobId: String,
+            startChunkIndex: Int,
+        ): UploadResult {
+            val chunks = photoIds.chunked(chunkSize)
+            val totalChunks = chunks.size
+
+            var successCount = 0
+            var failCount = 0
+            val allTaskIds = mutableListOf<String>()
+            val failedIds = mutableListOf<Long>()
+
+            // Process chunks starting from startChunkIndex
+            for (i in startChunkIndex until chunks.size) {
+                // Check for pause/cancel before processing each chunk
+                if (shouldPause || shouldCancel || isStopped) {
+                    // Save current state before pausing
+                    val currentState = uploadStateRepository.getState(jobId)
+                    if (currentState != null) {
+                        uploadStateRepository.saveState(
+                            currentState.copy(
+                                currentChunkIndex = i,
+                                failedPhotoIds = failedIds,
+                            ),
+                        )
+                    }
+                    return UploadResult(successCount, failCount, allTaskIds, failedIds, true)
+                }
+
+                val chunkIds = chunks[i]
+                val currentChunk = mutableListOf<PhotoInfoForUpload>()
+
+                chunkIds.forEach { id ->
+                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+
+                    val (filename, createdAt, lat, lng) = getMetadataForPhoto(id, contentUri)
+
+                    val meta =
+                        PhotoMeta(
+                            filename = filename,
+                            photo_path_id = id,
+                            created_at = createdAt,
+                            lat = lat,
+                            lng = lng,
+                        )
+                    currentChunk.add(PhotoInfoForUpload(contentUri, meta))
+                }
+
+                val progressText = applicationContext.getString(R.string.notification_progress_chunk, i + 1, totalChunks)
+                setProgress(workDataOf(KEY_PROGRESS to progressText))
+                updateNotification(
+                    applicationContext.getString(R.string.notification_uploading_photos),
+                    progressText,
+                    NOTIFICATION_ID,
+                    true,
+                    jobId = jobId,
+                )
+
+                val uploadData = createUploadDataFromChunk(currentChunk)
+
+                // If chunk is empty (e.g. all resize failed), count as fail
+                if (uploadData.photo.isEmpty()) {
+                    failCount += chunkIds.size
+                    failedIds.addAll(chunkIds)
+                    continue
+                }
+
+                val response = remoteRepository.uploadPhotos(uploadData)
+
+                if (response is RemoteRepository.Result.Success) {
+                    successCount += uploadData.photo.size
+                    // Add task IDs from response
+                    val taskIds = response.data.map { it.taskId }
+                    allTaskIds.addAll(taskIds)
+
+                    // Save task IDs immediately after each successful chunk
+                    if (taskIds.isNotEmpty()) {
+                        taskRepository.saveTaskIds(taskIds)
+                    }
+                } else {
+                    failCount += uploadData.photo.size
+                    failedIds.addAll(chunkIds)
+                    Log.e("SelectedPhotoUploadWorker", "Chunk upload failed: $response")
+                }
+
+                // Update state after each chunk
+                val currentState = uploadStateRepository.getState(jobId)
+                if (currentState != null) {
+                    uploadStateRepository.saveState(
+                        currentState.copy(
+                            currentChunkIndex = i + 1,
+                            failedPhotoIds = failedIds,
+                        ),
+                    )
+                }
+            }
+
+            return UploadResult(successCount, failCount, allTaskIds, failedIds, false)
+        }
+
+        private fun getMetadataForPhoto(
+            id: Long,
+            contentUri: Uri,
+        ): PhotoMetadataHolder {
+            var filename = "unknown.jpg"
+            var finalLat = 0.0
+            var finalLng = 0.0
+
+            // 1. dateValue를 0L (Epoch)로 기본값 설정
+            var dateValue = 0L
+
+            val projection =
+                arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
+
+            try {
+                // 쿼리 실패에 대비해 try-catch 추가
+                applicationContext.contentResolver.query(contentUri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        filename = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)) ?: "unknown.jpg"
+
+                        // 2. dateValue를 여기서 덮어씀
+                        dateValue = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN))
+                        if (dateValue == 0L) {
+                            val dateAddedSeconds = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
+                            if (dateAddedSeconds > 0L) {
+                                dateValue = dateAddedSeconds * 1000L // DATE_ADDED는 초(second) 단위이므로 밀리초로 변환
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SelectedPhotoUploadWorker", "Failed to query ContentResolver for $id. Using default date (Epoch).", e)
+            }
+
+            // 3. createdAt 포맷을 *항상* 실행 (cursor.use 밖에서)
+            val createdAt =
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+                    .apply { timeZone = TimeZone.getTimeZone("Asia/Seoul") }
+                    .format(Date(dateValue))
+
+            try {
+                applicationContext.contentResolver.openInputStream(contentUri)?.use { inputStream ->
+                    val exif = ExifInterface(inputStream)
+                    val latOutput = FloatArray(2)
+                    if (exif.getLatLong(latOutput)) {
+                        finalLat = latOutput[0].toDouble()
+                        finalLng = latOutput[1].toDouble()
+                    }
+                }
+            } catch (e: Exception) {
+            }
+
+            return PhotoMetadataHolder(filename, createdAt, finalLat, finalLng)
+        }
+
+        private fun createUploadDataFromChunk(chunk: List<PhotoInfoForUpload>): PhotoUploadData {
+            val photoParts = mutableListOf<MultipartBody.Part>()
+            val metadataList = mutableListOf<PhotoMeta>()
+
+            chunk.forEach { photoInfo ->
+
+                try {
+                    val resizedBytes =
+                        localRepository.resizeImage(
+                            photoInfo.uri,
+                            maxWidth = 224,
+                            maxHeight = 224,
+                            quality = 85,
+                        )
+
+                    // 3. 리사이즈 성공 시에만 처리 (실패 시 원본 전송 안 함)
+                    if (resizedBytes != null && resizedBytes.isNotEmpty()) {
+                        val mime = "image/jpeg"
+                        val requestBody = resizedBytes.toRequestBody(mime.toMediaTypeOrNull())
+                        val filenameWithoutExtension = photoInfo.meta.filename.substringBeforeLast(".", photoInfo.meta.filename)
+                        val newFilename = "$filenameWithoutExtension.jpg"
+                        val part = MultipartBody.Part.createFormData("photo", newFilename, requestBody)
+
+                        photoParts.add(part)
+                        metadataList.add(photoInfo.meta)
+                    } else {
+                        Log.w(
+                            "AlbumUploadWorker",
+                            "Resize failed for ${photoInfo.meta.filename} (unsupported format? corrupted?). SKIPPING file.",
+                        )
+                    }
+                } catch (t: Throwable) {
+                    Log.e(
+                        "AlbumUploadWorker",
+                        "CRITICAL: Failed to process photo. SKIPPING file: ${photoInfo.meta.filename}",
+                        t,
+                    )
+                }
+            }
+
+            val metadataJson = gson.toJson(metadataList)
+            val metadataBody = metadataJson.toRequestBody("application/json".toMediaTypeOrNull())
+
+            return PhotoUploadData(photoParts, metadataBody)
+        }
     }
-}

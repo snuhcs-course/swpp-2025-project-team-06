@@ -1,19 +1,20 @@
 package com.example.momentag.viewmodel
 
-import com.example.momentag.model.MyTagsUiState
+import android.net.Uri
+import com.example.momentag.model.Photo
+import com.example.momentag.model.TagId
 import com.example.momentag.model.TagResponse
 import com.example.momentag.repository.PhotoSelectionRepository
 import com.example.momentag.repository.RemoteRepository
-import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -29,431 +30,913 @@ class MyTagsViewModelTest {
     private lateinit var viewModel: MyTagsViewModel
     private lateinit var remoteRepository: RemoteRepository
     private lateinit var photoSelectionRepository: PhotoSelectionRepository
-    private lateinit var selectedPhotosFlow: MutableStateFlow<List<com.example.momentag.model.Photo>>
 
     @Before
     fun setUp() {
-        remoteRepository = mockk()
-        photoSelectionRepository = mockk()
+        remoteRepository = mockk(relaxed = true)
+        photoSelectionRepository = mockk(relaxed = true)
 
-        selectedPhotosFlow = MutableStateFlow(emptyList())
-        every { photoSelectionRepository.selectedPhotos } returns selectedPhotosFlow
-
-        // Mock initial loadTags call in init block
-        coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
-
-        viewModel = MyTagsViewModel(remoteRepository, photoSelectionRepository)
+        // Mock photoSelectionRepository.selectedPhotos flow
+        every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(emptyMap())
     }
 
-    @After
-    fun tearDown() {
-        clearAllMocks()
+    private fun createViewModel() {
+        viewModel =
+            MyTagsViewModel(
+                remoteRepository,
+                photoSelectionRepository,
+            )
     }
 
-    private fun createTagResponse(
-        id: String = "tag1",
-        name: String = "Test Tag",
-        count: Int = 5,
-    ) = TagResponse(
-        tagId = id,
-        tagName = name,
-        photoCount = count,
-        thumbnailPhotoPathId = 1L,
-        createdAt = "2025-01-01T00:00:00Z",
-        updatedAt = "2025-01-01T00:00:00Z",
-    )
+    private fun createMockTagResponse(
+        tagName: String,
+        tagId: String = "id_$tagName",
+        photoCount: Int = 0,
+    ): TagResponse =
+        TagResponse(
+            tagName = tagName,
+            tagId = tagId,
+            thumbnailPhotoPathId = null,
+            createdAt = null,
+            updatedAt = null,
+            photoCount = photoCount,
+        )
 
-    // Load tags tests
+    private fun createMockPhoto(
+        id: String,
+        contentUri: Uri = mockk(relaxed = true),
+    ): Photo =
+        Photo(
+            photoId = id,
+            contentUri = contentUri,
+            createdAt = "2023-01-01",
+        )
+
+    // --- Initialization Tests ---
+
     @Test
-    fun `loadTags success updates uiState with tags`() =
+    fun `init loads tags automatically`() =
         runTest {
-            // Given
             val tags =
                 listOf(
-                    createTagResponse("tag1", "Tag 1", 5),
-                    createTagResponse("tag2", "Tag 2", 3),
+                    createMockTagResponse("Tag1", photoCount = 5),
+                    createMockTagResponse("Tag2", photoCount = 3),
                 )
             coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(tags)
 
-            // When
-            viewModel.loadTags()
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Success)
-            assertEquals(2, (state as MyTagsUiState.Success).tags.size)
+            assertTrue(viewModel.uiState.value is MyTagsViewModel.MyTagsUiState.Success)
+            val successState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
+            assertEquals(2, successState.tags.size)
+        }
+
+    // --- Load Tags Tests ---
+
+    @Test
+    fun `loadTags success updates state with tags`() =
+        runTest {
+            val tags =
+                listOf(
+                    createMockTagResponse("Vacation", photoCount = 10),
+                    createMockTagResponse("Family", photoCount = 5),
+                    createMockTagResponse("Work", photoCount = 3),
+                )
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(tags)
+
+            createViewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is MyTagsViewModel.MyTagsUiState.Success)
+            val successState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
+            assertEquals(3, successState.tags.size)
+            assertEquals("Vacation", successState.tags[0].tagName)
+            assertEquals(10, successState.tags[0].count)
         }
 
     @Test
-    fun `loadTags error updates uiState with error message`() =
+    fun `loadTags error updates state with error`() =
         runTest {
-            // Given
-            coEvery { remoteRepository.getAllTags() } returns
-                RemoteRepository.Result.Error(500, "Server error")
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Error(500, "Server error")
 
-            // When
-            viewModel.loadTags()
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
+            assertTrue(viewModel.uiState.value is MyTagsViewModel.MyTagsUiState.Error)
+            val errorState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, errorState.error)
         }
 
-    // Sort order tests
+    @Test
+    fun `loadTags unauthorized updates state with unauthorized error`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Unauthorized("Unauthorized")
+
+            createViewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is MyTagsViewModel.MyTagsUiState.Error)
+            val errorState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.Unauthorized, errorState.error)
+        }
+
+    @Test
+    fun `loadTags bad request updates state with unknown error`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.BadRequest("Bad request")
+
+            createViewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is MyTagsViewModel.MyTagsUiState.Error)
+            val errorState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, errorState.error)
+        }
+
+    @Test
+    fun `loadTags network error updates state with network error`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.NetworkError("Network error")
+
+            createViewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is MyTagsViewModel.MyTagsUiState.Error)
+            val errorState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.NetworkError, errorState.error)
+        }
+
+    @Test
+    fun `loadTags exception updates state with unknown error`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Exception(Exception("Error"))
+
+            createViewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is MyTagsViewModel.MyTagsUiState.Error)
+            val errorState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, errorState.error)
+        }
+
+    @Test
+    fun `loadTags handles null photoCount`() =
+        runTest {
+            val tagResponse =
+                TagResponse(
+                    tagName = "TestTag",
+                    tagId = "test_id",
+                    thumbnailPhotoPathId = null,
+                    createdAt = null,
+                    updatedAt = null,
+                    photoCount = 0,
+                )
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(listOf(tagResponse))
+
+            createViewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is MyTagsViewModel.MyTagsUiState.Success)
+            val successState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
+            assertEquals(0, successState.tags[0].count)
+        }
+
+    @Test
+    fun `refreshTags reloads tags`() =
+        runTest {
+            val initialTags = listOf(createMockTagResponse("Tag1"))
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(initialTags)
+
+            createViewModel()
+            advanceUntilIdle()
+
+            val newTags =
+                listOf(
+                    createMockTagResponse("Tag1"),
+                    createMockTagResponse("Tag2"),
+                )
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(newTags)
+
+            viewModel.refreshTags()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is MyTagsViewModel.MyTagsUiState.Success)
+            val successState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
+            assertEquals(2, successState.tags.size)
+        }
+
+    // --- Edit Mode Tests ---
+
+    @Test
+    fun `toggleEditMode changes state from false to true`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.isEditMode.value)
+
+            viewModel.toggleEditMode()
+            assertTrue(viewModel.isEditMode.value)
+        }
+
+    @Test
+    fun `toggleEditMode changes state from true to false`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            viewModel.toggleEditMode()
+            assertTrue(viewModel.isEditMode.value)
+
+            viewModel.toggleEditMode()
+            assertFalse(viewModel.isEditMode.value)
+        }
+
+    @Test
+    fun `toggleEditMode clears tag selections`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            viewModel.toggleTagSelection("tag1")
+            viewModel.toggleTagSelection("tag2")
+            assertEquals(2, viewModel.selectedTagsForBulkEdit.value.size)
+
+            viewModel.toggleEditMode()
+            assertTrue(viewModel.selectedTagsForBulkEdit.value.isEmpty())
+        }
+
+    // --- Tag Selection Tests ---
+
+    @Test
+    fun `toggleTagSelection adds tag when not selected`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            viewModel.toggleTagSelection("tag1")
+            assertTrue(viewModel.selectedTagsForBulkEdit.value.contains("tag1"))
+            assertEquals(1, viewModel.selectedTagsForBulkEdit.value.size)
+        }
+
+    @Test
+    fun `toggleTagSelection removes tag when already selected`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            viewModel.toggleTagSelection("tag1")
+            assertTrue(viewModel.selectedTagsForBulkEdit.value.contains("tag1"))
+
+            viewModel.toggleTagSelection("tag1")
+            assertFalse(viewModel.selectedTagsForBulkEdit.value.contains("tag1"))
+            assertTrue(viewModel.selectedTagsForBulkEdit.value.isEmpty())
+        }
+
+    @Test
+    fun `toggleTagSelection handles multiple tags`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            viewModel.toggleTagSelection("tag1")
+            viewModel.toggleTagSelection("tag2")
+            viewModel.toggleTagSelection("tag3")
+
+            assertEquals(3, viewModel.selectedTagsForBulkEdit.value.size)
+            assertTrue(viewModel.selectedTagsForBulkEdit.value.contains("tag1"))
+            assertTrue(viewModel.selectedTagsForBulkEdit.value.contains("tag2"))
+            assertTrue(viewModel.selectedTagsForBulkEdit.value.contains("tag3"))
+        }
+
+    @Test
+    fun `clearTagSelection clears all selections`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            viewModel.toggleTagSelection("tag1")
+            viewModel.toggleTagSelection("tag2")
+            assertEquals(2, viewModel.selectedTagsForBulkEdit.value.size)
+
+            viewModel.clearTagSelection()
+            assertTrue(viewModel.selectedTagsForBulkEdit.value.isEmpty())
+        }
+
+    // --- Sorting Tests ---
+
     @Test
     fun `setSortOrder NAME_ASC sorts tags by name ascending`() =
         runTest {
-            // Given
             val tags =
                 listOf(
-                    createTagResponse("tag1", "B Tag", 5),
-                    createTagResponse("tag2", "A Tag", 3),
+                    createMockTagResponse("Zebra", photoCount = 1),
+                    createMockTagResponse("Apple", photoCount = 2),
+                    createMockTagResponse("Mango", photoCount = 3),
                 )
             coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(tags)
-            viewModel.loadTags()
+
+            createViewModel()
             advanceUntilIdle()
 
-            // When
             viewModel.setSortOrder(TagSortOrder.NAME_ASC)
 
-            // Then
-            assertEquals(TagSortOrder.NAME_ASC, viewModel.sortOrder.value)
-            val state = viewModel.uiState.value as MyTagsUiState.Success
-            assertEquals("A Tag", state.tags[0].tagName)
-            assertEquals("B Tag", state.tags[1].tagName)
+            val successState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
+            assertEquals(listOf("Apple", "Mango", "Zebra"), successState.tags.map { it.tagName })
+        }
+
+    @Test
+    fun `setSortOrder NAME_DESC sorts tags by name descending`() =
+        runTest {
+            val tags =
+                listOf(
+                    createMockTagResponse("Apple", photoCount = 1),
+                    createMockTagResponse("Zebra", photoCount = 2),
+                    createMockTagResponse("Mango", photoCount = 3),
+                )
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(tags)
+
+            createViewModel()
+            advanceUntilIdle()
+
+            viewModel.setSortOrder(TagSortOrder.NAME_DESC)
+
+            val successState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
+            assertEquals(listOf("Zebra", "Mango", "Apple"), successState.tags.map { it.tagName })
+        }
+
+    @Test
+    fun `setSortOrder COUNT_ASC sorts tags by count ascending`() =
+        runTest {
+            val tags =
+                listOf(
+                    createMockTagResponse("Tag1", photoCount = 50),
+                    createMockTagResponse("Tag2", photoCount = 5),
+                    createMockTagResponse("Tag3", photoCount = 25),
+                )
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(tags)
+
+            createViewModel()
+            advanceUntilIdle()
+
+            viewModel.setSortOrder(TagSortOrder.COUNT_ASC)
+
+            val successState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
+            assertEquals(listOf(5, 25, 50), successState.tags.map { it.count })
         }
 
     @Test
     fun `setSortOrder COUNT_DESC sorts tags by count descending`() =
         runTest {
-            // Given
             val tags =
                 listOf(
-                    createTagResponse("tag1", "Tag 1", 3),
-                    createTagResponse("tag2", "Tag 2", 10),
+                    createMockTagResponse("Tag1", photoCount = 5),
+                    createMockTagResponse("Tag2", photoCount = 50),
+                    createMockTagResponse("Tag3", photoCount = 25),
                 )
             coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(tags)
-            viewModel.loadTags()
+
+            createViewModel()
             advanceUntilIdle()
 
-            // When
             viewModel.setSortOrder(TagSortOrder.COUNT_DESC)
 
-            // Then
-            val state = viewModel.uiState.value as MyTagsUiState.Success
-            assertEquals(10, state.tags[0].count)
-            assertEquals(3, state.tags[1].count)
-        }
-
-    // Edit mode tests
-    @Test
-    fun `toggleEditMode toggles isEditMode and clears selection`() {
-        // When
-        viewModel.toggleEditMode()
-
-        // Then
-        assertTrue(viewModel.isEditMode.value)
-        assertTrue(viewModel.selectedTagsForBulkEdit.value.isEmpty())
-
-        // When
-        viewModel.toggleEditMode()
-
-        // Then
-        assertFalse(viewModel.isEditMode.value)
-    }
-
-    // Tag selection tests
-    @Test
-    fun `toggleTagSelection adds and removes tag from selection`() {
-        // When - add to selection
-        viewModel.toggleTagSelection("tag1")
-
-        // Then
-        assertTrue(viewModel.selectedTagsForBulkEdit.value.contains("tag1"))
-
-        // When - remove from selection
-        viewModel.toggleTagSelection("tag1")
-
-        // Then
-        assertFalse(viewModel.selectedTagsForBulkEdit.value.contains("tag1"))
-    }
-
-    @Test
-    fun `clearTagSelection clears all selections`() {
-        // Given
-        viewModel.toggleTagSelection("tag1")
-        viewModel.toggleTagSelection("tag2")
-
-        // When
-        viewModel.clearTagSelection()
-
-        // Then
-        assertTrue(viewModel.selectedTagsForBulkEdit.value.isEmpty())
-    }
-
-    // Delete tag tests
-    @Test
-    fun `deleteTag success updates state and reloads tags`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-            coEvery { remoteRepository.removeTag(tagId) } returns RemoteRepository.Result.Success(Unit)
-            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
-
-            // When
-            viewModel.deleteTag(tagId)
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.tagActionState.value is TagActionState.Success)
-            coVerify { remoteRepository.getAllTags() }
+            val successState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
+            assertEquals(listOf(50, 25, 5), successState.tags.map { it.count })
         }
 
     @Test
-    fun `deleteTag error updates state with error message`() =
+    fun `setSortOrder CREATED_DESC keeps server order`() =
         runTest {
-            // Given
-            val tagId = "tag1"
-            val errorMessage = "Failed to delete"
-            coEvery { remoteRepository.removeTag(tagId) } returns
-                RemoteRepository.Result.Error(500, errorMessage)
-
-            // When
-            viewModel.deleteTag(tagId)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.tagActionState.value
-            assertTrue(state is TagActionState.Error)
-        }
-
-    // Rename tag tests
-    @Test
-    fun `renameTag success updates state and reloads tags`() =
-        runTest {
-            // Given
-            val tagId = "tag1"
-            val newName = "New Tag Name"
-            coEvery { remoteRepository.renameTag(tagId, newName) } returns
-                RemoteRepository.Result.Success(
-                    com.example.momentag.model
-                        .TagId(tagId),
+            val tags =
+                listOf(
+                    createMockTagResponse("NewestTag", photoCount = 5),
+                    createMockTagResponse("MiddleTag", photoCount = 10),
+                    createMockTagResponse("OldestTag", photoCount = 3),
                 )
-            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(tags)
 
-            // When
-            viewModel.renameTag(tagId, newName)
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
-            assertTrue(viewModel.tagActionState.value is TagActionState.Success)
+            viewModel.setSortOrder(TagSortOrder.CREATED_DESC)
+
+            val successState = viewModel.uiState.value as MyTagsViewModel.MyTagsUiState.Success
+            assertEquals(listOf("NewestTag", "MiddleTag", "OldestTag"), successState.tags.map { it.tagName })
         }
 
-    // Refresh tags test
     @Test
-    fun `refreshTags reloads tags`() =
+    fun `sortOrder default is CREATED_DESC`() =
         runTest {
-            // Given
             coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
-
-            // When
-            viewModel.refreshTags()
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
-            coVerify(atLeast = 2) { remoteRepository.getAllTags() } // init + refresh
+            assertEquals(TagSortOrder.CREATED_DESC, viewModel.sortOrder.value)
         }
 
-    // Clear action state test
+    // --- Delete Tag Tests ---
+
     @Test
-    fun `clearActionState resets to Idle`() =
+    fun `deleteTag success updates action state and reloads tags`() =
         runTest {
-            // Given
-            coEvery { remoteRepository.removeTag(any()) } returns RemoteRepository.Result.Success(Unit)
-            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            val initialTags = listOf(createMockTagResponse("Tag1"), createMockTagResponse("Tag2"))
+            val tagsAfterDelete = listOf(createMockTagResponse("Tag2"))
+
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(initialTags)
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.removeTag("tag1") } returns RemoteRepository.Result.Success(Unit)
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(tagsAfterDelete)
+
             viewModel.deleteTag("tag1")
             advanceUntilIdle()
 
-            // When
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Success)
+            val successState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Success
+            assertEquals("Deleted", successState.message)
+
+            // Verify tags were reloaded
+            coVerify(exactly = 2) { remoteRepository.getAllTags() }
+        }
+
+    @Test
+    fun `deleteTag error updates action state with delete failed`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.removeTag("tag1") } returns RemoteRepository.Result.Error(500, "Error")
+
+            viewModel.deleteTag("tag1")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.DeleteFailed, errorState.error)
+        }
+
+    @Test
+    fun `deleteTag unauthorized updates action state with unauthorized error`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.removeTag("tag1") } returns RemoteRepository.Result.Unauthorized("Unauthorized")
+
+            viewModel.deleteTag("tag1")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.Unauthorized, errorState.error)
+        }
+
+    @Test
+    fun `deleteTag network error updates action state with network error`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.removeTag("tag1") } returns RemoteRepository.Result.NetworkError("Network error")
+
+            viewModel.deleteTag("tag1")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.NetworkError, errorState.error)
+        }
+
+    @Test
+    fun `deleteTag bad request updates action state with delete failed`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.removeTag("tag1") } returns RemoteRepository.Result.BadRequest("Bad request")
+
+            viewModel.deleteTag("tag1")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.DeleteFailed, errorState.error)
+        }
+
+    @Test
+    fun `deleteTag exception updates action state with delete failed`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.removeTag("tag1") } returns RemoteRepository.Result.Exception(Exception("Error"))
+
+            viewModel.deleteTag("tag1")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.DeleteFailed, errorState.error)
+        }
+
+    // --- Rename Tag Tests ---
+
+    @Test
+    fun `renameTag success updates action state and reloads tags`() =
+        runTest {
+            val initialTags = listOf(createMockTagResponse("OldName"))
+            val tagsAfterRename = listOf(createMockTagResponse("NewName"))
+
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(initialTags)
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.renameTag("tag1", "NewName") } returns RemoteRepository.Result.Success(TagId("tag1"))
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(tagsAfterRename)
+
+            viewModel.renameTag("tag1", "NewName")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Success)
+            val successState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Success
+            assertEquals("Updated", successState.message)
+
+            // Verify tags were reloaded
+            coVerify(exactly = 2) { remoteRepository.getAllTags() }
+        }
+
+    @Test
+    fun `renameTag error updates action state with rename failed`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.renameTag("tag1", "NewName") } returns RemoteRepository.Result.Error(500, "Error")
+
+            viewModel.renameTag("tag1", "NewName")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.RenameFailed, errorState.error)
+        }
+
+    @Test
+    fun `renameTag unauthorized updates action state with unauthorized error`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.renameTag("tag1", "NewName") } returns RemoteRepository.Result.Unauthorized("Unauthorized")
+
+            viewModel.renameTag("tag1", "NewName")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.Unauthorized, errorState.error)
+        }
+
+    @Test
+    fun `renameTag network error updates action state with network error`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.renameTag("tag1", "NewName") } returns RemoteRepository.Result.NetworkError("Network error")
+
+            viewModel.renameTag("tag1", "NewName")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.NetworkError, errorState.error)
+        }
+
+    @Test
+    fun `renameTag bad request updates action state with rename failed`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.renameTag("tag1", "NewName") } returns RemoteRepository.Result.BadRequest("Bad request")
+
+            viewModel.renameTag("tag1", "NewName")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.RenameFailed, errorState.error)
+        }
+
+    @Test
+    fun `renameTag exception updates action state with rename failed`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.renameTag("tag1", "NewName") } returns RemoteRepository.Result.Exception(Exception("Error"))
+
+            viewModel.renameTag("tag1", "NewName")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Error)
+            val errorState = viewModel.tagActionState.value as MyTagsViewModel.TagActionState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.RenameFailed, errorState.error)
+        }
+
+    // --- Action State Tests ---
+
+    @Test
+    fun `clearActionState resets to Idle`() =
+        runTest {
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.removeTag("tag1") } returns RemoteRepository.Result.Success(Unit)
+
+            viewModel.deleteTag("tag1")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.tagActionState.value is MyTagsViewModel.TagActionState.Success)
+
             viewModel.clearActionState()
+            assertEquals(MyTagsViewModel.TagActionState.Idle, viewModel.tagActionState.value)
+        }
 
-            // Then
-            assertTrue(viewModel.tagActionState.value is TagActionState.Idle)
+    // --- Photo Selection Tests ---
+
+    @Test
+    fun `isSelectedPhotosEmpty returns true when no photos selected`() =
+        runTest {
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(emptyMap())
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+
+            createViewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.isSelectedPhotosEmpty())
         }
 
     @Test
-    fun `renameTag error updates state with error message`() =
+    fun `isSelectedPhotosEmpty returns false when photos selected`() =
         runTest {
-            // Given
-            val tagId = "tag1"
-            val newName = "New Name"
-            val errorMessage = "Failed to rename"
-            coEvery { remoteRepository.renameTag(tagId, newName) } returns RemoteRepository.Result.Error(500, errorMessage)
+            val photo1 = createMockPhoto("photo1")
+            every { photoSelectionRepository.selectedPhotos } returns
+                MutableStateFlow(
+                    mapOf("photo1" to photo1),
+                )
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
 
-            // When
-            viewModel.renameTag(tagId, newName)
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.tagActionState.value
-            assertTrue(state is TagActionState.Error)
-            assertEquals(errorMessage, (state as TagActionState.Error).message)
+            assertFalse(viewModel.isSelectedPhotosEmpty())
         }
 
     @Test
-    fun `savePhotosToExistingTag success updates state to Success`() =
+    fun `clearDraft calls photoSelectionRepository clear`() =
         runTest {
-            // Given
-            val tagId = "tag1"
-            val photo = mockk<com.example.momentag.model.Photo>()
-            every { photo.photoId } returns "photo1"
-            selectedPhotosFlow.value = listOf(photo)
-            coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns RemoteRepository.Result.Success(Unit)
-
-            // When
-            viewModel.savePhotosToExistingTag(tagId)
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
-            assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Success)
+            viewModel.clearDraft()
+
+            verify { photoSelectionRepository.clear() }
+        }
+
+    // --- Save Photos to Tag Tests ---
+
+    @Test
+    fun `savePhotosToExistingTag success saves all photos`() =
+        runTest {
+            val photo1 = createMockPhoto("photo1")
+            val photo2 = createMockPhoto("photo2")
+            every { photoSelectionRepository.selectedPhotos } returns
+                MutableStateFlow(
+                    mapOf(
+                        "photo1" to photo1,
+                        "photo2" to photo2,
+                    ),
+                )
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+
+            createViewModel()
+            advanceUntilIdle()
+
+            coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.Success(Unit)
+            coEvery { remoteRepository.postTagsToPhoto("photo2", "tag1") } returns RemoteRepository.Result.Success(Unit)
+
+            viewModel.savePhotosToExistingTag("tag1")
+            advanceUntilIdle()
+
+            assertEquals(MyTagsViewModel.SaveState.Success, viewModel.saveState.value)
+            coVerify { remoteRepository.postTagsToPhoto("photo1", "tag1") }
+            coVerify { remoteRepository.postTagsToPhoto("photo2", "tag1") }
         }
 
     @Test
-    fun `savePhotosToExistingTag error updates state to Error`() =
+    fun `savePhotosToExistingTag fails when no photos selected`() =
         runTest {
-            // Given
-            val tagId = "tag1"
-            val photo = mockk<com.example.momentag.model.Photo>()
-            every { photo.photoId } returns "photo1"
-            selectedPhotosFlow.value = listOf(photo)
-            coEvery { remoteRepository.postTagsToPhoto(any(), any()) } returns RemoteRepository.Result.Error(500, "Error")
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(emptyMap())
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
 
-            // When
-            viewModel.savePhotosToExistingTag(tagId)
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
+            viewModel.savePhotosToExistingTag("tag1")
+            advanceUntilIdle()
+
             assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Error)
+            val errorState = viewModel.saveState.value as MyTagsViewModel.SaveState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, errorState.error)
         }
 
     @Test
-    fun `savePhotosToExistingTag with empty selection returns error`() =
+    fun `savePhotosToExistingTag handles unauthorized error`() =
         runTest {
-            // Given
-            val tagId = "tag1"
-            selectedPhotosFlow.value = emptyList()
+            val photo1 = createMockPhoto("photo1")
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(mapOf("photo1" to photo1))
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
 
-            // When
-            viewModel.savePhotosToExistingTag(tagId)
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.saveState.value
-            assertTrue(state is MyTagsViewModel.SaveState.Error)
-            assertEquals("Tag cannot be empty and photos must be selected", (state as MyTagsViewModel.SaveState.Error).message)
-        }
+            coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.Unauthorized("Unauthorized")
 
-    @Test
-    fun `loadTags unauthorized error updates uiState with error message`() =
-        runTest {
-            // Given
-            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Unauthorized("Unauthorized")
-
-            // When
-            viewModel.loadTags()
+            viewModel.savePhotosToExistingTag("tag1")
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
-            assertEquals("Unauthorized: Unauthorized", (state as MyTagsUiState.Error).message)
+            assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Error)
+            val errorState = viewModel.saveState.value as MyTagsViewModel.SaveState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.Unauthorized, errorState.error)
         }
 
     @Test
-    fun `loadTags bad request error updates uiState with error message`() =
+    fun `savePhotosToExistingTag handles network error`() =
         runTest {
-            // Given
-            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.BadRequest("Bad Request")
+            val photo1 = createMockPhoto("photo1")
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(mapOf("photo1" to photo1))
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
 
-            // When
-            viewModel.loadTags()
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
-            assertEquals("Bad Request: Bad Request", (state as MyTagsUiState.Error).message)
-        }
+            coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.NetworkError("Network error")
 
-    @Test
-    fun `loadTags network error updates uiState with error message`() =
-        runTest {
-            // Given
-            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.NetworkError("Network Error")
-
-            // When
-            viewModel.loadTags()
+            viewModel.savePhotosToExistingTag("tag1")
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
-            assertEquals("Network Error: Network Error", (state as MyTagsUiState.Error).message)
+            assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Error)
+            val errorState = viewModel.saveState.value as MyTagsViewModel.SaveState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.NetworkError, errorState.error)
         }
 
     @Test
-    fun `loadTags exception updates uiState with error message`() =
+    fun `savePhotosToExistingTag handles bad request error`() =
         runTest {
-            // Given
-            val exception = Exception("Test Exception")
-            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Exception(exception)
+            val photo1 = createMockPhoto("photo1")
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(mapOf("photo1" to photo1))
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
 
-            // When
-            viewModel.loadTags()
+            createViewModel()
             advanceUntilIdle()
 
-            // Then
-            val state = viewModel.uiState.value
-            assertTrue(state is MyTagsUiState.Error)
-            assertEquals("Exception: Test Exception", (state as MyTagsUiState.Error).message)
+            coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.BadRequest("Bad request")
+
+            viewModel.savePhotosToExistingTag("tag1")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Error)
+            val errorState = viewModel.saveState.value as MyTagsViewModel.SaveState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, errorState.error)
         }
 
     @Test
-    fun `isSelectedPhotosEmpty returns true when no photos are selected`() {
-        // Given
-        selectedPhotosFlow.value = emptyList()
+    fun `savePhotosToExistingTag handles exception error`() =
+        runTest {
+            val photo1 = createMockPhoto("photo1")
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(mapOf("photo1" to photo1))
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
 
-        // When
-        val isEmpty = viewModel.isSelectedPhotosEmpty()
+            createViewModel()
+            advanceUntilIdle()
 
-        // Then
-        assertTrue(isEmpty)
-    }
+            coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.Exception(Exception("Error"))
 
-    @Test
-    fun `isSelectedPhotosEmpty returns false when photos are selected`() {
-        // Given
-        val photo = mockk<com.example.momentag.model.Photo>()
-        selectedPhotosFlow.value = listOf(photo)
+            viewModel.savePhotosToExistingTag("tag1")
+            advanceUntilIdle()
 
-        // When
-        val isEmpty = viewModel.isSelectedPhotosEmpty()
-
-        // Then
-        assertFalse(isEmpty)
-    }
+            assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Error)
+            val errorState = viewModel.saveState.value as MyTagsViewModel.SaveState.Error
+            assertEquals(MyTagsViewModel.MyTagsError.UnknownError, errorState.error)
+        }
 
     @Test
-    fun `clearDraft calls photoSelectionRepository clear`() {
-        // Given
-        coEvery { photoSelectionRepository.clear() } returns Unit
+    fun `savePhotosToExistingTag stops on first error`() =
+        runTest {
+            val photo1 = createMockPhoto("photo1")
+            val photo2 = createMockPhoto("photo2")
+            val photo3 = createMockPhoto("photo3")
+            every { photoSelectionRepository.selectedPhotos } returns
+                MutableStateFlow(
+                    linkedMapOf(
+                        "photo1" to photo1,
+                        "photo2" to photo2,
+                        "photo3" to photo3,
+                    ),
+                )
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
 
-        // When
-        viewModel.clearDraft()
+            createViewModel()
+            advanceUntilIdle()
 
-        // Then
-        coVerify(exactly = 1) { photoSelectionRepository.clear() }
+            coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.Success(Unit)
+            coEvery { remoteRepository.postTagsToPhoto("photo2", "tag1") } returns RemoteRepository.Result.Error(500, "Error")
+            coEvery { remoteRepository.postTagsToPhoto("photo3", "tag1") } returns RemoteRepository.Result.Success(Unit)
+
+            viewModel.savePhotosToExistingTag("tag1")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Error)
+            // Verify photo1 was called (before the error)
+            coVerify(exactly = 1) { remoteRepository.postTagsToPhoto("photo1", "tag1") }
+            // Verify photo2 was called (this is the one that fails)
+            coVerify(exactly = 1) { remoteRepository.postTagsToPhoto("photo2", "tag1") }
+            // photo3 should not be called because we stop after photo2 error
+            coVerify(exactly = 0) { remoteRepository.postTagsToPhoto("photo3", "tag1") }
+        }
+
+    @Test
+    fun `savePhotosToExistingTag resets error state on retry`() =
+        runTest {
+            val photo1 = createMockPhoto("photo1")
+            every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(mapOf("photo1" to photo1))
+            coEvery { remoteRepository.getAllTags() } returns RemoteRepository.Result.Success(emptyList())
+
+            createViewModel()
+            advanceUntilIdle()
+
+            // First attempt fails
+            coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.Error(500, "Error")
+            viewModel.savePhotosToExistingTag("tag1")
+            advanceUntilIdle()
+
+            assertTrue(viewModel.saveState.value is MyTagsViewModel.SaveState.Error)
+
+            // Retry succeeds
+            coEvery { remoteRepository.postTagsToPhoto("photo1", "tag1") } returns RemoteRepository.Result.Success(Unit)
+            viewModel.savePhotosToExistingTag("tag1")
+            advanceUntilIdle()
+
+            assertEquals(MyTagsViewModel.SaveState.Success, viewModel.saveState.value)
+        }
+
+    // --- Error Message Resource Tests ---
+
+    @Test
+    fun `error toMessageResId returns correct resource IDs`() {
+        assertEquals(
+            com.example.momentag.R.string.error_message_network,
+            MyTagsViewModel.MyTagsError.NetworkError.toMessageResId(),
+        )
+        assertEquals(
+            com.example.momentag.R.string.error_message_login,
+            MyTagsViewModel.MyTagsError.Unauthorized.toMessageResId(),
+        )
+        assertEquals(
+            com.example.momentag.R.string.error_message_delete_tag,
+            MyTagsViewModel.MyTagsError.DeleteFailed.toMessageResId(),
+        )
+        assertEquals(
+            com.example.momentag.R.string.error_message_rename_tag,
+            MyTagsViewModel.MyTagsError.RenameFailed.toMessageResId(),
+        )
+        assertEquals(
+            com.example.momentag.R.string.error_message_unknown,
+            MyTagsViewModel.MyTagsError.UnknownError.toMessageResId(),
+        )
     }
 }

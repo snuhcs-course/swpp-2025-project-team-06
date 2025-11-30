@@ -7,7 +7,9 @@ import java.nio.charset.StandardCharsets
 sealed class Screen(
     val route: String,
 ) {
-    object Home : Screen("home_screen")
+    object Home : Screen("home_screen?show_auto_login_toast={show_auto_login_toast}") {
+        fun createRoute(showAutoLoginToast: Boolean): String = "home_screen?show_auto_login_toast=$showAutoLoginToast"
+    }
 
     object Album : Screen("album_screen/{tagId}/{tagName}") {
         fun createRoute(
@@ -21,12 +23,16 @@ sealed class Screen(
     }
 
     object Image : Screen("image_screen/{imageId}/{imageUri}") {
+        const val LOCAL_PHOTO_PLACEHOLDER = "LOCAL"
+
         fun createRoute(
             uri: Uri,
             imageId: String,
         ): String {
             val encodedUri = Uri.encode(uri.toString())
-            val encodedImageId = URLEncoder.encode(imageId, StandardCharsets.UTF_8.toString())
+            // Use placeholder for empty photoId to prevent navigation breaking with empty path segments
+            val safeImageId = imageId.ifBlank { LOCAL_PHOTO_PLACEHOLDER }
+            val encodedImageId = URLEncoder.encode(safeImageId, StandardCharsets.UTF_8.toString())
             return "image_screen/$encodedImageId/$encodedUri"
         }
     }
@@ -53,9 +59,13 @@ sealed class Screen(
         fun initialRoute(): String = "search_result_screen"
     }
 
-    object Login : Screen("login_screen")
+    object Login : Screen("login_screen?show_expiration_warning={show_expiration_warning}") {
+        fun createRoute(showExpirationWarning: Boolean): String = "login_screen?show_expiration_warning=$showExpirationWarning"
+    }
 
     object Register : Screen("register_screen")
+
+    object Onboarding : Screen("onboarding_screen")
 
     object Story : Screen("story_screen")
 

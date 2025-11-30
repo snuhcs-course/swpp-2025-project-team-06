@@ -1,8 +1,5 @@
 package com.example.momentag.network
 
-import android.content.Context
-import com.example.momentag.R
-import com.example.momentag.data.SessionManager
 import com.example.momentag.model.LoginRequest
 import com.example.momentag.model.LoginResponse
 import com.example.momentag.model.PhotoDetailResponse
@@ -12,17 +9,16 @@ import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
 import com.example.momentag.model.RegisterRequest
 import com.example.momentag.model.RegisterResponse
-import com.example.momentag.model.StoryResponse
+import com.example.momentag.model.StoryStateResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagId
 import com.example.momentag.model.TagName
 import com.example.momentag.model.TagResponse
+import com.example.momentag.model.TaskInfo
+import com.example.momentag.model.TaskStatus
 import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
 import okhttp3.RequestBody
 import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -32,14 +28,6 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
-import java.io.InputStream
-import java.security.KeyStore
-import java.security.cert.CertificateFactory
-import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.SSLSocketFactory
-import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.X509TrustManager
 import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
@@ -105,12 +93,17 @@ interface ApiService {
     suspend fun uploadPhotos(
         @Part photo: List<MultipartBody.Part>,
         @Part("metadata") metadata: RequestBody,
-    ): Response<Unit>
+    ): Response<List<TaskInfo>>
 
     @GET("api/photos/{photo_id}/")
     suspend fun getPhotoDetail(
         @Path("photo_id") photoId: String,
     ): Response<PhotoDetailResponse>
+
+    @GET("api/tasks/")
+    suspend fun getTaskStatus(
+        @Query("task_ids") taskIds: String,
+    ): Response<List<TaskStatus>>
 
     /**
      * Semantic Search API
@@ -136,13 +129,10 @@ interface ApiService {
         @Path("tag_id") tagId: String,
     ): Response<List<PhotoResponse>>
 
-    @POST("api/new-stories/")
-    suspend fun generateStories(
-        @Query("size") size: Int,
-    ): Response<Unit>
-
-    @GET("api/new-stories/")
-    suspend fun getStories(): Response<List<StoryResponse>>
+    @GET("api/stories/")
+    suspend fun getStories(
+        @Query("size") size: Int? = null,
+    ): Response<StoryStateResponse>
 
     @POST("api/photos/recommendation/")
     suspend fun recommendPhotosFromPhotos(
@@ -163,73 +153,3 @@ interface ApiService {
  * - AuthInterceptor: 모든 요청에 AccessToken 자동 추가
  * - TokenAuthenticator: 401 시 자동 리프레시 → 재시도
  */
-object RetrofitInstance {
-    private var apiService: ApiService? = null
-
-    private fun createCustomTrustManager(context: Context): X509TrustManager {
-        val resourceId =
-            context.resources.getIdentifier(
-                "myclass",
-                "raw",
-                context.packageName,
-            )
-        val certInputStream: InputStream = context.resources.openRawResource(resourceId)
-
-        val certificateFactory = CertificateFactory.getInstance("X.509")
-        val certificate = certificateFactory.generateCertificate(certInputStream)
-        certInputStream.close()
-
-        val keyStoreType = KeyStore.getDefaultType()
-        val keyStore = KeyStore.getInstance(keyStoreType)
-        keyStore.load(null, null)
-        keyStore.setCertificateEntry("ca", certificate)
-
-        val tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm()
-        val tmf = TrustManagerFactory.getInstance(tmfAlgorithm)
-        tmf.init(keyStore)
-
-        return tmf.trustManagers[0] as X509TrustManager
-    }
-
-    private fun createCustomSslSocketFactory(trustManager: X509TrustManager): SSLSocketFactory {
-        val sslContext = SSLContext.getInstance("TLS")
-        sslContext.init(null, arrayOf(trustManager), null)
-        return sslContext.socketFactory
-    }
-
-    fun getApiService(context: Context): ApiService {
-        if (apiService == null) {
-            val sessionStore = SessionManager.getInstance(context.applicationContext)
-            val authInterceptor = AuthInterceptor(sessionStore)
-            val tokenAuthenticator = TokenAuthenticator(context.applicationContext, sessionStore)
-
-            val customTrustManager = createCustomTrustManager(context.applicationContext)
-            val customSslSocketFactory = createCustomSslSocketFactory(customTrustManager)
-
-            val okHttpClient =
-                SslHelper
-                    .configureToTrustCertificate(
-                        OkHttpClient.Builder(),
-                        context.applicationContext,
-                    ).addInterceptor(authInterceptor)
-                    .authenticator(tokenAuthenticator)
-                    .sslSocketFactory(customSslSocketFactory, customTrustManager)
-                    .hostnameVerifier { _, _ -> true }
-                    .connectTimeout(30, TimeUnit.SECONDS)
-                    .readTimeout(30, TimeUnit.SECONDS)
-                    .writeTimeout(30, TimeUnit.SECONDS)
-                    .build()
-
-            val retrofit =
-                Retrofit
-                    .Builder()
-                    .baseUrl(context.getString(R.string.API_BASE_URL))
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-
-            apiService = retrofit.create(ApiService::class.java)
-        }
-        return apiService!!
-    }
-}

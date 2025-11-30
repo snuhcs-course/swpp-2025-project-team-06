@@ -2,6 +2,7 @@ package com.example.momentag.network
 
 import android.content.Context
 import com.example.momentag.R
+import com.example.momentag.data.SessionExpirationManager
 import com.example.momentag.data.SessionStore
 import com.example.momentag.model.RefreshRequest
 import com.example.momentag.model.RefreshResponse
@@ -25,6 +26,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 class TokenAuthenticator(
     private val context: Context,
     private val sessionStore: SessionStore,
+    private val sessionExpirationManager: SessionExpirationManager,
 ) : Authenticator {
     override fun authenticate(
         route: Route?,
@@ -45,6 +47,7 @@ class TokenAuthenticator(
 
             if (refreshToken == null) { // no refresh token
                 sessionStore.clearTokens()
+                onSessionExpired()
                 return@runBlocking null
             }
 
@@ -53,11 +56,13 @@ class TokenAuthenticator(
                     refreshTokenApi(refreshToken)
                 } catch (e: Exception) {
                     sessionStore.clearTokens()
+                    onSessionExpired()
                     return@runBlocking null
                 }
 
             if (!tokenResponse.isSuccessful || tokenResponse.body() == null) { // expired or wrong Refresh Token
                 sessionStore.clearTokens()
+                onSessionExpired()
                 return@runBlocking null
             }
 
@@ -71,6 +76,10 @@ class TokenAuthenticator(
                 .header("Authorization", "Bearer $newAccessToken")
                 .build()
         }
+    }
+
+    private suspend fun onSessionExpired() {
+        sessionExpirationManager.onSessionExpired()
     }
 
     private suspend fun refreshTokenApi(refreshToken: String): retrofit2.Response<RefreshResponse> {

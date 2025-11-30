@@ -1,0 +1,94 @@
+package com.example.momentag.ui.components
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.example.momentag.R
+import com.example.momentag.ui.theme.Dimen
+import kotlinx.coroutines.delay
+
+/**
+ * Loading screen with progress indicator and warning banner
+ *
+ * @param onRefresh Refresh button click callback
+ * @param modifier Modifier
+ * @param text Loading text to display below the progress indicator
+ * @param horizontalPadding Horizontal padding for the warning banner
+ */
+@Composable
+fun SearchLoadingStateCustom(
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+    text: String = stringResource(R.string.loading_with_ellipsis),
+    horizontalPadding: Dp = 0.dp,
+) {
+    // Show warning message after 5 seconds
+    var isWarningVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isWarningVisible) {
+        if (!isWarningVisible) {
+            delay(5000) // Wait 5 seconds
+            isWarningVisible = true
+        }
+    }
+
+    Box(
+        modifier = modifier.fillMaxSize(),
+    ) {
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(Dimen.CircularProgressSizeBig),
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = Dimen.CircularProgressStrokeWidth,
+            )
+            Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+            Text(
+                text = text,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium),
+            )
+        }
+
+        // Warning banner at bottom
+        if (isWarningVisible) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = Dimen.SectionSpacing)
+                        .padding(horizontal = horizontalPadding),
+            ) {
+                WarningBanner(
+                    title = stringResource(R.string.banner_loading_delay_title),
+                    message = stringResource(R.string.banner_loading_delay_message),
+                    onActionClick = {
+                        onRefresh()
+                        isWarningVisible = false
+                    },
+                )
+            }
+        }
+    }
+}

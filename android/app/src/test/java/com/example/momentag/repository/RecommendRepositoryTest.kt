@@ -1,185 +1,138 @@
 package com.example.momentag.repository
 
 import com.example.momentag.model.PhotoResponse
-import com.example.momentag.model.PhotoToPhotoRequest
 import com.example.momentag.model.StoryResponse
+import com.example.momentag.model.StoryStateResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.network.ApiService
+import io.mockk.clearAllMocks
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.kotlin.any
-import org.mockito.kotlin.doAnswer
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
 import retrofit2.Response
 import java.io.IOException
 
-@ExperimentalCoroutinesApi
+@OptIn(ExperimentalCoroutinesApi::class)
 class RecommendRepositoryTest {
-    private lateinit var apiService: ApiService
     private lateinit var repository: RecommendRepository
+    private lateinit var apiService: ApiService
 
     @Before
     fun setUp() {
-        apiService = mock()
+        apiService = mockk()
         repository = RecommendRepository(apiService)
     }
 
-    // ========== recommendPhotosFromTag Tests ==========
+    @After
+    fun tearDown() {
+        clearAllMocks()
+    }
 
-    @Test
-    fun `recommendPhotosFromTag returns Success when API call succeeds`() =
-        runTest {
-            // Given
-            val tagId = "tag123"
-            val expectedPhotos =
-                listOf(
-                    PhotoResponse(photoId = "photo1", photoPathId = 1L, createdAt = "2024-01-01T00:00:00Z"),
-                    PhotoResponse(photoId = "photo2", photoPathId = 2L, createdAt = "2024-01-01T00:00:00Z"),
-                )
-            val response = Response.success(expectedPhotos)
-            whenever(apiService.recommendPhotosFromTag(tagId)).thenReturn(response)
+    // ========== Helper Functions ==========
 
-            // When
-            val result = repository.recommendPhotosFromTag(tagId)
+    private fun createTag(
+        id: String = "tag1",
+        name: String = "TestTag",
+        isPreset: Boolean = false,
+    ) = Tag(
+        tagName = name,
+        tagId = id,
+        isPreset = isPreset,
+    )
 
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.Success)
-            assertEquals(expectedPhotos, (result as RecommendRepository.RecommendResult.Success).data)
-            verify(apiService).recommendPhotosFromTag(tagId)
-        }
+    private fun createPhotoResponse(
+        id: String = "photo1",
+        pathId: Long = 100L,
+        createdAt: String = "2024-01-01T00:00:00Z",
+    ) = PhotoResponse(
+        photoId = id,
+        photoPathId = pathId,
+        createdAt = createdAt,
+    )
 
-    @Test
-    fun `recommendPhotosFromTag returns BadRequest when API returns 400`() =
-        runTest {
-            // Given
-            val tagId = "tag123"
-            val response = Response.error<List<PhotoResponse>>(400, "".toResponseBody())
-            whenever(apiService.recommendPhotosFromTag(tagId)).thenReturn(response)
+    private fun createStoryResponse(
+        photoId: String = "photo1",
+        photoPathId: Long = 100L,
+        tags: List<String> = listOf("tag1", "tag2"),
+    ) = StoryResponse(
+        photoId = photoId,
+        photoPathId = photoPathId,
+        tags = tags,
+    )
 
-            // When
-            val result = repository.recommendPhotosFromTag(tagId)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.BadRequest)
-            assertEquals("Bad request", (result as RecommendRepository.RecommendResult.BadRequest).message)
-            verify(apiService).recommendPhotosFromTag(tagId)
-        }
-
-    @Test
-    fun `recommendPhotosFromTag returns Unauthorized when API returns 401`() =
-        runTest {
-            // Given
-            val tagId = "tag123"
-            val response = Response.error<List<PhotoResponse>>(401, "".toResponseBody())
-            whenever(apiService.recommendPhotosFromTag(tagId)).thenReturn(response)
-
-            // When
-            val result = repository.recommendPhotosFromTag(tagId)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.Unauthorized)
-            assertEquals(
-                "Authentication failed",
-                (result as RecommendRepository.RecommendResult.Unauthorized).message,
-            )
-            verify(apiService).recommendPhotosFromTag(tagId)
-        }
-
-    @Test
-    fun `recommendPhotosFromTag returns Error when API returns 500`() =
-        runTest {
-            // Given
-            val tagId = "tag123"
-            val response = Response.error<List<PhotoResponse>>(500, "".toResponseBody())
-            whenever(apiService.recommendPhotosFromTag(tagId)).thenReturn(response)
-
-            // When
-            val result = repository.recommendPhotosFromTag(tagId)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.Error)
-            assertTrue((result as RecommendRepository.RecommendResult.Error).message.contains("unknown error"))
-            verify(apiService).recommendPhotosFromTag(tagId)
-        }
-
-    @Test
-    fun `recommendPhotosFromTag returns NetworkError when IOException occurs`() =
-        runTest {
-            // Given
-            val tagId = "tag123"
-            val exception = IOException("Network connection failed")
-            doAnswer { throw exception }.whenever(apiService).recommendPhotosFromTag(tagId)
-
-            // When
-            val result = repository.recommendPhotosFromTag(tagId)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.NetworkError)
-            assertEquals(
-                "Network error: Network connection failed",
-                (result as RecommendRepository.RecommendResult.NetworkError).message,
-            )
-            verify(apiService).recommendPhotosFromTag(tagId)
-        }
-
-    @Test
-    fun `recommendPhotosFromTag returns Error when unexpected exception occurs`() =
-        runTest {
-            // Given
-            val tagId = "tag123"
-            val exception = RuntimeException("Unexpected error")
-            whenever(apiService.recommendPhotosFromTag(tagId)).thenThrow(exception)
-
-            // When
-            val result = repository.recommendPhotosFromTag(tagId)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.Error)
-            assertEquals(
-                "An unexpected error occurred: Unexpected error",
-                (result as RecommendRepository.RecommendResult.Error).message,
-            )
-            verify(apiService).recommendPhotosFromTag(tagId)
-        }
+    private fun createStoryStateResponse(
+        status: String = "ready",
+        stories: List<StoryResponse> = emptyList(),
+    ) = StoryStateResponse(
+        status = status,
+        stories = stories,
+    )
 
     // ========== recommendTagFromPhoto Tests ==========
 
     @Test
-    fun `recommendTagFromPhoto returns Success when API call succeeds`() =
+    fun `recommendTagFromPhoto returns Success with tags`() =
         runTest {
             // Given
-            val photoId = "photo123"
-            val expectedTags =
-                listOf(
-                    Tag(tagName = "Nature", tagId = "tag1"),
-                    Tag(tagName = "Landscape", tagId = "tag2"),
-                )
-            val response = Response.success(expectedTags)
-            whenever(apiService.recommendTagFromPhoto(photoId)).thenReturn(response)
+            val photoId = "photo1"
+            val tags = listOf(createTag("tag1"), createTag("tag2"))
+            coEvery { apiService.recommendTagFromPhoto(photoId) } returns Response.success(tags)
 
             // When
             val result = repository.recommendTagFromPhoto(photoId)
 
             // Then
             assertTrue(result is RecommendRepository.RecommendResult.Success)
-            assertEquals(expectedTags, (result as RecommendRepository.RecommendResult.Success).data)
-            verify(apiService).recommendTagFromPhoto(photoId)
+            assertEquals(tags, (result as RecommendRepository.RecommendResult.Success).data)
+            coVerify { apiService.recommendTagFromPhoto(photoId) }
         }
 
     @Test
-    fun `recommendTagFromPhoto returns BadRequest when API returns 400`() =
+    fun `recommendTagFromPhoto returns empty list when no tags recommended`() =
         runTest {
             // Given
-            val photoId = "photo123"
-            val response = Response.error<List<Tag>>(400, "".toResponseBody())
-            whenever(apiService.recommendTagFromPhoto(photoId)).thenReturn(response)
+            val photoId = "photo1"
+            coEvery { apiService.recommendTagFromPhoto(photoId) } returns Response.success(emptyList())
+
+            // When
+            val result = repository.recommendTagFromPhoto(photoId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Success)
+            assertTrue((result as RecommendRepository.RecommendResult.Success).data.isEmpty())
+        }
+
+    @Test
+    fun `recommendTagFromPhoto returns Unauthorized on 401`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            coEvery { apiService.recommendTagFromPhoto(photoId) } returns
+                Response.error(401, "".toResponseBody())
+
+            // When
+            val result = repository.recommendTagFromPhoto(photoId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Unauthorized)
+            assertEquals("Authentication failed", (result as RecommendRepository.RecommendResult.Unauthorized).message)
+        }
+
+    @Test
+    fun `recommendTagFromPhoto returns BadRequest on 400`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            coEvery { apiService.recommendTagFromPhoto(photoId) } returns
+                Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.recommendTagFromPhoto(photoId)
@@ -187,36 +140,15 @@ class RecommendRepositoryTest {
             // Then
             assertTrue(result is RecommendRepository.RecommendResult.BadRequest)
             assertEquals("Bad request", (result as RecommendRepository.RecommendResult.BadRequest).message)
-            verify(apiService).recommendTagFromPhoto(photoId)
         }
 
     @Test
-    fun `recommendTagFromPhoto returns Unauthorized when API returns 401`() =
+    fun `recommendTagFromPhoto returns Error on 404`() =
         runTest {
             // Given
-            val photoId = "photo123"
-            val response = Response.error<List<Tag>>(401, "".toResponseBody())
-            whenever(apiService.recommendTagFromPhoto(photoId)).thenReturn(response)
-
-            // When
-            val result = repository.recommendTagFromPhoto(photoId)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.Unauthorized)
-            assertEquals(
-                "Authentication failed",
-                (result as RecommendRepository.RecommendResult.Unauthorized).message,
-            )
-            verify(apiService).recommendTagFromPhoto(photoId)
-        }
-
-    @Test
-    fun `recommendTagFromPhoto returns Error when API returns 404`() =
-        runTest {
-            // Given
-            val photoId = "photo123"
-            val response = Response.error<List<Tag>>(404, "".toResponseBody())
-            whenever(apiService.recommendTagFromPhoto(photoId)).thenReturn(response)
+            val photoId = "photo1"
+            coEvery { apiService.recommendTagFromPhoto(photoId) } returns
+                Response.error(404, "".toResponseBody())
 
             // When
             val result = repository.recommendTagFromPhoto(photoId)
@@ -224,101 +156,246 @@ class RecommendRepositoryTest {
             // Then
             assertTrue(result is RecommendRepository.RecommendResult.Error)
             assertTrue((result as RecommendRepository.RecommendResult.Error).message.contains("unknown error"))
-            verify(apiService).recommendTagFromPhoto(photoId)
         }
 
     @Test
-    fun `recommendTagFromPhoto returns NetworkError when IOException occurs`() =
+    fun `recommendTagFromPhoto returns Error on 500`() =
         runTest {
             // Given
-            val photoId = "photo123"
-            val exception = IOException("Connection timeout")
-            doAnswer { throw exception }.whenever(apiService).recommendTagFromPhoto(photoId)
-
-            // When
-            val result = repository.recommendTagFromPhoto(photoId)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.NetworkError)
-            assertEquals(
-                "Network error: Connection timeout",
-                (result as RecommendRepository.RecommendResult.NetworkError).message,
-            )
-            verify(apiService).recommendTagFromPhoto(photoId)
-        }
-
-    @Test
-    fun `recommendTagFromPhoto returns Error when unexpected exception occurs`() =
-        runTest {
-            // Given
-            val photoId = "photo123"
-            val exception = NullPointerException("Null value encountered")
-            whenever(apiService.recommendTagFromPhoto(photoId)).thenThrow(exception)
+            val photoId = "photo1"
+            coEvery { apiService.recommendTagFromPhoto(photoId) } returns
+                Response.error(500, "".toResponseBody())
 
             // When
             val result = repository.recommendTagFromPhoto(photoId)
 
             // Then
             assertTrue(result is RecommendRepository.RecommendResult.Error)
-            assertEquals(
-                "An unexpected error occurred: Null value encountered",
-                (result as RecommendRepository.RecommendResult.Error).message,
-            )
-            verify(apiService).recommendTagFromPhoto(photoId)
+            assertTrue((result as RecommendRepository.RecommendResult.Error).message.contains("unknown error"))
+        }
+
+    @Test
+    fun `recommendTagFromPhoto returns NetworkError on IOException`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            coEvery { apiService.recommendTagFromPhoto(photoId) } throws IOException("Network error")
+
+            // When
+            val result = repository.recommendTagFromPhoto(photoId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.NetworkError)
+            assertTrue((result as RecommendRepository.RecommendResult.NetworkError).message.contains("Network error"))
+        }
+
+    @Test
+    fun `recommendTagFromPhoto returns Error on generic Exception`() =
+        runTest {
+            // Given
+            val photoId = "photo1"
+            coEvery { apiService.recommendTagFromPhoto(photoId) } throws RuntimeException("Unexpected error")
+
+            // When
+            val result = repository.recommendTagFromPhoto(photoId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Error)
+            assertTrue((result as RecommendRepository.RecommendResult.Error).message.contains("unexpected error"))
+        }
+
+    // ========== recommendPhotosFromTag Tests ==========
+
+    @Test
+    fun `recommendPhotosFromTag returns Success with photos`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            val photos = listOf(createPhotoResponse("photo1"), createPhotoResponse("photo2"))
+            coEvery { apiService.recommendPhotosFromTag(tagId) } returns Response.success(photos)
+
+            // When
+            val result = repository.recommendPhotosFromTag(tagId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Success)
+            assertEquals(photos, (result as RecommendRepository.RecommendResult.Success).data)
+            coVerify { apiService.recommendPhotosFromTag(tagId) }
+        }
+
+    @Test
+    fun `recommendPhotosFromTag returns empty list when no photos recommended`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            coEvery { apiService.recommendPhotosFromTag(tagId) } returns Response.success(emptyList())
+
+            // When
+            val result = repository.recommendPhotosFromTag(tagId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Success)
+            assertTrue((result as RecommendRepository.RecommendResult.Success).data.isEmpty())
+        }
+
+    @Test
+    fun `recommendPhotosFromTag returns Unauthorized on 401`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            coEvery { apiService.recommendPhotosFromTag(tagId) } returns
+                Response.error(401, "".toResponseBody())
+
+            // When
+            val result = repository.recommendPhotosFromTag(tagId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Unauthorized)
+            assertEquals("Authentication failed", (result as RecommendRepository.RecommendResult.Unauthorized).message)
+        }
+
+    @Test
+    fun `recommendPhotosFromTag returns BadRequest on 400`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            coEvery { apiService.recommendPhotosFromTag(tagId) } returns
+                Response.error(400, "".toResponseBody())
+
+            // When
+            val result = repository.recommendPhotosFromTag(tagId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.BadRequest)
+            assertEquals("Bad request", (result as RecommendRepository.RecommendResult.BadRequest).message)
+        }
+
+    @Test
+    fun `recommendPhotosFromTag returns Error on 404`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            coEvery { apiService.recommendPhotosFromTag(tagId) } returns
+                Response.error(404, "".toResponseBody())
+
+            // When
+            val result = repository.recommendPhotosFromTag(tagId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Error)
+            assertTrue((result as RecommendRepository.RecommendResult.Error).message.contains("unknown error"))
+        }
+
+    @Test
+    fun `recommendPhotosFromTag returns NetworkError on IOException`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            coEvery { apiService.recommendPhotosFromTag(tagId) } throws IOException("Network error")
+
+            // When
+            val result = repository.recommendPhotosFromTag(tagId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.NetworkError)
+            assertTrue((result as RecommendRepository.RecommendResult.NetworkError).message.contains("Network error"))
+        }
+
+    @Test
+    fun `recommendPhotosFromTag returns Error on generic Exception`() =
+        runTest {
+            // Given
+            val tagId = "tag1"
+            coEvery { apiService.recommendPhotosFromTag(tagId) } throws RuntimeException("Unexpected error")
+
+            // When
+            val result = repository.recommendPhotosFromTag(tagId)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Error)
+            assertTrue((result as RecommendRepository.RecommendResult.Error).message.contains("unexpected error"))
         }
 
     // ========== recommendPhotosFromPhotos Tests ==========
 
     @Test
-    fun `recommendPhotosFromPhotos returns Success when API call succeeds`() =
-        runTest {
-            // Given
-            val photoIds = listOf("photo1", "photo2", "photo3")
-            val expectedPhotos =
-                listOf(
-                    PhotoResponse(photoId = "photo4", photoPathId = 4L, createdAt = "2024-01-01T00:00:00Z"),
-                    PhotoResponse(photoId = "photo5", photoPathId = 5L, createdAt = "2024-01-01T00:00:00Z"),
-                )
-            val request = PhotoToPhotoRequest(photoIds)
-            val response = Response.success(expectedPhotos)
-            whenever(apiService.recommendPhotosFromPhotos(request)).thenReturn(response)
-
-            // When
-            val result = repository.recommendPhotosFromPhotos(photoIds)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.Success)
-            assertEquals(expectedPhotos, (result as RecommendRepository.RecommendResult.Success).data)
-            verify(apiService).recommendPhotosFromPhotos(any())
-        }
-
-    @Test
-    fun `recommendPhotosFromPhotos returns Success with empty list`() =
-        runTest {
-            // Given
-            val photoIds = listOf("photo1")
-            val expectedPhotos = emptyList<PhotoResponse>()
-            val request = PhotoToPhotoRequest(photoIds)
-            val response = Response.success(expectedPhotos)
-            whenever(apiService.recommendPhotosFromPhotos(request)).thenReturn(response)
-
-            // When
-            val result = repository.recommendPhotosFromPhotos(photoIds)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.Success)
-            assertEquals(expectedPhotos, (result as RecommendRepository.RecommendResult.Success).data)
-            verify(apiService).recommendPhotosFromPhotos(any())
-        }
-
-    @Test
-    fun `recommendPhotosFromPhotos returns BadRequest when API returns 400`() =
+    fun `recommendPhotosFromPhotos returns Success with photos`() =
         runTest {
             // Given
             val photoIds = listOf("photo1", "photo2")
-            val request = PhotoToPhotoRequest(photoIds)
-            val response = Response.error<List<PhotoResponse>>(400, "".toResponseBody())
-            whenever(apiService.recommendPhotosFromPhotos(request)).thenReturn(response)
+            val recommendedPhotos = listOf(createPhotoResponse("photo3"), createPhotoResponse("photo4"))
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } returns Response.success(recommendedPhotos)
+
+            // When
+            val result = repository.recommendPhotosFromPhotos(photoIds)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Success)
+            assertEquals(recommendedPhotos, (result as RecommendRepository.RecommendResult.Success).data)
+            coVerify {
+                apiService.recommendPhotosFromPhotos(
+                    match { it.photos == photoIds },
+                )
+            }
+        }
+
+    @Test
+    fun `recommendPhotosFromPhotos returns empty list when no photos recommended`() =
+        runTest {
+            // Given
+            val photoIds = listOf("photo1")
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } returns Response.success(emptyList())
+
+            // When
+            val result = repository.recommendPhotosFromPhotos(photoIds)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Success)
+            assertTrue((result as RecommendRepository.RecommendResult.Success).data.isEmpty())
+        }
+
+    @Test
+    fun `recommendPhotosFromPhotos handles empty input list`() =
+        runTest {
+            // Given
+            val photoIds = emptyList<String>()
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } returns Response.success(emptyList())
+
+            // When
+            val result = repository.recommendPhotosFromPhotos(photoIds)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Success)
+            coVerify {
+                apiService.recommendPhotosFromPhotos(
+                    match { it.photos.isEmpty() },
+                )
+            }
+        }
+
+    @Test
+    fun `recommendPhotosFromPhotos returns Unauthorized on 401`() =
+        runTest {
+            // Given
+            val photoIds = listOf("photo1")
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } returns
+                Response.error(401, "".toResponseBody())
+
+            // When
+            val result = repository.recommendPhotosFromPhotos(photoIds)
+
+            // Then
+            assertTrue(result is RecommendRepository.RecommendResult.Unauthorized)
+            assertEquals("Authentication failed", (result as RecommendRepository.RecommendResult.Unauthorized).message)
+        }
+
+    @Test
+    fun `recommendPhotosFromPhotos returns BadRequest on 400`() =
+        runTest {
+            // Given
+            val photoIds = listOf("photo1")
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } returns
+                Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.recommendPhotosFromPhotos(photoIds)
@@ -326,38 +403,15 @@ class RecommendRepositoryTest {
             // Then
             assertTrue(result is RecommendRepository.RecommendResult.BadRequest)
             assertEquals("Bad request", (result as RecommendRepository.RecommendResult.BadRequest).message)
-            verify(apiService).recommendPhotosFromPhotos(any())
         }
 
     @Test
-    fun `recommendPhotosFromPhotos returns Unauthorized when API returns 401`() =
-        runTest {
-            // Given
-            val photoIds = listOf("photo1", "photo2")
-            val request = PhotoToPhotoRequest(photoIds)
-            val response = Response.error<List<PhotoResponse>>(401, "".toResponseBody())
-            whenever(apiService.recommendPhotosFromPhotos(request)).thenReturn(response)
-
-            // When
-            val result = repository.recommendPhotosFromPhotos(photoIds)
-
-            // Then
-            assertTrue(result is RecommendRepository.RecommendResult.Unauthorized)
-            assertEquals(
-                "Authentication failed",
-                (result as RecommendRepository.RecommendResult.Unauthorized).message,
-            )
-            verify(apiService).recommendPhotosFromPhotos(any())
-        }
-
-    @Test
-    fun `recommendPhotosFromPhotos returns Error when API returns 503`() =
+    fun `recommendPhotosFromPhotos returns Error on 404`() =
         runTest {
             // Given
             val photoIds = listOf("photo1")
-            val request = PhotoToPhotoRequest(photoIds)
-            val response = Response.error<List<PhotoResponse>>(503, "".toResponseBody())
-            whenever(apiService.recommendPhotosFromPhotos(request)).thenReturn(response)
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } returns
+                Response.error(404, "".toResponseBody())
 
             // When
             val result = repository.recommendPhotosFromPhotos(photoIds)
@@ -365,230 +419,113 @@ class RecommendRepositoryTest {
             // Then
             assertTrue(result is RecommendRepository.RecommendResult.Error)
             assertTrue((result as RecommendRepository.RecommendResult.Error).message.contains("unknown error"))
-            verify(apiService).recommendPhotosFromPhotos(any())
         }
 
     @Test
-    fun `recommendPhotosFromPhotos returns NetworkError when IOException occurs`() =
+    fun `recommendPhotosFromPhotos returns NetworkError on IOException`() =
         runTest {
             // Given
-            val photoIds = listOf("photo1", "photo2")
-            val exception = IOException("No network available")
-            doAnswer { throw exception }.whenever(apiService).recommendPhotosFromPhotos(any())
+            val photoIds = listOf("photo1")
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } throws IOException("Network error")
 
             // When
             val result = repository.recommendPhotosFromPhotos(photoIds)
 
             // Then
             assertTrue(result is RecommendRepository.RecommendResult.NetworkError)
-            assertEquals(
-                "Network error: No network available",
-                (result as RecommendRepository.RecommendResult.NetworkError).message,
-            )
-            verify(apiService).recommendPhotosFromPhotos(any())
+            assertTrue((result as RecommendRepository.RecommendResult.NetworkError).message.contains("Network error"))
         }
 
     @Test
-    fun `recommendPhotosFromPhotos returns Error when unexpected exception occurs`() =
+    fun `recommendPhotosFromPhotos returns Error on generic Exception`() =
         runTest {
             // Given
-            val photoIds = listOf("photo1", "photo2")
-            val exception = IllegalStateException("Invalid state")
-            whenever(apiService.recommendPhotosFromPhotos(any())).thenThrow(exception)
+            val photoIds = listOf("photo1")
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } throws RuntimeException("Unexpected error")
 
             // When
             val result = repository.recommendPhotosFromPhotos(photoIds)
 
             // Then
             assertTrue(result is RecommendRepository.RecommendResult.Error)
-            assertEquals(
-                "An unexpected error occurred: Invalid state",
-                (result as RecommendRepository.RecommendResult.Error).message,
-            )
-            verify(apiService).recommendPhotosFromPhotos(any())
-        }
-
-    @Test
-    fun `recommendPhotosFromPhotos creates correct request body`() =
-        runTest {
-            // Given
-            val photoIds = listOf("photo1", "photo2", "photo3")
-            val expectedPhotos = listOf<PhotoResponse>()
-            val response = Response.success(expectedPhotos)
-            whenever(apiService.recommendPhotosFromPhotos(any())).thenReturn(response)
-
-            // When
-            repository.recommendPhotosFromPhotos(photoIds)
-
-            // Then
-            verify(apiService).recommendPhotosFromPhotos(PhotoToPhotoRequest(photoIds))
-        }
-
-    // ========== generateStories Tests ==========
-
-    @Test
-    fun `generateStories returns Success when API call succeeds`() =
-        runTest {
-            // Given
-            val size = 5
-            val response = Response.success(Unit)
-            whenever(apiService.generateStories(size)).thenReturn(response)
-
-            // When
-            val result = repository.generateStories(size)
-
-            // Then
-            assertTrue(result is RecommendRepository.StoryResult.Success)
-            verify(apiService).generateStories(size)
-        }
-
-    @Test
-    fun `generateStories returns BadRequest when API returns 400`() =
-        runTest {
-            // Given
-            val size = 5
-            val response = Response.error<Unit>(400, "".toResponseBody())
-            whenever(apiService.generateStories(size)).thenReturn(response)
-
-            // When
-            val result = repository.generateStories(size)
-
-            // Then
-            assertTrue(result is RecommendRepository.StoryResult.BadRequest)
-            assertEquals("Bad request", (result as RecommendRepository.StoryResult.BadRequest).message)
-            verify(apiService).generateStories(size)
-        }
-
-    @Test
-    fun `generateStories returns Unauthorized when API returns 401`() =
-        runTest {
-            // Given
-            val size = 5
-            val response = Response.error<Unit>(401, "".toResponseBody())
-            whenever(apiService.generateStories(size)).thenReturn(response)
-
-            // When
-            val result = repository.generateStories(size)
-
-            // Then
-            assertTrue(result is RecommendRepository.StoryResult.Unauthorized)
-            assertEquals("Authentication failed", (result as RecommendRepository.StoryResult.Unauthorized).message)
-            verify(apiService).generateStories(size)
-        }
-
-    @Test
-    fun `generateStories returns Error when API returns 500`() =
-        runTest {
-            // Given
-            val size = 5
-            val response = Response.error<Unit>(500, "".toResponseBody())
-            whenever(apiService.generateStories(size)).thenReturn(response)
-
-            // When
-            val result = repository.generateStories(size)
-
-            // Then
-            assertTrue(result is RecommendRepository.StoryResult.Error)
-            assertTrue((result as RecommendRepository.StoryResult.Error).message.contains("unknown error"))
-            verify(apiService).generateStories(size)
-        }
-
-    @Test
-    fun `generateStories returns NetworkError when IOException occurs`() =
-        runTest {
-            // Given
-            val size = 5
-            val exception = IOException("Network connection failed")
-            doAnswer { throw exception }.whenever(apiService).generateStories(size)
-
-            // When
-            val result = repository.generateStories(size)
-
-            // Then
-            assertTrue(result is RecommendRepository.StoryResult.NetworkError)
-            assertEquals("Network error: Network connection failed", (result as RecommendRepository.StoryResult.NetworkError).message)
-            verify(apiService).generateStories(size)
-        }
-
-    @Test
-    fun `generateStories returns Error when unexpected exception occurs`() =
-        runTest {
-            // Given
-            val size = 5
-            val exception = RuntimeException("Unexpected error")
-            whenever(apiService.generateStories(size)).thenThrow(exception)
-
-            // When
-            val result = repository.generateStories(size)
-
-            // Then
-            assertTrue(result is RecommendRepository.StoryResult.Error)
-            assertEquals("An unexpected error occurred: Unexpected error", (result as RecommendRepository.StoryResult.Error).message)
-            verify(apiService).generateStories(size)
+            assertTrue((result as RecommendRepository.RecommendResult.Error).message.contains("unexpected error"))
         }
 
     // ========== getStories Tests ==========
 
     @Test
-    fun `getStories returns Success with stories when API call succeeds`() =
+    fun `getStories returns Success with stories when status is ready`() =
         runTest {
             // Given
-            val expectedStories =
-                listOf(
-                    StoryResponse(photoId = "photo1", photoPathId = 1L, tags = listOf("tag1")),
-                    StoryResponse(photoId = "photo2", photoPathId = 2L, tags = listOf("tag2")),
-                )
-            val response = Response.success(expectedStories)
-            whenever(apiService.getStories()).thenReturn(response)
+            val stories = listOf(createStoryResponse(), createStoryResponse("photo2", 200L))
+            val storyStateResponse = createStoryStateResponse(status = "ready", stories = stories)
+            coEvery { apiService.getStories(null) } returns Response.success(storyStateResponse)
 
             // When
             val result = repository.getStories()
 
             // Then
             assertTrue(result is RecommendRepository.StoryResult.Success)
-            assertEquals(expectedStories, (result as RecommendRepository.StoryResult.Success).data)
-            verify(apiService).getStories()
+            val successResult = result as RecommendRepository.StoryResult.Success
+            assertEquals("ready", successResult.data.status)
+            assertEquals(2, successResult.data.stories.size)
+            coVerify { apiService.getStories(null) }
         }
 
     @Test
-    fun `getStories returns Success with empty list`() =
+    fun `getStories returns Success with custom size parameter`() =
         runTest {
             // Given
-            val expectedStories = emptyList<StoryResponse>()
-            val response = Response.success(expectedStories)
-            whenever(apiService.getStories()).thenReturn(response)
+            val size = 5
+            val stories = listOf(createStoryResponse())
+            val storyStateResponse = createStoryStateResponse(status = "ready", stories = stories)
+            coEvery { apiService.getStories(size) } returns Response.success(storyStateResponse)
+
+            // When
+            val result = repository.getStories(size)
+
+            // Then
+            assertTrue(result is RecommendRepository.StoryResult.Success)
+            coVerify { apiService.getStories(size) }
+        }
+
+    @Test
+    fun `getStories returns Success with empty stories list`() =
+        runTest {
+            // Given
+            val storyStateResponse = createStoryStateResponse(status = "ready", stories = emptyList())
+            coEvery { apiService.getStories(null) } returns Response.success(storyStateResponse)
 
             // When
             val result = repository.getStories()
 
             // Then
             assertTrue(result is RecommendRepository.StoryResult.Success)
-            assertEquals(expectedStories, (result as RecommendRepository.StoryResult.Success).data)
-            verify(apiService).getStories()
+            val successResult = result as RecommendRepository.StoryResult.Success
+            assertTrue(successResult.data.stories.isEmpty())
         }
 
     @Test
-    fun `getStories returns BadRequest when API returns 400`() =
+    fun `getStories returns Success when status is processing`() =
         runTest {
             // Given
-            val response = Response.error<List<StoryResponse>>(400, "".toResponseBody())
-            whenever(apiService.getStories()).thenReturn(response)
+            val storyStateResponse = createStoryStateResponse(status = "processing", stories = emptyList())
+            coEvery { apiService.getStories(null) } returns Response.success(storyStateResponse)
 
             // When
             val result = repository.getStories()
 
             // Then
-            assertTrue(result is RecommendRepository.StoryResult.BadRequest)
-            assertEquals("Bad request", (result as RecommendRepository.StoryResult.BadRequest).message)
-            verify(apiService).getStories()
+            assertTrue(result is RecommendRepository.StoryResult.Success)
+            assertEquals("processing", (result as RecommendRepository.StoryResult.Success).data.status)
         }
 
     @Test
-    fun `getStories returns Unauthorized when API returns 401`() =
+    fun `getStories returns Unauthorized on 401`() =
         runTest {
             // Given
-            val response = Response.error<List<StoryResponse>>(401, "".toResponseBody())
-            whenever(apiService.getStories()).thenReturn(response)
+            coEvery { apiService.getStories(null) } returns
+                Response.error(401, "".toResponseBody())
 
             // When
             val result = repository.getStories()
@@ -596,34 +533,29 @@ class RecommendRepositoryTest {
             // Then
             assertTrue(result is RecommendRepository.StoryResult.Unauthorized)
             assertEquals("Authentication failed", (result as RecommendRepository.StoryResult.Unauthorized).message)
-            verify(apiService).getStories()
         }
 
     @Test
-    fun `getStories returns NotReady when API returns 404`() =
+    fun `getStories returns BadRequest on 400`() =
         runTest {
             // Given
-            val response = Response.error<List<StoryResponse>>(404, "".toResponseBody())
-            whenever(apiService.getStories()).thenReturn(response)
+            coEvery { apiService.getStories(null) } returns
+                Response.error(400, "".toResponseBody())
 
             // When
             val result = repository.getStories()
 
             // Then
-            assertTrue(result is RecommendRepository.StoryResult.NotReady)
-            assertEquals(
-                "We're working on your stories! Please wait a moment.",
-                (result as RecommendRepository.StoryResult.NotReady).message,
-            )
-            verify(apiService).getStories()
+            assertTrue(result is RecommendRepository.StoryResult.BadRequest)
+            assertEquals("Bad request", (result as RecommendRepository.StoryResult.BadRequest).message)
         }
 
     @Test
-    fun `getStories returns Error when API returns 500`() =
+    fun `getStories returns Error on 404`() =
         runTest {
             // Given
-            val response = Response.error<List<StoryResponse>>(500, "".toResponseBody())
-            whenever(apiService.getStories()).thenReturn(response)
+            coEvery { apiService.getStories(null) } returns
+                Response.error(404, "".toResponseBody())
 
             // When
             val result = repository.getStories()
@@ -631,38 +563,154 @@ class RecommendRepositoryTest {
             // Then
             assertTrue(result is RecommendRepository.StoryResult.Error)
             assertTrue((result as RecommendRepository.StoryResult.Error).message.contains("unknown error"))
-            verify(apiService).getStories()
         }
 
     @Test
-    fun `getStories returns NetworkError when IOException occurs`() =
+    fun `getStories returns Error on 500`() =
         runTest {
             // Given
-            val exception = IOException("Network connection failed")
-            doAnswer { throw exception }.whenever(apiService).getStories()
-
-            // When
-            val result = repository.getStories()
-
-            // Then
-            assertTrue(result is RecommendRepository.StoryResult.NetworkError)
-            assertEquals("Network error: Network connection failed", (result as RecommendRepository.StoryResult.NetworkError).message)
-            verify(apiService).getStories()
-        }
-
-    @Test
-    fun `getStories returns Error when unexpected exception occurs`() =
-        runTest {
-            // Given
-            val exception = RuntimeException("Unexpected error")
-            whenever(apiService.getStories()).thenThrow(exception)
+            coEvery { apiService.getStories(null) } returns
+                Response.error(500, "".toResponseBody())
 
             // When
             val result = repository.getStories()
 
             // Then
             assertTrue(result is RecommendRepository.StoryResult.Error)
-            assertEquals("An unexpected error occurred: Unexpected error", (result as RecommendRepository.StoryResult.Error).message)
-            verify(apiService).getStories()
+            assertTrue((result as RecommendRepository.StoryResult.Error).message.contains("unknown error"))
+        }
+
+    @Test
+    fun `getStories returns NetworkError on IOException`() =
+        runTest {
+            // Given
+            coEvery { apiService.getStories(null) } throws IOException("Network error")
+
+            // When
+            val result = repository.getStories()
+
+            // Then
+            assertTrue(result is RecommendRepository.StoryResult.NetworkError)
+            assertTrue((result as RecommendRepository.StoryResult.NetworkError).message.contains("Network error"))
+        }
+
+    @Test
+    fun `getStories returns Error on generic Exception`() =
+        runTest {
+            // Given
+            coEvery { apiService.getStories(null) } throws RuntimeException("Unexpected error")
+
+            // When
+            val result = repository.getStories()
+
+            // Then
+            assertTrue(result is RecommendRepository.StoryResult.Error)
+            assertTrue((result as RecommendRepository.StoryResult.Error).message.contains("unexpected error"))
+        }
+
+    // ========== Integration Tests ==========
+
+    @Test
+    fun `workflow - recommend tags then photos from selected tag`() =
+        runTest {
+            // Given - recommend tags for a photo
+            val photoId = "photo1"
+            val tags = listOf(createTag("tag1", "Sunset"), createTag("tag2", "Beach"))
+            coEvery { apiService.recommendTagFromPhoto(photoId) } returns Response.success(tags)
+
+            // When - get tag recommendations
+            val tagResult = repository.recommendTagFromPhoto(photoId)
+            assertTrue(tagResult is RecommendRepository.RecommendResult.Success)
+            val tagId = (tagResult as RecommendRepository.RecommendResult.Success).data[0].tagId
+
+            // Given - recommend photos from the selected tag
+            val photos = listOf(createPhotoResponse("photo2"), createPhotoResponse("photo3"))
+            coEvery { apiService.recommendPhotosFromTag(tagId) } returns Response.success(photos)
+
+            // When - get photo recommendations from tag
+            val photoResult = repository.recommendPhotosFromTag(tagId)
+
+            // Then
+            assertTrue(photoResult is RecommendRepository.RecommendResult.Success)
+            assertEquals(2, (photoResult as RecommendRepository.RecommendResult.Success).data.size)
+        }
+
+    @Test
+    fun `workflow - recommend photos from multiple photos then get stories`() =
+        runTest {
+            // Given - recommend photos from selected photos
+            val selectedPhotoIds = listOf("photo1", "photo2")
+            val recommendedPhotos = listOf(createPhotoResponse("photo3"), createPhotoResponse("photo4"))
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } returns Response.success(recommendedPhotos)
+
+            // When - get photo recommendations
+            val photoResult = repository.recommendPhotosFromPhotos(selectedPhotoIds)
+            assertTrue(photoResult is RecommendRepository.RecommendResult.Success)
+
+            // Given - get stories
+            val storyStateResponse = createStoryStateResponse(status = "ready", stories = listOf(createStoryResponse()))
+            coEvery { apiService.getStories(null) } returns Response.success(storyStateResponse)
+
+            // When - get stories
+            val storyResult = repository.getStories()
+
+            // Then
+            assertTrue(storyResult is RecommendRepository.StoryResult.Success)
+            assertEquals("ready", (storyResult as RecommendRepository.StoryResult.Success).data.status)
+        }
+
+    @Test
+    fun `all methods handle different error types correctly`() =
+        runTest {
+            // Setup - different error scenarios
+            coEvery { apiService.recommendTagFromPhoto("photo1") } returns Response.error(401, "".toResponseBody())
+            coEvery { apiService.recommendPhotosFromTag("tag1") } returns Response.error(400, "".toResponseBody())
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } throws IOException("Network error")
+            coEvery { apiService.getStories(null) } throws RuntimeException("Unexpected error")
+
+            // When
+            val tagResult = repository.recommendTagFromPhoto("photo1")
+            val photoFromTagResult = repository.recommendPhotosFromTag("tag1")
+            val photoFromPhotosResult = repository.recommendPhotosFromPhotos(listOf("photo1"))
+            val storyResult = repository.getStories()
+
+            // Then
+            assertTrue(tagResult is RecommendRepository.RecommendResult.Unauthorized)
+            assertTrue(photoFromTagResult is RecommendRepository.RecommendResult.BadRequest)
+            assertTrue(photoFromPhotosResult is RecommendRepository.RecommendResult.NetworkError)
+            assertTrue(storyResult is RecommendRepository.StoryResult.Error)
+        }
+
+    @Test
+    fun `all success scenarios return correct data`() =
+        runTest {
+            // Given
+            val tags = listOf(createTag("tag1"))
+            val photos = listOf(createPhotoResponse("photo1"))
+            val storyStateResponse = createStoryStateResponse(status = "ready", stories = listOf(createStoryResponse()))
+
+            coEvery { apiService.recommendTagFromPhoto(any()) } returns Response.success(tags)
+            coEvery { apiService.recommendPhotosFromTag(any()) } returns Response.success(photos)
+            coEvery { apiService.recommendPhotosFromPhotos(any()) } returns Response.success(photos)
+            coEvery { apiService.getStories(any()) } returns Response.success(storyStateResponse)
+
+            // When
+            val tagResult = repository.recommendTagFromPhoto("photo1")
+            val photoFromTagResult = repository.recommendPhotosFromTag("tag1")
+            val photoFromPhotosResult = repository.recommendPhotosFromPhotos(listOf("photo1"))
+            val storyResult = repository.getStories(5)
+
+            // Then
+            assertTrue(tagResult is RecommendRepository.RecommendResult.Success)
+            assertEquals(tags, (tagResult as RecommendRepository.RecommendResult.Success).data)
+
+            assertTrue(photoFromTagResult is RecommendRepository.RecommendResult.Success)
+            assertEquals(photos, (photoFromTagResult as RecommendRepository.RecommendResult.Success).data)
+
+            assertTrue(photoFromPhotosResult is RecommendRepository.RecommendResult.Success)
+            assertEquals(photos, (photoFromPhotosResult as RecommendRepository.RecommendResult.Success).data)
+
+            assertTrue(storyResult is RecommendRepository.StoryResult.Success)
+            assertEquals("ready", (storyResult as RecommendRepository.StoryResult.Success).data.status)
         }
 }

@@ -16,11 +16,19 @@ object SearchWorker {
         allTags: List<TagItem>,
     ): List<SearchContentElement> {
         val elements = mutableListOf<SearchContentElement>()
-        // "{tagname}" 형식을 찾는 정규식
-        val tagRegex = "\\{([^}]+)\\}".toRegex()
+        // "{tagname}" 형식을 찾는 정규식 (중첩된 중괄호 방지)
+        val tagRegex = "\\{([^{}]+)\\}".toRegex()
         var lastIndex = 0
 
         tagRegex.findAll(query).forEach { matchResult ->
+            val tagName = matchResult.groupValues[1]
+
+            // allTags 리스트에서 실제 TagItem을 검색 (대소문자 무시)
+            val tagItem = allTags.find { it.tagName.equals(tagName, ignoreCase = true) }
+            if (tagItem == null) {
+                return@forEach
+            }
+
             // 태그 이전의 텍스트를 추가
             val textBefore = query.substring(lastIndex, matchResult.range.first)
 
@@ -31,14 +39,6 @@ object SearchWorker {
             }
 
             // 태그(칩) 추가
-            val tagName = matchResult.groupValues[1]
-
-            // allTags 리스트에서 실제 TagItem을 검색 (대소문자 무시)
-            val tagItem = allTags.find { it.tagName.equals(tagName, ignoreCase = true) }
-            if (tagItem == null) {
-                return@forEach
-            }
-
             elements.add(SearchContentElement.Chip(id = UUID.randomUUID().toString(), tag = tagItem))
 
             lastIndex = matchResult.range.last + 1

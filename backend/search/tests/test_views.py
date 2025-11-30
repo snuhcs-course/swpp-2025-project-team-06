@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch, MagicMock
 from gallery.models import Tag, Photo_Tag, Photo
+import uuid
 
 
 class SemanticSearchViewTest(APITestCase):
@@ -15,9 +16,10 @@ class SemanticSearchViewTest(APITestCase):
         """Set up test client and test data"""
         self.client = APIClient()
 
-        # Create test user
+        # Create test user with unique username to avoid conflicts
+        unique_username = f"testuser_search_{uuid.uuid4().hex[:8]}"
         self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="testpass123"
+            username=unique_username, email="test@example.com", password="testpass123"
         )
 
         # Generate JWT token
@@ -65,7 +67,7 @@ class SemanticSearchViewTest(APITestCase):
     def test_search_with_tag_only(self):
         """Test search with tag only (no semantic query)"""
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        
+
         # Search for {sunset}
         response = self.client.get(self.search_url, {"query": "{sunset}"})
 
@@ -77,7 +79,7 @@ class SemanticSearchViewTest(APITestCase):
     def test_search_with_multiple_tags(self):
         """Test search with multiple tags"""
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
-        
+
         # Search for {sunset} {beach}
         response = self.client.get(self.search_url, {"query": "{sunset} {beach}"})
 
@@ -93,10 +95,11 @@ class SemanticSearchViewTest(APITestCase):
         response = self.client.get(self.search_url, {"query": "{nonexistent}"})
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("message", response.data)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Invalid search parameters: must have query or tags")
 
-    @patch("search.views.get_qdrant_client")
-    @patch("search.views.create_query_embedding")
+    @patch("search.search_strategies.get_qdrant_client")
+    @patch("search.search_strategies.create_query_embedding")
     def test_search_with_semantic_query_only(self, mock_embedding, mock_get_client):
         """Test search with semantic query only (no tags)"""
         # Mock embedding
@@ -123,8 +126,8 @@ class SemanticSearchViewTest(APITestCase):
         # Verify Qdrant search was called
         mock_get_client.return_value.search.assert_called_once()
 
-    @patch("search.views.get_qdrant_client")
-    @patch("search.views.create_query_embedding")
+    @patch("search.search_strategies.get_qdrant_client")
+    @patch("search.search_strategies.create_query_embedding")
     def test_search_with_semantic_query_empty_results(
         self, mock_embedding, mock_get_client
     ):
@@ -142,8 +145,8 @@ class SemanticSearchViewTest(APITestCase):
         self.assertIsInstance(response.data, list)
         self.assertEqual(len(response.data), 0)
 
-    @patch("search.views.execute_hybrid_search")
-    @patch("search.views.create_query_embedding")
+    @patch("search.search_strategies.execute_hybrid_search")
+    @patch("search.search_strategies.create_query_embedding")
     def test_search_with_tag_and_semantic_query(
         self, mock_embedding, mock_hybrid_search
     ):
@@ -176,8 +179,8 @@ class SemanticSearchViewTest(APITestCase):
         self.assertEqual(call_args[1]["query_string"], "beautiful scenery")
         self.assertIn(self.tag1.tag_id, call_args[1]["tag_ids"])
 
-    @patch("search.views.get_qdrant_client")
-    @patch("search.views.create_query_embedding")
+    @patch("search.search_strategies.get_qdrant_client")
+    @patch("search.search_strategies.create_query_embedding")
     def test_search_with_offset(self, mock_embedding, mock_get_client):
         """Test search with offset parameter (pagination)"""
         # Mock embedding
@@ -201,8 +204,8 @@ class SemanticSearchViewTest(APITestCase):
         call_kwargs = mock_get_client.return_value.search.call_args[1]
         self.assertEqual(call_kwargs["offset"], 10)
 
-    @patch("search.views.get_qdrant_client")
-    @patch("search.views.create_query_embedding")
+    @patch("search.search_strategies.get_qdrant_client")
+    @patch("search.search_strategies.create_query_embedding")
     def test_search_semantic_query_exception_handling(
         self, mock_embedding, mock_get_client
     ):
@@ -229,10 +232,11 @@ class SemanticSearchViewTest(APITestCase):
     def test_search_response_structure(self):
         """Test response structure for tag-only search"""
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
+
         response = self.client.get(self.search_url, {"query": "{sunset}"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Verify response structure
         if len(response.data) > 0:
             photo = response.data[0]
@@ -240,8 +244,8 @@ class SemanticSearchViewTest(APITestCase):
             self.assertIn("photo_path_id", photo)
             self.assertIn("created_at", photo)
 
-    @patch("search.views.get_qdrant_client")
-    @patch("search.views.create_query_embedding")
+    @patch("search.search_strategies.get_qdrant_client")
+    @patch("search.search_strategies.create_query_embedding")
     def test_search_with_score_threshold(self, mock_embedding, mock_get_client):
         """Test that semantic search uses score threshold"""
         # Mock embedding
@@ -265,8 +269,8 @@ class SemanticSearchViewTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @patch("search.views.get_qdrant_client")
-    @patch("search.views.create_query_embedding")
+    @patch("search.search_strategies.get_qdrant_client")
+    @patch("search.search_strategies.create_query_embedding")
     def test_search_maintains_qdrant_order(self, mock_embedding, mock_get_client):
         """Test that search results maintain Qdrant's order"""
         # Mock embedding

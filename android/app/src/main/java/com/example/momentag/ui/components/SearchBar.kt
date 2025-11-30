@@ -28,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -50,6 +50,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
@@ -60,7 +61,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.momentag.R
 import com.example.momentag.model.TagItem
+import com.example.momentag.ui.theme.Dimen
+import com.example.momentag.ui.theme.IconIntent
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 import kotlinx.coroutines.launch
 
 sealed class SearchContentElement {
@@ -85,7 +91,7 @@ fun ChipSearchBar(
     modifier: Modifier = Modifier,
     listState: LazyListState,
     isFocused: Boolean,
-    hideCursor: Boolean,
+    isCursorHidden: Boolean,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -95,14 +101,16 @@ fun ChipSearchBar(
     onTextChange: (id: String, newValue: TextFieldValue) -> Unit,
     onFocus: (id: String?) -> Unit,
     onSearch: () -> Unit,
+    onClear: () -> Unit = {},
+    hasContent: Boolean = false,
     placeholder: String = "Search with \"#tag\"",
 ) {
     val colors =
         TextFieldDefaults.colors(
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
-            focusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-            unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+            focusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            unfocusedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
         )
 
     val containerColor =
@@ -112,44 +120,82 @@ fun ChipSearchBar(
             colors.unfocusedContainerColor
         }
 
-    Row(
+    Box(
         modifier =
             modifier
-                .heightIn(min = 48.dp)
-                .background(
-                    color = containerColor,
-                    shape = RoundedCornerShape(24.dp),
-                ).clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { onContainerClick() }
-                .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+                .heightIn(min = Dimen.SearchBarMinHeight)
+                .shadow(
+                    elevation = Dimen.SearchBarShadowElevation,
+                    shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                ).background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                ),
     ) {
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = "Search",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        InternalChipSearchInput(
+        Row(
             modifier =
                 Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp),
-            listState = listState,
-            hideCursor = hideCursor,
-            contentItems = contentItems,
-            textStates = textStates,
-            focusRequesters = focusRequesters,
-            bringIntoViewRequesters = bringIntoViewRequesters,
-            onContainerClick = onContainerClick,
-            onChipClick = onChipClick,
-            onTextChange = onTextChange,
-            onFocus = onFocus,
-            onSearch = onSearch,
-            placeholder = placeholder,
-        )
+                    .matchParentSize()
+                    .background(
+                        color = containerColor,
+                        shape = RoundedCornerShape(Dimen.SearchBarCornerRadius),
+                    ).clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onContainerClick() }
+                    .padding(horizontal = Dimen.ScreenHorizontalPadding),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StandardIcon.Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = stringResource(R.string.cd_search),
+                intent = IconIntent.Muted,
+            )
+
+            InternalChipSearchInput(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(start = Dimen.ItemSpacingSmall),
+                listState = listState,
+                isCursorHidden = isCursorHidden,
+                contentItems = contentItems,
+                textStates = textStates,
+                focusRequesters = focusRequesters,
+                bringIntoViewRequesters = bringIntoViewRequesters,
+                onContainerClick = onContainerClick,
+                onChipClick = onChipClick,
+                onTextChange = onTextChange,
+                onFocus = onFocus,
+                onSearch = onSearch,
+                placeholder = placeholder,
+            )
+
+            if (isFocused && hasContent) {
+                IconButton(
+                    onClick = onClear,
+                    modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(20.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    shape = CircleShape,
+                                ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        StandardIcon.Icon(
+                            imageVector = Icons.Default.Close,
+                            sizeRole = IconSizeRole.InlineAction,
+                            tintOverride = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            contentDescription = stringResource(R.string.cd_clear_text),
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -161,7 +207,7 @@ fun ChipSearchBar(
 private fun InternalChipSearchInput(
     modifier: Modifier = Modifier,
     listState: LazyListState,
-    hideCursor: Boolean,
+    isCursorHidden: Boolean,
     contentItems: List<SearchContentElement>,
     textStates: Map<String, TextFieldValue>,
     focusRequesters: Map<String, FocusRequester>,
@@ -175,7 +221,7 @@ private fun InternalChipSearchInput(
 ) {
     LazyRow(
         state = listState,
-        horizontalArrangement = Arrangement.spacedBy(0.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.SearchSideEmptyPadding),
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             modifier
@@ -222,15 +268,15 @@ private fun InternalChipSearchInput(
                     val isPlaceholder = (textValue.text == "\u200B" || textValue.text.isEmpty()) && contentItems.size == 1
                     val isEmptyText = text.isEmpty() && !isPlaceholder
 
-                    val sidePadding = if (isEmptyText) 0.dp else 6.dp // 비어있으면 0dp
+                    val sidePadding = if (isEmptyText) Dimen.SearchSideEmptyPadding else Dimen.SearchSidePadding // 비어있으면 0dp
                     val totalHorizontalPadding = sidePadding * 2
 
-                    val minFieldWidth = 10.dp
+                    val minFieldWidth = Dimen.MinSearchBarMinHeight
 
                     val finalWidth = (textWidthDp + totalHorizontalPadding).coerceAtLeast(minFieldWidth)
 
                     val cursorBrush =
-                        if (hideCursor) {
+                        if (isCursorHidden) {
                             SolidColor(Color.Transparent)
                         } else {
                             SolidColor(MaterialTheme.colorScheme.primary)
@@ -247,7 +293,7 @@ private fun InternalChipSearchInput(
                                 val cursorRect = layoutResult.getCursorRect(selectionEnd)
 
                                 // 오른쪽에 추가할 패딩
-                                val endPaddingPx = with(density) { sidePadding.toPx() } // + 8.dp
+                                val endPaddingPx = with(density) { sidePadding.toPx() }
 
                                 val rectWithPadding =
                                     Rect(
@@ -279,7 +325,7 @@ private fun InternalChipSearchInput(
                                 } else {
                                     onFocus(null)
                                 }
-                            }.padding(horizontal = 4.dp, vertical = 8.dp)
+                            }.padding(horizontal = Dimen.GridItemSpacing, vertical = Dimen.ItemSpacingSmall)
 
                     BasicTextField(
                         value = textValue,
@@ -340,9 +386,9 @@ private fun SearchChipView(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { onClick() },
-                ).padding(horizontal = 10.dp, vertical = 6.dp),
+                ).padding(horizontal = Dimen.ButtonPaddingVertical, vertical = Dimen.ButtonPaddingSmallVertical),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
     ) {
         Text(
             text = "#${tag.tagName}",
@@ -365,9 +411,9 @@ fun SuggestionChip(
                 .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
                 .clip(CircleShape)
                 .clickable { onClick() }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = Dimen.ButtonPaddingVertical, vertical = Dimen.ButtonPaddingSmallVertical),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
     ) {
         Text(
             text = "#${tag.tagName}",
@@ -395,22 +441,22 @@ fun SearchHistoryItem(
             modifier
                 .fillMaxWidth()
                 .clickable { onHistoryClick(query) }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimen.ScreenHorizontalPadding, vertical = Dimen.ItemSpacingMedium),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Icon(
+        StandardIcon.Icon(
             imageVector = Icons.Default.History,
             contentDescription = "History",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp),
+            sizeRole = IconSizeRole.Navigation,
+            intent = IconIntent.Muted,
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingMedium))
 
         FlowRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.Center,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
         ) {
             val elements =
                 remember(query, allTags) {
@@ -425,7 +471,7 @@ fun SearchHistoryItem(
                                 text = element.text,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(vertical = 4.dp),
+                                modifier = Modifier.padding(vertical = Dimen.GridItemSpacing),
                             )
                         }
                     }
@@ -435,8 +481,8 @@ fun SearchHistoryItem(
                                 Modifier
                                     .background(
                                         color = MaterialTheme.colorScheme.secondaryContainer,
-                                        shape = RoundedCornerShape(8.dp),
-                                    ).padding(horizontal = 10.dp, vertical = 4.dp),
+                                        shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
+                                    ).padding(horizontal = Dimen.ButtonPaddingVertical, vertical = Dimen.GridItemSpacing),
                         ) {
                             Text(
                                 text = "#${element.tag.tagName}",
@@ -452,17 +498,17 @@ fun SearchHistoryItem(
             }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(Dimen.ItemSpacingSmall))
 
         IconButton(
             onClick = { onHistoryDelete(query) },
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(Dimen.SectionSpacing),
         ) {
-            Icon(
+            StandardIcon.Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Delete history item",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
+                sizeRole = IconSizeRole.InlineAction,
+                intent = IconIntent.Muted,
             )
         }
     }

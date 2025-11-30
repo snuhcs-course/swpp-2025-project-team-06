@@ -10,7 +10,6 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,21 +20,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.momentag.R
+import com.example.momentag.ui.theme.Dimen
+import com.example.momentag.ui.theme.IconSizeRole
+import com.example.momentag.ui.theme.StandardIcon
 
 /**
- * 공통 TopAppBar 컴포넌트
+ * Common TopAppBar component
  *
- * 모든 화면에서 재사용 가능한 TopBar 컴포넌트
- * 뒤로가기, 로그아웃, 커스텀 액션 버튼 지원
+ * Reusable TopBar component for all screens
+ * Supports back button, logout, and custom action buttons
  *
- * @param title 화면 제목
- * @param showBackButton 뒤로가기 버튼 표시 여부
- * @param onBackClick 뒤로가기 클릭 핸들러
- * @param showLogout 로그아웃 버튼 표시 여부
- * @param onLogoutClick 로그아웃 클릭 핸들러
- * @param isLogoutLoading 로그아웃 로딩 상태
- * @param actions 추가 액션 버튼들 (커스텀)
+ * @param title Screen title
+ * @param showBackButton Whether to show back button
+ * @param onBackClick Back button click handler
+ * @param showLogout Whether to show logout button
+ * @param onLogoutClick Logout click handler
+ * @param isLogoutLoading Logout loading state
+ * @param navigationIcon Custom navigation icon composable (overrides default back/logout icons)
+ * @param actions Additional custom action buttons
  * @param modifier Modifier
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +53,7 @@ fun CommonTopBar(
     onLogoutClick: (() -> Unit)? = null,
     isLogoutLoading: Boolean = false,
     onTitleClick: (() -> Unit)? = null,
+    navigationIcon: (@Composable () -> Unit)? = null,
     actions: @Composable () -> Unit = {},
 ) {
     CenterAlignedTopAppBar(
@@ -65,52 +70,58 @@ fun CommonTopBar(
             )
         },
         navigationIcon = {
-            var showLogoutConfirm by remember { mutableStateOf(false) }
-            if (showLogout && onLogoutClick != null) {
-                if (isLogoutLoading) {
-                    Box(modifier = Modifier.padding(start = 8.dp)) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
+            if (navigationIcon != null) {
+                navigationIcon()
+            } else {
+                var isLogoutConfirmVisible by remember { mutableStateOf(false) }
+                if (showLogout && onLogoutClick != null) {
+                    if (isLogoutLoading) {
+                        Box(modifier = Modifier.padding(start = Dimen.ItemSpacingSmall)) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(Dimen.CircularProgressSizeSmall),
+                                strokeWidth = Dimen.CircularProgressStrokeWidthSmall,
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = { isLogoutConfirmVisible = true }) {
+                            StandardIcon.Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = stringResource(R.string.cd_logout),
+                                sizeRole = IconSizeRole.Navigation,
+                            )
+                        }
                     }
-                } else {
-                    IconButton(onClick = { showLogoutConfirm = true }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = "Logout",
-                        )
-                    }
-                }
 
-                if (showLogoutConfirm) {
-                    confirmDialog(
-                        title = "Logout",
-                        message = "Are you sure you want to logout?",
-                        onConfirm = {
-                            showLogoutConfirm = false
-                            onLogoutClick()
-                        },
-                        onDismiss = { showLogoutConfirm = false },
-                        confirmButtonText = "Logout",
-                        dismissible = true,
-                    )
-                }
-            } else if (showBackButton && onBackClick != null) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                    )
+                    if (isLogoutConfirmVisible) {
+                        ConfirmDialog(
+                            title = stringResource(R.string.dialog_logout_title),
+                            message = stringResource(R.string.dialog_logout_message),
+                            onConfirm = {
+                                isLogoutConfirmVisible = false
+                                onLogoutClick()
+                            },
+                            onDismiss = { isLogoutConfirmVisible = false },
+                            confirmButtonText = stringResource(R.string.action_logout),
+                            dismissible = true,
+                        )
+                    }
+                } else if (showBackButton && onBackClick != null) {
+                    IconButton(onClick = onBackClick) {
+                        StandardIcon.Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            sizeRole = IconSizeRole.Navigation,
+                            contentDescription = stringResource(R.string.cd_navigate_back),
+                        )
+                    }
                 }
             }
         },
         actions = {
-            // 커스텀 액션 버튼들
+            // Custom action buttons
             actions()
         },
         colors =
-            TopAppBarDefaults.centerAlignedTopAppBarColors(
+            TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
         modifier = modifier,
@@ -118,12 +129,12 @@ fun CommonTopBar(
 }
 
 /**
- * 뒤로가기만 있는 간단한 TopBar
+ * Simple TopBar with back button only
  *
- * @param title 화면 제목
- * @param onBackClick 뒤로가기 클릭 핸들러
+ * @param title Screen title
+ * @param onBackClick Back button click handler
  * @param modifier Modifier
- * @param actions 추가 액션 버튼들 (커스텀)
+ * @param actions Additional custom action buttons
  */
 @Composable
 fun BackTopBar(
@@ -142,11 +153,11 @@ fun BackTopBar(
 }
 
 /**
- * 홈 화면용 TopBar (로그아웃 포함)
+ * Home screen TopBar (includes logout button)
  *
- * @param onLogoutClick 로그아웃 클릭 핸들러
- * @param isLogoutLoading 로그아웃 로딩 상태
- * @param onTitleClick 타이틀 클릭 핸들러 (LocalGallery로 이동)
+ * @param onLogoutClick Logout click handler
+ * @param isLogoutLoading Logout loading state
+ * @param onTitleClick Title click handler (navigate to LocalGallery)
  * @param modifier Modifier
  */
 @Composable

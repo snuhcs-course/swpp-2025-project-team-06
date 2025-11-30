@@ -2,45 +2,106 @@ package com.example.momentag
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.net.toUri
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.momentag.data.SessionManager
-import com.example.momentag.ui.storytag.StoryTagSelectionScreen
+import com.example.momentag.data.SessionExpirationManager
+import com.example.momentag.repository.TokenRepository
+import com.example.momentag.view.AddTagScreen
+import com.example.momentag.view.AlbumScreen
+import com.example.momentag.view.HomeScreen
+import com.example.momentag.view.ImageDetailScreen
+import com.example.momentag.view.LocalAlbumScreen
+import com.example.momentag.view.LocalGalleryScreen
+import com.example.momentag.view.LoginScreen
+import com.example.momentag.view.MyTagsScreen
+import com.example.momentag.view.OnboardingScreen
+import com.example.momentag.view.RegisterScreen
+import com.example.momentag.view.SearchResultScreen
+import com.example.momentag.view.SelectImageScreen
+import com.example.momentag.view.StoryTagSelectionScreen
 import com.example.momentag.viewmodel.StoryViewModel
-import com.example.momentag.viewmodel.ViewModelFactory
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 @Composable
-fun appNavigation() {
-    val navController = rememberNavController()
-    val context = LocalContext.current
-    val sessionManager = remember { SessionManager.getInstance(context) }
+fun AppNavigation(
+    tokenRepository: TokenRepository,
+    sessionExpirationManager: SessionExpirationManager,
+    onboardingPreferences: com.example.momentag.data.OnboardingPreferences,
+    navController: NavHostController = rememberNavController(),
+) {
+    val isLoaded by tokenRepository.isSessionLoaded.collectAsState()
+    val accessToken by tokenRepository.isLoggedIn.collectAsState()
+    val scope = rememberCoroutineScope()
+    val hasCompletedOnboarding = onboardingPreferences.hasCompletedOnboarding()
 
-    val isLoaded by sessionManager.isLoaded.collectAsState()
-    val accessToken by sessionManager.accessTokenFlow.collectAsState()
+    // Handle session expiration navigation
+    LaunchedEffect(Unit) {
+        sessionExpirationManager.sessionExpired
+            .onEach {
+                scope.launch {
+                    navController.navigate(Screen.Login.createRoute(showExpirationWarning = true)) {
+                        popUpTo(0) { inclusive = true } // Clear entire back stack
+                    }
+                }
+            }.launchIn(scope)
+    }
+
+    // Handle initial navigation after session loads
+    LaunchedEffect(isLoaded, accessToken) {
+        if (isLoaded && accessToken != null) {
+            // User is logged in, navigate to Home if we're at Login
+            if (navController.currentBackStackEntry?.destination?.route == Screen.Login.route) {
+                navController.navigate(Screen.Home.createRoute(true)) {
+                    popUpTo(Screen.Login.route) { inclusive = true }
+                }
+            }
+        }
+    }
 
     if (!isLoaded) {
         // show loading screen or wait for data to load
         return
     }
 
+    val startDestination =
+        if (!hasCompletedOnboarding) {
+            Screen.Onboarding.route
+        } else {
+            Screen.Login.createRoute(false)
+        }
+
     NavHost(
         navController = navController,
-        startDestination = if (accessToken != null) Screen.Home.route else Screen.Login.route,
-//        startDestination = Screen.Home.route,
+        startDestination = startDestination,
     ) {
-        composable(route = Screen.Home.route) {
-            HomeScreen(navController = navController)
+        composable(
+            route = Screen.Home.route,
+            arguments =
+                listOf(
+                    navArgument("show_auto_login_toast") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
+        ) { backStackEntry ->
+            HomeScreen(
+                navController = navController,
+                showAutoLoginToast = backStackEntry.arguments?.getBoolean("show_auto_login_toast") ?: false,
+            )
         }
 
         composable(
@@ -78,7 +139,9 @@ fun appNavigation() {
             val encodedUriString = backStackEntry.arguments?.getString("imageUri")
             val decodedUri = encodedUriString?.let { Uri.decode(it).toUri() }
 
-            val imageId = backStackEntry.arguments?.getString("imageId") ?: ""
+            val rawImageId = backStackEntry.arguments?.getString("imageId") ?: ""
+            // Convert placeholder back to empty string for local photos
+            val imageId = if (rawImageId == Screen.Image.LOCAL_PHOTO_PLACEHOLDER) "" else rawImageId
 
             ImageDetailScreen(
                 imageUri = decodedUri,
@@ -121,9 +184,17 @@ fun appNavigation() {
 
         composable(
             route = Screen.Login.route,
-        ) {
+            arguments =
+                listOf(
+                    navArgument("show_expiration_warning") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
+        ) { backStackEntry ->
             LoginScreen(
                 navController = navController,
+                showExpirationWarning = backStackEntry.arguments?.getBoolean("show_expiration_warning") ?: false,
             )
         }
 
@@ -132,6 +203,17 @@ fun appNavigation() {
         ) {
             RegisterScreen(
                 navController = navController,
+            )
+        }
+
+        composable(
+            route = Screen.Onboarding.route,
+        ) {
+            OnboardingScreen(
+                navController = navController,
+                onComplete = {
+                    onboardingPreferences.setOnboardingCompleted()
+                },
             )
         }
 
@@ -177,8 +259,7 @@ fun appNavigation() {
         composable(
             route = Screen.Story.route,
         ) {
-            val factory = ViewModelFactory.getInstance(LocalContext.current)
-            val storyViewModel: StoryViewModel = viewModel(factory = factory)
+            val storyViewModel: StoryViewModel = hiltViewModel()
 
             StoryTagSelectionScreen(
                 viewModel = storyViewModel,

@@ -16,6 +16,19 @@ import org.junit.Before
 import org.junit.Test
 
 class DataModelsTest {
+    private fun createSamplePhoto(
+        id: String,
+        uriString: String,
+    ): Photo {
+        val mockUri = mockk<Uri>()
+        every { mockUri.toString() } returns uriString
+        return Photo(
+            photoId = id,
+            contentUri = mockUri,
+            createdAt = "2024-01-01T00:00:00Z",
+        )
+    }
+
     private lateinit var mockUri: Uri
 
     @Before
@@ -269,20 +282,6 @@ class DataModelsTest {
         assertEquals(tagId, tag.id)
     }
 
-    // ========== PhotoTag Tests ==========
-
-    @Test
-    fun `PhotoTag should be created with ptId`() {
-        // Given
-        val ptId = 555L
-
-        // When
-        val photoTag = PhotoTag(ptId = ptId)
-
-        // Then
-        assertEquals(ptId, photoTag.ptId)
-    }
-
     // ========== Album Tests ==========
 
     @Test
@@ -384,38 +383,19 @@ class DataModelsTest {
     @Test
     fun `RegisterRequest should be created with all fields`() {
         // Given
-        val email = "test@example.com"
         val username = "testuser"
         val password = "password123"
 
         // When
         val request =
             RegisterRequest(
-                email = email,
                 username = username,
                 password = password,
             )
 
         // Then
-        assertEquals(email, request.email)
         assertEquals(username, request.username)
         assertEquals(password, request.password)
-    }
-
-    @Test
-    fun `RegisterRequest email validation format`() {
-        // Given
-        val email = "valid.email@domain.com"
-        val request =
-            RegisterRequest(
-                email = email,
-                username = "user",
-                password = "pass",
-            )
-
-        // Then
-        assertTrue(request.email.contains("@"))
-        assertTrue(request.email.contains("."))
     }
 
     // ========== RegisterResponse Tests ==========
@@ -537,7 +517,7 @@ class DataModelsTest {
     fun `PhotoMeta should be created with all fields`() {
         // Given
         val filename = "IMG_001.jpg"
-        val photoPathId = 100
+        val photoPathId = 100L
         val createdAt = "2025-11-02T10:30:00"
         val lat = 37.5665
         val lng = 126.9780
@@ -796,5 +776,404 @@ class DataModelsTest {
         assertEquals(2, photoResponse.tags.size)
         assertEquals("Tag1", photoResponse.tags[0].tagName)
         assertEquals("id2", photoResponse.tags[1].tagId)
+    }
+
+    // ========== Image Context Tests ==========
+
+    @Test
+    fun `ImageContext 생성 테스트`() {
+        // Given
+        val photos =
+            listOf(
+                createSamplePhoto("1", "content://media/external/images/1"),
+                createSamplePhoto("2", "content://media/external/images/2"),
+                createSamplePhoto("3", "content://media/external/images/3"),
+            )
+
+        // When
+        val imageContext =
+            ImageContext(
+                images = photos,
+                currentIndex = 1,
+                contextType = ImageContext.ContextType.Album("test"),
+            )
+
+        // Then
+        assertEquals(3, imageContext.images.size)
+        assertEquals(1, imageContext.currentIndex)
+        assertEquals(ImageContext.ContextType.Album("test"), imageContext.contextType)
+    }
+
+    @Test
+    fun `ImageContext 빈 이미지 리스트 테스트`() {
+        // Given
+        val emptyPhotos = emptyList<Photo>()
+
+        // When
+        val imageContext =
+            ImageContext(
+                images = emptyPhotos,
+                currentIndex = 0,
+                contextType = ImageContext.ContextType.Gallery,
+            )
+
+        // Then
+        assertTrue(imageContext.images.isEmpty())
+        assertEquals(0, imageContext.currentIndex)
+        assertEquals(ImageContext.ContextType.Gallery, imageContext.contextType)
+    }
+
+    @Test
+    fun `ImageContext 모든 ContextType 테스트`() {
+        // Given
+        val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
+
+        // When & Then - ALBUM
+        val albumContext = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
+        assertEquals(ImageContext.ContextType.Album("test"), albumContext.contextType)
+
+        // When & Then - TAG_ALBUM
+        val tagAlbumContext = ImageContext(photos, 0, ImageContext.ContextType.TagAlbum("testTag"))
+        assertEquals(ImageContext.ContextType.TagAlbum("testTag"), tagAlbumContext.contextType)
+
+        // When & Then - SEARCH_RESULT
+        val searchContext = ImageContext(photos, 0, ImageContext.ContextType.SearchResult("query"))
+        assertEquals(ImageContext.ContextType.SearchResult("query"), searchContext.contextType)
+
+        // When & Then - GALLERY
+        val galleryContext = ImageContext(photos, 0, ImageContext.ContextType.Gallery)
+        assertEquals(ImageContext.ContextType.Gallery, galleryContext.contextType)
+
+        // When & Then - Story
+        val storyContext = ImageContext(photos, 0, ImageContext.ContextType.Story)
+        assertEquals(ImageContext.ContextType.Story, storyContext.contextType)
+    }
+
+    @Test
+    fun `ImageContext copy 테스트`() {
+        // Given
+        val photos =
+            listOf(
+                createSamplePhoto("1", "content://media/external/images/1"),
+                createSamplePhoto("2", "content://media/external/images/2"),
+            )
+        val original =
+            ImageContext(
+                images = photos,
+                currentIndex = 0,
+                contextType = ImageContext.ContextType.Album("test"),
+            )
+
+        // When - currentIndex만 변경
+        val copied = original.copy(currentIndex = 1)
+
+        // Then
+        assertEquals(original.images, copied.images)
+        assertEquals(1, copied.currentIndex)
+        assertEquals(original.contextType, copied.contextType)
+    }
+
+    @Test
+    fun `ImageContext copy로 contextType 변경 테스트`() {
+        // Given
+        val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
+        val original =
+            ImageContext(
+                images = photos,
+                currentIndex = 0,
+                contextType = ImageContext.ContextType.Album("test"),
+            )
+
+        // When
+        val copied = original.copy(contextType = ImageContext.ContextType.TagAlbum("testTag"))
+
+        // Then
+        assertEquals(original.images, copied.images)
+        assertEquals(original.currentIndex, copied.currentIndex)
+        assertEquals(ImageContext.ContextType.TagAlbum("testTag"), copied.contextType)
+    }
+
+    @Test
+    fun `ImageContext 경계값 인덱스 테스트`() {
+        // Given
+        val photos =
+            listOf(
+                createSamplePhoto("1", "content://media/external/images/1"),
+                createSamplePhoto("2", "content://media/external/images/2"),
+                createSamplePhoto("3", "content://media/external/images/3"),
+            )
+
+        // When - 첫 번째 인덱스
+        val firstContext = ImageContext(photos, 0, ImageContext.ContextType.Gallery)
+
+        // Then
+        assertEquals(0, firstContext.currentIndex)
+
+        // When - 마지막 인덱스
+        val lastContext = ImageContext(photos, 2, ImageContext.ContextType.Gallery)
+
+        // Then
+        assertEquals(2, lastContext.currentIndex)
+    }
+
+    @Test
+    fun `ImageContext 데이터 클래스 equals 테스트`() {
+        // Given
+        val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
+        val context1 = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
+        val context2 = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
+        val context3 = ImageContext(photos, 1, ImageContext.ContextType.Album("test"))
+
+        // Then
+        assertEquals(context1, context2)
+        assertNotEquals(context1, context3)
+    }
+
+    @Test
+    fun `ImageContext hashCode 테스트`() {
+        // Given
+        val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
+        val context1 = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
+        val context2 = ImageContext(photos, 0, ImageContext.ContextType.Album("test"))
+
+        // Then
+        assertEquals(context1.hashCode(), context2.hashCode())
+    }
+
+    @Test
+    fun `ImageContext toString 테스트`() {
+        // Given
+        val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
+        val context = ImageContext(photos, 0, ImageContext.ContextType.SearchResult("query"))
+
+        // When
+        val toString = context.toString()
+
+        // Then
+        assertTrue(toString.contains("ImageContext"))
+        assertTrue(toString.contains("currentIndex=0"))
+        assertTrue(toString.contains("SearchResult"))
+    }
+
+    @Test
+    fun `ImageContext 여러 사진이 있는 경우 테스트`() {
+        // Given
+        val manyPhotos =
+            (1..100).map {
+                createSamplePhoto(it.toString(), "content://media/external/images/$it")
+            }
+
+        // When
+        val context =
+            ImageContext(
+                images = manyPhotos,
+                currentIndex = 50,
+                contextType = ImageContext.ContextType.Gallery,
+            )
+
+        // Then
+        assertEquals(100, context.images.size)
+        assertEquals(50, context.currentIndex)
+        assertEquals("51", context.images[50].photoId) // 인덱스 50 = 51번째 사진 (1부터 시작)
+    }
+
+    @Test
+    fun `ImageContext 음수 인덱스도 허용 테스트`() {
+        // Given
+        val photos = listOf(createSamplePhoto("1", "content://media/external/images/1"))
+
+        // When
+        val context =
+            ImageContext(
+                images = photos,
+                currentIndex = -1,
+                contextType = ImageContext.ContextType.Album("test"),
+            )
+
+        // Then - 데이터 클래스는 음수 인덱스도 허용 (비즈니스 로직에서 검증해야 함)
+        assertEquals(-1, context.currentIndex)
+    }
+
+    // ========== TagAlbum Tests ==========
+
+    @Test
+    fun `TagAlbum 생성 테스트`() {
+        // Given
+        val tagName = "여행"
+        val photos = listOf("photo1", "photo2", "photo3")
+
+        // When
+        val tagAlbum =
+            TagAlbum(
+                tagName = tagName,
+                photos = photos,
+            )
+
+        // Then
+        assertEquals("여행", tagAlbum.tagName)
+        assertEquals(3, tagAlbum.photos.size)
+        assertEquals("photo1", tagAlbum.photos[0])
+    }
+
+    @Test
+    fun `TagAlbum 빈 사진 리스트 테스트`() {
+        // Given & When
+        val tagAlbum =
+            TagAlbum(
+                tagName = "빈태그",
+                photos = emptyList(),
+            )
+
+        // Then
+        assertEquals("빈태그", tagAlbum.tagName)
+        assertTrue(tagAlbum.photos.isEmpty())
+    }
+
+    @Test
+    fun `TagAlbum copy 테스트`() {
+        // Given
+        val original =
+            TagAlbum(
+                tagName = "가족",
+                photos = listOf("photo1", "photo2"),
+            )
+
+        // When
+        val copied = original.copy(tagName = "친구")
+
+        // Then
+        assertEquals("친구", copied.tagName)
+        assertEquals(original.photos, copied.photos)
+    }
+
+    @Test
+    fun `TagAlbum equals 테스트`() {
+        // Given
+        val album1 = TagAlbum("여행", listOf("photo1", "photo2"))
+        val album2 = TagAlbum("여행", listOf("photo1", "photo2"))
+        val album3 = TagAlbum("가족", listOf("photo1", "photo2"))
+
+        // Then
+        assertEquals(album1, album2)
+        assertNotEquals(album1, album3)
+    }
+
+    @Test
+    fun `TagAlbum hashCode 테스트`() {
+        // Given
+        val album1 = TagAlbum("여행", listOf("photo1"))
+        val album2 = TagAlbum("여행", listOf("photo1"))
+
+        // Then
+        assertEquals(album1.hashCode(), album2.hashCode())
+    }
+
+    @Test
+    fun `TagAlbum 많은 사진이 있는 경우 테스트`() {
+        // Given
+        val manyPhotos = (1..1000).map { "photo$it" }
+
+        // When
+        val tagAlbum =
+            TagAlbum(
+                tagName = "대용량앨범",
+                photos = manyPhotos,
+            )
+
+        // Then
+        assertEquals(1000, tagAlbum.photos.size)
+        assertEquals("photo500", tagAlbum.photos[499])
+    }
+
+    // ========== SearchResultItem Tests ==========
+
+    @Test
+    fun `SearchResultItem 생성 테스트`() {
+        // Given
+        val query = "여행"
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+
+        // When
+        val searchResultItem =
+            SearchResultItem(
+                query = query,
+                photo = photo,
+            )
+
+        // Then
+        assertEquals("여행", searchResultItem.query)
+        assertEquals("1", searchResultItem.photo.photoId)
+        assertEquals(photo, searchResultItem.photo)
+    }
+
+    @Test
+    fun `SearchResultItem 빈 쿼리 테스트`() {
+        // Given
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+
+        // When
+        val searchResultItem =
+            SearchResultItem(
+                query = "",
+                photo = photo,
+            )
+
+        // Then
+        assertTrue(searchResultItem.query.isEmpty())
+        assertEquals(photo, searchResultItem.photo)
+    }
+
+    @Test
+    fun `SearchResultItem copy 테스트`() {
+        // Given
+        val original =
+            SearchResultItem(
+                query = "원래쿼리",
+                photo = createSamplePhoto("1", "content://media/external/images/1"),
+            )
+
+        // When
+        val copied = original.copy(query = "새쿼리")
+
+        // Then
+        assertEquals("새쿼리", copied.query)
+        assertEquals(original.photo, copied.photo)
+    }
+
+    @Test
+    fun `SearchResultItem equals 테스트`() {
+        // Given
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+        val item1 = SearchResultItem("여행", photo)
+        val item2 = SearchResultItem("여행", photo)
+        val item3 = SearchResultItem("가족", photo)
+
+        // Then
+        assertEquals(item1, item2)
+        assertNotEquals(item1, item3)
+    }
+
+    @Test
+    fun `SearchResultItem hashCode 테스트`() {
+        // Given
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+        val item1 = SearchResultItem("여행", photo)
+        val item2 = SearchResultItem("여행", photo)
+
+        // Then
+        assertEquals(item1.hashCode(), item2.hashCode())
+    }
+
+    @Test
+    fun `SearchResultItem 특수문자 쿼리 테스트`() {
+        // Given
+        val specialQuery = "!@#$%^&*()_+{}[]|\\:\";<>?,./~`"
+        val photo = createSamplePhoto("1", "content://media/external/images/1")
+
+        // When
+        val item = SearchResultItem(specialQuery, photo)
+
+        // Then
+        assertEquals(specialQuery, item.query)
     }
 }

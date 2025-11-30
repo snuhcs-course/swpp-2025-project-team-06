@@ -1,20 +1,14 @@
 package com.example.momentag.viewmodel
 
-import com.example.momentag.model.LoginState
-import com.example.momentag.model.LogoutState
-import com.example.momentag.model.RefreshState
-import com.example.momentag.model.RegisterState
+import com.example.momentag.data.SessionExpirationManager
 import com.example.momentag.repository.TokenRepository
-import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -28,403 +22,239 @@ class AuthViewModelTest {
 
     private lateinit var viewModel: AuthViewModel
     private lateinit var tokenRepository: TokenRepository
+    private lateinit var sessionExpirationManager: SessionExpirationManager
 
     @Before
     fun setUp() {
-        tokenRepository = mockk()
-
-        // Mock the StateFlows from TokenRepository
-        every { tokenRepository.isLoggedIn } returns MutableStateFlow(null)
-        every { tokenRepository.isSessionLoaded } returns MutableStateFlow(false)
-
-        viewModel = AuthViewModel(tokenRepository)
+        tokenRepository = mockk(relaxed = true)
+        sessionExpirationManager = mockk(relaxed = true)
+        viewModel = AuthViewModel(tokenRepository, sessionExpirationManager)
     }
 
-    @After
-    fun tearDown() {
-        clearAllMocks()
+    // --- Login Tests ---
+
+    @Test
+    fun `login success updates state and resets session expiration`() =
+        runTest {
+            val username = "user"
+            val password = "password"
+            coEvery { tokenRepository.login(username, password) } returns TokenRepository.LoginResult.Success
+
+            viewModel.login(username, password)
+            advanceUntilIdle()
+
+            assertEquals(AuthViewModel.LoginState.Success, viewModel.loginState.value)
+            verify { sessionExpirationManager.resetSessionExpiration() }
+        }
+
+    @Test
+    fun `login bad request updates state`() =
+        runTest {
+            coEvery { tokenRepository.login(any(), any()) } returns TokenRepository.LoginResult.BadRequest
+
+            viewModel.login("user", "pass")
+            advanceUntilIdle()
+
+            assertEquals(AuthViewModel.LoginState.BadRequest, viewModel.loginState.value)
+        }
+
+    @Test
+    fun `login unauthorized updates state`() =
+        runTest {
+            coEvery { tokenRepository.login(any(), any()) } returns TokenRepository.LoginResult.Unauthorized
+
+            viewModel.login("user", "pass")
+            advanceUntilIdle()
+
+            assertEquals(AuthViewModel.LoginState.Unauthorized, viewModel.loginState.value)
+        }
+
+    @Test
+    fun `login network error updates state`() =
+        runTest {
+            coEvery { tokenRepository.login(any(), any()) } returns TokenRepository.LoginResult.NetworkError
+
+            viewModel.login("user", "pass")
+            advanceUntilIdle()
+
+            assertEquals(AuthViewModel.LoginState.NetworkError, viewModel.loginState.value)
+        }
+
+    @Test
+    fun `login error updates state`() =
+        runTest {
+            coEvery { tokenRepository.login(any(), any()) } returns TokenRepository.LoginResult.Error
+
+            viewModel.login("user", "pass")
+            advanceUntilIdle()
+
+            assertEquals(AuthViewModel.LoginState.Error, viewModel.loginState.value)
+        }
+
+    @Test
+    fun `resetLoginState resets to Idle`() {
+        // Set to something else first
+        coEvery { tokenRepository.login(any(), any()) } returns TokenRepository.LoginResult.Success
+        viewModel.login("u", "p")
+
+        viewModel.resetLoginState()
+
+        assertEquals(AuthViewModel.LoginState.Idle, viewModel.loginState.value)
     }
 
-    // Login tests
-    @Test
-    fun `login success updates state to Success`() =
-        runTest {
-            // Given
-            val username = "testuser"
-            val password = "password123"
-            coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.Success
-
-            // When
-            viewModel.login(username, password)
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.loginState.value is LoginState.Success)
-            coVerify { tokenRepository.login(username, password) }
-        }
+    // --- Register Tests ---
 
     @Test
-    fun `login with BadRequest updates state to BadRequest`() =
+    fun `register success updates state`() =
         runTest {
-            // Given
-            val username = "testuser"
-            val password = "password123"
-            val errorMessage = "Invalid request"
-            coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.BadRequest(errorMessage)
-
-            // When
-            viewModel.login(username, password)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.loginState.value
-            assertTrue(state is LoginState.BadRequest)
-            assertEquals(errorMessage, (state as LoginState.BadRequest).message)
-        }
-
-    @Test
-    fun `login with Unauthorized updates state to Unauthorized`() =
-        runTest {
-            // Given
-            val username = "testuser"
-            val password = "wrongpassword"
-            val errorMessage = "Incorrect credentials"
-            coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.Unauthorized(errorMessage)
-
-            // When
-            viewModel.login(username, password)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.loginState.value
-            assertTrue(state is LoginState.Unauthorized)
-            assertEquals(errorMessage, (state as LoginState.Unauthorized).message)
-        }
-
-    @Test
-    fun `login with NetworkError updates state to NetworkError`() =
-        runTest {
-            // Given
-            val username = "testuser"
-            val password = "password123"
-            val errorMessage = "Network unreachable"
-            coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.NetworkError(errorMessage)
-
-            // When
-            viewModel.login(username, password)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.loginState.value
-            assertTrue(state is LoginState.NetworkError)
-            assertEquals(errorMessage, (state as LoginState.NetworkError).message)
-        }
-
-    @Test
-    fun `login with Error updates state to Error`() =
-        runTest {
-            // Given
-            val username = "testuser"
-            val password = "password123"
-            val errorMessage = "Server error"
-            coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.Error(errorMessage)
-
-            // When
-            viewModel.login(username, password)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.loginState.value
-            assertTrue(state is LoginState.Error)
-            assertEquals(errorMessage, (state as LoginState.Error).message)
-        }
-
-    @Test
-    fun `resetLoginState resets state to Idle`() =
-        runTest {
-            // Given - set to a non-Idle state first
-            val username = "testuser"
-            val password = "password123"
-            coEvery { tokenRepository.login(username, password) } returns
-                TokenRepository.LoginResult.Success
-            viewModel.login(username, password)
-            advanceUntilIdle()
-
-            // When
-            viewModel.resetLoginState()
-
-            // Then
-            assertTrue(viewModel.loginState.value is LoginState.Idle)
-        }
-
-    // Register tests
-    @Test
-    fun `register success updates state to Success`() =
-        runTest {
-            // Given
-            val email = "test@example.com"
-            val username = "testuser"
-            val password = "password123"
             val userId = 123
-            coEvery { tokenRepository.register(email, username, password) } returns
-                TokenRepository.RegisterResult.Success(userId)
+            coEvery { tokenRepository.register(any(), any()) } returns TokenRepository.RegisterResult.Success(userId)
 
-            // When
-            viewModel.register(email, username, password)
+            viewModel.register("user", "pass")
             advanceUntilIdle()
 
-            // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.Success)
-            assertEquals(123, (state as RegisterState.Success).id)
+            assertTrue(state is AuthViewModel.RegisterState.Success)
+            assertEquals(userId, (state as AuthViewModel.RegisterState.Success).id)
         }
 
     @Test
-    fun `register with BadRequest updates state to BadRequest`() =
+    fun `register bad request updates state`() =
         runTest {
-            // Given
-            val email = "test@example.com"
-            val username = "testuser"
-            val password = "password123"
-            val errorMessage = "Invalid email format"
-            coEvery { tokenRepository.register(email, username, password) } returns
-                TokenRepository.RegisterResult.BadRequest(errorMessage)
+            val msg = "Bad Request"
+            coEvery { tokenRepository.register(any(), any()) } returns TokenRepository.RegisterResult.BadRequest(msg)
 
-            // When
-            viewModel.register(email, username, password)
+            viewModel.register("user", "pass")
             advanceUntilIdle()
 
-            // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.BadRequest)
-            assertEquals(errorMessage, (state as RegisterState.BadRequest).message)
+            assertTrue(state is AuthViewModel.RegisterState.BadRequest)
+            assertEquals(msg, (state as AuthViewModel.RegisterState.BadRequest).message)
         }
 
     @Test
-    fun `register with Conflict updates state to Conflict`() =
+    fun `register conflict updates state`() =
         runTest {
-            // Given
-            val email = "test@example.com"
-            val username = "existinguser"
-            val password = "password123"
-            val errorMessage = "Username already exists"
-            coEvery { tokenRepository.register(email, username, password) } returns
-                TokenRepository.RegisterResult.Conflict(errorMessage)
+            val msg = "Conflict"
+            coEvery { tokenRepository.register(any(), any()) } returns TokenRepository.RegisterResult.Conflict(msg)
 
-            // When
-            viewModel.register(email, username, password)
+            viewModel.register("user", "pass")
             advanceUntilIdle()
 
-            // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.Conflict)
-            assertEquals(errorMessage, (state as RegisterState.Conflict).message)
+            assertTrue(state is AuthViewModel.RegisterState.Conflict)
+            assertEquals(msg, (state as AuthViewModel.RegisterState.Conflict).message)
         }
 
     @Test
-    fun `register with NetworkError updates state to NetworkError`() =
+    fun `register network error updates state`() =
         runTest {
-            // Given
-            val email = "test@example.com"
-            val username = "testuser"
-            val password = "password123"
-            val errorMessage = "No internet connection"
-            coEvery { tokenRepository.register(email, username, password) } returns
-                TokenRepository.RegisterResult.NetworkError(errorMessage)
+            val msg = "Network Error"
+            coEvery { tokenRepository.register(any(), any()) } returns TokenRepository.RegisterResult.NetworkError(msg)
 
-            // When
-            viewModel.register(email, username, password)
+            viewModel.register("user", "pass")
             advanceUntilIdle()
 
-            // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.NetworkError)
-            assertEquals(errorMessage, (state as RegisterState.NetworkError).message)
+            assertTrue(state is AuthViewModel.RegisterState.NetworkError)
+            assertEquals(msg, (state as AuthViewModel.RegisterState.NetworkError).message)
         }
 
     @Test
-    fun `register with Error updates state to Error`() =
+    fun `register error updates state`() =
         runTest {
-            // Given
-            val email = "test@example.com"
-            val username = "testuser"
-            val password = "password123"
-            val errorMessage = "Server error"
-            coEvery { tokenRepository.register(email, username, password) } returns
-                TokenRepository.RegisterResult.Error(errorMessage)
+            val msg = "Error"
+            coEvery { tokenRepository.register(any(), any()) } returns TokenRepository.RegisterResult.Error(msg)
 
-            // When
-            viewModel.register(email, username, password)
+            viewModel.register("user", "pass")
             advanceUntilIdle()
 
-            // Then
             val state = viewModel.registerState.value
-            assertTrue(state is RegisterState.Error)
-            assertEquals(errorMessage, (state as RegisterState.Error).message)
+            assertTrue(state is AuthViewModel.RegisterState.Error)
+            assertEquals(msg, (state as AuthViewModel.RegisterState.Error).message)
         }
 
     @Test
-    fun `resetRegisterState resets state to Idle`() =
-        runTest {
-            // Given
-            val email = "test@example.com"
-            val username = "testuser"
-            val password = "password123"
-            coEvery { tokenRepository.register(email, username, password) } returns
-                TokenRepository.RegisterResult.Success(1)
-            viewModel.register(email, username, password)
-            advanceUntilIdle()
+    fun `resetRegisterState resets to Idle`() {
+        viewModel.resetRegisterState()
+        assertEquals(AuthViewModel.RegisterState.Idle, viewModel.registerState.value)
+    }
 
-            // When
-            viewModel.resetRegisterState()
+    // --- Refresh Tests ---
 
-            // Then
-            assertTrue(viewModel.registerState.value is RegisterState.Idle)
-        }
-
-    // Refresh tests
     @Test
-    fun `refreshTokens success updates state to Success`() =
+    fun `refreshTokens success updates state`() =
         runTest {
-            // Given
-            coEvery { tokenRepository.refreshTokens() } returns
-                TokenRepository.RefreshResult.Success
+            coEvery { tokenRepository.refreshTokens() } returns TokenRepository.RefreshResult.Success
 
-            // When
             viewModel.refreshTokens()
             advanceUntilIdle()
 
-            // Then
-            assertTrue(viewModel.refreshState.value is RefreshState.Success)
+            assertEquals(AuthViewModel.RefreshState.Success, viewModel.refreshState.value)
         }
 
     @Test
-    fun `refreshTokens with Unauthorized updates state to Unauthorized`() =
+    fun `refreshTokens unauthorized updates state`() =
         runTest {
-            // Given
-            coEvery { tokenRepository.refreshTokens() } returns
-                TokenRepository.RefreshResult.Unauthorized
+            coEvery { tokenRepository.refreshTokens() } returns TokenRepository.RefreshResult.Unauthorized
 
-            // When
             viewModel.refreshTokens()
             advanceUntilIdle()
 
-            // Then
-            assertTrue(viewModel.refreshState.value is RefreshState.Unauthorized)
+            assertEquals(AuthViewModel.RefreshState.Unauthorized, viewModel.refreshState.value)
         }
 
     @Test
-    fun `refreshTokens with NetworkError updates state to NetworkError`() =
+    fun `refreshTokens network error updates state`() =
         runTest {
-            // Given
-            val errorMessage = "Network error"
-            coEvery { tokenRepository.refreshTokens() } returns
-                TokenRepository.RefreshResult.NetworkError(errorMessage)
+            val msg = "Network Error"
+            coEvery { tokenRepository.refreshTokens() } returns TokenRepository.RefreshResult.NetworkError(msg)
 
-            // When
             viewModel.refreshTokens()
             advanceUntilIdle()
 
-            // Then
             val state = viewModel.refreshState.value
-            assertTrue(state is RefreshState.NetworkError)
-            assertEquals(errorMessage, (state as RefreshState.NetworkError).message)
+            assertTrue(state is AuthViewModel.RefreshState.NetworkError)
+            assertEquals(msg, (state as AuthViewModel.RefreshState.NetworkError).message)
         }
 
     @Test
-    fun `refreshTokens with Error updates state to Error`() =
+    fun `refreshTokens error updates state`() =
         runTest {
-            // Given
-            val errorMessage = "Server error"
-            coEvery { tokenRepository.refreshTokens() } returns
-                TokenRepository.RefreshResult.Error(errorMessage)
+            val msg = "Error"
+            coEvery { tokenRepository.refreshTokens() } returns TokenRepository.RefreshResult.Error(msg)
 
-            // When
             viewModel.refreshTokens()
             advanceUntilIdle()
 
-            // Then
             val state = viewModel.refreshState.value
-            assertTrue(state is RefreshState.Error)
-            assertEquals(errorMessage, (state as RefreshState.Error).message)
+            assertTrue(state is AuthViewModel.RefreshState.Error)
+            assertEquals(msg, (state as AuthViewModel.RefreshState.Error).message)
         }
 
     @Test
-    fun `resetRefreshState resets state to Idle`() =
-        runTest {
-            // Given
-            coEvery { tokenRepository.refreshTokens() } returns
-                TokenRepository.RefreshResult.Success
-            viewModel.refreshTokens()
-            advanceUntilIdle()
+    fun `resetRefreshState resets to Idle`() {
+        viewModel.resetRefreshState()
+        assertEquals(AuthViewModel.RefreshState.Idle, viewModel.refreshState.value)
+    }
 
-            // When
-            viewModel.resetRefreshState()
+    // --- Logout Tests ---
 
-            // Then
-            assertTrue(viewModel.refreshState.value is RefreshState.Idle)
-        }
-
-    // Logout tests
     @Test
-    fun `logout updates state to Success`() =
+    fun `logout success updates state`() =
         runTest {
-            // Given
             coEvery { tokenRepository.logout() } returns Unit
 
-            // When
             viewModel.logout()
             advanceUntilIdle()
 
-            // Then
-            assertTrue(viewModel.logoutState.value is LogoutState.Success)
+            assertEquals(AuthViewModel.LogoutState.Success, viewModel.logoutState.value)
             coVerify { tokenRepository.logout() }
         }
 
     @Test
-    fun `resetLogoutState resets state to Idle`() =
-        runTest {
-            // Given
-            coEvery { tokenRepository.logout() } returns Unit
-            viewModel.logout()
-            advanceUntilIdle()
-
-            // When
-            viewModel.resetLogoutState()
-
-            // Then
-            assertTrue(viewModel.logoutState.value is LogoutState.Idle)
-        }
-
-    // StateFlow exposure tests
-    @Test
-    fun `isLoggedIn exposes TokenRepository isLoggedIn flow`() {
-        // Given
-        val mockFlow = MutableStateFlow("test-token")
-        every { tokenRepository.isLoggedIn } returns mockFlow
-
-        // When
-        val newViewModel = AuthViewModel(tokenRepository)
-
-        // Then
-        assertEquals(mockFlow, newViewModel.isLoggedIn)
-    }
-
-    @Test
-    fun `isSessionLoaded exposes TokenRepository isSessionLoaded flow`() {
-        // Given
-        val mockFlow = MutableStateFlow(true)
-        every { tokenRepository.isSessionLoaded } returns mockFlow
-
-        // When
-        val newViewModel = AuthViewModel(tokenRepository)
-
-        // Then
-        assertEquals(mockFlow, newViewModel.isSessionLoaded)
+    fun `resetLogoutState resets to Idle`() {
+        viewModel.resetLogoutState()
+        assertEquals(AuthViewModel.LogoutState.Idle, viewModel.logoutState.value)
     }
 }

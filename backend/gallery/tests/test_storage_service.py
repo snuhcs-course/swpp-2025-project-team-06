@@ -64,9 +64,9 @@ class LocalStorageBackendTest(TestCase):
         
         # Verify storage key
         self.assertEqual(storage_key, str(test_uuid))
-        
+
         # Verify file was opened and written
-        expected_path = f'/tmp/test_media/{test_uuid}.jpg'
+        expected_path = os.path.join('/tmp/test_media', f'{test_uuid}.jpg')
         mock_file.assert_called_once_with(expected_path, 'wb')
 
     @override_settings(MEDIA_ROOT='/tmp/test_media')
@@ -79,9 +79,9 @@ class LocalStorageBackendTest(TestCase):
         
         backend = LocalStorageBackend()
         result = backend.download(storage_key)
-        
+
         # Verify file was opened
-        expected_path = f'/tmp/test_media/{storage_key}.jpg'
+        expected_path = os.path.join('/tmp/test_media', f'{storage_key}.jpg')
         mock_file.assert_called_once_with(expected_path, 'rb')
         
         # Verify result is BytesIO
@@ -110,9 +110,9 @@ class LocalStorageBackendTest(TestCase):
         
         backend = LocalStorageBackend()
         backend.delete(storage_key)
-        
+
         # Verify file was removed
-        expected_path = f'/tmp/test_media/{storage_key}.jpg'
+        expected_path = os.path.join('/tmp/test_media', f'{storage_key}.jpg')
         mock_remove.assert_called_once_with(expected_path)
 
     @override_settings(MEDIA_ROOT='/tmp/test_media')

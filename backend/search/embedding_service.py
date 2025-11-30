@@ -8,29 +8,35 @@ Note: This runs synchronously on the Django server during search requests,
 not as an async Celery task.
 """
 
+import threading
 import torch
 from sentence_transformers import SentenceTransformer
 
 # Model configuration
 _TEXT_MODEL_NAME = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 _text_model = None  # Global cache
+_text_model_lock = threading.Lock()
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def get_text_model():
     """
-    Lazy-load CLIP text model for query embeddings.
+    Lazy-load CLIP text model for query embeddings (thread-safe).
 
     Model is loaded once and cached globally for the Django process.
+    Uses double-check locking pattern to prevent race conditions.
 
     Returns:
         SentenceTransformer: CLIP multilingual text encoder
     """
     global _text_model
     if _text_model is None:
-        print("[INFO] Loading CLIP text model for search...")
-        _text_model = SentenceTransformer(_TEXT_MODEL_NAME, device=DEVICE)
+        with _text_model_lock:
+            # Double-check pattern: another thread might have initialized while we waited
+            if _text_model is None:
+                print("[INFO] Loading CLIP text model for search...")
+                _text_model = SentenceTransformer(_TEXT_MODEL_NAME, device=DEVICE)
     return _text_model
 
 

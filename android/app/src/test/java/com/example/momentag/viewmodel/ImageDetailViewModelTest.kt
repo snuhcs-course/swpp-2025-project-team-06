@@ -2,9 +2,7 @@ package com.example.momentag.viewmodel
 
 import android.net.Uri
 import com.example.momentag.model.ImageContext
-import com.example.momentag.model.ImageDetailTagState
 import com.example.momentag.model.PhotoDetailResponse
-import com.example.momentag.model.PhotoResponse
 import com.example.momentag.model.Tag
 import com.example.momentag.model.TagId
 import com.example.momentag.repository.ImageBrowserRepository
@@ -74,7 +72,7 @@ class ImageDetailViewModelTest {
     fun `loadImageContext loads context from imageBrowserRepository`() {
         // Given
         val photoId = "photo1"
-        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.SEARCH_RESULT)
+        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.SearchResult("query"))
         every { imageBrowserRepository.getPhotoContext(photoId) } returns context
 
         // When
@@ -89,7 +87,7 @@ class ImageDetailViewModelTest {
         // Given
         val uri = createMockUri("content://media/external/images/media/1")
         every { Uri.parse("content://media/external/images/media/1") } returns uri
-        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.GALLERY)
+        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.Gallery)
         every { imageBrowserRepository.getPhotoContextByUri(uri) } returns context
 
         // When
@@ -101,14 +99,19 @@ class ImageDetailViewModelTest {
 
     // Load photo tags tests
     @Test
-    fun `loadPhotoTags with empty photoId updates state to Idle`() =
+    fun `loadPhotoTags with empty photoId updates state to Success with empty lists`() =
         runTest {
             // When
             viewModel.loadPhotoTags("")
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.imageDetailTagState.value is ImageDetailTagState.Idle)
+            val state = viewModel.imageDetailTagState.value
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(emptyList<Tag>(), (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
+            assertEquals(emptyList<String>(), state.recommendedTags)
+            assertFalse(state.isExistingLoading)
+            assertFalse(state.isRecommendedLoading)
             assertNull(viewModel.photoAddress.value)
         }
 
@@ -130,13 +133,13 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(tags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(tags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertEquals("123 Main St", viewModel.photoAddress.value)
         }
 
     @Test
-    fun `loadPhotoTags error updates state with error message`() =
+    fun `loadPhotoTags error updates state with error`() =
         runTest {
             // Given
             val photoId = "photo-uuid"
@@ -150,8 +153,11 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals(errorMessage, (state as ImageDetailTagState.Error).message)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.UnknownError,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     // Delete tag tests
@@ -173,7 +179,7 @@ class ImageDetailViewModelTest {
         }
 
     @Test
-    fun `deleteTagFromPhoto error updates state with error message`() =
+    fun `deleteTagFromPhoto error updates state with error`() =
         runTest {
             // Given
             val photoId = "photo-uuid"
@@ -189,7 +195,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is ImageDetailViewModel.TagDeleteState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagDeleteState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -244,6 +250,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
+            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -260,7 +267,7 @@ class ImageDetailViewModelTest {
     fun `clearImageContext clears context and resets tag state`() {
         // Given
         val photoId = "photo1"
-        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.GALLERY)
+        val context = ImageContext(images = emptyList(), currentIndex = 0, contextType = ImageContext.ContextType.Gallery)
         every { imageBrowserRepository.getPhotoContext(photoId) } returns context
         viewModel.loadImageContext(photoId)
 
@@ -269,12 +276,12 @@ class ImageDetailViewModelTest {
 
         // Then
         assertNull(viewModel.imageContext.value)
-        assertTrue(viewModel.imageDetailTagState.value is ImageDetailTagState.Idle)
+        assertTrue(viewModel.imageDetailTagState.value is ImageDetailViewModel.ImageDetailTagState.Idle)
     }
 
     // Additional loadPhotoTags error case tests
     @Test
-    fun `loadPhotoTags unauthorized updates state with error message`() =
+    fun `loadPhotoTags unauthorized updates state with error`() =
         runTest {
             // Given
             val photoId = "photo-uuid"
@@ -288,12 +295,15 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals(errorMessage, (state as ImageDetailTagState.Error).message)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.Unauthorized,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     @Test
-    fun `loadPhotoTags bad request updates state with error message`() =
+    fun `loadPhotoTags bad request updates state with error`() =
         runTest {
             // Given
             val photoId = "photo-uuid"
@@ -307,12 +317,15 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals(errorMessage, (state as ImageDetailTagState.Error).message)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.UnknownError,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     @Test
-    fun `loadPhotoTags network error updates state with error message`() =
+    fun `loadPhotoTags network error updates state with error`() =
         runTest {
             // Given
             val photoId = "photo-uuid"
@@ -326,12 +339,15 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals(errorMessage, (state as ImageDetailTagState.Error).message)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.NetworkError,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     @Test
-    fun `loadPhotoTags exception updates state with error message`() =
+    fun `loadPhotoTags exception updates state with error`() =
         runTest {
             // Given
             val photoId = "photo-uuid"
@@ -345,54 +361,11 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Error)
-            assertEquals("Unexpected error", (state as ImageDetailTagState.Error).message)
-        }
-
-    @Test
-    fun `loadPhotoTags with numeric photoId converts to UUID`() =
-        runTest {
-            // Given
-            val photoPathId = "123"
-            val actualPhotoId = "uuid-123"
-            val photoResponse = PhotoResponse(photoId = actualPhotoId, photoPathId = 123L, createdAt = "2025-01-01")
-            val photoDetail = PhotoDetailResponse(photoPathId = 123L, tags = emptyList(), address = null)
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(listOf(photoResponse))
-            coEvery { remoteRepository.getPhotoDetail(actualPhotoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            coEvery { recommendRepository.recommendTagFromPhoto(actualPhotoId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList())
-
-            // When
-            viewModel.loadPhotoTags(photoPathId)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-        }
-
-    @Test
-    fun `loadPhotoTags with numeric photoId not found returns empty tags`() =
-        runTest {
-            // Given
-            val photoPathId = "999"
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(emptyList())
-
-            // When
-            viewModel.loadPhotoTags(photoPathId)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(emptyList<Tag>(), (state as ImageDetailTagState.Success).existingTags)
-            assertEquals(emptyList<String>(), state.recommendedTags)
-            assertNull(viewModel.photoAddress.value)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Error)
+            assertEquals(
+                ImageDetailViewModel.ImageDetailError.UnknownError,
+                (state as ImageDetailViewModel.ImageDetailTagState.Error).error,
+            )
         }
 
     @Test
@@ -415,8 +388,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             // Should only show first recommended tag that's not in existing tags
             assertEquals(listOf("New Tag"), state.recommendedTags)
             assertFalse(state.isRecommendedLoading)
@@ -441,8 +414,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertEquals(emptyList<String>(), state.recommendedTags)
             assertFalse(state.isRecommendedLoading)
         }
@@ -466,8 +439,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertFalse(state.isRecommendedLoading)
         }
 
@@ -490,8 +463,8 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertFalse(state.isRecommendedLoading)
         }
 
@@ -514,52 +487,9 @@ class ImageDetailViewModelTest {
 
             // Then
             val state = viewModel.imageDetailTagState.value
-            assertTrue(state is ImageDetailTagState.Success)
-            assertEquals(existingTags, (state as ImageDetailTagState.Success).existingTags)
+            assertTrue(state is ImageDetailViewModel.ImageDetailTagState.Success)
+            assertEquals(existingTags, (state as ImageDetailViewModel.ImageDetailTagState.Success).existingTags)
             assertFalse(state.isRecommendedLoading)
-        }
-
-    // Additional deleteTagFromPhoto tests
-    @Test
-    fun `deleteTagFromPhoto with numeric photoId converts to UUID`() =
-        runTest {
-            // Given
-            val photoPathId = "456"
-            val actualPhotoId = "uuid-456"
-            val tagId = "tag1"
-            val photoResponse = PhotoResponse(photoId = actualPhotoId, photoPathId = 456L, createdAt = "2025-01-01")
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(listOf(photoResponse))
-            coEvery { remoteRepository.removeTagFromPhoto(actualPhotoId, tagId) } returns
-                RemoteRepository.Result.Success(Unit)
-
-            // When
-            viewModel.deleteTagFromPhoto(photoPathId, tagId)
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.tagDeleteState.value is ImageDetailViewModel.TagDeleteState.Success)
-        }
-
-    @Test
-    fun `deleteTagFromPhoto with numeric photoId not found returns error`() =
-        runTest {
-            // Given
-            val photoPathId = "999"
-            val tagId = "tag1"
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(emptyList())
-
-            // When
-            viewModel.deleteTagFromPhoto(photoPathId, tagId)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.tagDeleteState.value
-            assertTrue(state is ImageDetailViewModel.TagDeleteState.Error)
-            assertEquals("Photo not found in backend", (state as ImageDetailViewModel.TagDeleteState.Error).message)
         }
 
     @Test
@@ -579,7 +509,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is ImageDetailViewModel.TagDeleteState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagDeleteState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.Unauthorized, (state as ImageDetailViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -599,7 +529,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is ImageDetailViewModel.TagDeleteState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagDeleteState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -619,7 +549,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is ImageDetailViewModel.TagDeleteState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagDeleteState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.NetworkError, (state as ImageDetailViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -639,58 +569,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagDeleteState.value
             assertTrue(state is ImageDetailViewModel.TagDeleteState.Error)
-            assertEquals("Unexpected error", (state as ImageDetailViewModel.TagDeleteState.Error).message)
-        }
-
-    // Additional addTagToPhoto tests
-    @Test
-    fun `addTagToPhoto with numeric photoId converts to UUID`() =
-        runTest {
-            // Given
-            val photoPathId = "789"
-            val actualPhotoId = "uuid-789"
-            val tagName = "New Tag"
-            val tagId = "new-tag-id"
-            val photoResponse = PhotoResponse(photoId = actualPhotoId, photoPathId = 789L, createdAt = "2025-01-01")
-            val photoDetail = PhotoDetailResponse(photoPathId = 789L, tags = emptyList(), address = null)
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(listOf(photoResponse))
-            coEvery { remoteRepository.postTags(tagName) } returns
-                RemoteRepository.Result.Success(TagId(tagId))
-            coEvery { remoteRepository.postTagsToPhoto(actualPhotoId, tagId) } returns
-                RemoteRepository.Result.Success(Unit)
-            coEvery { remoteRepository.getPhotoDetail(actualPhotoId) } returns
-                RemoteRepository.Result.Success(photoDetail)
-            coEvery { recommendRepository.recommendTagFromPhoto(actualPhotoId) } returns
-                RecommendRepository.RecommendResult.Success(emptyList())
-
-            // When
-            viewModel.addTagToPhoto(photoPathId, tagName)
-            advanceUntilIdle()
-
-            // Then
-            assertTrue(viewModel.tagAddState.value is ImageDetailViewModel.TagAddState.Success)
-        }
-
-    @Test
-    fun `addTagToPhoto with numeric photoId not found returns error`() =
-        runTest {
-            // Given
-            val photoPathId = "999"
-            val tagName = "New Tag"
-
-            coEvery { remoteRepository.getAllPhotos() } returns
-                RemoteRepository.Result.Success(emptyList())
-
-            // When
-            viewModel.addTagToPhoto(photoPathId, tagName)
-            advanceUntilIdle()
-
-            // Then
-            val state = viewModel.tagAddState.value
-            assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals("Photo not found in backend", (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagDeleteState.Error).error)
         }
 
     @Test
@@ -713,7 +592,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -736,7 +615,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.Unauthorized, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -759,7 +638,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -782,7 +661,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.NetworkError, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -805,7 +684,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals("Unexpected error", (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -825,7 +704,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.Unauthorized, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -845,7 +724,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -865,7 +744,7 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals(errorMessage, (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.NetworkError, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 
     @Test
@@ -885,6 +764,6 @@ class ImageDetailViewModelTest {
             // Then
             val state = viewModel.tagAddState.value
             assertTrue(state is ImageDetailViewModel.TagAddState.Error)
-            assertEquals("Unexpected error", (state as ImageDetailViewModel.TagAddState.Error).message)
+            assertEquals(ImageDetailViewModel.ImageDetailError.UnknownError, (state as ImageDetailViewModel.TagAddState.Error).error)
         }
 }
