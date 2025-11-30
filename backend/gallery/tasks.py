@@ -25,8 +25,7 @@ from search.embedding_service import create_query_embedding
 
 
 import numpy as np
-from sklearn.ensemble import IsolationForest
-from sklearn.cluster import KMeans
+import hdbscan
 
 from .gpu_tasks import phrase_to_words
 
@@ -37,9 +36,17 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
     LIMIT = 40
     client = get_qdrant_client()
 
-    rep_vectors = retrieve_all_rep_vectors_of_tag(user, tag_id)
+    # Get all photos tagged with this tag
+    tagged_photo_ids = set(
+        map(
+            str,
+            Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
+                "photo__photo_id", flat=True
+            ),
+        )
+    )
 
-    if not rep_vectors:
+    if not tagged_photo_ids:
         return []
 
     user_filter = models.Filter(
@@ -51,9 +58,10 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         ]
     )
 
+    # Use all photos in the tag as positive examples instead of rep vectors
     points = client.recommend(
         collection_name=IMAGE_COLLECTION_NAME,
-        positive=rep_vectors,
+        positive=list(tagged_photo_ids),
         query_filter=user_filter,
         limit=2 * LIMIT,
         with_payload=False,
@@ -66,15 +74,6 @@ def recommend_photo_from_tag(user: User, tag_id: uuid.UUID):
         str(p.photo_id): {"photo_path_id": p.photo_path_id, "created_at": p.created_at}
         for p in photos
     }
-
-    tagged_photo_ids = set(
-        map(
-            str,
-            Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
-                "photo__photo_id", flat=True
-            ),
-        )
-    )
 
     # Maintain order from sorted scores
     return [
@@ -153,7 +152,7 @@ def tag_recommendation(user, photo_id):
     PRESET_LIMIT = tag_settings.get("PRESET_TAG_LIMIT", 10)
     USER_LIMIT = tag_settings.get("USER_TAG_LIMIT", 10)
     PRESET_THRESHOLD = tag_settings.get("PRESET_TAG_SCORE_THRESHOLD", 0.35)
-    USER_THRESHOLD = tag_settings.get("USER_TAG_SCORE_THRESHOLD", 0.50)
+    USER_THRESHOLD = tag_settings.get("USER_TAG_SCORE_THRESHOLD", 0.75)
 
     client = get_qdrant_client()
 
@@ -247,8 +246,12 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
+    # Load settings from Django settings
+    tag_settings = settings.TAG_RECOMMENDATION_SETTINGS
     PRESET_LIMIT = 2
     LIMIT = 10
+    USER_THRESHOLD = tag_settings.get("USER_TAG_SCORE_THRESHOLD", 0.75)
+    
     client = get_qdrant_client()
 
     if not photo_ids:
@@ -300,6 +303,7 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
                 query_filter=user_filter,
                 limit=LIMIT,
                 with_payload=True,
+                score_threshold=USER_THRESHOLD,
             )
 
             tag_ids = list(
@@ -434,39 +438,60 @@ def execute_hybrid_search(
     )
 
     if tag_ids:
-        # 1.1: DB에서 태그에 직접 속한 사진 ID 조회
-        tag_photo_uuids = set(
-            Photo_Tag.objects.filter(user=user, tag__tag_id__in=tag_ids).values_list(
-                "photo__photo_id", flat=True
-            )
-        )
+        # 각 태그별 점수를 별도로 저장
+        tag_scores_per_photo = defaultdict(dict)  # {photo_id: {tag_id: score}}
 
-        tag_photo_ids_str = {str(pid) for pid in tag_photo_uuids}
-
-        # 1.2: Qdrant `recommend` API 호출
-        if tag_photo_ids_str:
-            try:
-                # Qdrant `recommend` API with threshold
-                recommend_results = client.recommend(
-                    collection_name=IMAGE_COLLECTION_NAME,
-                    positive=list(tag_photo_ids_str),
-                    query_filter=user_filter,
-                    limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
-                    with_vectors=False,
-                    with_payload=False,
-                    score_threshold=score_threshold,
+        for tag_id in tag_ids:
+            # 1.1: 이 태그에 직접 속한 사진 ID 조회
+            tag_photo_uuids = set(
+                Photo_Tag.objects.filter(user=user, tag__tag_id=tag_id).values_list(
+                    "photo__photo_id", flat=True
                 )
+            )
 
-                for result in recommend_results:
-                    phase_1_scores[result.id] = result.score
+            tag_photo_ids_str = {str(pid) for pid in tag_photo_uuids}
 
-            except Exception as e:
-                print(f"[HybridSearch Error] Qdrant recommend failed: {e}")
-                pass
+            # 1.2: 이 태그에 대해 Qdrant `recommend` API 호출
+            if tag_photo_ids_str:
+                try:
+                    recommend_results = client.recommend(
+                        collection_name=IMAGE_COLLECTION_NAME,
+                        positive=list(tag_photo_ids_str),
+                        query_filter=user_filter,
+                        limit=SEARCH_SETTINGS.get("SEARCH_MAX_LIMIT", 1000),
+                        with_vectors=False,
+                        with_payload=False,
+                        score_threshold=score_threshold,
+                    )
 
-        # 1.3: 태그에 "직접" 속한 사진(TagPhotoSet)에 1.0점 부여
-        for photo_id_str in tag_photo_ids_str:
-            phase_1_scores[photo_id_str] = 1.0
+                    # 이 태그에 대한 점수를 저장
+                    for result in recommend_results:
+                        tag_scores_per_photo[result.id][str(tag_id)] = result.score
+
+                except Exception as e:
+                    print(f"[HybridSearch Error] Qdrant recommend failed for tag {tag_id}: {e}")
+                    pass
+
+            # 1.3: 이 태그에 "직접" 속한 사진에 1.0점 부여
+            for photo_id_str in tag_photo_ids_str:
+                tag_scores_per_photo[photo_id_str][str(tag_id)] = 1.0
+
+        # 1.4: 하나라도 태그 점수가 있는 사진 선택하고 점수를 곱함
+        n = len(tag_ids)
+        scale_base = SEARCH_SETTINGS.get("TAG_PRODUCT_SCALE_BASE", 2)
+        scale_factor = scale_base ** (n - 1)
+        min_score = SEARCH_SETTINGS.get("TAG_MIN_SCORE", 0.1)
+
+        for photo_id, scores_dict in tag_scores_per_photo.items():
+            if len(scores_dict) > 0:  # 하나라도 점수가 있으면
+                product_score = 1.0
+                for tag_id in tag_ids:
+                    # 점수가 없으면 min_score, 있으면 max(score, min_score)
+                    score = scores_dict.get(str(tag_id), min_score)
+                    score = max(score, min_score)  # 0.1 미만도 0.1로 상향
+                    product_score *= score
+                # base^(n-1)을 곱해서 스케일링
+                phase_1_scores[photo_id] = product_score * scale_factor
 
     if query_string:
         # 2.1: 자연어 쿼리를 임베딩 벡터로 변환
@@ -634,9 +659,9 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
         tag_id: Tag UUID
     """
     client = get_qdrant_client()
-    K_CLUSTERS = 3  # 기본 코드의 k = 3
-    OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
-    MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수 (기본 코드 기준)
+    MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수
+    MIN_CLUSTER_SIZE = 5  # HDBSCAN 최소 클러스터 크기
+    MIN_SAMPLES = 3  # HDBSCAN 최소 샘플 수
 
     print(f"[Task Start] RepVec computation for User: {user_id}, Tag: {tag_id}")
 
@@ -682,29 +707,42 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
             return
 
         if len(selected_vecs) < MIN_SAMPLES_FOR_ML:
+            # 사진이 적으면 모든 벡터를 rep vec로 사용
             final_representatives = selected_vecs
+            print(f"[Task Info] Using all {len(selected_vecs)} vectors (< {MIN_SAMPLES_FOR_ML} samples).")
         else:
-            iso_forest = IsolationForest(
-                contamination=OUTLIER_FRACTION, random_state=42
+            # HDBSCAN으로 자동 클러스터링 및 outlier 탐지
+            clusterer = hdbscan.HDBSCAN(
+                min_cluster_size=MIN_CLUSTER_SIZE,
+                min_samples=MIN_SAMPLES,
+                cluster_selection_epsilon=0.0,
+                metric='euclidean'
             )
-            preds = iso_forest.fit_predict(selected_vecs)
+            clusterer.fit(selected_vecs)
 
-            outlier_vecs = selected_vecs[preds == -1]
-            inlier_vecs = selected_vecs[preds == 1]
+            labels = clusterer.labels_
+            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+            n_noise = list(labels).count(-1)
 
-            kmeans_centers = np.array([])
-            if len(inlier_vecs) >= K_CLUSTERS:
-                kmeans = KMeans(n_clusters=K_CLUSTERS, random_state=42, n_init="auto")
-                kmeans.fit(inlier_vecs)
-                kmeans_centers = kmeans.cluster_centers_
-            elif len(inlier_vecs) > 0:
-                kmeans_centers = inlier_vecs
+            print(f"[Task Info] HDBSCAN found {n_clusters} clusters and {n_noise} noise points.")
 
+            # 각 클러스터의 중심 계산
+            cluster_centers = []
+            for label in set(labels):
+                if label != -1:  # outlier 제외
+                    cluster_vecs = selected_vecs[labels == label]
+                    cluster_center = cluster_vecs.mean(axis=0)
+                    cluster_centers.append(cluster_center)
+
+            # Outlier 벡터 추출
+            outlier_vecs = selected_vecs[labels == -1]
+
+            # 최종 rep vec = 클러스터 중심 + outlier
             final_representatives_list = []
+            if len(cluster_centers) > 0:
+                final_representatives_list.append(np.array(cluster_centers))
             if len(outlier_vecs) > 0:
                 final_representatives_list.append(outlier_vecs)
-            if len(kmeans_centers) > 0:
-                final_representatives_list.append(kmeans_centers)
 
             if not final_representatives_list:
                 print(
@@ -715,6 +753,7 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
                 return
 
             final_representatives = np.vstack(final_representatives_list)
+            print(f"[Task Info] Generated {len(final_representatives)} representative vectors ({len(cluster_centers)} centers + {len(outlier_vecs)} outliers).")
 
         points_to_upsert = []
         for vec in final_representatives:

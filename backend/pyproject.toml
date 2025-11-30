@@ -28,6 +28,7 @@ dependencies = [
     "cryptography>=46.0.3",
     "scikit-learn",
     "networkx",
+    "hdbscan<0.8.41",
     "boto3>=1.40.64",
     "pysocks>=1.7.1",
     "s3transfer>=0.14.0",
