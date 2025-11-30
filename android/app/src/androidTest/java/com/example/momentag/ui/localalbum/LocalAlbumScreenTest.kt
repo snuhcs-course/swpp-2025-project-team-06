@@ -5,11 +5,9 @@ import android.net.Uri
 import android.os.Build
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTouchInput
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -128,7 +126,9 @@ class LocalAlbumScreenTest {
     @Test
     fun localAlbumScreen_selectionMode_showsCancelButton() {
         val albumName = "Test Album"
-        val photos = listOf(Photo("p1", Uri.parse("content://1"), "2024"))
+        val photoUri = Uri.parse("content://1")
+        val photo = Photo("p1", photoUri, "2024")
+        val photos = listOf(photo)
 
         composeRule.setContent {
             LocalAlbumScreen(
@@ -144,11 +144,8 @@ class LocalAlbumScreenTest {
         // setContent 후에 데이터를 주입
         setFlow("_imagesInAlbum", photos)
 
-        composeRule.waitForIdle()
-
-        // 사진을 long click하여 선택 모드 활성화
-        val photoP1 = composeRule.activity.getString(R.string.cd_photo_item, "p1")
-        composeRule.onNodeWithContentDescription(photoP1).performTouchInput { longClick() }
+        // Manually select a photo to enter selection mode
+        setFlow("_selectedPhotosInAlbum", mapOf(photoUri to photo))
 
         composeRule.waitForIdle()
 

@@ -87,7 +87,7 @@ class LoginScreenTest {
         composeTestRule.setContent {
             MomenTagTheme {
                 val navController = rememberNavController()
-                LoginScreen(navController = navController)
+                LoginScreen(navController = navController, showExpirationWarning = false)
             }
         }
 
@@ -116,7 +116,7 @@ class LoginScreenTest {
         composeTestRule.setContent {
             MomenTagTheme {
                 val navController = rememberNavController()
-                LoginScreen(navController = navController)
+                LoginScreen(navController = navController, showExpirationWarning = false)
             }
         }
 
@@ -148,7 +148,7 @@ class LoginScreenTest {
         composeTestRule.setContent {
             MomenTagTheme {
                 val navController = rememberNavController()
-                LoginScreen(navController = navController)
+                LoginScreen(navController = navController, showExpirationWarning = false)
             }
         }
 
@@ -173,7 +173,7 @@ class LoginScreenTest {
         composeTestRule.setContent {
             MomenTagTheme {
                 val navController = rememberNavController()
-                LoginScreen(navController = navController)
+                LoginScreen(navController = navController, showExpirationWarning = false)
             }
         }
 
@@ -199,7 +199,7 @@ class LoginScreenTest {
         composeTestRule.setContent {
             MomenTagTheme {
                 val navController = rememberNavController()
-                LoginScreen(navController = navController)
+                LoginScreen(navController = navController, showExpirationWarning = false)
             }
         }
 

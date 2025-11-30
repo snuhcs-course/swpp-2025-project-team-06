@@ -224,6 +224,7 @@ class SelectImageViewModel
         fun resetRecommendState() {
             _recommendState.value = RecommendState.Idle
             _recommendedPhotos.value = emptyList()
+            _selectedRecommendPhotos.value = emptyMap()
         }
 
         /**
