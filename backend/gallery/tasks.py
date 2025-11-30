@@ -25,8 +25,6 @@ from search.embedding_service import create_query_embedding
 
 
 import numpy as np
-from sklearn.ensemble import IsolationForest
-from sklearn.cluster import KMeans
 import hdbscan
 
 from .gpu_tasks import phrase_to_words
