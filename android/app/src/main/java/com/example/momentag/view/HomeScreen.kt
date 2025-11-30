@@ -283,10 +283,11 @@ fun HomeScreen(
                 if (event == Lifecycle.Event.ON_RESUME) {
                     // Re-check permission status when the app is resumed
                     val permission = requiredImagePermission()
-                    val isGranted = ContextCompat.checkSelfPermission(
-                        context,
-                        permission
-                    ) == PackageManager.PERMISSION_GRANTED
+                    val isGranted =
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            permission,
+                        ) == PackageManager.PERMISSION_GRANTED
                     if (isGranted) {
                         hasPermission = true
                     }
@@ -955,18 +956,19 @@ fun HomeScreen(
                         PermissionDeniedContent(
                             modifier = Modifier.weight(1f),
                             onRequestPermission = {
-                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                    data = Uri.fromParts("package", context.packageName, null)
-                                }
+                                val intent =
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
                                 context.startActivity(intent)
-                            }
+                            },
                         )
                     } else if (!hasPermission) {
                         Box(
                             modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
                             contentAlignment = Alignment.Center,
                         ) {
                             // Initial state before permission is requested or if rationale is not needed
@@ -1206,20 +1208,21 @@ fun HomeScreen(
 @Composable
 private fun PermissionDeniedContent(
     modifier: Modifier = Modifier,
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = stringResource(R.string.empty_state_permission_needed),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 16.dp),
         )
         Button(onClick = onRequestPermission) {
             Text(text = stringResource(R.string.button_go_to_settings))

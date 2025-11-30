@@ -41,7 +41,6 @@ import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -150,19 +149,21 @@ fun LocalGalleryScreen(
         )
 
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val isGranted = ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
-                    if (isGranted) {
-                        hasNotificationPermission = true
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val isGranted =
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.POST_NOTIFICATIONS,
+                            ) == PackageManager.PERMISSION_GRANTED
+                        if (isGranted) {
+                            hasNotificationPermission = true
+                        }
                     }
                 }
             }
-        }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
@@ -332,16 +333,16 @@ fun LocalGalleryScreen(
                     }
                 },
                 modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(backgroundBrush)
-                    .padding(paddingValues),
+                    Modifier
+                        .fillMaxSize()
+                        .background(backgroundBrush)
+                        .padding(paddingValues),
             ) {
                 Column(
                     modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = Dimen.ScreenHorizontalPadding),
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = Dimen.ScreenHorizontalPadding),
                 ) {
                     Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
                     Text(
@@ -420,11 +421,12 @@ fun LocalGalleryScreen(
             PermissionDeniedContent(
                 modifier = Modifier.padding(paddingValues),
                 onRequestPermission = {
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.fromParts("package", context.packageName, null)
-                    }
+                    val intent =
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
                     context.startActivity(intent)
-                }
+                },
             )
         }
     }
@@ -433,29 +435,29 @@ fun LocalGalleryScreen(
 @Composable
 private fun PermissionDeniedContent(
     modifier: Modifier = Modifier,
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
 ) {
     val backgroundBrush = rememberAppBackgroundBrush()
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(backgroundBrush)
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(backgroundBrush)
+                .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = stringResource(R.string.empty_state_notification_permission_needed),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 16.dp),
         )
         Button(onClick = onRequestPermission) {
             Text(text = stringResource(R.string.button_go_to_settings))
         }
     }
 }
-
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
