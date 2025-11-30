@@ -5,9 +5,12 @@ import android.app.Activity
 import android.content.ContentUris
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -126,6 +129,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -226,6 +230,7 @@ fun HomeScreen(
 
     // 4. Local state variables (remember, mutableStateOf)
     var hasPermission by remember { mutableStateOf(false) }
+    var shouldShowRationale by remember { mutableStateOf(false) }
     var isOnlyTag by remember { mutableStateOf(false) }
     var isDeleteMode by remember { mutableStateOf(false) }
     var isSelectionModeDelay by remember { mutableStateOf(false) }
@@ -276,6 +281,21 @@ fun HomeScreen(
         val observer =
             LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
+                    // Re-check permission status when the app is resumed
+                    val permission = requiredImagePermission()
+                    val isGranted =
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            permission,
+                        ) == PackageManager.PERMISSION_GRANTED
+                    if (isGranted) {
+                        hasPermission = true
+                        shouldShowRationale = false
+                    } else {
+                        hasPermission = false
+                        shouldShowRationale = true
+                    }
+
                     // When returning from SearchResultScreen, etc.
                     // Clear search bar content when HomeScreen becomes visible again.
                     searchBarState.clearSearchContent()
@@ -524,7 +544,14 @@ fun HomeScreen(
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
-            onResult = { isGranted -> if (isGranted) hasPermission = true },
+            onResult = { isGranted ->
+                if (isGranted) {
+                    hasPermission = true
+                    shouldShowRationale = false
+                } else {
+                    shouldShowRationale = true
+                }
+            },
         )
 
     // Request permissions and load images
@@ -929,7 +956,18 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
 
-                    if (!hasPermission) {
+                    if (!hasPermission && shouldShowRationale) {
+                        PermissionDeniedContent(
+                            modifier = Modifier.weight(1f),
+                            onRequestPermission = {
+                                val intent =
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
+                                context.startActivity(intent)
+                            },
+                        )
+                    } else if (!hasPermission) {
                         Box(
                             modifier =
                                 Modifier
@@ -937,10 +975,7 @@ fun HomeScreen(
                                     .fillMaxWidth(),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(
-                                stringResource(R.string.empty_state_permission_needed),
-                                textAlign = TextAlign.Center,
-                            )
+                            // Initial state before permission is requested or if rationale is not needed
                         }
                     } else {
                         MainContent(
@@ -1170,6 +1205,31 @@ fun HomeScreen(
                     scope.launch { sheetState.hide() }
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun PermissionDeniedContent(
+    modifier: Modifier = Modifier,
+    onRequestPermission: () -> Unit,
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.empty_state_permission_needed),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(bottom = 16.dp),
+        )
+        Button(onClick = onRequestPermission) {
+            Text(text = stringResource(R.string.button_go_to_settings))
         }
     }
 }
