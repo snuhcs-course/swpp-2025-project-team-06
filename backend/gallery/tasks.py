@@ -473,15 +473,19 @@ def execute_hybrid_search(
             for photo_id_str in tag_photo_ids_str:
                 tag_scores_per_photo[photo_id_str][str(tag_id)] = 1.0
 
-        # 1.4: 모든 태그에 대해 점수가 있는 사진만 선택하고 점수를 곱함
+        # 1.4: 하나라도 태그 점수가 있는 사진 선택하고 점수를 곱함
         n = len(tag_ids)
         scale_base = SEARCH_SETTINGS.get("TAG_PRODUCT_SCALE_BASE", 2)
         scale_factor = scale_base ** (n - 1)
+        min_score = SEARCH_SETTINGS.get("TAG_MIN_SCORE", 0.1)
 
         for photo_id, scores_dict in tag_scores_per_photo.items():
-            if len(scores_dict) == len(tag_ids):  # 모든 태그에 대해 점수가 있는 경우만
+            if len(scores_dict) > 0:  # 하나라도 점수가 있으면
                 product_score = 1.0
-                for score in scores_dict.values():
+                for tag_id in tag_ids:
+                    # 점수가 없으면 min_score, 있으면 max(score, min_score)
+                    score = scores_dict.get(str(tag_id), min_score)
+                    score = max(score, min_score)  # 0.1 미만도 0.1로 상향
                     product_score *= score
                 # base^(n-1)을 곱해서 스케일링
                 phase_1_scores[photo_id] = product_score * scale_factor

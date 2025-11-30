@@ -207,6 +207,7 @@ HYBRID_SEARCH_SETTINGS = {
 
     # --- (D) 다중 태그 곱셈 스케일링 설정 ---
     "TAG_PRODUCT_SCALE_BASE": 2,  # 태그 n개 곱셈 시 base^(n-1)을 곱함 (기본: 2)
+    "TAG_MIN_SCORE": 0.1,  # 태그에 대한 최소 점수 (점수가 없거나 이보다 낮으면 0.1 사용)
 }
 
 TAG_RECOMMENDATION_SETTINGS = {
