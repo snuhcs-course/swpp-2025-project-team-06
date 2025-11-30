@@ -160,6 +160,10 @@ fun LocalGalleryScreen(
                             ) == PackageManager.PERMISSION_GRANTED
                         if (isGranted) {
                             hasNotificationPermission = true
+                            shouldShowNotificationRationale = false
+                        } else {
+                            hasNotificationPermission = false
+                            shouldShowNotificationRationale = true
                         }
                     }
                 }

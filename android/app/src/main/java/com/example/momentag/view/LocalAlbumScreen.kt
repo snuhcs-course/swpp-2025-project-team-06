@@ -1,8 +1,11 @@
 package com.example.momentag.view
 
 import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -40,6 +43,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -74,7 +78,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -128,6 +134,8 @@ fun LocalAlbumScreen(
 
     // 4. 로컬 상태 변수
     var hasPermission by remember { mutableStateOf(false) }
+    var hasNotificationPermission by remember { mutableStateOf(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) }
+    var shouldShowNotificationRationale by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
@@ -139,6 +147,18 @@ fun LocalAlbumScreen(
     val backgroundBrush = rememberAppBackgroundBrush()
 
     // 8. ActivityResultLauncher
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    hasNotificationPermission = true
+                } else {
+                    shouldShowNotificationRationale = true
+                }
+            },
+        )
+
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -150,6 +170,12 @@ fun LocalAlbumScreen(
         )
 
     // 10. LaunchedEffect
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     LaunchedEffect(uploadState.userMessage) {
         uploadState.userMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -206,6 +232,22 @@ fun LocalAlbumScreen(
                 if (event == Lifecycle.Event.ON_RESUME) {
                     // Fetch last viewed index from ImageBrowserRepository and restore scroll
                     localViewModel.restoreScrollPosition()
+
+                    // Check notification permission when returning to screen
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val isGranted =
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.POST_NOTIFICATIONS,
+                            ) == PackageManager.PERMISSION_GRANTED
+                        if (isGranted) {
+                            hasNotificationPermission = true
+                            shouldShowNotificationRationale = false
+                        } else {
+                            hasNotificationPermission = false
+                            shouldShowNotificationRationale = true
+                        }
+                    }
                 }
             }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -670,25 +712,65 @@ fun LocalAlbumScreen(
             }
         }
 
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                if (isSelectionMode) return@PullToRefreshBox // Keep gesture coroutine alive when toggling selection
+        if (hasNotificationPermission) {
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    if (isSelectionMode) return@PullToRefreshBox // Keep gesture coroutine alive when toggling selection
 
-                scope.launch {
-                    isRefreshing = true
-                    try {
-                        if (hasPermission) {
-                            localViewModel.loadAlbumPhotos(albumId, albumName)
+                    scope.launch {
+                        isRefreshing = true
+                        try {
+                            if (hasPermission) {
+                                localViewModel.loadAlbumPhotos(albumId, albumName)
+                            }
+                        } finally {
+                            isRefreshing = false
                         }
-                    } finally {
-                        isRefreshing = false
                     }
-                }
-            },
-            modifier = bodyModifier,
-        ) {
-            albumContent()
+                },
+                modifier = bodyModifier,
+            ) {
+                albumContent()
+            }
+        } else if (shouldShowNotificationRationale) {
+            PermissionDeniedContent(
+                modifier = bodyModifier,
+                onRequestPermission = {
+                    val intent =
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                    context.startActivity(intent)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PermissionDeniedContent(
+    modifier: Modifier = Modifier,
+    onRequestPermission: () -> Unit,
+) {
+    val backgroundBrush = rememberAppBackgroundBrush()
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(backgroundBrush)
+                .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.empty_state_notification_permission_needed),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(bottom = 16.dp),
+        )
+        Button(onClick = onRequestPermission) {
+            Text(text = stringResource(R.string.button_go_to_settings))
         }
     }
 }

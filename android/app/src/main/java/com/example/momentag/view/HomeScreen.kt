@@ -290,6 +290,10 @@ fun HomeScreen(
                         ) == PackageManager.PERMISSION_GRANTED
                     if (isGranted) {
                         hasPermission = true
+                        shouldShowRationale = false
+                    } else {
+                        hasPermission = false
+                        shouldShowRationale = true
                     }
 
                     // When returning from SearchResultScreen, etc.
