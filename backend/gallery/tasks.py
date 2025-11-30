@@ -202,11 +202,6 @@ def tag_recommendation(user, photo_id):
     recommendations = []
     existing_tag_names = set()
 
-    # Debug logging
-    print(f"[DEBUG] tag_recommendation for photo {photo_id}")
-    print(f"[DEBUG] User results count: {len(user_results)}")
-    print(f"[DEBUG] Preset results count: {len(preset_results)}")
-
     # Add preset tags (ordered by similarity within preset collection)
     for result in preset_results:
         tag_name = result.payload['name']
@@ -224,13 +219,9 @@ def tag_recommendation(user, photo_id):
 
     # Add user tags (ordered by similarity within repvec collection)
     for result in user_results:
-        print(f"[DEBUG] User result payload: {result.payload}")
-        print(f"[DEBUG] User result score: {result.score}")
         try:
             tag = Tag.objects.get(tag_id=result.payload['tag_id'])
-            print(f"[DEBUG] Found tag: {tag.tag} (id: {tag.tag_id})")
             if tag.tag in existing_tag_names:
-                print(f"[DEBUG] Skipping duplicate tag: {tag.tag}")
                 continue
             recommendations.append({
                 'tag': tag.tag,
@@ -238,13 +229,8 @@ def tag_recommendation(user, photo_id):
                 'is_preset': False
             })
             existing_tag_names.add(tag.tag)
-            print(f"[DEBUG] Added user tag: {tag.tag}")
         except Tag.DoesNotExist:
-            print(f"[DEBUG] Tag not found in DB: {result.payload.get('tag_id')}")
             continue
-
-    print(f"[DEBUG] Final recommendations count: {len(recommendations)}")
-    print(f"[DEBUG] Recommendations: {recommendations}")
 
     return recommendations
 

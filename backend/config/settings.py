@@ -213,7 +213,7 @@ HYBRID_SEARCH_SETTINGS = {
 TAG_RECOMMENDATION_SETTINGS = {
     # --- Tag Recommendation Thresholds ---
     "PRESET_TAG_SCORE_THRESHOLD": 0.0,  # Preset 태그 추천 최소 유사도 (0.0 ~ 1.0)
-    "USER_TAG_SCORE_THRESHOLD": 0.85,    # 사용자 태그 추천 최소 유사도 (0.0 ~ 1.0)
+    "USER_TAG_SCORE_THRESHOLD": 0.6,    # 사용자 태그 추천 최소 유사도 (0.0 ~ 1.0)
 
     # --- Tag Recommendation Limits ---
     "PRESET_TAG_LIMIT": 10,  # Preset 태그 검색 개수
