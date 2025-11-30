@@ -1,5 +1,8 @@
 # MomenTag
 
+<img width="912" height="220" alt="image" src="https://github.com/user-attachments/assets/424f0b7b-0831-4783-9191-c66821b29984" />
+
+
 ## About the App
 
 MomenTag is a photo search and management application combining AI-powered semantic search with user tagging features. It helps users organize, search, and discover meaningful moments from their photo collections through intelligent recommendations and natural language processing.
