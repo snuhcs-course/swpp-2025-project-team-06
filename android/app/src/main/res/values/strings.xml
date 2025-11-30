@@ -41,6 +41,7 @@
     <string name="button_create_tag">Create Tag</string>
     <string name="button_upload_photos">Upload Photos</string>
     <string name="button_add_tag_count">Add Tag (%1$d)</string>
+    <string name="button_go_to_settings">Go to Settings</string>
 
     <!-- ============================================ -->
     <!-- ERROR TITLES -->
