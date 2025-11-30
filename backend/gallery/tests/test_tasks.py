@@ -49,59 +49,46 @@ class RecommendPhotoFromTagTest(TestCase):
         )
 
     @patch("gallery.tasks.get_qdrant_client")
-    @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_from_tag_with_results(
-        self, mock_retrieve_rep, mock_get_client
-    ):
+    def test_recommend_photo_from_tag_with_results(self, mock_get_client):
         """태그 기반 사진 추천 - 정상 결과"""
-        # Mock rep vectors
-        mock_retrieve_rep.return_value = [[0.1, 0.2, 0.3]]
+        # Tag photo1 (used as positive example)
+        Photo_Tag.objects.create(user=self.user, photo=self.photo1, tag=self.tag)
 
         # Mock Qdrant client
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
-        # Mock recommend results
-        mock_point1 = MagicMock()
-        mock_point1.id = str(self.photo1.photo_id)
+        # Mock recommend results (photo2 is recommended based on photo1)
         mock_point2 = MagicMock()
         mock_point2.id = str(self.photo2.photo_id)
 
-        mock_client.recommend.return_value = [mock_point1, mock_point2]
+        mock_client.recommend.return_value = [mock_point2]
 
         # Execute
         results = recommend_photo_from_tag(self.user, self.tag.tag_id)
 
-        # Verify
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results[0]["photo_id"], str(self.photo1.photo_id))
-        self.assertEqual(results[0]["photo_path_id"], 101)
+        # Verify - photo2 is recommended (photo1 is excluded as it's already tagged)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["photo_id"], str(self.photo2.photo_id))
+        self.assertEqual(results[0]["photo_path_id"], 102)
         mock_client.recommend.assert_called_once()
 
-    @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_from_tag_no_rep_vectors(self, mock_retrieve_rep):
-        """태그에 rep vector가 없는 경우"""
-        mock_retrieve_rep.return_value = []
-
+    def test_recommend_photo_from_tag_no_tagged_photos(self):
+        """태그에 사진이 없는 경우"""
         results = recommend_photo_from_tag(self.user, self.tag.tag_id)
 
         self.assertEqual(results, [])
-        mock_retrieve_rep.assert_called_once_with(self.user, self.tag.tag_id)
 
     @patch("gallery.tasks.get_qdrant_client")
-    @patch("gallery.tasks.retrieve_all_rep_vectors_of_tag")
-    def test_recommend_photo_from_tag_excludes_tagged_photos(
-        self, mock_retrieve_rep, mock_get_client
-    ):
+    def test_recommend_photo_from_tag_excludes_tagged_photos(self, mock_get_client):
         """이미 태그된 사진은 제외"""
-        # Tag photo1
+        # Tag photo1 (used as positive example)
         Photo_Tag.objects.create(user=self.user, photo=self.photo1, tag=self.tag)
-
-        mock_retrieve_rep.return_value = [[0.1, 0.2, 0.3]]
 
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
+        # Qdrant returns both photo1 and photo2 as recommendations
         mock_point1 = MagicMock()
         mock_point1.id = str(self.photo1.photo_id)
         mock_point2 = MagicMock()
