@@ -3,7 +3,11 @@
 package com.example.momentag.view
 
 import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -36,6 +40,8 @@ import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -47,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,8 +67,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.momentag.R
@@ -87,6 +100,7 @@ fun LocalGalleryScreen(
 ) {
     // 1. Context 및 Platform 관련 변수
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     // 2. ViewModel 인스턴스
     val localViewModel: LocalViewModel = hiltViewModel()
@@ -99,6 +113,8 @@ fun LocalGalleryScreen(
 
     // 4. 로컬 상태 변수
     var hasPermission by remember { mutableStateOf(false) }
+    var hasNotificationPermission by remember { mutableStateOf(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) }
+    var shouldShowNotificationRationale by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     var isErrorBannerVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -116,9 +132,9 @@ fun LocalGalleryScreen(
             contract = ActivityResultContracts.RequestPermission(),
             onResult = { isGranted ->
                 if (isGranted) {
-                    if (selectedAlbumIds.isNotEmpty()) {
-                        photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
-                    }
+                    hasNotificationPermission = true
+                } else {
+                    shouldShowNotificationRationale = true
                 }
             },
         )
@@ -133,7 +149,33 @@ fun LocalGalleryScreen(
             },
         )
 
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val isGranted = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (isGranted) {
+                        hasNotificationPermission = true
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // 10. LaunchedEffect
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     LaunchedEffect(uploadState.error) {
         errorMessage =
             when (uploadState.error) {
@@ -268,118 +310,150 @@ fun LocalGalleryScreen(
                     },
                     onClick = {
                         if (uploadState.isLoading) return@ExtendedFloatingActionButton
-
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
-                        }
+                        photoViewModel.uploadPhotosForAlbums(selectedAlbumIds, context)
                     },
                 )
             }
         },
     ) { paddingValues ->
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                scope.launch {
-                    isRefreshing = true
-                    try {
-                        if (hasPermission) {
-                            localViewModel.getAlbums()
+        if (hasNotificationPermission) {
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    scope.launch {
+                        isRefreshing = true
+                        try {
+                            if (hasPermission) {
+                                localViewModel.getAlbums()
+                            }
+                        } finally {
+                            isRefreshing = false
                         }
-                    } finally {
-                        isRefreshing = false
                     }
-                }
-            },
-            modifier =
+                },
+                modifier =
                 Modifier
                     .fillMaxSize()
                     .background(backgroundBrush)
                     .padding(paddingValues),
-        ) {
-            Column(
-                modifier =
+            ) {
+                Column(
+                    modifier =
                     Modifier
                         .fillMaxSize()
                         .padding(horizontal = Dimen.ScreenHorizontalPadding),
-            ) {
-                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
-                Text(
-                    text = stringResource(R.string.gallery_albums_title),
-                    style = MaterialTheme.typography.headlineLarge,
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingXSmall),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                )
-                Text(
-                    text = stringResource(R.string.help_upload_albums),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                 ) {
-                    items(albumSet) { album ->
-                        val isSelected = selectedAlbumIds.contains(album.albumId)
-                        AlbumGridItem(
-                            album = album,
-                            isSelected = isSelected,
-                            isSelectionMode = isSelectionMode,
-                            onClick = {
-                                if (isSelectionMode) {
-                                    localViewModel.toggleAlbumSelection(album.albumId)
-                                } else {
-                                    navController.navigate(
-                                        Screen.LocalAlbum.createRoute(album.albumId, album.albumName),
-                                    )
-                                }
-                            },
-                            onLongClick = {
-                                if (!isSelectionMode) {
-                                    localViewModel.toggleAlbumSelection(album.albumId)
-                                }
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+                    Text(
+                        text = stringResource(R.string.gallery_albums_title),
+                        style = MaterialTheme.typography.headlineLarge,
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(top = Dimen.ItemSpacingSmall, bottom = Dimen.ItemSpacingXSmall),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                    )
+                    Text(
+                        text = stringResource(R.string.help_upload_albums),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingSmall))
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
+                    ) {
+                        items(albumSet) { album ->
+                            val isSelected = selectedAlbumIds.contains(album.albumId)
+                            AlbumGridItem(
+                                album = album,
+                                isSelected = isSelected,
+                                isSelectionMode = isSelectionMode,
+                                onClick = {
+                                    if (isSelectionMode) {
+                                        localViewModel.toggleAlbumSelection(album.albumId)
+                                    } else {
+                                        navController.navigate(
+                                            Screen.LocalAlbum.createRoute(album.albumId, album.albumName),
+                                        )
+                                    }
+                                },
+                                onLongClick = {
+                                    if (!isSelectionMode) {
+                                        localViewModel.toggleAlbumSelection(album.albumId)
+                                    }
+                                },
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
+
+                    uploadState.userMessage?.let { message ->
+                        LaunchedEffect(uploadState.userMessage) {
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            photoViewModel.infoMessageShown()
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = isErrorBannerVisible && errorMessage != null,
+                        enter = Animation.EnterFromBottom,
+                        exit = Animation.ExitToBottom,
+                    ) {
+                        WarningBanner(
+                            modifier = Modifier.fillMaxWidth(),
+                            title = stringResource(R.string.notification_upload_failed),
+                            message = errorMessage ?: stringResource(R.string.error_message_generic),
+                            onActionClick = { isErrorBannerVisible = false },
+                            showActionButton = false,
+                            showDismissButton = true,
+                            onDismiss = {
+                                isErrorBannerVisible = false
+                                photoViewModel.errorMessageShown()
                             },
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
-
-                uploadState.userMessage?.let { message ->
-                    LaunchedEffect(uploadState.userMessage) {
-                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                        photoViewModel.infoMessageShown()
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = isErrorBannerVisible && errorMessage != null,
-                    enter = Animation.EnterFromBottom,
-                    exit = Animation.ExitToBottom,
-                ) {
-                    WarningBanner(
-                        modifier = Modifier.fillMaxWidth(),
-                        title = stringResource(R.string.notification_upload_failed),
-                        message = errorMessage ?: stringResource(R.string.error_message_generic),
-                        onActionClick = { isErrorBannerVisible = false },
-                        showActionButton = false,
-                        showDismissButton = true,
-                        onDismiss = {
-                            isErrorBannerVisible = false
-                            photoViewModel.errorMessageShown()
-                        },
-                    )
-                }
             }
+        } else if (shouldShowNotificationRationale) {
+            PermissionDeniedContent(
+                modifier = Modifier.padding(paddingValues),
+                onRequestPermission = {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                }
+            )
         }
     }
 }
+
+@Composable
+private fun PermissionDeniedContent(
+    modifier: Modifier = Modifier,
+    onRequestPermission: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = stringResource(R.string.empty_state_notification_permission_needed),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        Button(onClick = onRequestPermission) {
+            Text(text = stringResource(R.string.button_go_to_settings))
+        }
+    }
+}
+
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

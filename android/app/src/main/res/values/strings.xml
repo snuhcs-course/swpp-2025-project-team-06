@@ -278,6 +278,7 @@
     <string name="empty_state_no_tags">No tags yet</string>
     <string name="empty_state_no_results">No results found</string>
     <string name="empty_state_permission_needed">To view tags and photos,\nplease allow access to your photos</string>
+    <string name="empty_state_notification_permission_needed">Notification permission is required to show upload progress.\nPlease allow notifications.</string>
     <string name="empty_state_upload_photos_title">Please upload photos</string>
     <string name="empty_state_upload_photos_message">Select photos\nto store your memories</string>
 
