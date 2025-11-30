@@ -159,10 +159,11 @@ class SearchViewModel
                 when (val result = searchRepository.semanticSearch(query, offset)) {
                     is SearchRepository.SearchResult.Success -> {
                         val photos = localRepository.toPhotos(result.photos)
-                        imageBrowserRepository.setSearchResults(photos, query)
+                        val distinctPhotos = photos.distinctBy(Photo::photoId)
+                        imageBrowserRepository.setSearchResults(distinctPhotos, query)
                         _searchState.value =
                             SemanticSearchState.Success(
-                                photos = photos,
+                                photos = distinctPhotos,
                                 query = query,
                             )
 
@@ -213,11 +214,13 @@ class SearchViewModel
                 when (val result = searchRepository.semanticSearch(currentQuery, currentOffset)) {
                     is SearchRepository.SearchResult.Success -> {
                         val newPhotos = localRepository.toPhotos(result.photos)
+                        val distinctNewPhotos = newPhotos.distinctBy(Photo::photoId)
 
                         if (newPhotos.isNotEmpty()) {
                             // Append new photos to existing results
                             val existingPhotos = currentState.photos
-                            val updatedPhotos = existingPhotos + newPhotos
+                            val updatedPhotos =
+                                (existingPhotos + distinctNewPhotos).distinctBy(Photo::photoId)
 
                             imageBrowserRepository.setSearchResults(updatedPhotos, currentQuery)
                             _searchState.value =
