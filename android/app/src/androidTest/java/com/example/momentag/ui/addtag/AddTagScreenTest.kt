@@ -1,6 +1,8 @@
 package com.example.momentag.ui.addtag
 
+import android.Manifest
 import android.net.Uri
+import android.os.Build
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -14,6 +16,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.rule.GrantPermissionRule
 import com.example.momentag.HiltTestActivity
 import com.example.momentag.R
 import com.example.momentag.model.Photo
@@ -33,6 +36,14 @@ class AddTagScreenTest {
     val hiltRule = HiltAndroidRule(this)
 
     @get:Rule(order = 1)
+    val permissionRule: GrantPermissionRule =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            GrantPermissionRule.grant(Manifest.permission.READ_MEDIA_IMAGES)
+        } else {
+            GrantPermissionRule.grant(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+    @get:Rule(order = 2)
     val composeTestRule = createAndroidComposeRule<HiltTestActivity>()
 
     private lateinit var vm: AddTagViewModel

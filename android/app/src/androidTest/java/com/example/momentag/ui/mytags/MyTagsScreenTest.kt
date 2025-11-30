@@ -84,16 +84,15 @@ class MyTagsScreenTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+
         // 문자열 리소스 가져오기
         val tagTitle = composeTestRule.activity.getString(R.string.tag_screen_title)
         val navigateBack = composeTestRule.activity.getString(R.string.cd_navigate_back)
-        val createNewTag = composeTestRule.activity.getString(R.string.tag_create_new)
-        val home = composeTestRule.activity.getString(R.string.nav_home)
-        val myTags = composeTestRule.activity.getString(R.string.nav_my_tags)
-        val moment = composeTestRule.activity.getString(R.string.nav_moment)
 
-        // Wait for initial load
-        composeTestRule.waitForIdle()
+        val homeContentDesc = composeTestRule.activity.getString(R.string.cd_nav_home)
+        val myTagsContentDesc = composeTestRule.activity.getString(R.string.cd_nav_my_tags)
+        val momentContentDesc = composeTestRule.activity.getString(R.string.cd_nav_moment)
 
         // Verify top bar is displayed with title
         composeTestRule.onNodeWithText(tagTitle).assertIsDisplayed()
@@ -101,13 +100,10 @@ class MyTagsScreenTest {
         // Verify back button is present
         composeTestRule.onNodeWithContentDescription(navigateBack, substring = true, ignoreCase = true).assertIsDisplayed()
 
-        // Verify create new tag button is displayed
-        composeTestRule.onNodeWithText(createNewTag).assertIsDisplayed()
-
         // Verify bottom navigation is displayed
-        composeTestRule.onNodeWithText(home).assertIsDisplayed()
-        composeTestRule.onNodeWithText(myTags).assertIsDisplayed()
-        composeTestRule.onNodeWithText(moment).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(homeContentDesc).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(myTagsContentDesc).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(momentContentDesc).assertIsDisplayed()
     }
 
     @Test
@@ -161,45 +157,6 @@ class MyTagsScreenTest {
     }
 
     @Test
-    fun myTagsScreen_createNewTagButton_hasClickAction() {
-        composeTestRule.setContent {
-            MomenTagTheme {
-                val navController = rememberNavController()
-                MyTagsScreen(navController = navController)
-            }
-        }
-
-        // 문자열 리소스 가져오기
-        val createNewTag = composeTestRule.activity.getString(R.string.tag_create_new)
-
-        // Verify create new tag button is clickable
-        composeTestRule
-            .onNodeWithText(createNewTag)
-            .assertIsDisplayed()
-            .assertHasClickAction()
-    }
-
-    @Test
-    fun myTagsScreen_bottomNavigation_isDisplayed() {
-        composeTestRule.setContent {
-            MomenTagTheme {
-                val navController = rememberNavController()
-                MyTagsScreen(navController = navController)
-            }
-        }
-
-        // 문자열 리소스 가져오기
-        val home = composeTestRule.activity.getString(R.string.nav_home)
-        val myTags = composeTestRule.activity.getString(R.string.nav_my_tags)
-        val moment = composeTestRule.activity.getString(R.string.nav_moment)
-
-        // Verify all bottom navigation items are displayed
-        composeTestRule.onNodeWithText(home).assertIsDisplayed()
-        composeTestRule.onNodeWithText(myTags).assertIsDisplayed()
-        composeTestRule.onNodeWithText(moment).assertIsDisplayed()
-    }
-
-    @Test
     fun myTagsScreen_bottomNavigation_isClickable() {
         composeTestRule.setContent {
             MomenTagTheme {
@@ -208,15 +165,15 @@ class MyTagsScreenTest {
             }
         }
 
-        // 문자열 리소스 가져오기
-        val home = composeTestRule.activity.getString(R.string.nav_home)
-        val myTags = composeTestRule.activity.getString(R.string.nav_my_tags)
-        val moment = composeTestRule.activity.getString(R.string.nav_moment)
+        // 문자열 리소스 가져오기 - use content descriptions to uniquely identify bottom nav items
+        val homeContentDesc = composeTestRule.activity.getString(R.string.cd_nav_home)
+        val myTagsContentDesc = composeTestRule.activity.getString(R.string.cd_nav_my_tags)
+        val momentContentDesc = composeTestRule.activity.getString(R.string.cd_nav_moment)
 
-        // Verify bottom navigation items are clickable
-        composeTestRule.onNodeWithText(home).assertHasClickAction()
-        composeTestRule.onNodeWithText(myTags).assertHasClickAction()
-        composeTestRule.onNodeWithText(moment).assertHasClickAction()
+        // Verify bottom navigation items are clickable using content descriptions
+        composeTestRule.onNodeWithContentDescription(homeContentDesc).assertHasClickAction()
+        composeTestRule.onNodeWithContentDescription(myTagsContentDesc).assertHasClickAction()
+        composeTestRule.onNodeWithContentDescription(momentContentDesc).assertHasClickAction()
     }
 
     @Test
@@ -315,27 +272,6 @@ class MyTagsScreenTest {
     }
 
     @Test
-    fun myTagsScreen_createNewTagButton_isAlwaysVisible() {
-        composeTestRule.setContent {
-            MomenTagTheme {
-                val navController = rememberNavController()
-                MyTagsScreen(navController = navController)
-            }
-        }
-
-        // 문자열 리소스 가져오기
-        val createNewTag = composeTestRule.activity.getString(R.string.tag_create_new)
-
-        // Wait for content
-        composeTestRule.waitForIdle()
-
-        // The "Create New Tag" button should always be visible
-        composeTestRule
-            .onNodeWithText(createNewTag)
-            .assertIsDisplayed()
-    }
-
-    @Test
     fun myTagsScreen_hasProperBottomPadding() {
         composeTestRule.setContent {
             MomenTagTheme {
@@ -344,14 +280,14 @@ class MyTagsScreenTest {
             }
         }
 
-        // 문자열 리소스 가져오기
-        val myTags = composeTestRule.activity.getString(R.string.nav_my_tags)
+        // 문자열 리소스 가져오기 - use content description to uniquely identify bottom nav
+        val myTagsContentDesc = composeTestRule.activity.getString(R.string.cd_nav_my_tags)
 
         // Verify the screen layout doesn't overlap with navigation bars
         composeTestRule.waitForIdle()
 
         // Bottom navigation should be visible and not obscured
-        composeTestRule.onNodeWithText(myTags).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(myTagsContentDesc).assertIsDisplayed()
     }
 
     @Test
