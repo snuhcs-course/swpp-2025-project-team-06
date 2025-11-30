@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import List, Dict
 from collections import defaultdict
 from gallery.models import Photo, Photo_Tag
-from gallery.tasks import retrieve_all_rep_vectors_of_tag
 from search.embedding_service import create_query_embedding
 from gallery.qdrant_utils import get_qdrant_client, IMAGE_COLLECTION_NAME
 from qdrant_client.http import models
