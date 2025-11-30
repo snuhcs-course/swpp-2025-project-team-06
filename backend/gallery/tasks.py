@@ -152,7 +152,7 @@ def tag_recommendation(user, photo_id):
     PRESET_LIMIT = tag_settings.get("PRESET_TAG_LIMIT", 10)
     USER_LIMIT = tag_settings.get("USER_TAG_LIMIT", 10)
     PRESET_THRESHOLD = tag_settings.get("PRESET_TAG_SCORE_THRESHOLD", 0.35)
-    USER_THRESHOLD = tag_settings.get("USER_TAG_SCORE_THRESHOLD", 0.50)
+    USER_THRESHOLD = tag_settings.get("USER_TAG_SCORE_THRESHOLD", 0.75)
 
     client = get_qdrant_client()
 
@@ -246,8 +246,12 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
+    # Load settings from Django settings
+    tag_settings = settings.TAG_RECOMMENDATION_SETTINGS
     PRESET_LIMIT = 2
     LIMIT = 10
+    USER_THRESHOLD = tag_settings.get("USER_TAG_SCORE_THRESHOLD", 0.75)
+    
     client = get_qdrant_client()
 
     if not photo_ids:
@@ -299,6 +303,7 @@ def tag_recommendation_batch(user: User, photo_ids: list[str]) -> dict[str, list
                 query_filter=user_filter,
                 limit=LIMIT,
                 with_payload=True,
+                score_threshold=USER_THRESHOLD,
             )
 
             tag_ids = list(
