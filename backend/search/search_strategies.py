@@ -76,13 +76,18 @@ class TagOnlySearchStrategy(SearchStrategy):
                 tag_scores_per_photo[photo_id_str][str(tag_id)] = 1.0
 
         # 모든 태그에 대해 점수가 있는 사진만 선택하고 점수를 곱함
+        n = len(tag_ids)
+        scale_base = SEARCH_SETTINGS.get("TAG_PRODUCT_SCALE_BASE", 2)
+        scale_factor = scale_base ** (n - 1)
+
         photo_scores = {}
         for photo_id, scores_dict in tag_scores_per_photo.items():
             if len(scores_dict) == len(tag_ids):  # 모든 태그에 대해 점수가 있는 경우만
                 product_score = 1.0
                 for score in scores_dict.values():
                     product_score *= score
-                photo_scores[photo_id] = product_score
+                # base^(n-1)을 곱해서 스케일링
+                photo_scores[photo_id] = product_score * scale_factor
 
         # 점수순으로 정렬
         sorted_photo_ids = sorted(photo_scores.keys(), key=lambda x: photo_scores[x], reverse=True)

@@ -27,6 +27,7 @@ from search.embedding_service import create_query_embedding
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
+import hdbscan
 
 from .gpu_tasks import phrase_to_words
 
@@ -651,9 +652,9 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
         tag_id: Tag UUID
     """
     client = get_qdrant_client()
-    K_CLUSTERS = 3  # 기본 코드의 k = 3
-    OUTLIER_FRACTION = 0.05  # 기본 코드의 outlier_fraction = 0.05
-    MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수 (기본 코드 기준)
+    MIN_SAMPLES_FOR_ML = 10  # ML 모델을 돌리기 위한 최소 샘플 수
+    MIN_CLUSTER_SIZE = 5  # HDBSCAN 최소 클러스터 크기
+    MIN_SAMPLES = 3  # HDBSCAN 최소 샘플 수
 
     print(f"[Task Start] RepVec computation for User: {user_id}, Tag: {tag_id}")
 
@@ -699,29 +700,42 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
             return
 
         if len(selected_vecs) < MIN_SAMPLES_FOR_ML:
+            # 사진이 적으면 모든 벡터를 rep vec로 사용
             final_representatives = selected_vecs
+            print(f"[Task Info] Using all {len(selected_vecs)} vectors (< {MIN_SAMPLES_FOR_ML} samples).")
         else:
-            iso_forest = IsolationForest(
-                contamination=OUTLIER_FRACTION, random_state=42
+            # HDBSCAN으로 자동 클러스터링 및 outlier 탐지
+            clusterer = hdbscan.HDBSCAN(
+                min_cluster_size=MIN_CLUSTER_SIZE,
+                min_samples=MIN_SAMPLES,
+                cluster_selection_epsilon=0.0,
+                metric='euclidean'
             )
-            preds = iso_forest.fit_predict(selected_vecs)
+            clusterer.fit(selected_vecs)
 
-            outlier_vecs = selected_vecs[preds == -1]
-            inlier_vecs = selected_vecs[preds == 1]
+            labels = clusterer.labels_
+            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+            n_noise = list(labels).count(-1)
 
-            kmeans_centers = np.array([])
-            if len(inlier_vecs) >= K_CLUSTERS:
-                kmeans = KMeans(n_clusters=K_CLUSTERS, random_state=42, n_init="auto")
-                kmeans.fit(inlier_vecs)
-                kmeans_centers = kmeans.cluster_centers_
-            elif len(inlier_vecs) > 0:
-                kmeans_centers = inlier_vecs
+            print(f"[Task Info] HDBSCAN found {n_clusters} clusters and {n_noise} noise points.")
 
+            # 각 클러스터의 중심 계산
+            cluster_centers = []
+            for label in set(labels):
+                if label != -1:  # outlier 제외
+                    cluster_vecs = selected_vecs[labels == label]
+                    cluster_center = cluster_vecs.mean(axis=0)
+                    cluster_centers.append(cluster_center)
+
+            # Outlier 벡터 추출
+            outlier_vecs = selected_vecs[labels == -1]
+
+            # 최종 rep vec = 클러스터 중심 + outlier
             final_representatives_list = []
+            if len(cluster_centers) > 0:
+                final_representatives_list.append(np.array(cluster_centers))
             if len(outlier_vecs) > 0:
                 final_representatives_list.append(outlier_vecs)
-            if len(kmeans_centers) > 0:
-                final_representatives_list.append(kmeans_centers)
 
             if not final_representatives_list:
                 print(
@@ -732,6 +746,7 @@ def compute_and_store_rep_vectors(user_id: int, tag_id: uuid.UUID):
                 return
 
             final_representatives = np.vstack(final_representatives_list)
+            print(f"[Task Info] Generated {len(final_representatives)} representative vectors ({len(cluster_centers)} centers + {len(outlier_vecs)} outliers).")
 
         points_to_upsert = []
         for vec in final_representatives:
