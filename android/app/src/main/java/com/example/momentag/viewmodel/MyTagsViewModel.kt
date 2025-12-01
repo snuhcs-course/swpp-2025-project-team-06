@@ -19,6 +19,7 @@ class MyTagsViewModel
     constructor(
         private val remoteRepository: RemoteRepository,
         private val photoSelectionRepository: PhotoSelectionRepository,
+        private val sortPreferences: com.example.momentag.data.SortPreferences,
     ) : ViewModel() {
         // 1. state class 정의
         sealed class MyTagsUiState {
@@ -84,7 +85,7 @@ class MyTagsViewModel
         private val _uiState = MutableStateFlow<MyTagsUiState>(MyTagsUiState.Loading)
         private val _isEditMode = MutableStateFlow(false)
         private val _selectedTagsForBulkEdit = MutableStateFlow<Set<String>>(emptySet())
-        private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
+        private val _sortOrder = MutableStateFlow(sortPreferences.getSortOrder())
         private val _tagActionState = MutableStateFlow<TagActionState>(TagActionState.Idle)
         private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
 
@@ -176,7 +177,9 @@ class MyTagsViewModel
         }
 
         fun setSortOrder(order: TagSortOrder) {
+            if (_sortOrder.value == order) return
             _sortOrder.value = order
+            sortPreferences.setSortOrder(order)
             applySorting()
         }
 
