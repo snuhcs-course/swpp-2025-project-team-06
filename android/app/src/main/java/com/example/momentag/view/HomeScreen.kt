@@ -246,6 +246,8 @@ fun HomeScreen(
     var isCursorHidden by remember { mutableStateOf(false) }
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
+    var titleClickCount by remember { mutableStateOf(0) }
+    var lastTitleClickTime by remember { mutableStateOf(0L) }
 
     // 5. Derived state and computed values
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
@@ -693,7 +695,19 @@ fun HomeScreen(
         topBar = {
             CommonTopBar(
                 title = stringResource(R.string.app_name),
-                onTitleClick = null,
+                onTitleClick = {
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastTitleClickTime < 500) {
+                        titleClickCount++
+                        if (titleClickCount >= 3) {
+                            navController.navigate(Screen.Onboarding.route)
+                            titleClickCount = 0
+                        }
+                    } else {
+                        titleClickCount = 1
+                    }
+                    lastTitleClickTime = currentTime
+                },
                 showLogout = false,
                 onLogoutClick = null,
                 isLogoutLoading = false,
