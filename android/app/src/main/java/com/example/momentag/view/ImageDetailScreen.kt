@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
@@ -61,6 +62,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -734,18 +736,20 @@ fun TagsSection(
 
                 Box(
                     modifier =
-                        Modifier.combinedClickable(
-                            onLongClick = {
-                                // 롱프레스 시 이 태그만 삭제 모드로 전환 (토글)
-                                deleteModeTagId = if (isThisTagInDeleteMode) null else tagItem.tagId
-                            },
-                            onClick = {
-                                // 클릭 시 해당 태그의 삭제 모드 해제
-                                if (isThisTagInDeleteMode) {
-                                    deleteModeTagId = null
-                                }
-                            },
-                        ),
+                        Modifier
+                            .clip(RoundedCornerShape(Dimen.Radius50))
+                            .combinedClickable(
+                                onLongClick = {
+                                    // 롱프레스 시 이 태그만 삭제 모드로 전환 (토글)
+                                    deleteModeTagId = if (isThisTagInDeleteMode) null else tagItem.tagId
+                                },
+                                onClick = {
+                                    // 클릭 시 해당 태그의 삭제 모드 해제
+                                    if (isThisTagInDeleteMode) {
+                                        deleteModeTagId = null
+                                    }
+                                },
+                            ),
                 ) {
                     tagXMode(
                         text = tagItem.tagName,
