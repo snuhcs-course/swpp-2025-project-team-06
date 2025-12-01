@@ -137,8 +137,12 @@ fun OnboardingScreen(
             Button(
                 onClick = {
                     onComplete()
-                    navController.navigate(Screen.Login.createRoute(false)) {
-                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    // If we can go back (came from Home via easter egg), do so
+                    // Otherwise, navigate to Login (first time setup)
+                    if (!navController.popBackStack()) {
+                        navController.navigate(Screen.Login.createRoute(false)) {
+                            popUpTo(Screen.Onboarding.route) { inclusive = true }
+                        }
                     }
                 },
                 modifier =
