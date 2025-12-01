@@ -155,6 +155,7 @@ fun SearchResultScreen(
     var isSelectionModeDelay by remember { mutableStateOf(false) }
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
     var previousQuery by remember { mutableStateOf<String?>(null) }
+    var savedQuery by rememberSaveable { mutableStateOf(initialQuery) }
 
     // 5. Derived 상태 및 계산된 값
     val allTags = tags
@@ -190,6 +191,25 @@ fun SearchResultScreen(
 
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Update saved query when search is performed
+    LaunchedEffect(semanticSearchState) {
+        if (semanticSearchState is SearchViewModel.SemanticSearchState.Success) {
+            savedQuery = (semanticSearchState as SearchViewModel.SemanticSearchState.Success).query
+        }
+    }
+
+    // Restore query when tags are loaded or saved query exists
+    LaunchedEffect(tags, savedQuery) {
+        if (savedQuery.isNotEmpty() && tags.isNotEmpty()) {
+            val hasContent = contentItems.any { it is SearchContentElement.Chip } ||
+                textStates.values.any { it.text.replace("\u200B", "").isNotEmpty() }
+
+            if (!hasContent) {
+                searchBarState.selectHistoryItem(savedQuery, tags)
+            }
         }
     }
 
@@ -375,12 +395,6 @@ fun SearchResultScreen(
     LaunchedEffect(initialQuery, hasPerformedInitialSearch) {
         if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
             searchViewModel.search(initialQuery)
-        }
-    }
-
-    LaunchedEffect(initialQuery, hasPerformedInitialSearch, tags) {
-        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch && tags.isNotEmpty()) {
-            searchBarState.selectHistoryItem(initialQuery, tags)
             hasPerformedInitialSearch = true
         }
     }
