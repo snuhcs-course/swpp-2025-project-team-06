@@ -1029,8 +1029,8 @@ private fun SearchResultsFromState(
                             val autoScrollViewport = 80.dp.toPx()
                             var autoScrollJob: Job? = null
                             var dragAnchorIndex: Int? = null
-                            val gestureSelectionIds = mutableSetOf<String>()
-                            val lastRangePhotoIds = mutableSetOf<String>()
+                            var isDeselectDrag by mutableStateOf(false)
+                            val initialSelection = mutableSetOf<String>()
 
                             fun findNearestItemByRow(position: Offset): Int? {
                                 var best: Pair<Int, Float>? = null
@@ -1058,54 +1058,26 @@ private fun SearchResultsFromState(
                                 return best?.first
                             }
 
-                            fun applyRangeSelection(newRangePhotoIds: Set<String>) {
-                                val toSelect = newRangePhotoIds - gestureSelectionIds
-                                val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
-
-                                toSelect.forEach { id ->
-                                    allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnToggleImageSelection.value(photo)
-                                        gestureSelectionIds.add(id)
-                                    }
-                                }
-                                toDeselect.forEach { id ->
-                                    allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnToggleImageSelection.value(photo)
-                                        gestureSelectionIds.remove(id)
-                                    }
-                                }
-
-                                lastRangePhotoIds.clear()
-                                lastRangePhotoIds.addAll(newRangePhotoIds)
-                            }
-
                             detectDragAfterLongPressIgnoreConsumed(
                                 onDragStart = { offset ->
                                     autoScrollJob?.cancel()
-                                    gestureSelectionIds.clear()
-                                    gestureSelectionIds.addAll(updatedSelectedPhotos.value.keys)
-                                    lastRangePhotoIds.clear()
                                     if (!updatedIsSelectionMode.value) {
                                         updatedOnImageLongPress.value()
                                     }
                                     gridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
+                                        initialSelection.clear()
+                                        initialSelection.addAll(updatedSelectedPhotos.value.keys)
+                                        isDeselectDrag = initialSelection.contains(photoId)
                                         dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                        if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.containsKey(photo.photoId)) {
-                                            updatedOnToggleImageSelection.value(photo)
-                                        }
-                                        lastRangePhotoIds.add(photoId)
+                                        updatedOnToggleImageSelection.value(photo)
                                     }
                                 },
                                 onDragEnd = {
                                     dragAnchorIndex = null
-                                    lastRangePhotoIds.clear()
-                                    gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                 },
                                 onDragCancel = {
                                     dragAnchorIndex = null
-                                    lastRangePhotoIds.clear()
-                                    gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                 },
                                 onDrag = { change ->
@@ -1129,13 +1101,25 @@ private fun SearchResultsFromState(
                                                 currentIndex..startIndex
                                             }
 
-                                        val newRangePhotoIds =
+                                        val photoIdsInRange =
                                             range
                                                 .mapNotNull { idx ->
                                                     allPhotos.getOrNull(idx)?.photoId
                                                 }.toSet()
-                                        if (newRangePhotoIds.isNotEmpty()) {
-                                            applyRangeSelection(newRangePhotoIds)
+
+                                        val currentSelection = updatedSelectedPhotos.value.keys
+                                        val targetSelection =
+                                            if (isDeselectDrag) {
+                                                initialSelection - photoIdsInRange
+                                            } else {
+                                                initialSelection + photoIdsInRange
+                                            }
+
+                                        val diff = currentSelection.symmetricDifference(targetSelection)
+                                        diff.forEach { photoId ->
+                                            allPhotos.find { it.photoId == photoId }?.let { photoToToggle ->
+                                                updatedOnToggleImageSelection.value(photoToToggle)
+                                            }
                                         }
                                     }
 
@@ -1168,6 +1152,7 @@ private fun SearchResultsFromState(
                             )
                         }
                     }
+
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -1271,3 +1256,8 @@ private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
         }
     }
 }
+
+private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> {
+    return (this - other) + (other - this)
+}
+
