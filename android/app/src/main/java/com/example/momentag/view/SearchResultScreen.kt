@@ -204,8 +204,9 @@ fun SearchResultScreen(
     // Restore query when tags are loaded or saved query exists
     LaunchedEffect(tags, savedQuery) {
         if (savedQuery.isNotEmpty() && tags.isNotEmpty()) {
-            val hasContent = contentItems.any { it is SearchContentElement.Chip } ||
-                textStates.values.any { it.text.replace("\u200B", "").isNotEmpty() }
+            val hasContent =
+                contentItems.any { it is SearchContentElement.Chip } ||
+                    textStates.values.any { it.text.replace("\u200B", "").isNotEmpty() }
 
             if (!hasContent) {
                 searchBarState.selectHistoryItem(savedQuery, tags)
@@ -1153,7 +1154,6 @@ private fun SearchResultsFromState(
                         }
                     }
 
-
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     state = gridState,
@@ -1257,7 +1257,4 @@ private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
     }
 }
 
-private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> {
-    return (this - other) + (other - this)
-}
-
+private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> = (this - other) + (other - this)

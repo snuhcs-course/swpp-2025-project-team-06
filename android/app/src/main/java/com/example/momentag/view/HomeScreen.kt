@@ -2001,6 +2001,4 @@ private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
     }
 }
 
-private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> {
-    return (this - other) + (other - this)
-}
+private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> = (this - other) + (other - this)

@@ -1321,13 +1321,18 @@ private fun RecommendExpandedPanel(
                                         detectDragAfterLongPressIgnoreConsumed(
                                             onDragStart = { offset ->
                                                 autoScrollJob?.cancel()
-                                                recommendGridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
-                                                    initialSelection.clear()
-                                                    initialSelection.addAll(updatedSelectedPhotos.value.keys)
-                                                    isDeselectDrag = initialSelection.contains(photoId)
-                                                    dragAnchorIndex = allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                                    onToggleRecommendPhoto(photo)
-                                                }
+                                                recommendGridState
+                                                    .findPhotoItemAtPosition(
+                                                        offset,
+                                                        allPhotosState.value,
+                                                    )?.let { (photoId, photo) ->
+                                                        initialSelection.clear()
+                                                        initialSelection.addAll(updatedSelectedPhotos.value.keys)
+                                                        isDeselectDrag = initialSelection.contains(photoId)
+                                                        dragAnchorIndex =
+                                                            allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
+                                                        onToggleRecommendPhoto(photo)
+                                                    }
                                             },
                                             onDragEnd = {
                                                 dragAnchorIndex = null
@@ -1339,7 +1344,11 @@ private fun RecommendExpandedPanel(
                                             },
                                             onDrag = { change ->
                                                 change.consume()
-                                                val currentItem = recommendGridState.findPhotoItemAtPosition(change.position, allPhotosState.value)
+                                                val currentItem =
+                                                    recommendGridState.findPhotoItemAtPosition(
+                                                        change.position,
+                                                        allPhotosState.value,
+                                                    )
                                                 val currentIndex =
                                                     currentItem
                                                         ?.first
@@ -1508,6 +1517,4 @@ private fun LazyGridState.findPhotoItemAtPosition(
     return null
 }
 
-private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> {
-    return (this - other) + (other - this)
-}
+private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> = (this - other) + (other - this)

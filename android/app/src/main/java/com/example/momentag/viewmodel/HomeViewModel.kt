@@ -124,29 +124,30 @@ class HomeViewModel
 
         // Observe sorted tags from TagStateRepository
         val homeLoadingState: StateFlow<HomeLoadingState> =
-            tagStateRepository.loadingState.combine(_sortOrder) { tagState, sortOrder ->
-                when (tagState) {
-                    is TagStateRepository.LoadingState.Idle -> HomeLoadingState.Idle
-                    is TagStateRepository.LoadingState.Loading -> HomeLoadingState.Loading
-                    is TagStateRepository.LoadingState.Success -> {
-                        val sortedTags = sortTags(tagState.tags, sortOrder)
-                        HomeLoadingState.Success(sortedTags)
+            tagStateRepository.loadingState
+                .combine(_sortOrder) { tagState, sortOrder ->
+                    when (tagState) {
+                        is TagStateRepository.LoadingState.Idle -> HomeLoadingState.Idle
+                        is TagStateRepository.LoadingState.Loading -> HomeLoadingState.Loading
+                        is TagStateRepository.LoadingState.Success -> {
+                            val sortedTags = sortTags(tagState.tags, sortOrder)
+                            HomeLoadingState.Success(sortedTags)
+                        }
+                        is TagStateRepository.LoadingState.Error -> {
+                            val homeError =
+                                when (tagState.error) {
+                                    TagStateRepository.TagError.NetworkError -> HomeError.NetworkError
+                                    TagStateRepository.TagError.Unauthorized -> HomeError.Unauthorized
+                                    TagStateRepository.TagError.UnknownError -> HomeError.UnknownError
+                                }
+                            HomeLoadingState.Error(homeError)
+                        }
                     }
-                    is TagStateRepository.LoadingState.Error -> {
-                        val homeError =
-                            when (tagState.error) {
-                                TagStateRepository.TagError.NetworkError -> HomeError.NetworkError
-                                TagStateRepository.TagError.Unauthorized -> HomeError.Unauthorized
-                                TagStateRepository.TagError.UnknownError -> HomeError.UnknownError
-                            }
-                        HomeLoadingState.Error(homeError)
-                    }
-                }
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = HomeLoadingState.Idle,
-            )
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = HomeLoadingState.Idle,
+                )
         val allPhotos = _allPhotos.asStateFlow()
         val isLoadingPhotos = _isLoadingPhotos.asStateFlow()
         val isLoadingMorePhotos = _isLoadingMorePhotos.asStateFlow()
