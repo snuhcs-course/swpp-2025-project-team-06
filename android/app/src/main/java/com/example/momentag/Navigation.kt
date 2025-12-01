@@ -1,11 +1,24 @@
 package com.example.momentag
 
 import android.net.Uri
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -14,6 +27,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.delay
 import com.example.momentag.data.SessionExpirationManager
 import com.example.momentag.repository.TokenRepository
 import com.example.momentag.view.AddTagScreen
@@ -84,10 +98,27 @@ fun AppNavigation(
             Screen.Login.createRoute(false)
         }
 
-    NavHost(
-        navController = navController,
-        startDestination = startDestination,
-    ) {
+    // Track navigation animation state
+    var isNavigating by remember { mutableStateOf(false) }
+
+    // Listen to navigation changes
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect {
+            // Start blocking during navigation
+            isNavigating = true
+            // Unblock after animation duration
+            delay(300) // Match animation duration
+            isNavigating = false
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            enterTransition = { fadeIn(animationSpec = tween(300)) },
+            exitTransition = { fadeOut(animationSpec = tween(300)) },
+        ) {
         composable(
             route = Screen.Home.route,
             arguments =
@@ -265,6 +296,22 @@ fun AppNavigation(
                 viewModel = storyViewModel,
                 onBack = { navController.popBackStack() },
                 navController = navController,
+            )
+        }
+    }
+
+        // Overlay to block clicks during navigation animation
+        if (isNavigating) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Transparent)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { /* Block all clicks */ },
+                        ),
             )
         }
     }
