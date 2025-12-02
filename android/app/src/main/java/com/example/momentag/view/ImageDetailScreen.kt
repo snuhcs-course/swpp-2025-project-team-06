@@ -117,6 +117,7 @@ fun ZoomableImage(
     var offset by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(IntSize.Zero) }
     var tapJob by remember { mutableStateOf<Job?>(null) }
+    var lastTapTime by remember { mutableStateOf(0L) }
 
     // 2. rememberCoroutineScope
     val scope = rememberCoroutineScope()
@@ -137,7 +138,7 @@ fun ZoomableImage(
             modifier
                 .onSizeChanged { size = it }
                 .pointerInput(Unit) {
-                    // Single tap detection
+                    // Single tap and double tap detection
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val downTime = System.currentTimeMillis()
@@ -152,15 +153,35 @@ fun ZoomableImage(
                             val timeDiff = upTime - downTime
                             val positionDiff = (upPosition - downPosition).getDistance()
 
-                            // Single tap: quick and no movement
+                            // Quick tap with no movement
                             if (timeDiff < 300 && positionDiff < 20f) {
-                                // Cancel any pending tap job and start new one
-                                tapJob?.cancel()
-                                tapJob =
+                                val timeSinceLastTap = downTime - lastTapTime
+                                
+                                if (timeSinceLastTap < 300) {
+                                    // Double tap detected - reset to original scale
+                                    tapJob?.cancel()
+                                    lastTapTime = 0L
+                                    scale = 1f
+                                    offset = Offset.Zero
                                     scope.launch {
-                                        delay(200) // Timeout to ensure it's not a double tap
+                                        scaleAnim.animateTo(
+                                            targetValue = 1f,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessMedium
+                                            )
+                                        )
+                                    }
+                                    onScaleChanged(false)
+                                } else {
+                                    // Potential single tap - wait to see if it's a double tap
+                                    lastTapTime = downTime
+                                    tapJob?.cancel()
+                                    tapJob = scope.launch {
+                                        delay(300) // Wait to confirm it's not a double tap
                                         onSingleTap()
                                     }
+                                }
                             }
                         }
                     }
