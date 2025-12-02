@@ -758,7 +758,7 @@ private fun MyTagsContent(
                             onExitEditMode()
                             // Exit individual edit mode when clicking empty space
                             onIndividualEditTagChange(null)
-                        }.padding(horizontal = Dimen.FormScreenHorizontalPadding),
+                        }.padding(horizontal = Dimen.ScreenHorizontalPadding),
             ) {
                 Spacer(modifier = Modifier.height(Dimen.ItemSpacingLarge))
 
