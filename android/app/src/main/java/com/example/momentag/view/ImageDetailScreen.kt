@@ -74,6 +74,7 @@ import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
@@ -102,7 +103,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.IOException
-import kotlin.math.abs
 
 @Composable
 fun ZoomableImage(
@@ -118,18 +118,28 @@ fun ZoomableImage(
     var size by remember { mutableStateOf(IntSize.Zero) }
     var tapJob by remember { mutableStateOf<Job?>(null) }
     var lastTapTime by remember { mutableStateOf(0L) }
+    var lastTapPosition by remember { mutableStateOf(Offset.Zero) }
+    var isResettingZoom by remember { mutableStateOf(false) }
 
     // 2. rememberCoroutineScope
     val scope = rememberCoroutineScope()
 
     // 3. Remember된 객체들
     val scaleAnim = remember { Animatable(1f) }
+    val offsetXAnim = remember { Animatable(0f) }
+    val offsetYAnim = remember { Animatable(0f) }
+    val touchSlop = LocalViewConfiguration.current.touchSlop
 
     // 4. LaunchedEffect - 페이지 전환 시 상태 초기화
     LaunchedEffect(model) {
         scale = 1f
         offset = Offset.Zero
         scaleAnim.snapTo(1f)
+        offsetXAnim.snapTo(0f)
+        offsetYAnim.snapTo(0f)
+        isResettingZoom = false
+        lastTapTime = 0L
+        lastTapPosition = Offset.Zero
         onScaleChanged(false)
     }
 
@@ -153,34 +163,130 @@ fun ZoomableImage(
                             val timeDiff = upTime - downTime
                             val positionDiff = (upPosition - downPosition).getDistance()
 
-                            // Quick tap with no movement
-                            if (timeDiff < 300 && positionDiff < 20f) {
+                            // Quick tap with no movement (이 탭 자체가 유효한 탭인지)
+                            if (timeDiff < 300 && positionDiff < 30f) {
                                 val timeSinceLastTap = downTime - lastTapTime
-                                
-                                if (timeSinceLastTap < 300) {
-                                    // Double tap detected - reset to original scale
+                                // 두 탭 사이의 거리 (폰으로 쓸때는... 좀 떨리니까 100px까지 허용)
+                                val distanceBetweenTaps =
+                                    (downPosition - lastTapPosition).getDistance()
+
+                                if (timeSinceLastTap < 400 && distanceBetweenTaps < 100f && scale > 1.01f) {
+                                    // Double tap detected while zoomed - reset to original scale
                                     tapJob?.cancel()
                                     lastTapTime = 0L
-                                    scale = 1f
-                                    offset = Offset.Zero
-                                    scope.launch {
-                                        scaleAnim.animateTo(
-                                            targetValue = 1f,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
-                                            )
-                                        )
-                                    }
-                                    onScaleChanged(false)
+                                    lastTapPosition = Offset.Zero
+                                    isResettingZoom = true
+                                    scope
+                                        .launch {
+                                            // 동시에 세 가지 애니메이션 실행
+                                            launch {
+                                                scaleAnim.animateTo(
+                                                    targetValue = 1f,
+                                                    animationSpec =
+                                                        spring(
+                                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                                            stiffness = Spring.StiffnessMedium,
+                                                        ),
+                                                )
+                                            }
+                                            launch {
+                                                offsetXAnim.animateTo(
+                                                    targetValue = 0f,
+                                                    animationSpec =
+                                                        spring(
+                                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                                            stiffness = Spring.StiffnessMedium,
+                                                        ),
+                                                )
+                                            }
+                                            launch {
+                                                offsetYAnim.animateTo(
+                                                    targetValue = 0f,
+                                                    animationSpec =
+                                                        spring(
+                                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                                            stiffness = Spring.StiffnessMedium,
+                                                        ),
+                                                )
+                                            }
+                                        }.invokeOnCompletion {
+                                            scale = 1f
+                                            offset = Offset.Zero
+                                            isResettingZoom = false
+                                            onScaleChanged(false)
+                                        }
+                                } else if (timeSinceLastTap < 400 && distanceBetweenTaps < 100f && scale <= 1.01f) {
+                                    // Double tap detected at base scale - zoom into tapped area
+                                    tapJob?.cancel()
+                                    lastTapTime = 0L
+                                    lastTapPosition = Offset.Zero
+                                    val oldScale = scale
+                                    val targetScale = 3f
+                                    val newScale = targetScale.coerceIn(1f, 5f)
+
+                                    // 기준점: 더블탭 위치를 중심으로 확대
+                                    val centroidInImageSpace =
+                                        downPosition - Offset(size.width / 2f, size.height / 2f)
+
+                                    val rawOffset =
+                                        offset - (centroidInImageSpace * (newScale / oldScale - 1f))
+
+                                    val maxX = (size.width * (newScale - 1) / 2f).coerceAtLeast(0f)
+                                    val maxY = (size.height * (newScale - 1) / 2f).coerceAtLeast(0f)
+
+                                    val clampedX = rawOffset.x.coerceIn(-maxX, maxX)
+                                    val clampedY = rawOffset.y.coerceIn(-maxY, maxY)
+
+                                    scale = newScale
+                                    offset = Offset(clampedX, clampedY)
+
+                                    isResettingZoom = true
+                                    scope
+                                        .launch {
+                                            launch {
+                                                scaleAnim.animateTo(
+                                                    targetValue = scale,
+                                                    animationSpec =
+                                                        spring(
+                                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                                            stiffness = Spring.StiffnessMedium,
+                                                        ),
+                                                )
+                                            }
+                                            launch {
+                                                offsetXAnim.animateTo(
+                                                    targetValue = offset.x,
+                                                    animationSpec =
+                                                        spring(
+                                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                                            stiffness = Spring.StiffnessMedium,
+                                                        ),
+                                                )
+                                            }
+                                            launch {
+                                                offsetYAnim.animateTo(
+                                                    targetValue = offset.y,
+                                                    animationSpec =
+                                                        spring(
+                                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                                            stiffness = Spring.StiffnessMedium,
+                                                        ),
+                                                )
+                                            }
+                                        }.invokeOnCompletion {
+                                            isResettingZoom = false
+                                            onScaleChanged(true)
+                                        }
                                 } else {
                                     // Potential single tap - wait to see if it's a double tap
                                     lastTapTime = downTime
+                                    lastTapPosition = downPosition
                                     tapJob?.cancel()
-                                    tapJob = scope.launch {
-                                        delay(300) // Wait to confirm it's not a double tap
-                                        onSingleTap()
-                                    }
+                                    tapJob =
+                                        scope.launch {
+                                            delay(300) // Wait to confirm it's not a double tap
+                                            onSingleTap()
+                                        }
                                 }
                             }
                         }
@@ -190,6 +296,12 @@ fun ZoomableImage(
                         awaitFirstDown(requireUnconsumed = false) // 다른 제스처와 경쟁하기 위해 false로 설정
                         do {
                             val event = awaitPointerEvent()
+
+                            // 리셋 애니메이션 중에는 줌/팬 무시
+                            if (isResettingZoom) {
+                                continue
+                            }
+
                             val zoom = event.calculateZoom()
                             val pan = event.calculatePan()
 
@@ -216,48 +328,49 @@ fun ZoomableImage(
 
                                 val clampedX = rawOffset.x.coerceIn(-maxX, maxX)
                                 val clampedY = rawOffset.y.coerceIn(-maxY, maxY)
-                                val overScrollX = rawOffset.x - clampedX
-                                val overScrollY = rawOffset.y - clampedY
 
                                 offset = Offset(clampedX, clampedY)
 
                                 scale = newScale
                                 scope.launch {
                                     scaleAnim.snapTo(scale)
+                                    offsetXAnim.snapTo(offset.x)
+                                    offsetYAnim.snapTo(offset.y)
                                 }
                                 onScaleChanged(scale > 1f)
 
-                                if (overScrollX != 0f || overScrollY != 0f) {
-                                    val overScrollAmount = abs(overScrollX) + abs(overScrollY)
-                                    val bounceScale = 1f + (overScrollAmount / size.width) * 0.05f
-                                    scope.launch {
-                                        scaleAnim.snapTo(scale * bounceScale)
-                                    }
-                                }
-
                                 // 현재 이벤트를 소비하여 HorizontalPager로 전파되는 것을 막음
-                                event.changes.forEach {
-                                    if (it.positionChanged()) {
-                                        it.consume()
+                                val shouldConsume =
+                                    event.changes.size > 1 ||
+                                        pan.getDistance() > touchSlop
+                                if (shouldConsume) {
+                                    event.changes.forEach {
+                                        if (it.positionChanged()) {
+                                            it.consume()
+                                        }
                                     }
                                 }
                             }
                             // 그 외의 경우 (줌 안 된 상태에서의 한 손가락 스와이프)는 이벤트를 소비하지 않고 Pager로 전달
                         } while (event.changes.any { it.pressed })
-                        scope.launch {
-                            scaleAnim.animateTo(
-                                targetValue = scale,
-                                animationSpec =
-                                    spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessLow,
-                                    ),
-                            )
+
+                        // 리셋 중이 아닐 때만 바운스백 애니메이션
+                        if (!isResettingZoom) {
+                            scope.launch {
+                                scaleAnim.animateTo(
+                                    targetValue = scale,
+                                    animationSpec =
+                                        spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = Spring.StiffnessLow,
+                                        ),
+                                )
+                            }
                         }
                     }
                 }.graphicsLayer {
-                    translationX = offset.x
-                    translationY = offset.y
+                    translationX = offsetXAnim.value
+                    translationY = offsetYAnim.value
                     scaleX = scaleAnim.value
                     scaleY = scaleAnim.value
                 },
@@ -435,7 +548,12 @@ fun ImageDetailScreen(
     LaunchedEffect(tagDeleteState) {
         when (tagDeleteState) {
             is ImageDetailViewModel.TagDeleteState.Success -> {
-                Toast.makeText(context, context.getString(R.string.success_tag_deleted), Toast.LENGTH_SHORT).show()
+                Toast
+                    .makeText(
+                        context,
+                        context.getString(R.string.success_tag_deleted),
+                        Toast.LENGTH_SHORT,
+                    ).show()
                 val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
                 if (currentPhotoId.isNotEmpty()) {
                     imageDetailViewModel.loadPhotoTags(currentPhotoId)
@@ -453,6 +571,7 @@ fun ImageDetailScreen(
                             context.getString(
                                 R.string.error_message_authentication_required,
                             )
+
                         ImageDetailViewModel.ImageDetailError.NotFound -> context.getString(R.string.error_message_photo_not_found)
                         ImageDetailViewModel.ImageDetailError.UnknownError -> context.getString(R.string.error_message_unknown)
                     }
@@ -467,9 +586,15 @@ fun ImageDetailScreen(
     LaunchedEffect(tagAddState) {
         when (tagAddState) {
             is ImageDetailViewModel.TagAddState.Success -> {
-                Toast.makeText(context, context.getString(R.string.success_tag_added), Toast.LENGTH_SHORT).show()
+                Toast
+                    .makeText(
+                        context,
+                        context.getString(R.string.success_tag_added),
+                        Toast.LENGTH_SHORT,
+                    ).show()
                 imageDetailViewModel.resetAddState()
             }
+
             is ImageDetailViewModel.TagAddState.Error -> {
                 val errorState = tagAddState as ImageDetailViewModel.TagAddState.Error
                 warningBannerMessage =
@@ -479,12 +604,14 @@ fun ImageDetailScreen(
                             context.getString(
                                 R.string.error_message_authentication_required,
                             )
+
                         ImageDetailViewModel.ImageDetailError.NotFound -> context.getString(R.string.error_message_photo_not_found)
                         ImageDetailViewModel.ImageDetailError.UnknownError -> context.getString(R.string.error_message_unknown)
                     }
                 isWarningBannerVisible = true
                 imageDetailViewModel.resetAddState()
             }
+
             else -> Unit
         }
     }
@@ -607,7 +734,12 @@ fun ImageDetailScreen(
                 enter = Animation.DefaultFadeIn,
                 exit = Animation.DefaultFadeOut,
             ) {
-                Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                ) {
                     // Date and Address
                     if (dateTime != null) {
                         val datePart = dateTime!!.split(" ")[0]
@@ -653,7 +785,12 @@ fun ImageDetailScreen(
 
                     // Tags section at the bottom
                     if (isError) {
-                        Spacer(modifier = Modifier.fillMaxWidth().height(Dimen.SearchBarMinHeight))
+                        Spacer(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(Dimen.SearchBarMinHeight),
+                        )
                     } else {
                         TagsSection(
                             modifier =
@@ -668,27 +805,32 @@ fun ImageDetailScreen(
                             isExistingTagsLoading = isExistingLoading,
                             isRecommendedTagsLoading = isRecommendedLoading,
                             onDeleteClick = { tagId ->
-                                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                                val currentPhotoId =
+                                    currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
                                 if (currentPhotoId.isNotEmpty()) {
                                     imageDetailViewModel.deleteTagFromPhoto(currentPhotoId, tagId)
                                 } else {
-                                    warningBannerMessage = context.getString(R.string.image_detail_no_photo_delete)
+                                    warningBannerMessage =
+                                        context.getString(R.string.image_detail_no_photo_delete)
                                     isWarningBannerVisible = true
                                 }
                             },
                             onAddTag = { tagName ->
-                                val currentPhotoId = currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
+                                val currentPhotoId =
+                                    currentPhoto?.photoId?.takeIf { it.isNotEmpty() } ?: imageId
                                 if (currentPhotoId.isNotEmpty()) {
                                     imageDetailViewModel.addTagToPhoto(currentPhotoId, tagName)
                                 } else {
-                                    warningBannerMessage = context.getString(R.string.image_detail_no_photo_add)
+                                    warningBannerMessage =
+                                        context.getString(R.string.image_detail_no_photo_add)
                                     isWarningBannerVisible = true
                                 }
                             },
                             onTagValidationError = { isError ->
                                 if (isError) {
                                     if (!hasShownLengthError) {
-                                        warningBannerMessage = context.getString(R.string.error_message_tag_name_too_long)
+                                        warningBannerMessage =
+                                            context.getString(R.string.error_message_tag_name_too_long)
                                         isWarningBannerVisible = true
                                         hasShownLengthError = true
                                     }
@@ -706,7 +848,11 @@ fun ImageDetailScreen(
                 visible = isWarningBannerVisible && !isFocusMode,
                 enter = Animation.EnterFromBottom,
                 exit = Animation.ExitToBottom,
-                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = Dimen.ItemSpacingSmall),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = Dimen.ItemSpacingSmall),
             ) {
                 WarningBanner(
                     title = stringResource(R.string.error_title),
@@ -753,7 +899,11 @@ fun TagsSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // --- 1. 기존 태그 로딩 처리 ---
-            AnimatedVisibility(visible = isExistingTagsLoading, enter = Animation.DefaultFadeIn, exit = Animation.DefaultFadeOut) {
+            AnimatedVisibility(
+                visible = isExistingTagsLoading,
+                enter = Animation.DefaultFadeIn,
+                exit = Animation.DefaultFadeOut,
+            ) {
                 CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
             }
             if (!isExistingTagsLoading) {
@@ -768,7 +918,8 @@ fun TagsSection(
                                 .combinedClickable(
                                     onLongClick = {
                                         // 롱프레스 시 이 태그만 삭제 모드로 전환 (토글)
-                                        deleteModeTagId = if (isThisTagInDeleteMode) null else tagItem.tagId
+                                        deleteModeTagId =
+                                            if (isThisTagInDeleteMode) null else tagItem.tagId
                                     },
                                     onClick = {
                                         // 클릭 시 해당 태그의 삭제 모드 해제
@@ -795,7 +946,10 @@ fun TagsSection(
             if (isRecommendedTagsLoading) CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
             // 여기는 애니메이션 없애고, 추천태그 나올 때 FadeIn
 
-            AnimatedVisibility(visible = !isRecommendedTagsLoading, enter = Animation.DefaultFadeIn) {
+            AnimatedVisibility(
+                visible = !isRecommendedTagsLoading,
+                enter = Animation.DefaultFadeIn,
+            ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall)) {
                     // Display recommended tags (통일된 색상 사용)
                     recommendedTags.forEach { tagName ->
