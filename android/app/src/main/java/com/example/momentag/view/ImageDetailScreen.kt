@@ -12,6 +12,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -31,6 +32,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -720,79 +722,105 @@ fun TagsSection(
     // 개별 태그의 삭제 모드 상태 관리
     var deleteModeTagId by remember { mutableStateOf<String?>(null) }
 
-    Row(
-        modifier = modifier.horizontalScroll(scrollState),
-        horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // --- 1. 기존 태그 로딩 처리 ---
-        AnimatedVisibility(visible = isExistingTagsLoading, enter = Animation.DefaultFadeIn, exit = Animation.DefaultFadeOut) {
-            CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
-        }
-        if (!isExistingTagsLoading) {
-            // Display existing tags - 개별 롱프레스로 해당 태그만 삭제 모드
-            existingTags.forEach { tagItem ->
-                val isThisTagInDeleteMode = deleteModeTagId == tagItem.tagId
+    // 스크롤 가능 여부 체크 (오른쪽에 더 있는지)
+    val canScrollRight = scrollState.canScrollForward
 
-                Box(
-                    modifier =
-                        Modifier
-                            .clip(RoundedCornerShape(Dimen.Radius50))
-                            .combinedClickable(
-                                onLongClick = {
-                                    // 롱프레스 시 이 태그만 삭제 모드로 전환 (토글)
-                                    deleteModeTagId = if (isThisTagInDeleteMode) null else tagItem.tagId
-                                },
-                                onClick = {
-                                    // 클릭 시 해당 태그의 삭제 모드 해제
-                                    if (isThisTagInDeleteMode) {
-                                        deleteModeTagId = null
-                                    }
-                                },
-                            ),
-                ) {
-                    tagXMode(
-                        text = tagItem.tagName,
-                        isDeleteMode = isThisTagInDeleteMode,
-                        onDismiss = {
-                            onDeleteClick(tagItem.tagId)
-                            deleteModeTagId = null
-                        },
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+    Box(modifier = modifier) {
+        Row(
+            modifier = Modifier.horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // --- 1. 기존 태그 로딩 처리 ---
+            AnimatedVisibility(visible = isExistingTagsLoading, enter = Animation.DefaultFadeIn, exit = Animation.DefaultFadeOut) {
+                CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
+            }
+            if (!isExistingTagsLoading) {
+                // Display existing tags - 개별 롱프레스로 해당 태그만 삭제 모드
+                existingTags.forEach { tagItem ->
+                    val isThisTagInDeleteMode = deleteModeTagId == tagItem.tagId
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(Dimen.Radius50))
+                                .combinedClickable(
+                                    onLongClick = {
+                                        // 롱프레스 시 이 태그만 삭제 모드로 전환 (토글)
+                                        deleteModeTagId = if (isThisTagInDeleteMode) null else tagItem.tagId
+                                    },
+                                    onClick = {
+                                        // 클릭 시 해당 태그의 삭제 모드 해제
+                                        if (isThisTagInDeleteMode) {
+                                            deleteModeTagId = null
+                                        }
+                                    },
+                                ),
+                    ) {
+                        tagXMode(
+                            text = tagItem.tagName,
+                            isDeleteMode = isThisTagInDeleteMode,
+                            onDismiss = {
+                                onDeleteClick(tagItem.tagId)
+                                deleteModeTagId = null
+                            },
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
-        }
 
-        // --- 2. 추천 태그 로딩 처리 ---
-        if (isRecommendedTagsLoading) CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
-        // 여기는 애니메이션 없애고, 추천태그 나올 때 FadeIn
+            // --- 2. 추천 태그 로딩 처리 ---
+            if (isRecommendedTagsLoading) CircularProgressIndicator(modifier = Modifier.size(Dimen.IconButtonSizeSmall))
+            // 여기는 애니메이션 없애고, 추천태그 나올 때 FadeIn
 
-        AnimatedVisibility(visible = !isRecommendedTagsLoading, enter = Animation.DefaultFadeIn) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall)) {
-                // Display recommended tags (통일된 색상 사용)
-                recommendedTags.forEach { tagName ->
-                    ConfirmableRecommendedTag(
-                        tagName = tagName,
-                        onConfirm = { onAddTag(it) },
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                    )
+            AnimatedVisibility(visible = !isRecommendedTagsLoading, enter = Animation.DefaultFadeIn) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall)) {
+                    // Display recommended tags (통일된 색상 사용)
+                    recommendedTags.forEach { tagName ->
+                        ConfirmableRecommendedTag(
+                            tagName = tagName,
+                            onConfirm = { onAddTag(it) },
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                        )
+                    }
                 }
             }
+
+            // Add Tag Chip
+            CustomTagChip(
+                onTagAdded = onAddTag,
+                onExpanded = {
+                    scope.launch {
+                        // Increase delay to ensure the UI has fully recomposed and measured
+                        // the expanded chip before attempting to scroll to the end.
+                        delay(400)
+                        scrollState.animateScrollTo(scrollState.maxValue)
+                    }
+                },
+                onValidationError = onTagValidationError,
+            )
         }
 
-        // Add Tag Chip
-        CustomTagChip(
-            onTagAdded = onAddTag,
-            onExpanded = {
-                scope.launch {
-                    // Increase delay to ensure the UI has fully recomposed and measured
-                    // the expanded chip before attempting to scroll to the end.
-                    delay(400)
-                    scrollState.animateScrollTo(scrollState.maxValue)
-                }
-            },
-            onValidationError = onTagValidationError,
-        )
+        // 오른쪽 페이드 그라데이션 (스크롤 가능할 때만 표시)
+        if (canScrollRight) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .height(Dimen.TagHeight)
+                        .width(Dimen.GradientFadeWidth)
+                        .background(
+                            brush =
+                                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    colors =
+                                        listOf(
+                                            Color.Transparent,
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                                        ),
+                                ),
+                        ),
+            )
+        }
     }
 }

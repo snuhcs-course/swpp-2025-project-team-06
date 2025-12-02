@@ -83,6 +83,7 @@ object Dimen {
     // --- Others ---
     val EmptyStateImageSize = 120.dp
     val InputHelperTextHeight = 20.dp
+    val GradientFadeWidth = 32.dp
 
     // --- Progress Indicators ---
     val CircularProgressSizeBig = 48.dp
