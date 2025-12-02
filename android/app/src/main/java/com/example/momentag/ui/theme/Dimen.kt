@@ -74,7 +74,8 @@ object Dimen {
 
     // --- Tags ---
     val TagHeight = 32.dp
-    val TagMaxTextWidth = 180.dp
+    val TagMaxTextWidth = 100.dp // 편집모드(아이콘2개+패딩) 및 체크박스모드(카운트+체크박스) 고려 시 최적 너비
+    val TagChipMaxWidth = 180.dp // 태그 칩 전체 최대 너비 (편집모드 확장 시 포함)
     val CustomTagChipTextFieldWidth = 80.dp
     val StoryTagChipBadgeSize = 18.dp
     val TagBorderWidth = 1.dp

@@ -236,6 +236,7 @@ fun TagChipWithCount(
     Row(
         modifier =
             modifier
+                .widthIn(max = Dimen.TagChipMaxWidth)
                 .height(Dimen.TagHeight)
                 .background(color = color, shape = RoundedCornerShape(Dimen.TagCornerRadius))
                 .pointerInput(Unit) {
