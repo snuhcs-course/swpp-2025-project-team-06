@@ -39,6 +39,7 @@ data class TagCntData(
     val tagId: String,
     val tagName: String,
     val count: Int,
+    val updatedAt: String?,
 )
 
 data class TagResponse(

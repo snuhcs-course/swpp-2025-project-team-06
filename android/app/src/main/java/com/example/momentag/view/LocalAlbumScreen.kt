@@ -446,8 +446,8 @@ fun LocalAlbumScreen(
                                     val autoScrollViewport = 80.dp.toPx()
                                     var autoScrollJob: Job? = null
                                     var dragAnchorIndex: Int? = null
-                                    val gestureSelectionIds = mutableSetOf<Uri>()
-                                    val lastRangePhotoIds = mutableSetOf<Uri>()
+                                    var isDeselectDrag by mutableStateOf(false)
+                                    val initialSelection = mutableSetOf<Uri>()
 
                                     fun findNearestItemByRow(position: Offset): Int? {
                                         var best: Pair<Int, Float>? = null
@@ -475,57 +475,27 @@ fun LocalAlbumScreen(
                                         return best?.first
                                     }
 
-                                    fun applyRangeSelection(newRangeContentUris: Set<Uri>) {
-                                        val toSelect = newRangeContentUris - gestureSelectionIds
-                                        val toDeselect = (lastRangePhotoIds - newRangeContentUris).intersect(gestureSelectionIds)
-
-                                        toSelect.forEach { id ->
-                                            allPhotosState.value.find { it.contentUri == id }?.let { photo ->
-                                                localViewModel.togglePhotoSelection(photo)
-                                                gestureSelectionIds.add(id)
-                                            }
-                                        }
-                                        toDeselect.forEach { id ->
-                                            allPhotosState.value.find { it.contentUri == id }?.let { photo ->
-                                                localViewModel.togglePhotoSelection(photo)
-                                                gestureSelectionIds.remove(id)
-                                            }
-                                        }
-
-                                        lastRangePhotoIds.clear()
-                                        lastRangePhotoIds.addAll(newRangeContentUris)
-                                    }
-
                                     detectDragAfterLongPressIgnoreConsumed(
                                         onDragStart = { offset ->
                                             autoScrollJob?.cancel()
-                                            gestureSelectionIds.clear()
-                                            gestureSelectionIds.addAll(updatedSelectedPhotos.value.keys)
-                                            lastRangePhotoIds.clear()
                                             if (!updatedIsSelectionMode.value) {
                                                 isSelectionMode = true
                                             }
                                             gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (contentUri, photo) ->
+                                                initialSelection.clear()
+                                                initialSelection.addAll(updatedSelectedPhotos.value.keys)
+                                                isDeselectDrag = initialSelection.contains(contentUri)
                                                 dragAnchorIndex =
                                                     allPhotosState.value.indexOfFirst { it.contentUri == contentUri }.takeIf { it >= 0 }
-                                                if (gestureSelectionIds.add(contentUri) ||
-                                                    !updatedSelectedPhotos.value.containsKey(photo.contentUri)
-                                                ) {
-                                                    localViewModel.togglePhotoSelection(photo)
-                                                }
-                                                lastRangePhotoIds.add(contentUri)
+                                                localViewModel.togglePhotoSelection(photo)
                                             }
                                         },
                                         onDragEnd = {
                                             dragAnchorIndex = null
-                                            lastRangePhotoIds.clear()
-                                            gestureSelectionIds.clear()
                                             autoScrollJob?.cancel()
                                         },
                                         onDragCancel = {
                                             dragAnchorIndex = null
-                                            lastRangePhotoIds.clear()
-                                            gestureSelectionIds.clear()
                                             autoScrollJob?.cancel()
                                         },
                                         onDrag = { change ->
@@ -549,12 +519,26 @@ fun LocalAlbumScreen(
                                                         currentIndex..startIndex
                                                     }
 
-                                                val newRangeContentUris =
+                                                val photoUrisInRange =
                                                     range
                                                         .mapNotNull { idx ->
                                                             allPhotosState.value.getOrNull(idx)?.contentUri
                                                         }.toSet()
-                                                applyRangeSelection(newRangeContentUris)
+
+                                                val currentSelection = updatedSelectedPhotos.value.keys
+                                                val targetSelection =
+                                                    if (isDeselectDrag) {
+                                                        initialSelection - photoUrisInRange
+                                                    } else {
+                                                        initialSelection + photoUrisInRange
+                                                    }
+
+                                                val diff = currentSelection.symmetricDifference(targetSelection)
+                                                diff.forEach { uri ->
+                                                    allPhotosState.value.find { it.contentUri == uri }?.let { photoToToggle ->
+                                                        localViewModel.togglePhotoSelection(photoToToggle)
+                                                    }
+                                                }
                                             }
 
                                             // --- Auto-Scroll Logic ---
@@ -823,3 +807,5 @@ private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
         }
     }
 }
+
+private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> = (this - other) + (other - this)
