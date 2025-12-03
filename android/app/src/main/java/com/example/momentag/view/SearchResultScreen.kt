@@ -230,6 +230,8 @@ fun SearchResultScreen(
             // Don't scroll when query is the same (pagination)
             if (previousQuery != null && previousQuery != currentQuery) {
                 gridState.scrollToItem(0)
+                searchViewModel.resetSelection()
+                searchViewModel.setSelectionMode(false)
             }
             previousQuery = currentQuery
         }
