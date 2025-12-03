@@ -382,7 +382,7 @@
     <string name="album_preparing">Preparing...</string>
     <string name="cd_expand">Expand</string>
     <string name="cd_collapse">Collapse</string>
-    <string name="album_add_photos_count">Add %1$d Photo%2$s</string>
+    <string name="album_add_photos_count">Add Photo (%1$d)</string>
     <string name="album_no_recommendations">No recommendations available</string>
     <string name="cd_ai">AI</string>
 
