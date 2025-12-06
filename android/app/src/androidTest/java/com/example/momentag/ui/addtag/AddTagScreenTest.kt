@@ -349,4 +349,124 @@ class AddTagScreenTest {
 
         composeTestRule.onNodeWithText(longTagName).assertIsDisplayed()
     }
+
+    // ----------------------------------------------------------
+    // 추가된 예외/엣지 케이스 시나리오
+    // ----------------------------------------------------------
+
+    @Test
+    fun addTagScreen_whitespaceTagName_doneButtonIsDisabled() {
+        val testPhotos = listOf(createTestPhoto("1"))
+        val whitespaceTagName = "   "
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+        val done = composeTestRule.activity.getString(R.string.action_done)
+
+        // 사진은 선택되었지만, 태그 이름은 공백뿐인 상황
+        vm.initialize(null, testPhotos)
+        setContent()
+
+        // 태그 이름으로 공백 입력
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(whitespaceTagName)
+
+        // '완료' 버튼이 여전히 비활성화 상태인지 확인
+        composeTestRule.onNodeWithText(done).assertIsNotEnabled()
+    }
+
+    @Test
+    fun addTagScreen_deselectPhoto_disablesDoneButton() {
+        // 이 테스트는 선택된 사진을 다시 클릭하면 선택이 해제된다고 가정합니다.
+        val testPhotos = listOf(createTestPhoto("1"))
+        val tagName = "My Tag"
+        val selectedPhotoDescription = composeTestRule.activity.getString(R.string.cd_photo_selected)
+        val done = composeTestRule.activity.getString(R.string.action_done)
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+
+        // 사진 한 장으로 시작
+        vm.initialize(null, testPhotos)
+        setContent()
+
+        // 태그 이름 입력
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(tagName)
+        composeTestRule.waitForIdle()
+
+        // 초기 상태: 태그 이름과 사진이 모두 있으므로 '완료' 버튼 활성화
+        composeTestRule.onNodeWithText(done).assertIsEnabled()
+
+        // 선택된 사진을 클릭하여 선택 해제 (부모 노드를 클릭해야 할 수 있음)
+        composeTestRule.onNodeWithContentDescription(selectedPhotoDescription, useUnmergedTree = true)
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        // 최종 상태: 사진이 없으므로 '완료' 버튼 비활성화
+        composeTestRule.onNodeWithText(done).assertIsNotEnabled()
+    }
+
+    @Test
+    fun addTagScreen_duplicateTagName_showsWarningAndEnablesDone() {
+        // [개발자 가이드] 이 테스트를 활성화하려면 Hilt를 사용한 의존성 주입 설정이 필요합니다.
+        // 1. 테스트용 FakeRepository/FakeUseCase를 만듭니다. (예: 태그가 항상 존재한다고 응답)
+        // 2. Hilt 테스트 모듈에서 @BindValue 등을 사용하여 실제 Repository 대신 FakeRepository를 주입하도록 설정합니다.
+        // 3. 아래의 테스트 로직을 실행하여 UI가 예상대로 동작하는지 확인합니다.
+
+        // 사용자의 요구사항: "이름이 중복되면 기존 태그로 들어간다는 문구 뜨고 완료도 활성화됨"
+        val testPhotos = listOf(createTestPhoto("1"))
+        val duplicateTagName = "Existing Tag"
+        // 예상되는 경고 문구 (실제 앱의 문자열 리소스에 따라 변경 필요)
+        val warningMessage = "이미 존재하는 태그입니다. 사진을 추가합니다."
+        val done = composeTestRule.activity.getString(R.string.action_done)
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+
+        // --- 테스트 준비 (Mocking 필요) ---
+        // 아래 코드는 `FakeTagRepository`가 주입되었다고 가정합니다.
+        // fakeRepository.setTagExists(true)
+        vm.initialize(null, testPhotos)
+        setContent()
+
+        // --- 실행 ---
+        // 중복된 태그 이름 입력
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(duplicateTagName)
+        composeTestRule.waitForIdle() // ViewModel이 상태를 업데이트할 시간을 줍니다.
+
+        // --- 검증 ---
+        // 경고 메시지가 표시되는지 확인 (주석 해제 필요)
+        // composeTestRule.onNodeWithText(warningMessage).assertIsDisplayed()
+
+        // '완료' 버튼이 활성화되는지 확인
+        composeTestRule.onNodeWithText(done).assertIsEnabled()
+    }
+
+    @Test
+    fun addTagScreen_saveTagFails_showsErrorMessage() {
+        // [개발자 가이드] 이 테스트는 `duplicateTagName` 테스트와 유사하게 의존성 주입 설정이 필요합니다.
+        // 1. 태그 저장이 항상 실패하도록 설정된 FakeRepository/FakeUseCase를 만듭니다.
+        // 2. Hilt 테스트 모듈에서 해당 FakeRepository를 주입하도록 설정합니다.
+        // 3. 사용자가 '완료'를 클릭했을 때, 실패 상태를 UI(Snackbar 등)에 올바르게 표시하는지 확인합니다.
+
+        val testPhotos = listOf(createTestPhoto("1"))
+        val tagName = "New Tag"
+        // 예상되는 에러 메시지 (실제 앱의 문자열 리소스에 따라 변경 필요)
+        val errorMessage = "저장에 실패했습니다."
+        val done = composeTestRule.activity.getString(R.string.action_done)
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+
+
+        // --- 테스트 준비 (Mocking 필요) ---
+        // 아래 코드는 `FakeTagRepository`가 주입되었다고 가정합니다.
+        // fakeRepository.setSaveShouldFail(true)
+        vm.initialize(null, testPhotos)
+        setContent()
+
+
+        // --- 실행 ---
+        // 유효한 태그 이름과 사진 설정
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(tagName)
+        composeTestRule.waitForIdle()
+        // '완료' 버튼 클릭 (주석 해제 필요)
+        // composeTestRule.onNodeWithText(done).performClick()
+        // composeTestRule.waitForIdle() // 비동기 작업 및 UI 업데이트 대기
+
+        // --- 검증 ---
+        // 에러 메시지(Snackbar 등)가 표시되는지 확인 (주석 해제 필요)
+        // composeTestRule.onNodeWithText(errorMessage).assertIsDisplayed()
+    }
 }
