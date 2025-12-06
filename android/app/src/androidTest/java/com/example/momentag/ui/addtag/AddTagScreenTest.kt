@@ -393,7 +393,8 @@ class AddTagScreenTest {
         composeTestRule.onNodeWithText(done).assertIsEnabled()
 
         // 선택된 사진을 클릭하여 선택 해제 (부모 노드를 클릭해야 할 수 있음)
-        composeTestRule.onNodeWithContentDescription(selectedPhotoDescription, useUnmergedTree = true)
+        composeTestRule
+            .onNodeWithContentDescription(selectedPhotoDescription, useUnmergedTree = true)
             .performClick()
         composeTestRule.waitForIdle()
 
@@ -449,13 +450,11 @@ class AddTagScreenTest {
         val done = composeTestRule.activity.getString(R.string.action_done)
         val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
 
-
         // --- 테스트 준비 (Mocking 필요) ---
         // 아래 코드는 `FakeTagRepository`가 주입되었다고 가정합니다.
         // fakeRepository.setSaveShouldFail(true)
         vm.initialize(null, testPhotos)
         setContent()
-
 
         // --- 실행 ---
         // 유효한 태그 이름과 사진 설정
