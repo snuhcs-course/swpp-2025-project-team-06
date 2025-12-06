@@ -240,4 +240,246 @@ class LocalAlbumScreenTest {
         // 화면이 정상적으로 표시되어야 함
         composeRule.onNodeWithText(albumName).assertIsDisplayed()
     }
+
+    // ---------- 7. 여러 사진 선택 및 선택 카운트 업데이트 ----------
+
+    @Test
+    fun localAlbumScreen_multipleSelection_updatesCount() {
+        val albumName = "Test Album"
+        val photo1 = Photo("p1", Uri.parse("content://1"), "2024")
+        val photo2 = Photo("p2", Uri.parse("content://2"), "2024")
+        val photo3 = Photo("p3", Uri.parse("content://3"), "2024")
+        val photos = listOf(photo1, photo2, photo3)
+
+        composeRule.setContent {
+            LocalAlbumScreen(
+                navController = rememberNavController(),
+                albumId = 1L,
+                albumName = albumName,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_imagesInAlbum", photos)
+
+        composeRule.waitForIdle()
+
+        // Manually select photos to trigger selection mode
+        setFlow("_selectedPhotosInAlbum", mapOf(photo1.contentUri to photo1))
+
+        composeRule.waitForIdle()
+
+        // 1개 선택 확인
+        var selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 1)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+
+        // 2개 선택으로 업데이트
+        setFlow("_selectedPhotosInAlbum", mapOf(photo1.contentUri to photo1, photo2.contentUri to photo2))
+
+        composeRule.waitForIdle()
+
+        // 2개 선택 확인
+        selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 2)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+    }
+
+    // ---------- 8. Upload FAB 표시 ----------
+
+    @Test
+    fun localAlbumScreen_selectionMode_showsUploadFab() {
+        val albumName = "Test Album"
+        val photo = Photo("p1", Uri.parse("content://1"), "2024")
+        val photos = listOf(photo)
+
+        composeRule.setContent {
+            LocalAlbumScreen(
+                navController = rememberNavController(),
+                albumId = 1L,
+                albumName = albumName,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_imagesInAlbum", photos)
+
+        // Select a photo to enter selection mode
+        setFlow("_selectedPhotosInAlbum", mapOf(photo.contentUri to photo))
+
+        composeRule.waitForIdle()
+
+        // Upload FAB이 표시되는지 확인
+        val uploadText = composeRule.activity.getString(R.string.photos_upload_selected_photos, 1)
+        composeRule.onNodeWithText(uploadText).assertIsDisplayed()
+    }
+
+    // ---------- 9. Cancel 버튼으로 선택 모드 해제 ----------
+
+    @Test
+    fun localAlbumScreen_cancelButton_exitsSelectionMode() {
+        val albumName = "Test Album"
+        val photo = Photo("p1", Uri.parse("content://1"), "2024")
+        val photos = listOf(photo)
+
+        composeRule.setContent {
+            LocalAlbumScreen(
+                navController = rememberNavController(),
+                albumId = 1L,
+                albumName = albumName,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_imagesInAlbum", photos)
+
+        // Select a photo to enter selection mode
+        setFlow("_selectedPhotosInAlbum", mapOf(photo.contentUri to photo))
+
+        composeRule.waitForIdle()
+
+        // Cancel 버튼이 표시되는지 확인
+        val cancelSelection = composeRule.activity.getString(R.string.cd_cancel_selection)
+        composeRule.onNodeWithContentDescription(cancelSelection).assertIsDisplayed()
+
+        // Cancel 버튼 클릭
+        composeRule.onNodeWithContentDescription(cancelSelection).performClick()
+
+        composeRule.waitForIdle()
+
+        // 선택이 해제되어 일반 TopBar로 돌아왔는지 확인
+        val appName = composeRule.activity.getString(R.string.app_name)
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+    }
+
+    // ---------- 10. 선택 모드에서 TopBar 전환 ----------
+
+    @Test
+    fun localAlbumScreen_selectionModeToggle_switchesTopBar() {
+        val albumName = "Test Album"
+        val photo = Photo("p1", Uri.parse("content://1"), "2024")
+        val photos = listOf(photo)
+
+        composeRule.setContent {
+            LocalAlbumScreen(
+                navController = rememberNavController(),
+                albumId = 1L,
+                albumName = albumName,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_imagesInAlbum", photos)
+
+        composeRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val appName = composeRule.activity.getString(R.string.app_name)
+
+        // 초기 상태: 일반 TopBar (앱 이름 표시)
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+
+        // 사진 선택하여 선택 모드 진입
+        setFlow("_selectedPhotosInAlbum", mapOf(photo.contentUri to photo))
+
+        composeRule.waitForIdle()
+
+        // 선택 모드: 선택 카운트 표시
+        val selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 1)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+    }
+
+    // ---------- 11. 선택 해제 시 Upload FAB 숨김 ----------
+
+    @Test
+    fun localAlbumScreen_deselectAll_hidesFab() {
+        val albumName = "Test Album"
+        val photo = Photo("p1", Uri.parse("content://1"), "2024")
+        val photos = listOf(photo)
+
+        composeRule.setContent {
+            LocalAlbumScreen(
+                navController = rememberNavController(),
+                albumId = 1L,
+                albumName = albumName,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_imagesInAlbum", photos)
+
+        // Select a photo
+        setFlow("_selectedPhotosInAlbum", mapOf(photo.contentUri to photo))
+
+        composeRule.waitForIdle()
+
+        // Upload FAB이 표시됨
+        val uploadText = composeRule.activity.getString(R.string.photos_upload_selected_photos, 1)
+        composeRule.onNodeWithText(uploadText).assertIsDisplayed()
+
+        // 모든 선택 해제
+        setFlow("_selectedPhotosInAlbum", emptyMap<Uri, Photo>())
+
+        composeRule.waitForIdle()
+
+        // 일반 TopBar로 돌아옴 (선택 모드 해제)
+        val appName = composeRule.activity.getString(R.string.app_name)
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+    }
+
+    // ---------- 12. 사진 선택/해제 토글 ----------
+
+    @Test
+    fun localAlbumScreen_photoSelection_toggles() {
+        val albumName = "Test Album"
+        val photo = Photo("p1", Uri.parse("content://1"), "2024")
+        val photos = listOf(photo)
+
+        composeRule.setContent {
+            LocalAlbumScreen(
+                navController = rememberNavController(),
+                albumId = 1L,
+                albumName = albumName,
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_imagesInAlbum", photos)
+
+        composeRule.waitForIdle()
+
+        // 사진 선택
+        setFlow("_selectedPhotosInAlbum", mapOf(photo.contentUri to photo))
+
+        composeRule.waitForIdle()
+
+        // 선택 모드 확인
+        val selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 1)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+
+        // 사진 선택 해제
+        setFlow("_selectedPhotosInAlbum", emptyMap<Uri, Photo>())
+
+        composeRule.waitForIdle()
+
+        // 일반 모드로 돌아옴
+        val appName = composeRule.activity.getString(R.string.app_name)
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+    }
 }

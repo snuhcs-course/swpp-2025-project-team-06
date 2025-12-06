@@ -310,4 +310,265 @@ class LocalGalleryScreenTest {
         val selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 1)
         composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
     }
+
+    // ---------- 9. Select All 버튼 클릭 ----------
+
+    @Test
+    fun localGalleryScreen_selectAllButton_selectsAllAlbums() {
+        val albums =
+            listOf(
+                Album(1L, "Album 1", Uri.parse("content://1")),
+                Album(2L, "Album 2", Uri.parse("content://2")),
+                Album(3L, "Album 3", Uri.parse("content://3")),
+            )
+
+        composeRule.setContent {
+            LocalGalleryScreen(
+                navController = rememberNavController(),
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_albums", albums)
+
+        composeRule.waitForIdle()
+
+        // 첫 번째 앨범을 long click하여 선택 모드 진입
+        val album1 = composeRule.activity.getString(R.string.cd_album, "Album 1")
+        composeRule.onNodeWithContentDescription(album1).performTouchInput { longClick() }
+
+        composeRule.waitForIdle()
+
+        // Select All 버튼 클릭
+        val selectAll = composeRule.activity.getString(R.string.cd_select_all)
+        composeRule.onNodeWithContentDescription(selectAll).performClick()
+
+        composeRule.waitForIdle()
+
+        // 모든 앨범이 선택되었는지 확인 (3개 선택됨)
+        val selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 3)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+    }
+
+    // ---------- 10. Deselect All 버튼 클릭 ----------
+
+    @Test
+    fun localGalleryScreen_deselectAllButton_deselectsAllAlbums() {
+        val albums =
+            listOf(
+                Album(1L, "Album 1", Uri.parse("content://1")),
+                Album(2L, "Album 2", Uri.parse("content://2")),
+            )
+
+        composeRule.setContent {
+            LocalGalleryScreen(
+                navController = rememberNavController(),
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_albums", albums)
+
+        composeRule.waitForIdle()
+
+        // 첫 번째 앨범을 long click하여 선택 모드 진입
+        val album1 = composeRule.activity.getString(R.string.cd_album, "Album 1")
+        composeRule.onNodeWithContentDescription(album1).performTouchInput { longClick() }
+
+        composeRule.waitForIdle()
+
+        // Select All 버튼 클릭하여 모두 선택
+        val selectAll = composeRule.activity.getString(R.string.cd_select_all)
+        composeRule.onNodeWithContentDescription(selectAll).performClick()
+
+        composeRule.waitForIdle()
+
+        // Select All 버튼 다시 클릭하여 모두 해제
+        composeRule.onNodeWithContentDescription(selectAll).performClick()
+
+        composeRule.waitForIdle()
+
+        // 선택 모드가 해제되고 일반 TopBar로 돌아왔는지 확인
+        val appName = composeRule.activity.getString(R.string.app_name)
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+    }
+
+    // ---------- 11. 여러 앨범 선택/해제 ----------
+
+    @Test
+    fun localGalleryScreen_multipleSelection_updatesCount() {
+        val albums =
+            listOf(
+                Album(1L, "Album 1", Uri.parse("content://1")),
+                Album(2L, "Album 2", Uri.parse("content://2")),
+                Album(3L, "Album 3", Uri.parse("content://3")),
+            )
+
+        composeRule.setContent {
+            LocalGalleryScreen(
+                navController = rememberNavController(),
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_albums", albums)
+
+        composeRule.waitForIdle()
+
+        // 첫 번째 앨범 long click으로 선택 모드 진입
+        val album1 = composeRule.activity.getString(R.string.cd_album, "Album 1")
+        composeRule.onNodeWithContentDescription(album1).performTouchInput { longClick() }
+
+        composeRule.waitForIdle()
+
+        // 1개 선택 확인
+        var selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 1)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+
+        // 두 번째 앨범 클릭하여 추가 선택
+        val album2 = composeRule.activity.getString(R.string.cd_album, "Album 2")
+        composeRule.onNodeWithContentDescription(album2).performClick()
+
+        composeRule.waitForIdle()
+
+        // 2개 선택 확인
+        selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 2)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+
+        // 세 번째 앨범 클릭하여 추가 선택
+        val album3 = composeRule.activity.getString(R.string.cd_album, "Album 3")
+        composeRule.onNodeWithContentDescription(album3).performClick()
+
+        composeRule.waitForIdle()
+
+        // 3개 선택 확인
+        selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 3)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+    }
+
+    // ---------- 12. 선택 모드에서 앨범 토글 ----------
+
+    @Test
+    fun localGalleryScreen_selectionMode_togglesAlbumSelection() {
+        val albums =
+            listOf(
+                Album(1L, "Album 1", Uri.parse("content://1")),
+            )
+
+        composeRule.setContent {
+            LocalGalleryScreen(
+                navController = rememberNavController(),
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_albums", albums)
+
+        composeRule.waitForIdle()
+
+        // 앨범을 long click하여 선택
+        val album1 = composeRule.activity.getString(R.string.cd_album, "Album 1")
+        composeRule.onNodeWithContentDescription(album1).performTouchInput { longClick() }
+
+        composeRule.waitForIdle()
+
+        // 1개 선택 확인
+        val selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 1)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+
+        // 같은 앨범을 다시 클릭하여 선택 해제
+        composeRule.onNodeWithContentDescription(album1).performClick()
+
+        composeRule.waitForIdle()
+
+        // 선택 모드가 해제되고 일반 TopBar로 돌아왔는지 확인
+        val appName = composeRule.activity.getString(R.string.app_name)
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+    }
+
+    // ---------- 13. Upload FAB 표시 ----------
+
+    @Test
+    fun localGalleryScreen_selectionMode_showsUploadFab() {
+        val albums =
+            listOf(
+                Album(1L, "Album 1", Uri.parse("content://1")),
+            )
+
+        composeRule.setContent {
+            LocalGalleryScreen(
+                navController = rememberNavController(),
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_albums", albums)
+
+        composeRule.waitForIdle()
+
+        // 앨범을 long click하여 선택 모드 진입
+        val album1 = composeRule.activity.getString(R.string.cd_album, "Album 1")
+        composeRule.onNodeWithContentDescription(album1).performTouchInput { longClick() }
+
+        composeRule.waitForIdle()
+
+        // Upload FAB이 표시되는지 확인
+        val uploadText = composeRule.activity.getString(R.string.photos_upload_selected_albums, 1)
+        composeRule.onNodeWithText(uploadText).assertIsDisplayed()
+    }
+
+    // ---------- 14. Close 버튼으로 선택 모드 해제 ----------
+
+    @Test
+    fun localGalleryScreen_closeButton_exitsSelectionMode() {
+        val albums =
+            listOf(
+                Album(1L, "Album 1", Uri.parse("content://1")),
+            )
+
+        composeRule.setContent {
+            LocalGalleryScreen(
+                navController = rememberNavController(),
+                onNavigateBack = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+
+        // setContent 후에 데이터를 주입
+        setFlow("_albums", albums)
+
+        composeRule.waitForIdle()
+
+        // 앨범을 long click하여 선택 모드 진입
+        val album1 = composeRule.activity.getString(R.string.cd_album, "Album 1")
+        composeRule.onNodeWithContentDescription(album1).performTouchInput { longClick() }
+
+        composeRule.waitForIdle()
+
+        // Close 버튼 클릭
+        val deselectAll = composeRule.activity.getString(R.string.cd_deselect_all)
+        composeRule.onNodeWithContentDescription(deselectAll).performClick()
+
+        composeRule.waitForIdle()
+
+        // 선택 모드가 해제되고 일반 TopBar로 돌아왔는지 확인
+        val appName = composeRule.activity.getString(R.string.app_name)
+        composeRule.onNodeWithText(appName).assertIsDisplayed()
+    }
 }
