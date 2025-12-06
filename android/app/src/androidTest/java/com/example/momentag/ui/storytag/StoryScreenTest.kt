@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.rememberNavController
@@ -245,5 +246,182 @@ class StoryScreenTest {
         // ViewModel 의 viewedStories 에도 story1 이 포함되어 있어야 함
         assertTrue(viewModel.viewedStories.value.contains("story1"))
         assertFalse(viewModel.viewedStories.value.contains("story2"))
+    }
+
+    // ---------- 5. 스토리 전환 후 태그 선택 상태 유지 ----------
+
+    @Test
+    fun storyScreen_switchStory_maintainsTagSelectionOnReturn() {
+        val stories = createSampleStories()
+        setContentWithStories(stories)
+
+        // 첫 번째 스토리에서 태그 선택
+        composeRule.onNodeWithText("#Tag1A").performClick()
+        assertTrue(viewModel.getSelectedTags("story1").contains("#Tag1A"))
+
+        // Pager 노드 찾기 (스크롤 가능 노드)
+        val pagerNode = composeRule.onNode(hasScrollAction())
+
+        // 위로 스와이프해서 두 번째 스토리로 이동
+        pagerNode.performTouchInput {
+            swipeUp()
+        }
+
+        // 두 번째 스토리 날짜가 보여야 한다
+        composeRule.onNodeWithText("2025.01.02").assertIsDisplayed()
+
+        // 아래로 스와이프해서 첫 번째 스토리로 다시 돌아가기
+        pagerNode.performTouchInput {
+            swipeDown()
+        }
+
+        // 첫 번째 스토리 날짜가 다시 보여야 한다
+        composeRule.onNodeWithText("2025.01.01").assertIsDisplayed()
+
+        // ViewModel 에 저장된 선택 상태가 유지되어야 함
+        assertTrue(viewModel.getSelectedTags("story1").contains("#Tag1A"))
+    }
+
+    // ---------- 6. Edit 버튼 클릭으로 편집 모드 전환 ----------
+
+    @Test
+    fun storyScreen_editMode_showsEditTagsAndDoneButton() {
+        val stories = createSampleStories()
+
+        // 문자열 리소스 가져오기
+        val edit = composeRule.activity.getString(R.string.action_edit)
+        val done = composeRule.activity.getString(R.string.action_done)
+        val editTags = composeRule.activity.getString(R.string.story_edit_tags)
+
+        // 먼저 viewedStories 에 story1 을 넣어 읽기 전용 모드로 만듦
+        viewModel.markStoryAsViewed("story1")
+
+        setContentWithStories(stories)
+
+        // 초기에는 Edit 버튼이 보임
+        composeRule.onNodeWithText(edit).assertIsDisplayed()
+
+        // reflection 으로 편집 모드 상태를 직접 설정
+        // (실제 API 호출 없이 편집 모드 진입 시뮬레이션)
+        setFlow("_editModeStory", "story1")
+        setFlow("_selectedTags", mapOf("story1" to emptySet<String>()))
+
+        // 편집 모드로 전환되면 "Edit Tags" 텍스트가 나타남
+        composeRule.onNodeWithText(editTags).assertIsDisplayed()
+
+        // Done 버튼이 나타남
+        composeRule.onNodeWithText(done).assertIsDisplayed()
+
+        // Edit 버튼은 사라짐
+        composeRule
+            .onAllNodesWithText(edit)
+            .assertCountEquals(0)
+
+        // ViewModel 의 editModeStory 가 story1 이어야 함
+        assertTrue(viewModel.editModeStory.value == "story1")
+    }
+
+    // ---------- 7. Done 버튼 클릭 시 제출 상태 변경 ----------
+
+    @Test
+    fun storyScreen_doneButtonClick_triggersSubmission() {
+        val stories = createSampleStories()
+        setContentWithStories(stories)
+
+        // 문자열 리소스 가져오기
+        val done = composeRule.activity.getString(R.string.action_done)
+
+        // 태그 선택
+        composeRule.onNodeWithText("#Tag1A").performClick()
+
+        // Done 버튼 클릭
+        composeRule.onNodeWithText(done).performClick()
+
+        // 제출 상태가 Loading 또는 Success/Error 로 변경되었는지 확인
+        // (실제 API 호출은 모킹되지 않았으므로 상태만 확인)
+        val submissionState = viewModel.storyTagSubmissionStates.value["story1"]
+        assertTrue(
+            submissionState is StoryViewModel.StoryTagSubmissionState.Loading ||
+                submissionState is StoryViewModel.StoryTagSubmissionState.Success ||
+                submissionState is StoryViewModel.StoryTagSubmissionState.Error,
+        )
+    }
+
+    // ---------- 8. 커스텀 태그 추가 기능 ----------
+
+    @Test
+    fun storyScreen_customTagAdded_appearsInSelectedTags() {
+        val stories = createSampleStories()
+        setContentWithStories(stories)
+
+        // "+" 버튼이 표시되는지 확인
+        composeRule.onNodeWithText("+").assertIsDisplayed()
+
+        // 커스텀 태그를 직접 ViewModel 을 통해 추가
+        // (UI의 TextField 조작은 testTag가 없어서 어려우므로 ViewModel API 직접 호출)
+        val customTag = "#CustomTag"
+        viewModel.addCustomTagToStory("story1", customTag)
+
+        // ViewModel 의 선택된 태그에 커스텀 태그가 추가되었는지 확인
+        assertTrue(viewModel.getSelectedTags("story1").contains(customTag))
+
+        // UI 재구성 대기
+        composeRule.waitForIdle()
+
+        // 추가된 커스텀 태그가 화면에 표시되는지 확인
+        composeRule.onNodeWithText(customTag).assertIsDisplayed()
+    }
+
+    @Test
+    fun storyScreen_multipleTagsSelected_allStoredInViewModel() {
+        val stories = createSampleStories()
+        setContentWithStories(stories)
+
+        // 문자열 리소스 가져오기
+        val done = composeRule.activity.getString(R.string.action_done)
+
+        // 초기에는 Done 비활성화
+        composeRule.onNodeWithText(done).assertIsNotEnabled()
+
+        // 첫 번째 태그 선택
+        composeRule.onNodeWithText("#Tag1A").performClick()
+
+        // 두 번째 태그 선택
+        composeRule.onNodeWithText("#Tag1B").performClick()
+
+        // Done 버튼 활성화
+        composeRule.onNodeWithText(done).assertIsEnabled()
+
+        // ViewModel 에 두 개의 태그가 모두 저장되었는지 확인
+        val selectedTags = viewModel.getSelectedTags("story1")
+        assertTrue(selectedTags.contains("#Tag1A"))
+        assertTrue(selectedTags.contains("#Tag1B"))
+        assertTrue(selectedTags.size == 2)
+    }
+
+    @Test
+    fun storyScreen_customTagWithSuggestedTags_allSelected() {
+        val stories = createSampleStories()
+        setContentWithStories(stories)
+
+        // 제안된 태그 선택
+        composeRule.onNodeWithText("#Tag1A").performClick()
+
+        // 커스텀 태그 추가
+        val customTag = "#MyTrip"
+        viewModel.addCustomTagToStory("story1", customTag)
+
+        // UI 재구성 대기
+        composeRule.waitForIdle()
+
+        // 두 태그 모두 선택되었는지 확인
+        val selectedTags = viewModel.getSelectedTags("story1")
+        assertTrue(selectedTags.contains("#Tag1A"))
+        assertTrue(selectedTags.contains(customTag))
+        assertTrue(selectedTags.size == 2)
+
+        // 두 태그 모두 화면에 표시되는지 확인
+        composeRule.onNodeWithText("#Tag1A").assertIsDisplayed()
+        composeRule.onNodeWithText(customTag).assertIsDisplayed()
     }
 }
