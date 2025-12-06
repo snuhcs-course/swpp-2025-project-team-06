@@ -498,10 +498,10 @@ class LocalGalleryScreenTest {
         composeRule.onNodeWithText(appName).assertIsDisplayed()
     }
 
-    // ---------- 13. Upload FAB 표시 ----------
+    // ---------- 13. 선택 모드 진입 및 UI 변경 확인 ----------
 
     @Test
-    fun localGalleryScreen_selectionMode_showsUploadFab() {
+    fun localGalleryScreen_selectionMode_showsSelectionUI() {
         val albums =
             listOf(
                 Album(1L, "Album 1", Uri.parse("content://1")),
@@ -527,9 +527,13 @@ class LocalGalleryScreenTest {
 
         composeRule.waitForIdle()
 
-        // Upload FAB이 표시되는지 확인
-        val uploadText = composeRule.activity.getString(R.string.photos_upload_selected_albums, 1)
-        composeRule.onNodeWithText(uploadText).assertIsDisplayed()
+        // 선택 모드 UI 확인 (선택 카운트 표시)
+        val selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 1)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+
+        // Select All 버튼 표시 확인
+        val selectAll = composeRule.activity.getString(R.string.cd_select_all)
+        composeRule.onNodeWithContentDescription(selectAll).assertIsDisplayed()
     }
 
     // ---------- 14. Close 버튼으로 선택 모드 해제 ----------

@@ -286,10 +286,10 @@ class LocalAlbumScreenTest {
         composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
     }
 
-    // ---------- 8. Upload FAB 표시 ----------
+    // ---------- 8. 선택 모드 진입 및 UI 변경 확인 ----------
 
     @Test
-    fun localAlbumScreen_selectionMode_showsUploadFab() {
+    fun localAlbumScreen_selectionMode_showsSelectionUI() {
         val albumName = "Test Album"
         val photo = Photo("p1", Uri.parse("content://1"), "2024")
         val photos = listOf(photo)
@@ -313,9 +313,13 @@ class LocalAlbumScreenTest {
 
         composeRule.waitForIdle()
 
-        // Upload FAB이 표시되는지 확인
-        val uploadText = composeRule.activity.getString(R.string.photos_upload_selected_photos, 1)
-        composeRule.onNodeWithText(uploadText).assertIsDisplayed()
+        // 선택 모드 UI 확인 (선택 카운트 표시)
+        val selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 1)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
+
+        // Cancel 버튼 표시 확인
+        val cancelSelection = composeRule.activity.getString(R.string.cd_cancel_selection)
+        composeRule.onNodeWithContentDescription(cancelSelection).assertIsDisplayed()
     }
 
     // ---------- 9. Cancel 버튼으로 선택 모드 해제 ----------
@@ -399,10 +403,10 @@ class LocalAlbumScreenTest {
         composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
     }
 
-    // ---------- 11. 선택 해제 시 Upload FAB 숨김 ----------
+    // ---------- 11. 선택 해제 시 일반 모드로 복귀 ----------
 
     @Test
-    fun localAlbumScreen_deselectAll_hidesFab() {
+    fun localAlbumScreen_deselectAll_returnsToNormalMode() {
         val albumName = "Test Album"
         val photo = Photo("p1", Uri.parse("content://1"), "2024")
         val photos = listOf(photo)
@@ -426,9 +430,9 @@ class LocalAlbumScreenTest {
 
         composeRule.waitForIdle()
 
-        // Upload FAB이 표시됨
-        val uploadText = composeRule.activity.getString(R.string.photos_upload_selected_photos, 1)
-        composeRule.onNodeWithText(uploadText).assertIsDisplayed()
+        // 선택 모드 확인 (선택 카운트 표시)
+        val selectedCount = composeRule.activity.getString(R.string.photos_selected_count, 1)
+        composeRule.onNodeWithText(selectedCount).assertIsDisplayed()
 
         // 모든 선택 해제
         setFlow("_selectedPhotosInAlbum", emptyMap<Uri, Photo>())
