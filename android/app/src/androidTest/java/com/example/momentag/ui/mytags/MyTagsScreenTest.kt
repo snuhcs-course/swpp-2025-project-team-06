@@ -48,10 +48,6 @@ class MyTagsScreenTest {
 
         // get the Hilt-created ViewModel from the activity's ViewModelProvider
         vm = ViewModelProvider(composeTestRule.activity)[MyTagsViewModel::class.java]
-
-        // For example, to set initial states for tests:
-        // setFlow("_myTags", emptyList<Any>())
-        // setFlow("_isLoading", false)
     }
 
     /**
@@ -69,9 +65,6 @@ class MyTagsScreenTest {
             val flow = field.get(vm) as MutableStateFlow<T>
             flow.value = value
         } catch (e: NoSuchFieldException) {
-            // This can happen if the ViewModel's internal fields change.
-            // For this test setup, we can ignore it, but in a real scenario,
-            // this would indicate the test needs to be updated.
         }
     }
 
@@ -348,6 +341,21 @@ class MyTagsScreenTest {
         // PullToRefreshBox is enabled in MyTagsContent
         // Testing pull-to-refresh gesture is complex in Compose UI tests
         // For now, just verify the screen renders properly
+        composeTestRule.onNodeWithText(tagTitle).assertIsDisplayed()
+    }
+
+    @Test
+    fun myTagsScreen_rendersWithoutCrash() {
+        composeTestRule.setContent {
+            MomenTagTheme {
+                val navController = rememberNavController()
+                MyTagsScreen(navController = navController)
+            }
+        }
+
+        composeTestRule.waitForIdle()
+
+        val tagTitle = composeTestRule.activity.getString(R.string.tag_screen_title)
         composeTestRule.onNodeWithText(tagTitle).assertIsDisplayed()
     }
 }
