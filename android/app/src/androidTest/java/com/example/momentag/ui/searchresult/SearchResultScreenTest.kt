@@ -120,19 +120,6 @@ class SearchResultScreenTest {
     }
 
     /**
-     * 초기 검색어 테스트: 초기 검색어가 주어졌을 때 검색창에 올바르게 표시되는지 확인
-     *
-     * Note: initialQuery를 전달하면 LaunchedEffect가 자동으로 search API를 호출하므로
-     * 테스트 환경에서는 제어하기 어려움. 이 테스트는 제거.
-     */
-    // @Test
-    // fun searchResultScreen_withInitialQuery_displaysQuery() {
-    //     setContent(initialQuery = "sunset")
-    //     composeTestRule.waitForIdle()
-    //     composeTestRule.onNodeWithText("sunset").assertIsDisplayed()
-    // }
-
-    /**
      * 로딩 상태 테스트: 데이터 로딩 중에 로딩 인디케이터가 표시되는지 확인
      */
     @Test
@@ -240,30 +227,6 @@ class SearchResultScreenTest {
     }
 
     /**
-     * Share 버튼 표시 테스트: 선택 모드에서 사진 선택 시 Share 버튼 표시
-     *
-     * Note: Share 버튼은 isSelectionModeDelay (로컬 상태)에 의존하며,
-     * LaunchedEffect로 50ms delay 후 설정됨. 테스트 환경에서 제어 불가.
-     */
-    // @Test
-    // fun searchResultScreen_selectionMode_displaysShareButton() {
-    //     val fakePhotos = createFakePhotos(2)
-    //     setContent()
-    //     composeTestRule.waitForIdle()
-    //
-    //     setFlow(vm, "_searchState", SearchViewModel.SemanticSearchState.Success(fakePhotos, "test"))
-    //     setFlow(vm, "_isSelectionMode", true)
-    //     composeTestRule.waitForIdle()
-    //
-    //     vm.togglePhoto(fakePhotos[0])
-    //     vm.togglePhoto(fakePhotos[1])
-    //     composeTestRule.waitForIdle()
-    //
-    //     val shareContentDescription = composeTestRule.activity.getString(R.string.cd_share)
-    //     composeTestRule.onNodeWithContentDescription(shareContentDescription).assertIsDisplayed()
-    // }
-
-    /**
      * CreateTag 버튼 표시 테스트: 선택 모드에서 사진 선택 시 CreateTag 버튼 표시
      */
     @Test
@@ -315,22 +278,4 @@ class SearchResultScreenTest {
         assert(vm.selectedPhotos.value.isEmpty())
         assert(!vm.isSelectionMode.value)
     }
-
-    /**
-     * Error 상태 테스트: 검색 에러 시 에러 메시지 표시
-     *
-     * Note: 에러 메시지는 isErrorBannerVisible과 errorMessage (로컬 상태)에 의존하며,
-     * LaunchedEffect에서 SemanticSearchState.Error를 감지해야 설정됨. 테스트 환경에서 제어 불가.
-     */
-    // @Test
-    // fun searchResultScreen_errorState_displaysErrorMessage() {
-    //     setContent()
-    //     composeTestRule.waitForIdle()
-    //
-    //     setFlow(vm, "_searchState", SearchViewModel.SemanticSearchState.Error(SearchViewModel.SearchError.NetworkError))
-    //     composeTestRule.waitForIdle()
-    //
-    //     val errorMessage = composeTestRule.activity.getString(R.string.search_error_message)
-    //     composeTestRule.onNodeWithText(errorMessage).assertIsDisplayed()
-    // }
 }

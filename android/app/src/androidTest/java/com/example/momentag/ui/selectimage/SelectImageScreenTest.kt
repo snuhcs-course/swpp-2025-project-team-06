@@ -327,7 +327,6 @@ class SelectImageScreenTest {
         // We can verify by checking if expanded panel UI is shown
     }
 
-
     // ----------------------------------------------------------
     // 10. 추천 상태 - 빈 추천 결과
     // ----------------------------------------------------------
