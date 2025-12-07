@@ -18,7 +18,6 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -77,8 +76,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -155,17 +156,38 @@ private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         val longPress = awaitLongPressOrCancellation(down.id)
-        if (longPress != null) {
-            onDragStart(longPress.position)
-            drag(longPress.id) { change ->
-                onDrag(change)
-            }
-            onDragEnd()
-        } else {
+        if (longPress == null) {
             onDragCancel()
+            return@awaitEachGesture
+        }
+
+        onDragStart(longPress.position)
+
+        var dragEnded = false
+        var pointerId = longPress.id
+        try {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Final)
+                val change = event.changes.firstOrNull { it.id == pointerId } ?: continue
+
+                if (change.changedToUpIgnoreConsumed()) {
+                    dragEnded = true
+                    onDragEnd()
+                    break
+                }
+
+                onDrag(change)
+                change.consume() // Prevent LazyGrid scroll from stealing the drag after long-press
+            }
+        } finally {
+            if (!dragEnded) {
+                onDragCancel()
+            }
         }
     }
 }
+
+private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> = (this - other) + (other - this)
 
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
@@ -455,8 +477,6 @@ fun SelectImageScreen(navController: NavController) {
                         )
                     }
                 } else if (hasPermission) {
-                    var lastProcessedPhotoId by remember { mutableStateOf<String?>(null) }
-                    val lastProcessedPhotoIdRef = rememberUpdatedState(lastProcessedPhotoId)
                     val updatedSelectedPhotos = rememberUpdatedState(selectedPhotos)
                     val updatedIsSelectionMode = rememberUpdatedState(isSelectionMode)
                     val allPhotosState = rememberUpdatedState(allPhotos)
@@ -467,36 +487,101 @@ fun SelectImageScreen(navController: NavController) {
                                 val pointerScope = this
                                 val autoScrollViewport = 80.dp.toPx()
                                 var autoScrollJob: Job? = null
+                                var dragAnchorIndex: Int? = null
+                                var isDeselectDrag by mutableStateOf(false)
+                                val initialSelection = mutableSetOf<String>()
+
+                                fun findNearestItemByRow(position: Offset): Int? {
+                                    var best: Pair<Int, Float>? = null // index to horizontal distance
+                                    listState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
+                                        val key = itemInfo.key as? String ?: return@forEach
+                                        val photoIndex = allPhotosState.value.indexOfFirst { it.photoId == key }
+                                        if (photoIndex >= 0) {
+                                            val top = itemInfo.offset.y.toFloat()
+                                            val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
+                                            if (position.y in top..bottom) {
+                                                val left = itemInfo.offset.x.toFloat()
+                                                val right = (itemInfo.offset.x + itemInfo.size.width).toFloat()
+                                                val horizontalDistance =
+                                                    when {
+                                                        position.x < left -> left - position.x
+                                                        position.x > right -> position.x - right
+                                                        else -> 0f
+                                                    }
+                                                if (best == null || horizontalDistance < best!!.second) {
+                                                    best = photoIndex to horizontalDistance
+                                                }
+                                            }
+                                        }
+                                    }
+                                    return best?.first
+                                }
 
                                 detectDragAfterLongPressIgnoreConsumed(
                                     onDragStart = { offset ->
                                         autoScrollJob?.cancel()
+                                        dragAnchorIndex = null
+                                        isDeselectDrag = false
+                                        initialSelection.clear()
+                                        initialSelection.addAll(updatedSelectedPhotos.value.keys)
+
                                         listState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
                                             if (!updatedIsSelectionMode.value) {
                                                 selectImageViewModel.setSelectionMode(true)
                                             }
-                                            if (!updatedSelectedPhotos.value.containsKey(photoId)) {
-                                                selectImageViewModel.addPhoto(photo)
-                                            }
-                                            lastProcessedPhotoId = photoId
+                                            isDeselectDrag = initialSelection.contains(photoId)
+                                            dragAnchorIndex = allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
+                                            selectImageViewModel.togglePhoto(photo)
                                         }
                                     },
                                     onDragEnd = {
-                                        lastProcessedPhotoId = null
+                                        dragAnchorIndex = null
                                         autoScrollJob?.cancel()
                                     },
                                     onDragCancel = {
-                                        lastProcessedPhotoId = null
+                                        dragAnchorIndex = null
                                         autoScrollJob?.cancel()
                                     },
                                     onDrag = { change ->
-                                        // --- Item Selection Logic ---
-                                        listState.findPhotoItemAtPosition(change.position, allPhotosState.value)?.let { (photoId, photo) ->
-                                            if (photoId != lastProcessedPhotoIdRef.value) {
-                                                if (!updatedSelectedPhotos.value.containsKey(photoId)) {
-                                                    selectImageViewModel.addPhoto(photo)
+                                        // --- Item Selection Logic with range anchor ---
+                                        val currentItem = listState.findPhotoItemAtPosition(change.position, allPhotosState.value)
+                                        val currentIndex =
+                                            currentItem
+                                                ?.first
+                                                ?.let { id ->
+                                                    allPhotosState.value.indexOfFirst { it.photoId == id }
+                                                }?.takeIf { it >= 0 }
+                                                ?: findNearestItemByRow(change.position)
+
+                                        if (currentIndex != null) {
+                                            if (dragAnchorIndex == null) dragAnchorIndex = currentIndex
+                                            val startIndex = dragAnchorIndex ?: currentIndex
+                                            val range =
+                                                if (currentIndex >= startIndex) {
+                                                    startIndex..currentIndex
+                                                } else {
+                                                    currentIndex..startIndex
                                                 }
-                                                lastProcessedPhotoId = photoId
+
+                                            val photoIdsInRange =
+                                                range
+                                                    .mapNotNull { idx ->
+                                                        allPhotosState.value.getOrNull(idx)?.photoId
+                                                    }.toSet()
+
+                                            val currentSelection = updatedSelectedPhotos.value.keys
+                                            val targetSelection =
+                                                if (isDeselectDrag) {
+                                                    initialSelection - photoIdsInRange
+                                                } else {
+                                                    initialSelection + photoIdsInRange
+                                                }
+
+                                            val diff = currentSelection.symmetricDifference(targetSelection)
+                                            diff.forEach { photoId ->
+                                                allPhotosState.value.find { it.photoId == photoId }?.let { photoToToggle ->
+                                                    selectImageViewModel.togglePhoto(photoToToggle)
+                                                }
                                             }
                                         }
 

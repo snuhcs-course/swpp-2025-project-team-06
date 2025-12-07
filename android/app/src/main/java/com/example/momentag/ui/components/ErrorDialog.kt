@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -133,7 +134,13 @@ fun ErrorDialog(
                                 containerColor = MaterialTheme.colorScheme.surface,
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .shadow(
+                                    elevation = Dimen.ButtonShadowElevation,
+                                    shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
+                                ),
                         shape = RoundedCornerShape(Dimen.ButtonCornerRadius),
                     ) {
                         Text(
@@ -456,6 +463,20 @@ fun RenameTagDialog(
                             isError = isNameTooLong,
                             placeholder = { Text(stringResource(R.string.field_tag_name)) },
                             modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                if (editedTagName.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = { editedTagName = "" },
+                                        modifier = Modifier.size(Dimen.IconButtonSizeSmall),
+                                    ) {
+                                        StandardIcon.Icon(
+                                            imageVector = Icons.Default.Close,
+                                            intent = IconIntent.Muted,
+                                            contentDescription = stringResource(R.string.cd_clear_text),
+                                        )
+                                    }
+                                }
+                            },
                             colors =
                                 TextFieldDefaults.colors(
                                     // Background color transparent
@@ -493,8 +514,10 @@ fun RenameTagDialog(
                             },
                             colors =
                                 ButtonDefaults.buttonColors(
-                                    containerColor = Color.White,
-                                    contentColor = MaterialTheme.colorScheme.primary,
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                                 ),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(Dimen.ButtonCornerRadius),

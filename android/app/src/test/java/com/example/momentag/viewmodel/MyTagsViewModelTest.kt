@@ -30,14 +30,18 @@ class MyTagsViewModelTest {
     private lateinit var viewModel: MyTagsViewModel
     private lateinit var remoteRepository: RemoteRepository
     private lateinit var photoSelectionRepository: PhotoSelectionRepository
+    private lateinit var sortPreferences: com.example.momentag.data.SortPreferences
 
     @Before
     fun setUp() {
         remoteRepository = mockk(relaxed = true)
         photoSelectionRepository = mockk(relaxed = true)
+        sortPreferences = mockk(relaxed = true)
 
         // Mock photoSelectionRepository.selectedPhotos flow
         every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(emptyMap())
+        // Mock sortPreferences
+        every { sortPreferences.getSortOrder() } returns TagSortOrder.CREATED_DESC
     }
 
     private fun createViewModel() {
@@ -45,6 +49,7 @@ class MyTagsViewModelTest {
             MyTagsViewModel(
                 remoteRepository,
                 photoSelectionRepository,
+                sortPreferences,
             )
     }
 

@@ -155,6 +155,7 @@ fun SearchResultScreen(
     var isSelectionModeDelay by remember { mutableStateOf(false) }
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
     var previousQuery by remember { mutableStateOf<String?>(null) }
+    var savedQuery by rememberSaveable { mutableStateOf(initialQuery) }
 
     // 5. Derived 상태 및 계산된 값
     val allTags = tags
@@ -193,6 +194,26 @@ fun SearchResultScreen(
         }
     }
 
+    // Update saved query when search is performed
+    LaunchedEffect(semanticSearchState) {
+        if (semanticSearchState is SearchViewModel.SemanticSearchState.Success) {
+            savedQuery = (semanticSearchState as SearchViewModel.SemanticSearchState.Success).query
+        }
+    }
+
+    // Restore query when tags are loaded or saved query exists
+    LaunchedEffect(tags, savedQuery) {
+        if (savedQuery.isNotEmpty() && tags.isNotEmpty()) {
+            val hasContent =
+                contentItems.any { it is SearchContentElement.Chip } ||
+                    textStates.values.any { it.text.replace("\u200B", "").isNotEmpty() }
+
+            if (!hasContent) {
+                searchBarState.selectHistoryItem(savedQuery, tags)
+            }
+        }
+    }
+
     // Scroll restoration: restore scroll position when returning from ImageDetailScreen
     LaunchedEffect(scrollToIndex) {
         scrollToIndex?.let { index ->
@@ -209,6 +230,8 @@ fun SearchResultScreen(
             // Don't scroll when query is the same (pagination)
             if (previousQuery != null && previousQuery != currentQuery) {
                 gridState.scrollToItem(0)
+                searchViewModel.resetSelection()
+                searchViewModel.setSelectionMode(false)
             }
             previousQuery = currentQuery
         }
@@ -375,12 +398,6 @@ fun SearchResultScreen(
     LaunchedEffect(initialQuery, hasPerformedInitialSearch) {
         if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch) {
             searchViewModel.search(initialQuery)
-        }
-    }
-
-    LaunchedEffect(initialQuery, hasPerformedInitialSearch, tags) {
-        if (initialQuery.isNotEmpty() && !hasPerformedInitialSearch && tags.isNotEmpty()) {
-            searchBarState.selectHistoryItem(initialQuery, tags)
             hasPerformedInitialSearch = true
         }
     }
@@ -1015,8 +1032,8 @@ private fun SearchResultsFromState(
                             val autoScrollViewport = 80.dp.toPx()
                             var autoScrollJob: Job? = null
                             var dragAnchorIndex: Int? = null
-                            val gestureSelectionIds = mutableSetOf<String>()
-                            val lastRangePhotoIds = mutableSetOf<String>()
+                            var isDeselectDrag by mutableStateOf(false)
+                            val initialSelection = mutableSetOf<String>()
 
                             fun findNearestItemByRow(position: Offset): Int? {
                                 var best: Pair<Int, Float>? = null
@@ -1044,54 +1061,26 @@ private fun SearchResultsFromState(
                                 return best?.first
                             }
 
-                            fun applyRangeSelection(newRangePhotoIds: Set<String>) {
-                                val toSelect = newRangePhotoIds - gestureSelectionIds
-                                val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
-
-                                toSelect.forEach { id ->
-                                    allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnToggleImageSelection.value(photo)
-                                        gestureSelectionIds.add(id)
-                                    }
-                                }
-                                toDeselect.forEach { id ->
-                                    allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnToggleImageSelection.value(photo)
-                                        gestureSelectionIds.remove(id)
-                                    }
-                                }
-
-                                lastRangePhotoIds.clear()
-                                lastRangePhotoIds.addAll(newRangePhotoIds)
-                            }
-
                             detectDragAfterLongPressIgnoreConsumed(
                                 onDragStart = { offset ->
                                     autoScrollJob?.cancel()
-                                    gestureSelectionIds.clear()
-                                    gestureSelectionIds.addAll(updatedSelectedPhotos.value.keys)
-                                    lastRangePhotoIds.clear()
                                     if (!updatedIsSelectionMode.value) {
                                         updatedOnImageLongPress.value()
                                     }
                                     gridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
+                                        initialSelection.clear()
+                                        initialSelection.addAll(updatedSelectedPhotos.value.keys)
+                                        isDeselectDrag = initialSelection.contains(photoId)
                                         dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                        if (gestureSelectionIds.add(photoId) || !updatedSelectedPhotos.value.containsKey(photo.photoId)) {
-                                            updatedOnToggleImageSelection.value(photo)
-                                        }
-                                        lastRangePhotoIds.add(photoId)
+                                        updatedOnToggleImageSelection.value(photo)
                                     }
                                 },
                                 onDragEnd = {
                                     dragAnchorIndex = null
-                                    lastRangePhotoIds.clear()
-                                    gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                 },
                                 onDragCancel = {
                                     dragAnchorIndex = null
-                                    lastRangePhotoIds.clear()
-                                    gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                 },
                                 onDrag = { change ->
@@ -1115,13 +1104,25 @@ private fun SearchResultsFromState(
                                                 currentIndex..startIndex
                                             }
 
-                                        val newRangePhotoIds =
+                                        val photoIdsInRange =
                                             range
                                                 .mapNotNull { idx ->
                                                     allPhotos.getOrNull(idx)?.photoId
                                                 }.toSet()
-                                        if (newRangePhotoIds.isNotEmpty()) {
-                                            applyRangeSelection(newRangePhotoIds)
+
+                                        val currentSelection = updatedSelectedPhotos.value.keys
+                                        val targetSelection =
+                                            if (isDeselectDrag) {
+                                                initialSelection - photoIdsInRange
+                                            } else {
+                                                initialSelection + photoIdsInRange
+                                            }
+
+                                        val diff = currentSelection.symmetricDifference(targetSelection)
+                                        diff.forEach { photoId ->
+                                            allPhotos.find { it.photoId == photoId }?.let { photoToToggle ->
+                                                updatedOnToggleImageSelection.value(photoToToggle)
+                                            }
                                         }
                                     }
 
@@ -1257,3 +1258,5 @@ private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
         }
     }
 }
+
+private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> = (this - other) + (other - this)

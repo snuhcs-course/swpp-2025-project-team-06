@@ -236,6 +236,7 @@ fun TagChipWithCount(
     Row(
         modifier =
             modifier
+                .widthIn(max = Dimen.TagChipMaxWidth)
                 .height(Dimen.TagHeight)
                 .background(color = color, shape = RoundedCornerShape(Dimen.TagCornerRadius))
                 .pointerInput(Unit) {
@@ -583,7 +584,12 @@ fun ConfirmableRecommendedTag(
     color: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
     // 클릭 시 즉시 추가 (confirm 단계 제거)
-    Box(modifier = Modifier.clickable { onConfirm(tagName) }) {
+    Box(
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(Dimen.Radius50))
+                .clickable { onConfirm(tagName) },
+    ) {
         tagRecommended(text = tagName, color = color)
     }
 }

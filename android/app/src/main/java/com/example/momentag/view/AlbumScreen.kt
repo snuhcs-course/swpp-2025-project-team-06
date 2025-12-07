@@ -811,8 +811,6 @@ private fun AlbumGridArea(
             }
             is AlbumViewModel.AlbumLoadingState.Success -> {
                 val photos = albumLoadState.photos
-
-                val selectedTagAlbumPhotoIds = selectedTagAlbumPhotos.keys
                 val updatedSelectedPhotos = rememberUpdatedState(selectedTagAlbumPhotos)
                 val updatedIsSelectionMode = rememberUpdatedState(isTagAlbumPhotoSelectionMode)
                 val allPhotosState = rememberUpdatedState(photos)
@@ -824,8 +822,8 @@ private fun AlbumGridArea(
                             val autoScrollViewport = 80.dp.toPx()
                             var autoScrollJob: Job? = null
                             var dragAnchorIndex: Int? = null
-                            var gestureSelectionIds: MutableSet<String> = mutableSetOf()
-                            val lastRangePhotoIds = mutableSetOf<String>()
+                            var isDeselectDrag by mutableStateOf(false)
+                            val initialSelection = mutableSetOf<String>()
 
                             fun findNearestItemByRow(position: Offset): Int? {
                                 var best: Pair<Int, Float>? = null // index to horizontal distance
@@ -853,57 +851,29 @@ private fun AlbumGridArea(
                                 return best?.first
                             }
 
-                            fun applyRangeSelection(newRangePhotoIds: Set<String>) {
-                                val toSelect = newRangePhotoIds - gestureSelectionIds
-                                val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
-
-                                toSelect.forEach { id ->
-                                    allPhotosState.value.find { it.photoId == id }?.let { photo ->
-                                        onToggleTagAlbumPhoto(photo)
-                                        gestureSelectionIds.add(id)
-                                    }
-                                }
-                                toDeselect.forEach { id ->
-                                    allPhotosState.value.find { it.photoId == id }?.let { photo ->
-                                        onToggleTagAlbumPhoto(photo)
-                                        gestureSelectionIds.remove(id)
-                                    }
-                                }
-
-                                lastRangePhotoIds.clear()
-                                lastRangePhotoIds.addAll(newRangePhotoIds)
-                            }
-
                             detectDragAfterLongPressIgnoreConsumed(
                                 onDragStart = { offset ->
                                     autoScrollJob?.cancel()
-                                    gestureSelectionIds = updatedSelectedPhotos.value.keys.toMutableSet()
-                                    lastRangePhotoIds.clear()
                                     if (!updatedIsSelectionMode.value) {
                                         onSetTagAlbumPhotoSelectionMode(true)
                                     }
                                     onDragSelectionStart()
+
                                     gridState.findPhotoItemAtPosition(offset, allPhotosState.value)?.let { (photoId, photo) ->
+                                        initialSelection.clear()
+                                        initialSelection.addAll(updatedSelectedPhotos.value.keys)
+                                        isDeselectDrag = initialSelection.contains(photoId)
                                         dragAnchorIndex = allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                        if (gestureSelectionIds.add(photoId) ||
-                                            !updatedSelectedPhotos.value.containsKey(photoId)
-                                        ) {
-                                            onToggleTagAlbumPhoto(photo)
-                                        }
-                                        lastRangePhotoIds.add(photoId)
+                                        onToggleTagAlbumPhoto(photo)
                                     }
                                 },
                                 onDragEnd = {
                                     dragAnchorIndex = null
-                                    lastRangePhotoIds.clear()
-                                    gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                     onDragSelectionEnd()
                                 },
                                 onDragCancel = {
                                     dragAnchorIndex = null
-                                    lastRangePhotoIds.clear()
-                                    gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                     onDragSelectionEnd()
                                 },
@@ -928,13 +898,25 @@ private fun AlbumGridArea(
                                                 currentIndex..startIndex
                                             }
 
-                                        val newRangePhotoIds =
+                                        val photoIdsInRange =
                                             range
                                                 .mapNotNull { idx ->
                                                     allPhotosState.value.getOrNull(idx)?.photoId
                                                 }.toSet()
-                                        if (newRangePhotoIds.isNotEmpty()) {
-                                            applyRangeSelection(newRangePhotoIds)
+
+                                        val currentSelection = updatedSelectedPhotos.value.keys
+                                        val targetSelection =
+                                            if (isDeselectDrag) {
+                                                initialSelection - photoIdsInRange
+                                            } else {
+                                                initialSelection + photoIdsInRange
+                                            }
+
+                                        val diff = currentSelection.symmetricDifference(targetSelection)
+                                        diff.forEach { photoId ->
+                                            allPhotosState.value.find { it.photoId == photoId }?.let { photoToToggle ->
+                                                onToggleTagAlbumPhoto(photoToToggle)
+                                            }
                                         }
                                     }
 
@@ -1001,9 +983,8 @@ private fun AlbumGridArea(
                                 photo = photo,
                                 navController = navController,
                                 isSelectionMode = isTagAlbumPhotoSelectionMode,
-                                isSelected = selectedTagAlbumPhotoIds.contains(photo.photoId),
+                                isSelected = selectedTagAlbumPhotos.containsKey(photo.photoId),
                                 onToggleSelection = { onToggleTagAlbumPhoto(photo) },
-                                // 롱프레스는 부모(pointerInput)에서 처리 (onLongPress는 사용하지 않음)
                                 onLongPress = {},
                             )
                         }
@@ -1129,11 +1110,8 @@ private fun RecommendExpandedPanel(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val selectedRecommendPhotoIds = selectedRecommendPhotos.keys
-    // 터치이벤트 뒤로 전달 되지 않도록
     val interactionSource = remember { MutableInteractionSource() }
 
-    // 오버드래그 시 시각적 피드백: 패널 높이를 줄이고 투명도 조절
     val dismissProgress = (overDragAmount / Dimen.PanelOverDragProgressBase).coerceIn(0f, 1f)
     val visualHeight = panelHeight - (overDragAmount * 0.5f).coerceAtMost(Dimen.PanelOverDragMaxHeightReduction)
     val surfaceAlpha = (0.95f - dismissProgress * 0.3f).coerceIn(0.65f, 0.95f)
@@ -1152,7 +1130,6 @@ private fun RecommendExpandedPanel(
                 ).clip(RoundedCornerShape(topStart = Dimen.SearchBarCornerRadius, topEnd = Dimen.SearchBarCornerRadius)),
     ) {
         Column {
-            // Drag handle + Header 영역 (드래그 가능)
             Column(
                 modifier =
                     Modifier
@@ -1173,7 +1150,6 @@ private fun RecommendExpandedPanel(
                             onClick = { /* 클릭 효과 없음 */ },
                         ),
             ) {
-                // Drag handle
                 Box(
                     modifier =
                         Modifier
@@ -1193,7 +1169,6 @@ private fun RecommendExpandedPanel(
                     )
                 }
 
-                // Header
                 Row(
                     modifier =
                         Modifier
@@ -1206,7 +1181,6 @@ private fun RecommendExpandedPanel(
                         recommendLoadState.photos.isNotEmpty() &&
                         selectedRecommendPhotos.isNotEmpty()
                     ) {
-                        // 사진 선택 시: Add와 Cancel 버튼
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(Dimen.ItemSpacingSmall),
                             verticalAlignment = Alignment.CenterVertically,
@@ -1271,7 +1245,6 @@ private fun RecommendExpandedPanel(
             }
 
             Column(modifier = Modifier.padding(horizontal = Dimen.ScreenHorizontalPadding)) {
-                // Grid / states
                 when (recommendLoadState) {
                     is AlbumViewModel.RecommendLoadingState.Idle,
                     is AlbumViewModel.RecommendLoadingState.Loading,
@@ -1305,11 +1278,153 @@ private fun RecommendExpandedPanel(
                                 )
                             }
                         } else {
+                            val recommendGridState = rememberLazyGridState()
+                            val updatedSelectedPhotos = rememberUpdatedState(selectedRecommendPhotos)
+                            val allPhotosState = rememberUpdatedState(recommendPhotos)
+
+                            val gridGestureModifier =
+                                Modifier.pointerInput(Unit) {
+                                    coroutineScope {
+                                        val pointerScope = this
+                                        val autoScrollViewport = 80.dp.toPx()
+                                        var autoScrollJob: Job? = null
+                                        var dragAnchorIndex: Int? = null
+                                        var isDeselectDrag by mutableStateOf(false)
+                                        val initialSelection = mutableSetOf<String>()
+
+                                        fun findNearestItemByRow(position: Offset): Int? {
+                                            var best: Pair<Int, Float>? = null
+                                            recommendGridState.layoutInfo.visibleItemsInfo.forEach { itemInfo ->
+                                                val key = itemInfo.key as? String ?: return@forEach
+                                                val photoIndex = allPhotosState.value.indexOfFirst { it.photoId == key }
+                                                if (photoIndex >= 0) {
+                                                    val top = itemInfo.offset.y.toFloat()
+                                                    val bottom = (itemInfo.offset.y + itemInfo.size.height).toFloat()
+                                                    if (position.y in top..bottom) {
+                                                        val left = itemInfo.offset.x.toFloat()
+                                                        val right = (itemInfo.offset.x + itemInfo.size.width).toFloat()
+                                                        val dist =
+                                                            when {
+                                                                position.x < left -> left - position.x
+                                                                position.x > right -> position.x - right
+                                                                else -> 0f
+                                                            }
+                                                        if (best == null || dist < best!!.second) {
+                                                            best = photoIndex to dist
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            return best?.first
+                                        }
+
+                                        detectDragAfterLongPressIgnoreConsumed(
+                                            onDragStart = { offset ->
+                                                autoScrollJob?.cancel()
+                                                recommendGridState
+                                                    .findPhotoItemAtPosition(
+                                                        offset,
+                                                        allPhotosState.value,
+                                                    )?.let { (photoId, photo) ->
+                                                        initialSelection.clear()
+                                                        initialSelection.addAll(updatedSelectedPhotos.value.keys)
+                                                        isDeselectDrag = initialSelection.contains(photoId)
+                                                        dragAnchorIndex =
+                                                            allPhotosState.value.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
+                                                        onToggleRecommendPhoto(photo)
+                                                    }
+                                            },
+                                            onDragEnd = {
+                                                dragAnchorIndex = null
+                                                autoScrollJob?.cancel()
+                                            },
+                                            onDragCancel = {
+                                                dragAnchorIndex = null
+                                                autoScrollJob?.cancel()
+                                            },
+                                            onDrag = { change ->
+                                                change.consume()
+                                                val currentItem =
+                                                    recommendGridState.findPhotoItemAtPosition(
+                                                        change.position,
+                                                        allPhotosState.value,
+                                                    )
+                                                val currentIndex =
+                                                    currentItem
+                                                        ?.first
+                                                        ?.let { id ->
+                                                            allPhotosState.value.indexOfFirst { it.photoId == id }
+                                                        }?.takeIf { it >= 0 }
+                                                        ?: findNearestItemByRow(change.position)
+
+                                                if (currentIndex != null) {
+                                                    if (dragAnchorIndex == null) dragAnchorIndex = currentIndex
+                                                    val startIndex = dragAnchorIndex ?: currentIndex
+                                                    val range =
+                                                        if (currentIndex >= startIndex) {
+                                                            startIndex..currentIndex
+                                                        } else {
+                                                            currentIndex..startIndex
+                                                        }
+
+                                                    val photoIdsInRange =
+                                                        range
+                                                            .mapNotNull { idx ->
+                                                                allPhotosState.value.getOrNull(idx)?.photoId
+                                                            }.toSet()
+
+                                                    val currentSelection = updatedSelectedPhotos.value.keys
+                                                    val targetSelection =
+                                                        if (isDeselectDrag) {
+                                                            initialSelection - photoIdsInRange
+                                                        } else {
+                                                            initialSelection + photoIdsInRange
+                                                        }
+
+                                                    val diff = currentSelection.symmetricDifference(targetSelection)
+                                                    diff.forEach { photoId ->
+                                                        allPhotosState.value.find { it.photoId == photoId }?.let { photoToToggle ->
+                                                            onToggleRecommendPhoto(photoToToggle)
+                                                        }
+                                                    }
+                                                }
+
+                                                val viewportHeight =
+                                                    recommendGridState.layoutInfo.viewportSize.height
+                                                        .toFloat()
+                                                val pointerY = change.position.y
+
+                                                val scrollAmount =
+                                                    when {
+                                                        pointerY < autoScrollViewport -> -50f
+                                                        pointerY > viewportHeight - autoScrollViewport -> 50f
+                                                        else -> 0f
+                                                    }
+
+                                                if (scrollAmount != 0f) {
+                                                    if (autoScrollJob?.isActive != true) {
+                                                        autoScrollJob =
+                                                            pointerScope.launch {
+                                                                while (true) {
+                                                                    recommendGridState.scrollBy(scrollAmount)
+                                                                    delay(50)
+                                                                }
+                                                            }
+                                                    }
+                                                } else {
+                                                    autoScrollJob?.cancel()
+                                                }
+                                            },
+                                        )
+                                    }
+                                }
+
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
+                                state = recommendGridState,
                                 horizontalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
                                 verticalArrangement = Arrangement.spacedBy(Dimen.GridItemSpacing),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).then(gridGestureModifier),
                                 userScrollEnabled = true,
                             ) {
                                 items(
@@ -1320,7 +1435,7 @@ private fun RecommendExpandedPanel(
                                         photo = recommendPhotos[idx],
                                         navController = navController,
                                         isSelectionMode = true,
-                                        isSelected = selectedRecommendPhotoIds.contains(recommendPhotos[idx].photoId),
+                                        isSelected = selectedRecommendPhotos.containsKey(recommendPhotos[idx].photoId),
                                         onToggleSelection = { onToggleRecommendPhoto(recommendPhotos[idx]) },
                                         onLongPress = {},
                                     )
@@ -1401,3 +1516,5 @@ private fun LazyGridState.findPhotoItemAtPosition(
     }
     return null
 }
+
+private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> = (this - other) + (other - this)

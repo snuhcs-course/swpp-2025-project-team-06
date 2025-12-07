@@ -11,6 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import javax.inject.Inject
 
 @HiltViewModel
@@ -19,6 +23,7 @@ class MyTagsViewModel
     constructor(
         private val remoteRepository: RemoteRepository,
         private val photoSelectionRepository: PhotoSelectionRepository,
+        private val sortPreferences: com.example.momentag.data.SortPreferences,
     ) : ViewModel() {
         // 1. state class 정의
         sealed class MyTagsUiState {
@@ -84,7 +89,7 @@ class MyTagsViewModel
         private val _uiState = MutableStateFlow<MyTagsUiState>(MyTagsUiState.Loading)
         private val _isEditMode = MutableStateFlow(false)
         private val _selectedTagsForBulkEdit = MutableStateFlow<Set<String>>(emptySet())
-        private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
+        private val _sortOrder = MutableStateFlow(sortPreferences.getSortOrder())
         private val _tagActionState = MutableStateFlow<TagActionState>(TagActionState.Idle)
         private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
 
@@ -139,7 +144,8 @@ class MyTagsViewModel
                                 TagCntData(
                                     tagId = tagResponse.tagId,
                                     tagName = tagResponse.tagName,
-                                    count = tagResponse.photoCount ?: 0,
+                                    count = tagResponse.photoCount,
+                                    updatedAt = tagResponse.updatedAt,
                                 )
                             }
 
@@ -176,7 +182,9 @@ class MyTagsViewModel
         }
 
         fun setSortOrder(order: TagSortOrder) {
+            if (_sortOrder.value == order) return
             _sortOrder.value = order
+            sortPreferences.setSortOrder(order)
             applySorting()
         }
 
@@ -301,12 +309,34 @@ class MyTagsViewModel
         }
 
         // 7. Private functions (helpers)
+        private fun parseDate(dateStr: String?): Date? {
+            if (dateStr == null) return null
+
+            val formatStrings =
+                listOf(
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+                    "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                )
+
+            for (format in formatStrings) {
+                try {
+                    val sdf = SimpleDateFormat(format, Locale.US)
+                    sdf.timeZone = TimeZone.getTimeZone("UTC")
+                    return sdf.parse(dateStr)
+                } catch (e: Exception) {
+                    continue
+                }
+            }
+            return null
+        }
+
         private fun applySorting() {
             val sortedTags =
                 when (_sortOrder.value) {
                     TagSortOrder.NAME_ASC -> allTags.sortedBy { it.tagName }
                     TagSortOrder.NAME_DESC -> allTags.sortedByDescending { it.tagName }
-                    TagSortOrder.CREATED_DESC -> allTags // 서버에서 최근순으로 옴
+                    TagSortOrder.CREATED_DESC -> allTags.sortedByDescending { parseDate(it.updatedAt) }
                     TagSortOrder.COUNT_DESC -> allTags.sortedByDescending { it.count }
                     TagSortOrder.COUNT_ASC -> allTags.sortedBy { it.count }
                 }

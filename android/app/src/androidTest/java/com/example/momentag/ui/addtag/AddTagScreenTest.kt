@@ -349,4 +349,118 @@ class AddTagScreenTest {
 
         composeTestRule.onNodeWithText(longTagName).assertIsDisplayed()
     }
+
+    @Test
+    fun addTagScreen_whitespaceTagName_doneButtonIsDisabled() {
+        val testPhotos = listOf(createTestPhoto("1"))
+        val whitespaceTagName = "   "
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+        val done = composeTestRule.activity.getString(R.string.action_done)
+
+        vm.initialize(null, testPhotos)
+        setContent()
+
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(whitespaceTagName)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(done).assertIsNotEnabled()
+    }
+
+    @Test
+    fun addTagScreen_deselectPhoto_disablesDoneButton() {
+        val testPhotos = listOf(createTestPhoto("1"))
+        val tagName = "My Tag"
+        val photoItemDescription = composeTestRule.activity.getString(R.string.cd_photo_item, "1")
+        val done = composeTestRule.activity.getString(R.string.action_done)
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+
+        vm.initialize(null, testPhotos)
+        setContent()
+
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(tagName)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(done).assertIsEnabled()
+
+        composeTestRule.onNodeWithContentDescription(photoItemDescription).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(done).assertIsNotEnabled()
+    }
+
+    @Test
+    fun addTagScreen_tagNameTooLong_doneButtonIsDisabled() {
+        val testPhotos = listOf(createTestPhoto("1"))
+        val longTagName = "A".repeat(26)
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+        val done = composeTestRule.activity.getString(R.string.action_done)
+
+        vm.initialize(null, testPhotos)
+        setContent()
+
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(longTagName)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(done).assertIsNotEnabled()
+    }
+
+    @Test
+    fun addTagScreen_exactlyMaxLength_doneButtonIsEnabled() {
+        val testPhotos = listOf(createTestPhoto("1"))
+        val maxLengthTagName = "A".repeat(25)
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+        val done = composeTestRule.activity.getString(R.string.action_done)
+
+        vm.initialize(null, testPhotos)
+        setContent()
+
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(maxLengthTagName)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(done).assertIsEnabled()
+    }
+
+    @Test
+    fun addTagScreen_trimmedTagName_isHandled() {
+        val testPhotos = listOf(createTestPhoto("1"))
+        val tagNameWithSpaces = "  My Tag  "
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+        val done = composeTestRule.activity.getString(R.string.action_done)
+
+        vm.initialize(null, testPhotos)
+        setContent()
+
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(tagNameWithSpaces)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(done).assertIsEnabled()
+    }
+
+    @Test
+    fun addTagScreen_removeAllPhotos_doneButtonIsDisabled() {
+        val testPhotos = listOf(createTestPhoto("1"), createTestPhoto("2"))
+        val tagName = "Test"
+        val enterTagName = composeTestRule.activity.getString(R.string.field_enter_tag_name)
+        val done = composeTestRule.activity.getString(R.string.action_done)
+
+        vm.initialize(null, testPhotos)
+        setContent()
+
+        composeTestRule.onNodeWithText(enterTagName).performTextInput(tagName)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(done).assertIsEnabled()
+
+        val photoItem1 = composeTestRule.activity.getString(R.string.cd_photo_item, "1")
+        composeTestRule.onNodeWithContentDescription(photoItem1).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(done).assertIsEnabled()
+
+        val photoItem2 = composeTestRule.activity.getString(R.string.cd_photo_item, "2")
+        composeTestRule.onNodeWithContentDescription(photoItem2).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(done).assertIsNotEnabled()
+    }
 }

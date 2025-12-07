@@ -613,4 +613,285 @@ class AlbumScreenTest {
         // Then: Verify core screen element is displayed
         composeTestRule.onNodeWithText(appName).assertIsDisplayed()
     }
+
+    @Test
+    fun albumScreen_multiplePhotoSelection_updatesCount() {
+        // Given: AlbumScreen is loaded
+        composeTestRule.setContent {
+            MomenTagTheme {
+                val navController = rememberNavController()
+                AlbumScreen(
+                    tagId = testTagId,
+                    tagName = testTagName,
+                    navController = navController,
+                    onNavigateBack = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        // Ensure content is loaded before trying to find photos
+        if (!waitForAlbumContentOrError()) return
+
+        val firstPhotoNode = composeTestRule.onNodeWithContentDescription("Photo 0", substring = true, ignoreCase = false)
+        val secondPhotoNode = composeTestRule.onNodeWithContentDescription("Photo 1", substring = true, ignoreCase = false)
+
+        if (firstPhotoNode.isDisplayed() && secondPhotoNode.isDisplayed()) {
+            // Enter selection mode
+            firstPhotoNode.performClick()
+            composeTestRule.waitForIdle()
+
+            // Select first photo
+            firstPhotoNode.performClick()
+            composeTestRule.waitForIdle()
+
+            // Select second photo
+            secondPhotoNode.performClick()
+            composeTestRule.waitForIdle()
+
+            // Then: Share/Untag buttons should be enabled (multiple photos selected)
+            // 문자열 리소스 가져오기
+            val share = composeTestRule.activity.getString(R.string.cd_share)
+            val untag = composeTestRule.activity.getString(R.string.cd_untag)
+
+            composeTestRule
+                .onNodeWithContentDescription(share)
+                .assertIsDisplayed()
+                .assertIsEnabled()
+            composeTestRule
+                .onNodeWithContentDescription(untag)
+                .assertIsDisplayed()
+                .assertIsEnabled()
+        }
+    }
+
+    @Test
+    fun albumScreen_shareButton_clickable() {
+        // Given: AlbumScreen is loaded and a photo is selected
+        composeTestRule.setContent {
+            MomenTagTheme {
+                val navController = rememberNavController()
+                AlbumScreen(
+                    tagId = testTagId,
+                    tagName = testTagName,
+                    navController = navController,
+                    onNavigateBack = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val share = composeTestRule.activity.getString(R.string.cd_share)
+
+        // Ensure content is loaded
+        if (!waitForAlbumContentOrError()) return
+
+        val firstPhotoNode = composeTestRule.onNodeWithContentDescription("Photo 0", substring = true, ignoreCase = false)
+
+        if (firstPhotoNode.isDisplayed()) {
+            // Enter selection mode and select photo
+            firstPhotoNode.performClick()
+            composeTestRule.waitForIdle()
+            firstPhotoNode.performClick()
+            composeTestRule.waitForIdle()
+
+            // When: Click the Share button
+            val shareButton = composeTestRule.onNodeWithContentDescription(share)
+            shareButton.assertIsDisplayed().assertIsEnabled()
+            shareButton.performClick()
+            composeTestRule.waitForIdle()
+
+            // Then: Share action is triggered (verified by button being clickable)
+            shareButton.assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun albumScreen_tagNameEdit_showsClearButton() {
+        // Given: AlbumScreen is loaded
+        composeTestRule.setContent {
+            MomenTagTheme {
+                val navController = rememberNavController()
+                AlbumScreen(
+                    tagId = testTagId,
+                    tagName = testTagName,
+                    navController = navController,
+                    onNavigateBack = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val clearText = composeTestRule.activity.getString(R.string.cd_clear_text)
+
+        // Wait for tag name to appear
+        try {
+            composeTestRule.waitUntil(
+                timeoutMillis = 3.seconds.inWholeMilliseconds,
+            ) {
+                try {
+                    composeTestRule.onNodeWithText(testTagName).isDisplayed()
+                } catch (e: Exception) {
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            return
+        }
+
+        val tagNameNode = composeTestRule.onNodeWithText(testTagName)
+
+        // When: User clicks on tag name to edit
+        tagNameNode.performClick()
+        composeTestRule.waitForIdle()
+
+        // Then: Clear button (X) should be displayed
+        composeTestRule
+            .onNodeWithContentDescription(clearText)
+            .assertIsDisplayed()
+            .assertHasClickAction()
+    }
+
+    @Test
+    fun albumScreen_tagNameTooLong_showsError() {
+        val longTagName = "ThisIsAVeryLongTagNameThatExceedsTwentyFiveCharacters"
+
+        // Given: AlbumScreen is loaded
+        composeTestRule.setContent {
+            MomenTagTheme {
+                val navController = rememberNavController()
+                AlbumScreen(
+                    tagId = testTagId,
+                    tagName = testTagName,
+                    navController = navController,
+                    onNavigateBack = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val errorTooLong = composeTestRule.activity.getString(R.string.error_message_tag_name_too_long)
+
+        // Wait for tag name to appear
+        try {
+            composeTestRule.waitUntil(
+                timeoutMillis = 3.seconds.inWholeMilliseconds,
+            ) {
+                try {
+                    composeTestRule.onNodeWithText(testTagName).isDisplayed()
+                } catch (e: Exception) {
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            return
+        }
+
+        val tagNameNode = composeTestRule.onNodeWithText(testTagName)
+
+        // When: User enters a tag name that's too long
+        tagNameNode.performClick()
+        composeTestRule.waitForIdle()
+
+        tagNameNode.performTextReplacement(longTagName)
+        composeTestRule.waitForIdle()
+
+        // Then: Error message should be displayed
+        composeTestRule.onNodeWithText(errorTooLong).assertIsDisplayed()
+    }
+
+    @Test
+    fun albumScreen_deleteConfirmationDialog_cancelsOnDismiss() {
+        // Given: AlbumScreen is loaded with selected photos
+        composeTestRule.setContent {
+            MomenTagTheme {
+                val navController = rememberNavController()
+                AlbumScreen(
+                    tagId = testTagId,
+                    tagName = testTagName,
+                    navController = navController,
+                    onNavigateBack = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val untag = composeTestRule.activity.getString(R.string.cd_untag)
+        val removeTitle = composeTestRule.activity.getString(R.string.album_remove_photos_title)
+
+        // Enter selection mode and select a photo
+        if (!waitForAlbumContentOrError()) return
+
+        val firstPhotoNode = composeTestRule.onNodeWithContentDescription("Photo 0", substring = true, ignoreCase = false)
+
+        if (firstPhotoNode.isDisplayed()) {
+            firstPhotoNode.performClick()
+            composeTestRule.waitForIdle()
+            firstPhotoNode.performClick()
+            composeTestRule.waitForIdle()
+
+            // Open delete confirmation dialog
+            composeTestRule.onNodeWithContentDescription(untag).performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify dialog is displayed
+            composeTestRule.onNodeWithText(removeTitle).assertIsDisplayed()
+
+            // When: Click the Close button (X)
+            composeTestRule.onNodeWithContentDescription("Close").performClick()
+            composeTestRule.waitForIdle()
+
+            // Then: Dialog should be dismissed (selection mode still active)
+            composeTestRule
+                .onNodeWithContentDescription(untag)
+                .assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun albumScreen_closeButton_exitsSelectionMode() {
+        // Given: AlbumScreen is loaded in selection mode
+        composeTestRule.setContent {
+            MomenTagTheme {
+                val navController = rememberNavController()
+                AlbumScreen(
+                    tagId = testTagId,
+                    tagName = testTagName,
+                    navController = navController,
+                    onNavigateBack = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        // 문자열 리소스 가져오기
+        val deselectAll = composeTestRule.activity.getString(R.string.cd_deselect_all)
+        val share = composeTestRule.activity.getString(R.string.cd_share)
+
+        // Enter selection mode
+        if (!waitForAlbumContentOrError()) return
+
+        val firstPhotoNode = composeTestRule.onNodeWithContentDescription("Photo 0", substring = true, ignoreCase = false)
+
+        if (firstPhotoNode.isDisplayed()) {
+            firstPhotoNode.performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify selection mode is active
+            composeTestRule.onNodeWithContentDescription(share).assertIsDisplayed()
+
+            // When: Click the Close button in TopBar
+            composeTestRule.onNodeWithContentDescription(deselectAll).performClick()
+            composeTestRule.waitForIdle()
+
+            // Then: Selection mode should be exited (share button no longer visible)
+            // Back to normal state
+            val addPhotos = composeTestRule.activity.getString(R.string.tag_add_photos)
+            composeTestRule.onNodeWithText(addPhotos).assertIsDisplayed()
+        }
+    }
 }

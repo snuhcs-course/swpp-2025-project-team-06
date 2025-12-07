@@ -341,11 +341,9 @@ class SearchBarState(
         var lastIndex = 0
 
         tagRegex.findAll(query).forEach { matchResult ->
-            // Add text before tag
+            // Always add text before tag (even if empty) to allow spacing
             val textBefore = query.substring(lastIndex, matchResult.range.first)
-            if (textBefore.isNotEmpty()) {
-                elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = textBefore))
-            }
+            elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = textBefore))
 
             // Add tag chip
             val tagName = matchResult.groupValues[1]
@@ -359,20 +357,18 @@ class SearchBarState(
             lastIndex = matchResult.range.last + 1
         }
 
-        // Add remaining text
+        // Always add remaining text (even if empty) to allow spacing after last tag
         val remainingText = query.substring(lastIndex)
-        if (remainingText.isNotEmpty()) {
-            elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = remainingText))
-        }
+        elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = remainingText))
 
-        // Add empty text field if needed
-        if (elements.isEmpty() || elements.last() is SearchContentElement.Chip) {
-            elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = ""))
-        }
-
-        // If query had no tags
+        // If no tags were found and query is not empty
         if (elements.isEmpty() && query.isNotEmpty()) {
             elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = query))
+        }
+
+        // If still empty (e.g., empty query)
+        if (elements.isEmpty()) {
+            elements.add(SearchContentElement.Text(id = UUID.randomUUID().toString(), text = ""))
         }
 
         return elements

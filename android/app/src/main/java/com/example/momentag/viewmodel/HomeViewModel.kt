@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -49,6 +50,7 @@ class HomeViewModel
         private val photoSelectionRepository: PhotoSelectionRepository,
         private val imageBrowserRepository: ImageBrowserRepository,
         private val tagStateRepository: TagStateRepository,
+        private val sortPreferences: com.example.momentag.data.SortPreferences,
     ) : ViewModel() {
         // 1. Companion object
         companion object {
@@ -100,7 +102,7 @@ class HomeViewModel
         // 3. Private MutableStateFlow
         private val _isSelectionMode = MutableStateFlow(false)
         private val _isShowingAllPhotos = MutableStateFlow(false)
-        private val _sortOrder = MutableStateFlow(TagSortOrder.CREATED_DESC)
+        private val _sortOrder = MutableStateFlow(sortPreferences.getSortOrder())
         private val _homeDeleteState = MutableStateFlow<HomeDeleteState>(HomeDeleteState.Idle)
         private val _allPhotos = MutableStateFlow<List<Photo>>(emptyList())
         private val _isLoadingPhotos = MutableStateFlow(false)
@@ -123,12 +125,12 @@ class HomeViewModel
         // Observe sorted tags from TagStateRepository
         val homeLoadingState: StateFlow<HomeLoadingState> =
             tagStateRepository.loadingState
-                .map { tagState ->
+                .combine(_sortOrder) { tagState, sortOrder ->
                     when (tagState) {
                         is TagStateRepository.LoadingState.Idle -> HomeLoadingState.Idle
                         is TagStateRepository.LoadingState.Loading -> HomeLoadingState.Loading
                         is TagStateRepository.LoadingState.Success -> {
-                            val sortedTags = sortTags(tagState.tags, _sortOrder.value)
+                            val sortedTags = sortTags(tagState.tags, sortOrder)
                             HomeLoadingState.Success(sortedTags)
                         }
                         is TagStateRepository.LoadingState.Error -> {
@@ -309,8 +311,9 @@ class HomeViewModel
         }
 
         fun setSortOrder(newOrder: TagSortOrder) {
+            if (_sortOrder.value == newOrder) return
             _sortOrder.value = newOrder
-            // homeLoadingState will automatically update via the flow transformation
+            sortPreferences.setSortOrder(newOrder)
         }
 
         fun resetDeleteState() {

@@ -246,6 +246,8 @@ fun HomeScreen(
     var isCursorHidden by remember { mutableStateOf(false) }
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var previousImeBottom by remember { mutableStateOf(imeBottom) }
+    var titleClickCount by remember { mutableStateOf(0) }
+    var lastTitleClickTime by remember { mutableStateOf(0L) }
 
     // 5. Derived state and computed values
     val allTags = (homeLoadingState as? HomeViewModel.HomeLoadingState.Success)?.tags ?: emptyList()
@@ -693,7 +695,19 @@ fun HomeScreen(
         topBar = {
             CommonTopBar(
                 title = stringResource(R.string.app_name),
-                onTitleClick = null,
+                onTitleClick = {
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastTitleClickTime < 500) {
+                        titleClickCount++
+                        if (titleClickCount >= 3) {
+                            navController.navigate(Screen.Onboarding.route)
+                            titleClickCount = 0
+                        }
+                    } else {
+                        titleClickCount = 1
+                    }
+                    lastTitleClickTime = currentTime
+                },
                 showLogout = false,
                 onLogoutClick = null,
                 isLogoutLoading = false,
@@ -1362,8 +1376,8 @@ private fun MainContent(
                             val autoScrollViewport = 80.dp.toPx()
                             var autoScrollJob: Job? = null
                             var dragAnchorIndex: Int? = null
-                            val gestureSelectionIds = mutableSetOf<String>()
-                            val lastRangePhotoIds = mutableSetOf<String>()
+                            var isDeselectDrag by mutableStateOf(false)
+                            val initialSelection = mutableSetOf<String>()
 
                             fun findNearestItemByRow(position: Offset): Int? {
                                 var best: Pair<Int, Float>? = null
@@ -1391,54 +1405,27 @@ private fun MainContent(
                                 return best?.first
                             }
 
-                            fun applyRangeSelection(newRangePhotoIds: Set<String>) {
-                                val toSelect = newRangePhotoIds - gestureSelectionIds
-                                val toDeselect = (lastRangePhotoIds - newRangePhotoIds).intersect(gestureSelectionIds)
-
-                                toSelect.forEach { id ->
-                                    allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnItemSelectionToggle.value(photo)
-                                        gestureSelectionIds.add(id)
-                                    }
-                                }
-                                toDeselect.forEach { id ->
-                                    allPhotos.find { it.photoId == id }?.let { photo ->
-                                        updatedOnItemSelectionToggle.value(photo)
-                                        gestureSelectionIds.remove(id)
-                                    }
-                                }
-
-                                lastRangePhotoIds.clear()
-                                lastRangePhotoIds.addAll(newRangePhotoIds)
-                            }
-
                             detectDragAfterLongPressIgnoreConsumed(
                                 onDragStart = { offset ->
                                     autoScrollJob?.cancel()
-                                    gestureSelectionIds.clear()
-                                    gestureSelectionIds.addAll(updatedSelectedItems.value)
-                                    lastRangePhotoIds.clear()
                                     if (!updatedIsSelectionMode.value) {
                                         updatedOnEnterSelectionMode.value()
                                     }
+
                                     allPhotosGridState.findPhotoItemAtPosition(offset, allPhotos)?.let { (photoId, photo) ->
+                                        initialSelection.clear()
+                                        initialSelection.addAll(updatedSelectedItems.value)
+                                        isDeselectDrag = initialSelection.contains(photoId)
                                         dragAnchorIndex = allPhotos.indexOfFirst { it.photoId == photoId }.takeIf { it >= 0 }
-                                        if (gestureSelectionIds.add(photoId) || !updatedSelectedItems.value.contains(photoId)) {
-                                            updatedOnItemSelectionToggle.value(photo) // anchor select immediately
-                                        }
-                                        lastRangePhotoIds.add(photoId)
+                                        updatedOnItemSelectionToggle.value(photo)
                                     }
                                 },
                                 onDragEnd = {
                                     dragAnchorIndex = null
-                                    lastRangePhotoIds.clear()
-                                    gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                 },
                                 onDragCancel = {
                                     dragAnchorIndex = null
-                                    lastRangePhotoIds.clear()
-                                    gestureSelectionIds.clear()
                                     autoScrollJob?.cancel()
                                 },
                                 onDrag = { change ->
@@ -1462,13 +1449,25 @@ private fun MainContent(
                                                 currentIndex..startIndex
                                             }
 
-                                        val newRangePhotoIds =
+                                        val photoIdsInRange =
                                             range
                                                 .mapNotNull { idx ->
                                                     allPhotos.getOrNull(idx)?.photoId
                                                 }.toSet()
-                                        if (newRangePhotoIds.isNotEmpty()) {
-                                            applyRangeSelection(newRangePhotoIds)
+
+                                        val currentSelection = updatedSelectedItems.value
+                                        val targetSelection =
+                                            if (isDeselectDrag) {
+                                                initialSelection - photoIdsInRange
+                                            } else {
+                                                initialSelection + photoIdsInRange
+                                            }
+
+                                        val diff = currentSelection.symmetricDifference(targetSelection)
+                                        diff.forEach { photoId ->
+                                            allPhotos.find { it.photoId == photoId }?.let { photoToToggle ->
+                                                updatedOnItemSelectionToggle.value(photoToToggle)
+                                            }
                                         }
                                     }
 
@@ -2075,3 +2074,5 @@ private suspend fun PointerInputScope.detectDragAfterLongPressIgnoreConsumed(
         }
     }
 }
+
+private fun <T> Set<T>.symmetricDifference(other: Set<T>): Set<T> = (this - other) + (other - this)
