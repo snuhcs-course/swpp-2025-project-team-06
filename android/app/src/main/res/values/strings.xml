@@ -3,7 +3,7 @@
     <!-- APP IDENTITY -->
     <!-- ============================================ -->
     <string name="app_name">MomenTag</string>
-    <string name="app_title_with_hash">#MomenTag</string>
+    <string name="app_title_with_hash">MomenTag</string>
 
     <!-- ============================================ -->
     <!-- API CONFIGURATION -->
