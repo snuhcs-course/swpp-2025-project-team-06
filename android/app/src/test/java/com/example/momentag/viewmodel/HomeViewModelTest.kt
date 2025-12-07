@@ -39,6 +39,7 @@ class HomeViewModelTest {
     private lateinit var photoSelectionRepository: PhotoSelectionRepository
     private lateinit var imageBrowserRepository: ImageBrowserRepository
     private lateinit var tagStateRepository: TagStateRepository
+    private lateinit var sortPreferences: com.example.momentag.data.SortPreferences
 
     @Before
     fun setUp() {
@@ -48,10 +49,13 @@ class HomeViewModelTest {
         photoSelectionRepository = mockk(relaxed = true)
         imageBrowserRepository = mockk(relaxed = true)
         tagStateRepository = mockk(relaxed = true)
+        sortPreferences = mockk(relaxed = true)
 
         // Mock TagStateRepository loadingState flow
         every { tagStateRepository.loadingState } returns MutableStateFlow(TagStateRepository.LoadingState.Idle)
         every { photoSelectionRepository.selectedPhotos } returns MutableStateFlow(emptyMap())
+        // Mock sortPreferences
+        every { sortPreferences.getSortOrder() } returns TagSortOrder.CREATED_DESC
 
         viewModel =
             HomeViewModel(
@@ -61,6 +65,7 @@ class HomeViewModelTest {
                 photoSelectionRepository,
                 imageBrowserRepository,
                 tagStateRepository,
+                sortPreferences,
             )
 
         // Reset static flag for stories
@@ -380,6 +385,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             // Collect from homeLoadingState to trigger subscription
@@ -427,6 +433,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
@@ -469,6 +476,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
@@ -511,6 +519,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
@@ -553,6 +562,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
@@ -595,6 +605,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
@@ -638,6 +649,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
@@ -686,6 +698,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
@@ -726,6 +739,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
@@ -763,6 +777,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
@@ -806,6 +821,7 @@ class HomeViewModelTest {
                     photoSelectionRepository,
                     imageBrowserRepository,
                     tagStateRepository,
+                    sortPreferences,
                 )
 
             var latestState: HomeViewModel.HomeLoadingState? = null
